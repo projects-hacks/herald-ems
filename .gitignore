@@ -11,3 +11,4 @@ node_modules/
 .venv/
 # internal planning notes live outside this repo (../.agent) and must never be committed
 .agent/
+data/synth/
