@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Herald</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">HERALD <span class="tag">the patient's story arrives before the doors open</span></div>
+  <div class="status">
+    <span id="dispatch" class="pill">—</span>
+    <span id="net" class="pill ok">ED link: not configured</span>
+    <span class="pill ok">local AI ✓</span>
+    <span id="cloud" class="pill">cloud AI calls 0</span>
+    <span id="llm" class="pill dim">LLM: …</span>
+  </div>
+</header>
+
+<main>
+  <section id="summary" class="summary">Waiting for the call…</section>
+
+  <section id="readiness" class="readiness"></section>
+
+  <div class="grid">
+    <div class="col">
+      <section class="card">
+        <h2>Needs attention</h2>
+        <div id="missing"></div>
+      </section>
+      <section class="card">
+        <h2>Changed</h2>
+        <div id="changed" class="muted">No changes yet</div>
+      </section>
+      <section class="card">
+        <h2>Scores <span class="hint">published instruments · recomputed on every confirmed reading</span></h2>
+        <div id="scores"></div>
+      </section>
+    </div>
+    <div class="col">
+      <section class="card alerts-card">
+        <h2>Alerts</h2>
+        <div id="alerts" class="muted">None</div>
+      </section>
+      <section class="card">
+        <h2>ER status <span class="hint">what the hospital has · only confirmed facts leave the vehicle</span></h2>
+        <div id="er"></div>
+      </section>
+      <section class="card">
+        <h2>Running</h2>
+        <div id="clocks"></div>
+      </section>
+      <section class="card">
+        <h2>Patient picture <span class="hint">tap ▶ to hear where it came from</span></h2>
+        <div id="facts"></div>
+      </section>
+    </div>
+  </div>
+
+  <section class="card capture">
+    <div class="ptt-row">
+      <button id="ptt-medic" class="ptt">🎙 Medic <small>(hold · space)</small></button>
+      <button id="ptt-other" class="ptt other">🎙 Patient / family <small>(hold · F)</small></button>
+      <input id="speaker" placeholder="speaker label (e.g. daughter)" value="family member">
+      <span id="rec" class="rec"></span>
+    </div>
+    <form id="typed" class="typed">
+      <input id="typed-text" placeholder="…or type what was said and press Enter (testing)">
+      <select id="typed-by"><option value="medic">medic</option><option value="other">patient/family</option></select>
+    </form>
+    <details>
+      <summary>Simulated monitor (fallback / rehearsal)</summary>
+      <form id="monitor" class="monitor">
+        <label>SBP <input name="vitals.sbp" type="number"></label>
+        <label>DBP <input name="vitals.dbp" type="number"></label>
+        <label>HR <input name="vitals.hr" type="number"></label>
+        <label>RR <input name="vitals.rr" type="number"></label>
+        <label>SpO2 <input name="vitals.spo2" type="number"></label>
+        <label>Temp °C <input name="vitals.temp" type="number" step="0.1"></label>
+        <label>Glucose <input name="vitals.glucose" type="number"></label>
+        <label>O2 <select name="vitals.on_oxygen"><option value="">—</option><option value="false">room air</option><option value="true">oxygen</option></select></label>
+        <button>Send reading</button>
+      </form>
+    </details>
+    <details>
+      <summary>New incident</summary>
+      <form id="incident" class="monitor">
+        <label>Dispatch <select name="dispatch"><option>possible stroke</option><option>chest pain</option><option>fall</option><option value="">unknown</option></select></label>
+        <button>Start</button>
+      </form>
+    </details>
+    <div id="log" class="log"></div>
+  </section>
+</main>
+<audio id="player"></audio>
+<script src="/app.js"></script>
+</body>
+</html>

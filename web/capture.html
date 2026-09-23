@@ -1,0 +1,28 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Herald · camera</title>
+<style>
+body{margin:0;background:#0d1117;color:#e6edf3;font:18px/1.4 system-ui,sans-serif;padding:16px}
+h1{font-size:16px;letter-spacing:.12em;color:#8b949e;margin:0 0 14px}
+label.btn{display:block;background:#161b22;border:2px solid #30363d;border-radius:16px;padding:22px 18px;margin-bottom:12px;font-size:22px;font-weight:700}
+label.btn small{display:block;font-size:14px;font-weight:400;color:#8b949e}
+input[type=file]{display:none}
+#out{margin-top:10px;font-size:15px;color:#8b949e}#out b{color:#7ee787}
+</style></head><body>
+<h1>HERALD · POINT AND SHOOT</h1>
+<label class="btn">📟 Monitor / pulse oximeter<small>reads SpO2, pulse, BP</small><input type="file" accept="image/*" capture="environment" data-mode="monitor"></label>
+<label class="btn">💊 Pill bottle<small>reads the drug name; flags anticoagulants</small><input type="file" accept="image/*" capture="environment" data-mode="pill_bottle"></label>
+<label class="btn">📄 POLST / DNR form<small>reads the checked box; always needs your confirmation</small><input type="file" accept="image/*" capture="environment" data-mode="form"></label>
+<label class="btn">🏠 Scene<small>short factual notes for the ED</small><input type="file" accept="image/*" capture="environment" data-mode="scene"></label>
+<div id="out">Photos stay on the ambulance computer. Every reading shows up on the main screen for you to confirm.</div>
+<script>
+async function shrink(file,max=1280){const img=await createImageBitmap(file);const s=Math.min(1,max/Math.max(img.width,img.height));
+const c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+return await new Promise(r=>c.toBlob(r,"image/jpeg",0.85));}
+document.querySelectorAll("input[type=file]").forEach(inp=>inp.addEventListener("change",async()=>{
+  const f=inp.files[0];if(!f)return;const out=document.getElementById("out");out.textContent="Reading…";
+  const fd=new FormData();fd.append("file",await shrink(f),"photo.jpg");fd.append("mode",inp.dataset.mode);
+  const t0=performance.now();const r=await fetch("/api/photo",{method:"POST",body:fd});const d=await r.json().catch(()=>({}));
+  const ms=Math.round(performance.now()-t0);
+  out.innerHTML=r.ok?(d.facts.length?d.facts.map(x=>`<b>${x.key}</b>: ${JSON.stringify(x.value)} (${Math.round(x.confidence*100)}%)`).join("<br>")+`<br><small>${ms} ms · confirm on the main screen</small>`:"Nothing readable. Try again closer.")
+    :("Error: "+(d.detail||r.status));inp.value="";}));
+</script></body></html>

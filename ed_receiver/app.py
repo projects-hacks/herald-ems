@@ -1,0 +1,93 @@
+"""Mock emergency-department receiver. A plain HTTP service with no AI.
+
+Run it on a DIFFERENT machine or network from the Nano (e.g., a teammate's laptop), so the
+link between them can be degraded for real:
+    python -m uvicorn ed_receiver.app:app --host 0.0.0.0 --port 8200
+Idempotent by sequence number: a retried packet is acknowledged again but never applied twice.
+"""
+from __future__ import annotations
+
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
+
+app = FastAPI(title="Herald ED receiver")
+INCIDENTS: dict[str, dict] = {}
+CLIENTS: set[WebSocket] = set()
+
+
+def now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def view() -> dict:
+    return {"incidents": INCIDENTS}
+
+
+async def push() -> None:
+    for ws in list(CLIENTS):
+        try:
+            await ws.send_json(view())
+        except Exception:
+            CLIENTS.discard(ws)
+
+
+@app.post("/ingest")
+async def ingest(req: Request):
+    raw = await req.body()
+    p = json.loads(raw)
+    inc = INCIDENTS.setdefault(p["i"], {"fields": {}, "history": {}, "packets": [], "applied": [],
+                                        "duplicates": 0, "bytes": 0, "timeline": [], "dest": p.get("dest"),
+                                        "queued_on_rig": 0, "first_at": now()})
+    if p["q"] in inc["applied"]:
+        inc["duplicates"] += 1
+        await push()
+        return {"ack": p["q"], "duplicate": True}
+    for k, v in p.get("f", {}).items():
+        if inc["fields"].get(k, {}).get("v") != v:
+            inc["history"].setdefault(k, []).append({"v": v, "t": now()})
+        inc["fields"][k] = {"v": v, "seq": p["q"], "t": now()}
+    if p.get("tl"):
+        inc["timeline"] = p["tl"]
+    inc["applied"].append(p["q"])
+    inc["bytes"] += len(raw)
+    inc["queued_on_rig"] = p.get("x", 0)
+    inc["packets"].append({"seq": p["q"], "tier": p.get("tier"), "bytes": len(raw),
+                           "keys": list(p.get("f", {}).keys()), "at": now()})
+    await push()
+    return {"ack": p["q"]}
+
+
+@app.get("/ping")
+async def ping():
+    return {"ok": True}
+
+
+@app.get("/state")
+async def state():
+    return view()
+
+
+@app.post("/reset")
+async def reset():
+    INCIDENTS.clear()
+    await push()
+    return {"ok": True}
+
+
+@app.websocket("/ws")
+async def ws(ws: WebSocket):
+    await ws.accept()
+    CLIENTS.add(ws)
+    await ws.send_json(view())
+    try:
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        CLIENTS.discard(ws)
+
+
+app.mount("/", StaticFiles(directory=str(Path(__file__).parent / "web"), html=True), name="web")

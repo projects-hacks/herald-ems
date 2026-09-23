@@ -1,0 +1,30 @@
+{"id":"g01","text":"68-year-old female, sudden left-sided weakness, husband says she was fine at 1:40.","facts":[["patient.age",68,"medic"],["patient.sex","F","medic"],["stroke.deficits",["left-sided weakness"],"medic"],["complaint.chief","suspected stroke","medic"],["stroke.lkw","1:40","family"]]}
+{"id":"g02","text":"Mild left facial droop, left arm and leg can't lift, eyes deviated to the right, no agnosia.","facts":[["exam.race.facial",1,"medic"],["exam.race.arm",2,"medic"],["exam.race.leg",2,"medic"],["exam.race.gaze",1,"medic"],["exam.race.aphasia_agnosia",0,"medic"]]}
+{"id":"g03","text":"BP 182 over 104, pulse 92, SpO2 95 on room air, respirations 18, temp 37.1, alert.","facts":[["vitals.sbp",182,"medic"],["vitals.dbp",104,"medic"],["vitals.hr",92,"medic"],["vitals.spo2",95,"medic"],["vitals.on_oxygen",false,"medic"],["vitals.rr",18,"medic"],["vitals.temp",37.1,"medic"],["vitals.consciousness","A","medic"]]}
+{"id":"g04","text":"She takes warfarin.","facts":[["meds.anticoagulant","warfarin","medic"],["meds.list",["warfarin"],"medic"]]}
+{"id":"g05","text":"Husband says no allergies.","facts":[["allergies",[],"family"]]}
+{"id":"g06","text":"Mom is allergic to aspirin.","by":"other","speaker":"daughter","facts":[["allergies",["aspirin"],"family"]]}
+{"id":"g07","text":"Pulse 104, breathing 22, sat 94, temp 38.4.","facts":[["vitals.hr",104,"medic"],["vitals.rr",22,"medic"],["vitals.spo2",94,"medic"],["vitals.temp",38.4,"medic"]]}
+{"id":"g08","text":"Transporting to Valley Medical, ETA 12 minutes.","facts":[["transport.destination","Valley Medical","medic"],["transport.eta_min",12,"medic"]]}
+{"id":"g09","text":"Seventy two year old male, satting ninety one on room air, pressure one forty over eighty.","facts":[["patient.age",72,"medic"],["patient.sex","M","medic"],["vitals.spo2",91,"medic"],["vitals.on_oxygen",false,"medic"],["vitals.sbp",140,"medic"],["vitals.dbp",80,"medic"]]}
+{"id":"g10","text":"Patient denies chest pain, denies blood thinners.","facts":[["meds.anticoagulant","none","patient"]]}
+{"id":"g11","text":"Sugar is 58, correction, 68.","facts":[["vitals.glucose",68,"medic"]]}
+{"id":"g12","text":"Daughter says she takes Eliquis twice a day.","facts":[["meds.anticoagulant","apixaban","family"],["meds.list",["apixaban"],"family"]]}
+{"id":"g13","text":"Found on the floor by her neighbor, last seen normal around 10 pm last night.","facts":[["stroke.onset_witnessed",false,"bystander"],["stroke.lkw","10 pm","bystander"]]}
+{"id":"g14","text":"GCS motor 6, she's confused, heart rate 118.","facts":[["vitals.gcs_motor",6,"medic"],["vitals.consciousness","C","medic"],["vitals.hr",118,"medic"]]}
+{"id":"g15","text":"We put her on 2 liters nasal cannula, sat now 97.","facts":[["vitals.on_oxygen",true,"medic"],["vitals.spo2",97,"medic"]]}
+{"id":"g16","text":"No known drug allergies per the patient.","facts":[["allergies",[],"patient"]]}
+{"id":"g17","text":"Right arm drift, speech is normal, face symmetric, no gaze deviation, right leg normal.","facts":[["exam.race.arm",1,"medic"],["exam.race.aphasia_agnosia",0,"medic"],["exam.race.facial",0,"medic"],["exam.race.gaze",0,"medic"],["exam.race.leg",0,"medic"]]}
+{"id":"g18","text":"Wife states he's on Xarelto and metformin.","facts":[["meds.anticoagulant","rivaroxaban","family"],["meds.list",["rivaroxaban","metformin"],"family"]]}
+{"id":"g19","text":"Blood pressure 88 over 50, pulse 132, responds to pain only.","facts":[["vitals.sbp",88,"medic"],["vitals.dbp",50,"medic"],["vitals.hr",132,"medic"],["vitals.consciousness","P","medic"]]}
+{"id":"g20","text":"Temp is 101.8 Fahrenheit.","facts":[["vitals.temp",38.8,"medic"]]}
+{"id":"g21","text":"She has a POLST on the fridge, do not resuscitate.","facts":[["code_status","DNR","medic"]]}
+{"id":"g22","text":"Chest pain started about 20 minutes ago, allergic to penicillin.","facts":[["complaint.chief","chest pain","medic"],["allergies",["penicillin"],"medic"]]}
+{"id":"g23","text":"Unwitnessed fall, 81 year old female, on Coumadin.","facts":[["stroke.onset_witnessed",false,"medic"],["patient.age",81,"medic"],["patient.sex","F","medic"],["meds.anticoagulant","warfarin","medic"],["meds.list",["warfarin"],"medic"]]}
+{"id":"g24","text":"Resps 28 and labored, sat 88 on room air.","facts":[["vitals.rr",28,"medic"],["vitals.spo2",88,"medic"],["vitals.on_oxygen",false,"medic"]]}
+{"id":"g25","text":"She can't lift her right arm at all, severe right facial droop, and she can't speak.","facts":[["exam.race.arm",2,"medic"],["exam.race.facial",2,"medic"],["exam.race.aphasia_agnosia",2,"medic"]]}
+{"id":"g26","text":"Bystander says he collapsed right in front of him, so onset was witnessed at 3:15.","facts":[["stroke.onset_witnessed",true,"bystander"],["stroke.lkw","3:15","bystander"]]}
+{"id":"g27","text":"ETA to Regional is 8 minutes.","facts":[["transport.eta_min",8,"medic"],["transport.destination","Regional","medic"]]}
+{"id":"g28","text":"Glucose one twenty six, pulse eighty eight.","facts":[["vitals.glucose",126,"medic"],["vitals.hr",88,"medic"]]}
+{"id":"g29","text":"He's alert and oriented, BP 150/90.","facts":[["vitals.consciousness","A","medic"],["vitals.sbp",150,"medic"],["vitals.dbp",90,"medic"]]}
+{"id":"g30","text":"Son thinks she's on a blood thinner but isn't sure which one.","facts":[]}
