@@ -56,11 +56,22 @@ def main():
     a = ap.parse_args()
     rng = random.Random(a.seed)
 
+    # Label overlays add keys labeled after a batch was written (e.g. G.F.A.S.T., LABELING_GUIDE §4d):
+    # gfast_labels_*.jsonl lines are {"id": ..., "gfast": [[key, value, role, source], ...]}.
+    overlay: dict[str, list] = {}
+    for f in sorted(Path(a.annotated).glob("gfast_labels_*.jsonl")):
+        for line in open(f):
+            d = json.loads(line)
+            overlay.setdefault(d["id"], []).extend(d.get("gfast", []))
     ann, dropped = [], Counter()
     for f in sorted(Path(a.annotated).glob("batch_*.jsonl")):
         for line in open(f):
             try:
-                ann.append(annotated_row(json.loads(line)))
+                r = json.loads(line)
+                have = {(x[0], json.dumps(x[1], sort_keys=True)) for x in r["facts"]}
+                r["facts"] = r["facts"] + [x for x in overlay.get(r["id"], [])
+                                           if (x[0], json.dumps(x[1], sort_keys=True)) not in have]
+                ann.append(annotated_row(r))
             except Exception as e:
                 dropped[f"{f.name}: {type(e).__name__}"] += 1
     texts = set()
@@ -81,7 +92,7 @@ def main():
     for name, rows in (("train", train), ("dev", dev)):
         (out / f"{name}.jsonl").write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows))
     keys = Counter(f[0] for r in train for f in json.loads(r["completion"])["f"])
-    print(json.dumps({"annotated": len(ann), "train": len(train), "dev (annotated only)": len(dev),
+    print(json.dumps({"annotated": len(ann), "overlay_items": len(overlay), "train": len(train), "dev (annotated only)": len(dev),
                       "composed": sum(r["source"] == "composed" for r in train),
                       "dropped": dict(dropped), "keys_covered": f"{len(keys)}/{len(KEYS)}",
                       "missing_keys": sorted(set(KEYS) - set(keys))}, indent=1))

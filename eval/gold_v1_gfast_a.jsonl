@@ -1,0 +1,100 @@
+{"id": "v1_001", "gfast": [["exam.gfast.arm_leg", 1, "medic"]], "notes": "'sudden left-sided weakness' is the medic's unattributed statement; husband clause governs only the LKW. Sided weakness = limb weakness (guide example 'Right-sided weakness' -> 1)."}
+{"id": "v1_002", "gfast": []}
+{"id": "v1_003", "gfast": []}
+{"id": "v1_004", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.gaze", 0, "medic"], ["exam.gfast.speech", 0, "medic"]], "notes": "mild right facial droop -> F1; right arm drifts -> A1 (right leg normal irrelevant once any limb is weak); 'no gaze deviation' -> G0; 'speech is clear' -> S0."}
+{"id": "v1_005", "gfast": []}
+{"id": "v1_006", "gfast": []}
+{"id": "v1_007", "gfast": [], "notes": "by=other (daughter) relaying neighbor; not the medic's observation."}
+{"id": "v1_008", "gfast": []}
+{"id": "v1_009", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.gaze", 1, "medic"], ["exam.gfast.speech", 1, "medic"]], "notes": "Medic states RACE item scores: face 2, arm 2, leg 1, gaze 1, aphasia 2. A nonzero RACE item states the finding is present (palsy, weakness, deviation, aphasia), so each GFAST item = 1. Not a bare total, so the total rule does not apply."}
+{"id": "v1_010", "gfast": []}
+{"id": "v1_011", "gfast": []}
+{"id": "v1_012", "gfast": []}
+{"id": "v1_013", "gfast": [["exam.gfast.speech", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"]], "notes": "'slurred speech in [and] right sided weakness' is the medic's shorthand; the wife clause only covers how he was found ('like this' = still present)."}
+{"id": "v1_014", "gfast": []}
+{"id": "v1_015", "gfast": []}
+{"id": "v1_016", "gfast": []}
+{"id": "v1_017", "gfast": [], "notes": "Confusion/AMS is consciousness, not a GFAST speech item."}
+{"id": "v1_018", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.gaze", 1, "medic"]], "notes": "'per son' governs only the LKW clause; findings are the medic's."}
+{"id": "v1_019", "gfast": []}
+{"id": "v1_020", "gfast": [], "notes": "by=other (son)."}
+{"id": "v1_021", "gfast": [], "notes": "by=other (mother); asthma, 'can barely talk' is dyspnea, not a stroke-like speech finding."}
+{"id": "v1_022", "gfast": []}
+{"id": "v1_023", "gfast": [["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.speech", 1, "medic"]], "notes": "weakness in right arm and leg -> A1; 'garbled' is listed under speech 1."}
+{"id": "v1_024", "gfast": []}
+{"id": "v1_025", "gfast": []}
+{"id": "v1_026", "gfast": []}
+{"id": "v1_027", "gfast": []}
+{"id": "v1_028", "gfast": [], "notes": "GCS V4 is level of consciousness in a c-collar/trauma context, not a GFAST item."}
+{"id": "v1_029", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.gaze", 0, "medic"], ["exam.gfast.speech", 1, "medic"]], "notes": "RACE items stated: face 1 (mild palsy present) -> F1; arm 2/leg 1 -> A1; 'no gaze deviation' -> G0; 'aphasia one' states some aphasia is present -> S1."}
+{"id": "v1_030", "gfast": []}
+{"id": "v1_031", "gfast": []}
+{"id": "v1_032", "gfast": []}
+{"id": "v1_033", "gfast": []}
+{"id": "v1_034", "gfast": []}
+{"id": "v1_035", "gfast": []}
+{"id": "v1_036", "gfast": []}
+{"id": "v1_037", "gfast": []}
+{"id": "v1_038", "gfast": [["exam.gfast.arm_leg", 1, "medic"]], "notes": "'can't lift the right arm at all' -> A1."}
+{"id": "v1_039", "gfast": []}
+{"id": "v1_040", "gfast": []}
+{"id": "v1_041", "gfast": []}
+{"id": "v1_042", "gfast": [], "notes": "Hedged ('maybe a slight droop ... hard to tell') -> no fact."}
+{"id": "v1_043", "gfast": []}
+{"id": "v1_044", "gfast": [], "notes": "Postictal seizure patient responding to voice; no GFAST item stated."}
+{"id": "v1_045", "gfast": [["exam.gfast.facial", 0, "medic"], ["exam.gfast.arm_leg", 0, "medic"], ["exam.gfast.speech", 0, "medic"], ["exam.gfast.gaze", 0, "medic"]], "notes": "Full negative stroke screen in the medic's words: no droop, arms AND legs strong with no drift (all limbs covered), speech normal, eyes midline."}
+{"id": "v1_046", "gfast": []}
+{"id": "v1_047", "gfast": []}
+{"id": "v1_048", "gfast": []}
+{"id": "v1_049", "gfast": []}
+{"id": "v1_050", "gfast": []}
+{"id": "v1_051", "gfast": [], "notes": "'RACE of 7' is a total only; no GFAST items."}
+{"id": "v1_052", "gfast": []}
+{"id": "v1_053", "gfast": []}
+{"id": "v1_054", "gfast": [["exam.gfast.arm_leg", 1, "medic"]], "notes": "Right arm drift -> A1."}
+{"id": "v1_055", "gfast": []}
+{"id": "v1_056", "gfast": []}
+{"id": "v1_057", "gfast": [["exam.gfast.arm_leg", 1, "medic"]], "notes": "Can't lift the left leg, arm the same: unilateral (focal) weakness, stroke-like, not trauma -> A1."}
+{"id": "v1_058", "gfast": []}
+{"id": "v1_059", "gfast": []}
+{"id": "v1_060", "gfast": [["exam.gfast.gaze", 1, "medic"]], "notes": "'Eyes are looking to the right' -> G1. 'doesn't even know she's weak' presupposes weakness but names no arm or leg; the item is agnosia, and inferring limb weakness would be a guess, so no A label. No speech statement."}
+{"id": "v1_061", "gfast": []}
+{"id": "v1_062", "gfast": []}
+{"id": "v1_063", "gfast": [["exam.gfast.speech", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"]], "notes": "'a phasic' = ASR for aphasic -> S1; right arm flaccid -> A1."}
+{"id": "v1_064", "gfast": []}
+{"id": "v1_065", "gfast": []}
+{"id": "v1_066", "gfast": []}
+{"id": "v1_067", "gfast": [], "notes": "'couldn't get a word out' is inside the wife's report (says he dropped ... and couldn't ...), past tense -> deficit, not a GFAST item."}
+{"id": "v1_068", "gfast": []}
+{"id": "v1_069", "gfast": [], "notes": "Unresponsive hypoglycemic; not a speech finding."}
+{"id": "v1_070", "gfast": [], "notes": "Daughter's report of leg dragging/dropping things -> deficit, not a GFAST item."}
+{"id": "v1_071", "gfast": []}
+{"id": "v1_072", "gfast": []}
+{"id": "v1_073", "gfast": []}
+{"id": "v1_074", "gfast": []}
+{"id": "v1_075", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.speech", 1, "medic"]], "notes": "right sided facial droop -> F1; aphasia -> S1."}
+{"id": "v1_076", "gfast": []}
+{"id": "v1_077", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.speech", 1, "medic"]], "notes": "right facial droop -> F1; slurred speech -> S1 (the age correction does not affect these)."}
+{"id": "v1_078", "gfast": []}
+{"id": "v1_079", "gfast": []}
+{"id": "v1_080", "gfast": [], "notes": "'a little confused but answering questions' is consciousness, not speech."}
+{"id": "v1_081", "gfast": []}
+{"id": "v1_082", "gfast": [], "notes": "Numbness/tingling of hand and face is sensory; GFAST F needs droop/asymmetry and A needs weakness/drift. No label."}
+{"id": "v1_083", "gfast": []}
+{"id": "v1_084", "gfast": []}
+{"id": "v1_085", "gfast": []}
+{"id": "v1_086", "gfast": []}
+{"id": "v1_087", "gfast": []}
+{"id": "v1_088", "gfast": []}
+{"id": "v1_089", "gfast": []}
+{"id": "v1_090", "gfast": [["exam.gfast.arm_leg", 1, "medic"]], "notes": "'grips unequal, weaker on the right' -> A1. 'no other deficits noted' is a blanket negative that does not state gaze, face or speech normal specifically, so no 0 labels."}
+{"id": "v1_091", "gfast": [], "notes": "Hypoglycemia; 'awake and talking' is not a stroke-screen speech statement."}
+{"id": "v1_092", "gfast": []}
+{"id": "v1_093", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 0, "medic"], ["exam.gfast.gaze", 0, "medic"], ["exam.gfast.speech", 1, "medic"]], "notes": "facial palsy one, mild -> F1; 'arm and leg both zero' states both motor items normal (guide RACE 0 = normal/no drift) -> A0; 'no gaze deviation' -> G0; 'speech is slurred' -> S1."}
+{"id": "v1_094", "gfast": []}
+{"id": "v1_095", "gfast": []}
+{"id": "v1_096", "gfast": []}
+{"id": "v1_097", "gfast": []}
+{"id": "v1_098", "gfast": []}
+{"id": "v1_099", "gfast": [["exam.gfast.speech", 0, "medic"], ["exam.gfast.facial", 0, "medic"], ["exam.gfast.arm_leg", 1, "medic"]], "notes": "'Speech is fine' -> S0; 'face symmetric' -> F0; left leg drifts -> A1. Gaze not mentioned."}
+{"id": "v1_100", "gfast": []}

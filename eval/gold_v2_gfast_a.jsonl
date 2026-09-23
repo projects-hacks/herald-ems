@@ -1,0 +1,100 @@
+{"id": "v2_001", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.gaze", 1, "medic"]], "notes": "On exam: left facial droop, left arm drifts, eyes deviated right. Husband clause governs only the LKW."}
+{"id": "v2_002", "gfast": []}
+{"id": "v2_003", "gfast": []}
+{"id": "v2_004", "gfast": [["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.speech", 1, "medic"]], "notes": "'Right-sided weakness, speech is slurred' are the medic's own sentences; daughter clauses cover discovery and last-normal only."}
+{"id": "v2_005", "gfast": []}
+{"id": "v2_006", "gfast": [], "notes": "COPD, 'two-word sentences' is dyspnea, not a stroke-like speech finding."}
+{"id": "v2_007", "gfast": []}
+{"id": "v2_008", "gfast": [], "notes": "by=other (husband)."}
+{"id": "v2_009", "gfast": []}
+{"id": "v2_010", "gfast": []}
+{"id": "v2_011", "gfast": [["exam.gfast.facial", 0, "medic"], ["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.gaze", 0, "medic"], ["exam.gfast.speech", 1, "medic"]], "notes": "face symmetric -> F0; right arm can't lift / right leg drifts -> A1; no gaze deviation -> G0; globally aphasic -> S1."}
+{"id": "v2_012", "gfast": []}
+{"id": "v2_013", "gfast": [], "notes": "by=other (wife); hypoglycemia 'mumbling' is not a stroke-like presentation."}
+{"id": "v2_014", "gfast": [], "notes": "'RACE of six' is a total only; no GFAST items."}
+{"id": "v2_015", "gfast": []}
+{"id": "v2_016", "gfast": [], "notes": "Lethargy/sepsis; not a GFAST item."}
+{"id": "v2_017", "gfast": [["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.facial", 0, "medic"]], "notes": "Run-on: 'per the son' governs the Eliquis clause; 'left arm and leg are weak' and 'no facial droop' are new clauses -> medic (§4c). A1, F0."}
+{"id": "v2_018", "gfast": []}
+{"id": "v2_019", "gfast": []}
+{"id": "v2_020", "gfast": []}
+{"id": "v2_021", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"]], "notes": "'On our arrival she has a left facial droop and she's not moving the left arm at all' -> medic's current observation. F1, A1."}
+{"id": "v2_022", "gfast": []}
+{"id": "v2_023", "gfast": [], "notes": "New confusion is consciousness, not speech."}
+{"id": "v2_024", "gfast": []}
+{"id": "v2_025", "gfast": [], "notes": "by=other (daughter) relaying neighbor."}
+{"id": "v2_026", "gfast": []}
+{"id": "v2_027", "gfast": []}
+{"id": "v2_028", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"]], "notes": "Right facial droop (mild) -> F1; right arm drift -> A1. 'per the wife' governs the LKW only."}
+{"id": "v2_029", "gfast": []}
+{"id": "v2_030", "gfast": []}
+{"id": "v2_031", "gfast": [["exam.gfast.arm_leg", 1, "medic"]], "notes": "'Patient woke up with the whole left side not working' is the medic's unattributed sentence (roommate's hedge is a separate sentence) and describes a deficit still present -> A1."}
+{"id": "v2_032", "gfast": []}
+{"id": "v2_033", "gfast": []}
+{"id": "v2_034", "gfast": [], "notes": "Trauma (12-ft fall), can't feel feet = suspected spinal injury; §4c/§4d exclude it."}
+{"id": "v2_035", "gfast": [["exam.gfast.facial", 0, "medic"], ["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.gaze", 1, "medic"]], "notes": "face symmetric -> F0; left arm drifts -> A1; 'eyes are parked to the right' = gaze deviation -> G1. Agnosia is not a speech item; speech not mentioned."}
+{"id": "v2_036", "gfast": []}
+{"id": "v2_037", "gfast": []}
+{"id": "v2_038", "gfast": []}
+{"id": "v2_039", "gfast": [["exam.gfast.speech", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"]], "notes": "Wife's account covers the onset ('stopped talking mid-sentence'). 'Now he can't get any words out and the right side's weak' is a new sentence in the present tense -> medic's current observation. S1, A1."}
+{"id": "v2_040", "gfast": []}
+{"id": "v2_041", "gfast": []}
+{"id": "v2_042", "gfast": [], "notes": "by=other (mom); trauma."}
+{"id": "v2_043", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"]], "notes": "right face droop -> F1; right arm and leg flaccid -> A1. 'per caregiver' governs the LKW only."}
+{"id": "v2_044", "gfast": [], "notes": "by=other (mom); febrile seizure."}
+{"id": "v2_045", "gfast": []}
+{"id": "v2_046", "gfast": []}
+{"id": "v2_047", "gfast": [["exam.gfast.speech", 1, "medic"]], "notes": "'She's a little slurred' is the medic's observation -> S1. Left hand clumsy is the patient's report ('she tells me') -> not a GFAST item."}
+{"id": "v2_048", "gfast": [], "notes": "Found-down fall with hip deformity; not stroke-like."}
+{"id": "v2_049", "gfast": []}
+{"id": "v2_050", "gfast": []}
+{"id": "v2_051", "gfast": []}
+{"id": "v2_052", "gfast": []}
+{"id": "v2_053", "gfast": []}
+{"id": "v2_054", "gfast": [], "notes": "Trauma; GCS motor is not a GFAST item."}
+{"id": "v2_055", "gfast": []}
+{"id": "v2_056", "gfast": [["exam.gfast.facial", 0, "medic"], ["exam.gfast.arm_leg", 0, "medic"], ["exam.gfast.gaze", 0, "medic"], ["exam.gfast.speech", 0, "medic"]], "notes": "Repeat stroke exam: no droop -> F0; both arms no drift + no leg drift -> all limbs normal -> A0; gaze midline -> G0; 'following commands and naming objects fine' = language tested normal -> S0."}
+{"id": "v2_057", "gfast": []}
+{"id": "v2_058", "gfast": []}
+{"id": "v2_059", "gfast": []}
+{"id": "v2_060", "gfast": []}
+{"id": "v2_061", "gfast": []}
+{"id": "v2_062", "gfast": [], "notes": "'incomprehensible sounds' is the GCS verbal score (level of consciousness) with no stroke-like wording; not a GFAST speech item."}
+{"id": "v2_063", "gfast": []}
+{"id": "v2_064", "gfast": [["exam.gfast.speech", 0, "medic"]], "notes": "Vertigo + can't walk a straight line = stroke-like (§4c). 'Speech sounds normal to me' -> S0 (medic). 'Denies weakness or numbness' is the patient's denial, not the medic's exam -> no A0."}
+{"id": "v2_065", "gfast": []}
+{"id": "v2_066", "gfast": []}
+{"id": "v2_067", "gfast": []}
+{"id": "v2_068", "gfast": [["exam.gfast.gaze", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.speech", 1, "medic"]], "notes": "Gaze deviated left -> G1; right arm flaccid -> A1; 'grunting, no real words' = can't speak -> S1. Store manager covers only the collapse/time."}
+{"id": "v2_069", "gfast": []}
+{"id": "v2_070", "gfast": []}
+{"id": "v2_071", "gfast": []}
+{"id": "v2_072", "gfast": []}
+{"id": "v2_073", "gfast": []}
+{"id": "v2_074", "gfast": [["exam.gfast.speech", 1, "medic"]], "notes": "Run-on: 'the wife says he was normal last night, went to bed at ten thirty and woke up at 6 with his right side weak' is the wife's narrative (same verb chain) -> weakness is a deficit, no A label. 'and he cant talk right' is a new present-tense clause with its own subject -> medic (§4c, cf. v2_022 'shes fourteen') -> S1."}
+{"id": "v2_075", "gfast": [], "notes": "Responding to voice (pneumonia); consciousness, not a GFAST item."}
+{"id": "v2_076", "gfast": []}
+{"id": "v2_077", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.gaze", 0, "medic"]], "notes": "Mild left facial droop -> F1; left arm drift / leg can't come off bed -> A1; eyes midline -> G0."}
+{"id": "v2_078", "gfast": [], "notes": "Hypothermia, found down; not stroke-like."}
+{"id": "v2_079", "gfast": [], "notes": "Hypoglycemic confusion; not stroke-like, not a speech item."}
+{"id": "v2_080", "gfast": []}
+{"id": "v2_081", "gfast": [], "notes": "by=other (granddaughter): droop and dropping things are family reports -> deficits, not GFAST."}
+{"id": "v2_082", "gfast": []}
+{"id": "v2_083", "gfast": []}
+{"id": "v2_084", "gfast": []}
+{"id": "v2_085", "gfast": []}
+{"id": "v2_086", "gfast": [], "notes": "'pale and weak' is generalized weakness in a GI bleed; not stroke-like."}
+{"id": "v2_087", "gfast": [], "notes": "'woke up like this' names no finding."}
+{"id": "v2_088", "gfast": []}
+{"id": "v2_089", "gfast": []}
+{"id": "v2_090", "gfast": []}
+{"id": "v2_091", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"]], "notes": "Right-sided facial droop (side corrected, subtle) -> F1; right arm drifting -> A1."}
+{"id": "v2_092", "gfast": [], "notes": "Heat stroke confusion; not stroke-like, not a speech item."}
+{"id": "v2_093", "gfast": [], "notes": "Choking episode; 'talking fine now' is airway status in a non-stroke presentation, so no S0."}
+{"id": "v2_094", "gfast": []}
+{"id": "v2_095", "gfast": []}
+{"id": "v2_096", "gfast": []}
+{"id": "v2_097", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.gaze", 1, "medic"]], "notes": "Complete left facial paralysis -> F1; left arm and leg flaccid -> A1; head and eyes turned right -> G1. Anosognosia is not a speech item."}
+{"id": "v2_098", "gfast": []}
+{"id": "v2_099", "gfast": []}
+{"id": "v2_100", "gfast": []}

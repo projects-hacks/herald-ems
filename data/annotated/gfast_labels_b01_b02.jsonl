@@ -1,0 +1,300 @@
+{"id": "b01_001", "gfast": [["exam.gfast.gaze", 1, "medic", null], ["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_002", "gfast": [["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b01_003", "gfast": [["exam.gfast.gaze", 0, "medic", null], ["exam.gfast.facial", 0, "medic", null], ["exam.gfast.arm_leg", 0, "medic", null], ["exam.gfast.speech", 0, "medic", null]]}
+{"id": "b01_004", "gfast": [["exam.gfast.gaze", 1, "medic", null], ["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b01_005", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_006", "gfast": []}
+{"id": "b01_007", "gfast": []}
+{"id": "b01_008", "gfast": []}
+{"id": "b01_009", "gfast": []}
+{"id": "b01_010", "gfast": []}
+{"id": "b01_011", "gfast": []}
+{"id": "b01_012", "gfast": []}
+{"id": "b01_013", "gfast": []}
+{"id": "b01_014", "gfast": []}
+{"id": "b01_015", "gfast": []}
+{"id": "b01_016", "gfast": [["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_017", "gfast": []}
+{"id": "b01_018", "gfast": [["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b01_019", "gfast": []}
+{"id": "b01_020", "gfast": [["exam.gfast.facial", 0, "medic", null]]}
+{"id": "b01_021", "gfast": []}
+{"id": "b01_022", "gfast": []}
+{"id": "b01_023", "gfast": [["exam.gfast.gaze", 1, "medic", null]]}
+{"id": "b01_024", "gfast": []}
+{"id": "b01_025", "gfast": [["exam.gfast.facial", 1, "medic", null], ["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b01_026", "gfast": [["exam.gfast.gaze", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_027", "gfast": []}
+{"id": "b01_028", "gfast": []}
+{"id": "b01_029", "gfast": []}
+{"id": "b01_030", "gfast": []}
+{"id": "b01_031", "gfast": []}
+{"id": "b01_032", "gfast": []}
+{"id": "b01_033", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_034", "gfast": []}
+{"id": "b01_035", "gfast": [["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b01_036", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_037", "gfast": []}
+{"id": "b01_038", "gfast": [["exam.gfast.gaze", 0, "medic", null], ["exam.gfast.facial", 0, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_039", "gfast": []}
+{"id": "b01_040", "gfast": []}
+{"id": "b01_041", "gfast": [["exam.gfast.gaze", 0, "medic", null], ["exam.gfast.facial", 0, "medic", null], ["exam.gfast.arm_leg", 0, "medic", null], ["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b01_042", "gfast": []}
+{"id": "b01_043", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_044", "gfast": []}
+{"id": "b01_045", "gfast": []}
+{"id": "b01_046", "gfast": [["exam.gfast.gaze", 0, "medic", null], ["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 0, "medic", null]]}
+{"id": "b01_047", "gfast": []}
+{"id": "b01_048", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_049", "gfast": [["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_050", "gfast": []}
+{"id": "b01_051", "gfast": [["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b01_052", "gfast": []}
+{"id": "b01_053", "gfast": []}
+{"id": "b01_054", "gfast": [["exam.gfast.gaze", 1, "medic", null], ["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_055", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_056", "gfast": []}
+{"id": "b01_057", "gfast": []}
+{"id": "b01_058", "gfast": []}
+{"id": "b01_059", "gfast": []}
+{"id": "b01_060", "gfast": []}
+{"id": "b01_061", "gfast": [["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b01_062", "gfast": []}
+{"id": "b01_063", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_064", "gfast": []}
+{"id": "b01_065", "gfast": [["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_066", "gfast": []}
+{"id": "b01_067", "gfast": [["exam.gfast.speech", 0, "medic", null]]}
+{"id": "b01_068", "gfast": []}
+{"id": "b01_069", "gfast": []}
+{"id": "b01_070", "gfast": [["exam.gfast.gaze", 1, "medic", null], ["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_071", "gfast": [["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b01_072", "gfast": [["exam.gfast.gaze", 0, "medic", null], ["exam.gfast.facial", 0, "medic", null], ["exam.gfast.arm_leg", 0, "medic", null], ["exam.gfast.speech", 0, "medic", null]]}
+{"id": "b01_073", "gfast": []}
+{"id": "b01_074", "gfast": []}
+{"id": "b01_075", "gfast": []}
+{"id": "b01_076", "gfast": []}
+{"id": "b01_077", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_078", "gfast": []}
+{"id": "b01_079", "gfast": [["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b01_080", "gfast": [["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_081", "gfast": []}
+{"id": "b01_082", "gfast": [["exam.gfast.arm_leg", 0, "medic", null]]}
+{"id": "b01_083", "gfast": []}
+{"id": "b01_084", "gfast": []}
+{"id": "b01_085", "gfast": []}
+{"id": "b01_086", "gfast": [["exam.gfast.gaze", 0, "medic", null]]}
+{"id": "b01_087", "gfast": []}
+{"id": "b01_088", "gfast": []}
+{"id": "b01_089", "gfast": []}
+{"id": "b01_090", "gfast": []}
+{"id": "b01_091", "gfast": []}
+{"id": "b01_092", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_093", "gfast": [["exam.gfast.gaze", 0, "medic", null], ["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_094", "gfast": []}
+{"id": "b01_095", "gfast": []}
+{"id": "b01_096", "gfast": [["exam.gfast.gaze", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b01_097", "gfast": []}
+{"id": "b01_098", "gfast": []}
+{"id": "b01_099", "gfast": []}
+{"id": "b01_100", "gfast": [["exam.gfast.gaze", 0, "medic", null], ["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b01_101", "gfast": []}
+{"id": "b01_102", "gfast": [["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_103", "gfast": []}
+{"id": "b01_104", "gfast": [["exam.gfast.facial", 1, "medic", null]]}
+{"id": "b01_105", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_106", "gfast": []}
+{"id": "b01_107", "gfast": []}
+{"id": "b01_108", "gfast": [["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_109", "gfast": []}
+{"id": "b01_110", "gfast": []}
+{"id": "b01_111", "gfast": []}
+{"id": "b01_112", "gfast": [["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b01_113", "gfast": [["exam.gfast.gaze", 1, "medic", null]]}
+{"id": "b01_114", "gfast": []}
+{"id": "b01_115", "gfast": []}
+{"id": "b01_116", "gfast": [["exam.gfast.gaze", 1, "medic", null], ["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_117", "gfast": [["exam.gfast.gaze", 0, "medic", null], ["exam.gfast.facial", 0, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 0, "medic", null]]}
+{"id": "b01_118", "gfast": []}
+{"id": "b01_119", "gfast": []}
+{"id": "b01_120", "gfast": []}
+{"id": "b01_121", "gfast": []}
+{"id": "b01_122", "gfast": []}
+{"id": "b01_123", "gfast": []}
+{"id": "b01_124", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_125", "gfast": []}
+{"id": "b01_126", "gfast": [["exam.gfast.gaze", 0, "medic", null], ["exam.gfast.facial", 0, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b01_127", "gfast": []}
+{"id": "b01_128", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_129", "gfast": [["exam.gfast.gaze", 0, "medic", null], ["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 0, "medic", null]]}
+{"id": "b01_130", "gfast": []}
+{"id": "b01_131", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_132", "gfast": []}
+{"id": "b01_133", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_134", "gfast": []}
+{"id": "b01_135", "gfast": []}
+{"id": "b01_136", "gfast": []}
+{"id": "b01_137", "gfast": [["exam.gfast.gaze", 1, "medic", null], ["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b01_138", "gfast": []}
+{"id": "b01_139", "gfast": []}
+{"id": "b01_140", "gfast": []}
+{"id": "b01_141", "gfast": []}
+{"id": "b01_142", "gfast": []}
+{"id": "b01_143", "gfast": []}
+{"id": "b01_144", "gfast": []}
+{"id": "b01_145", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b01_146", "gfast": []}
+{"id": "b01_147", "gfast": []}
+{"id": "b01_148", "gfast": []}
+{"id": "b01_149", "gfast": [["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b01_150", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b02_001", "gfast": []}
+{"id": "b02_002", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b02_003", "gfast": []}
+{"id": "b02_004", "gfast": []}
+{"id": "b02_005", "gfast": []}
+{"id": "b02_006", "gfast": []}
+{"id": "b02_007", "gfast": []}
+{"id": "b02_008", "gfast": []}
+{"id": "b02_009", "gfast": []}
+{"id": "b02_010", "gfast": []}
+{"id": "b02_011", "gfast": []}
+{"id": "b02_012", "gfast": []}
+{"id": "b02_013", "gfast": []}
+{"id": "b02_014", "gfast": [["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 0, "medic", null]]}
+{"id": "b02_015", "gfast": []}
+{"id": "b02_016", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b02_017", "gfast": []}
+{"id": "b02_018", "gfast": []}
+{"id": "b02_019", "gfast": []}
+{"id": "b02_020", "gfast": []}
+{"id": "b02_021", "gfast": []}
+{"id": "b02_022", "gfast": []}
+{"id": "b02_023", "gfast": []}
+{"id": "b02_024", "gfast": []}
+{"id": "b02_025", "gfast": []}
+{"id": "b02_026", "gfast": []}
+{"id": "b02_027", "gfast": []}
+{"id": "b02_028", "gfast": []}
+{"id": "b02_029", "gfast": []}
+{"id": "b02_030", "gfast": []}
+{"id": "b02_031", "gfast": []}
+{"id": "b02_032", "gfast": []}
+{"id": "b02_033", "gfast": []}
+{"id": "b02_034", "gfast": [["exam.gfast.gaze", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b02_035", "gfast": []}
+{"id": "b02_036", "gfast": []}
+{"id": "b02_037", "gfast": []}
+{"id": "b02_038", "gfast": []}
+{"id": "b02_039", "gfast": []}
+{"id": "b02_040", "gfast": []}
+{"id": "b02_041", "gfast": []}
+{"id": "b02_042", "gfast": []}
+{"id": "b02_043", "gfast": []}
+{"id": "b02_044", "gfast": []}
+{"id": "b02_045", "gfast": []}
+{"id": "b02_046", "gfast": []}
+{"id": "b02_047", "gfast": []}
+{"id": "b02_048", "gfast": []}
+{"id": "b02_049", "gfast": []}
+{"id": "b02_050", "gfast": []}
+{"id": "b02_051", "gfast": []}
+{"id": "b02_052", "gfast": []}
+{"id": "b02_053", "gfast": []}
+{"id": "b02_054", "gfast": []}
+{"id": "b02_055", "gfast": []}
+{"id": "b02_056", "gfast": []}
+{"id": "b02_057", "gfast": []}
+{"id": "b02_058", "gfast": []}
+{"id": "b02_059", "gfast": []}
+{"id": "b02_060", "gfast": []}
+{"id": "b02_061", "gfast": []}
+{"id": "b02_062", "gfast": [["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b02_063", "gfast": []}
+{"id": "b02_064", "gfast": []}
+{"id": "b02_065", "gfast": []}
+{"id": "b02_066", "gfast": []}
+{"id": "b02_067", "gfast": []}
+{"id": "b02_068", "gfast": []}
+{"id": "b02_069", "gfast": []}
+{"id": "b02_070", "gfast": [["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b02_071", "gfast": []}
+{"id": "b02_072", "gfast": []}
+{"id": "b02_073", "gfast": []}
+{"id": "b02_074", "gfast": []}
+{"id": "b02_075", "gfast": []}
+{"id": "b02_076", "gfast": []}
+{"id": "b02_077", "gfast": []}
+{"id": "b02_078", "gfast": []}
+{"id": "b02_079", "gfast": []}
+{"id": "b02_080", "gfast": []}
+{"id": "b02_081", "gfast": []}
+{"id": "b02_082", "gfast": [["exam.gfast.gaze", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b02_083", "gfast": []}
+{"id": "b02_084", "gfast": []}
+{"id": "b02_085", "gfast": []}
+{"id": "b02_086", "gfast": []}
+{"id": "b02_087", "gfast": []}
+{"id": "b02_088", "gfast": [["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b02_089", "gfast": []}
+{"id": "b02_090", "gfast": []}
+{"id": "b02_091", "gfast": []}
+{"id": "b02_092", "gfast": []}
+{"id": "b02_093", "gfast": []}
+{"id": "b02_094", "gfast": []}
+{"id": "b02_095", "gfast": []}
+{"id": "b02_096", "gfast": []}
+{"id": "b02_097", "gfast": []}
+{"id": "b02_098", "gfast": []}
+{"id": "b02_099", "gfast": []}
+{"id": "b02_100", "gfast": []}
+{"id": "b02_101", "gfast": []}
+{"id": "b02_102", "gfast": []}
+{"id": "b02_103", "gfast": []}
+{"id": "b02_104", "gfast": []}
+{"id": "b02_105", "gfast": []}
+{"id": "b02_106", "gfast": []}
+{"id": "b02_107", "gfast": []}
+{"id": "b02_108", "gfast": []}
+{"id": "b02_109", "gfast": []}
+{"id": "b02_110", "gfast": []}
+{"id": "b02_111", "gfast": []}
+{"id": "b02_112", "gfast": [["exam.gfast.facial", 1, "medic", null], ["exam.gfast.arm_leg", 1, "medic", null], ["exam.gfast.speech", 1, "medic", null]]}
+{"id": "b02_113", "gfast": []}
+{"id": "b02_114", "gfast": []}
+{"id": "b02_115", "gfast": []}
+{"id": "b02_116", "gfast": []}
+{"id": "b02_117", "gfast": []}
+{"id": "b02_118", "gfast": []}
+{"id": "b02_119", "gfast": []}
+{"id": "b02_120", "gfast": [["exam.gfast.arm_leg", 1, "medic", null]]}
+{"id": "b02_121", "gfast": []}
+{"id": "b02_122", "gfast": []}
+{"id": "b02_123", "gfast": []}
+{"id": "b02_124", "gfast": []}
+{"id": "b02_125", "gfast": []}
+{"id": "b02_126", "gfast": []}
+{"id": "b02_127", "gfast": []}
+{"id": "b02_128", "gfast": []}
+{"id": "b02_129", "gfast": []}
+{"id": "b02_130", "gfast": []}
+{"id": "b02_131", "gfast": []}
+{"id": "b02_132", "gfast": []}
+{"id": "b02_133", "gfast": []}
+{"id": "b02_134", "gfast": []}
+{"id": "b02_135", "gfast": []}
+{"id": "b02_136", "gfast": []}
+{"id": "b02_137", "gfast": []}
+{"id": "b02_138", "gfast": []}
+{"id": "b02_139", "gfast": []}
+{"id": "b02_140", "gfast": []}
+{"id": "b02_141", "gfast": []}
+{"id": "b02_142", "gfast": []}
+{"id": "b02_143", "gfast": []}
+{"id": "b02_144", "gfast": []}
+{"id": "b02_145", "gfast": []}
+{"id": "b02_146", "gfast": []}
+{"id": "b02_147", "gfast": []}
+{"id": "b02_148", "gfast": []}
+{"id": "b02_149", "gfast": []}
+{"id": "b02_150", "gfast": []}

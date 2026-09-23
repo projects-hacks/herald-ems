@@ -45,3 +45,9 @@ def test_free_text_is_presence_only():
     pred = [("complaint.chief", "crushing substernal chest pain", "medic")]
     assert bench.score(gold, pred)[:3] == (0, 0, 0)
     assert bench.score(gold, pred, free_text=True)[:3] == (1, 0, 0)
+
+
+def test_gfast_keys_are_scored_separately_not_as_false_positives():
+    gold = [("vitals.sbp", 150, "medic")]
+    pred = [("vitals.sbp", 150, "medic"), ("exam.gfast.facial", 1, "medic")]
+    assert bench.score(gold, pred)[:3] == (1, 0, 0)

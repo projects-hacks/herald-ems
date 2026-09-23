@@ -19,6 +19,10 @@ Rules:
   exam.race.aphasia_agnosia 0 none/1 one of arm or deficit not recognized/2 neither recognized or severe aphasia.
   Score only a severity the words support. Findings stated as normal ("no droop", "no drift", "eyes midline", "speech is clear") are 0. Vague deficits without an
   exam ("weakness on the right", "slurred") go in stroke.deficits only, with no RACE items.
+- exam.gfast.* (0/1, the county stroke screen) come only from the medic's own current exam: gaze (deviation, gaze
+  preference), facial (droop, asymmetry), arm_leg (weakness or drift in any arm or leg), speech (slurred, aphasic,
+  word-finding trouble). 1 when present; 0 only when stated normal (arm_leg 0 needs all limbs normal). A family
+  member's report is stroke.deficits, not a G.F.A.S.T. item. "GFAST 4 of 4" means all four are 1.
 - symptom.onset = when the current symptoms started, for any complaint ("started 40 minutes ago", "since yesterday",
   "for three days"). stroke.lkw = the last time a possible-stroke patient was known normal ("fine at 1:40"). Times as spoken.
 - meds.list = the patient's own home medications, as lowercase generic names (a brand name or misheard brand becomes

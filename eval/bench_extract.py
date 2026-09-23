@@ -80,6 +80,9 @@ def norm(key, v):
 # Free-text keys can't be scored by exact string match (paraphrase is not an error). They are scored
 # separately by key presence; the headline F1 covers structured keys only.
 FREE_TEXT = {"complaint.chief", "stroke.deficits", "transport.destination", "scene.notes"}
+# Scored separately against their own gold files (eval/gold_v*_gfast.jsonl, --gfast-gold), so the headline F1
+# stays comparable with every number published before these keys existed.
+SEPARATE_PREFIX = "exam.gfast."
 
 
 def atoms(facts) -> dict:
@@ -99,7 +102,10 @@ def atoms(facts) -> dict:
 
 def score(gold, pred, free_text=False):
     """gold, pred: lists of (key, value, role). Returns tp, fp, fn, role_ok, extra, missed."""
-    keep = (lambda k: k in FREE_TEXT) if free_text else (lambda k: k not in FREE_TEXT)
+    if free_text:
+        keep = lambda k: k in FREE_TEXT
+    else:
+        keep = lambda k: k not in FREE_TEXT and not k.startswith(SEPARATE_PREFIX)
     gold = [(k, v, r) for k, v, r in gold if keep(k)]
     pred = [(k, v, r) for k, v, r in pred if keep(k)]
     if free_text:   # presence only
@@ -160,6 +166,7 @@ def main():
     ap.add_argument("--dump", default=None, help="write per-utterance details (pred, latency, errors) to this JSONL")
     ap.add_argument("--rescore", default=None, help="score the predictions saved in this --dump file (no model calls)")
     ap.add_argument("--ids", default=None, help="score only these ids: a range like v1_001-v1_050")
+    ap.add_argument("--gfast-gold", default=None, help="G.F.A.S.T. labels (eval/gold_v*_gfast.jsonl), scored separately")
     a = ap.parse_args()
 
     rows = [json.loads(line) for line in open(a.gold) if line.strip()]
@@ -176,6 +183,8 @@ def main():
         items = predict(a, rows)
     TP = FP = FN = ROLE = 0
     FT = [0, 0, 0]
+    gfast_gold = ({d["id"]: d["gfast"] for d in map(json.loads, open(a.gfast_gold))} if a.gfast_gold else None)
+    GF = [0, 0, 0]
     dump = open(a.dump, "w") if a.dump else None
     lat, invalid, out_tokens = [], 0, []
     for r, pred, ms, tokens, err in items:
@@ -188,6 +197,10 @@ def main():
         tp, fp, fn, role_ok, extra, missed = score(r["facts"], pred)
         ft = score(r["facts"], pred, free_text=True)
         FT = [FT[0] + ft[0], FT[1] + ft[1], FT[2] + ft[2]]
+        if gfast_gold is not None:
+            g = atoms([tuple(x[:3]) for x in gfast_gold.get(r["id"], [])])
+            p = atoms([x for x in pred if x[0].startswith(SEPARATE_PREFIX)])
+            GF = [GF[0] + len(set(g) & set(p)), GF[1] + len(set(p) - set(g)), GF[2] + len(set(g) - set(p))]
         if dump:
             dump.write(json.dumps({"id": r["id"], "extractor": a.extractor, "label": label, "ms": round(ms),
                                    "tokens": tokens, "error": err, "pred": [list(x) for x in pred],
@@ -208,6 +221,10 @@ def main():
         "precision": round(P, 3), "recall": round(R, 3), "f1": round(F1, 3),
         "role_acc": round(ROLE / TP, 3) if TP else 0.0, "json_invalid": invalid,
         "free_text_presence_f1": round(ft_f1, 3),
+        **({"gfast_precision": round(GF[0] / (GF[0] + GF[1]), 3) if GF[0] + GF[1] else 0.0,
+            "gfast_recall": round(GF[0] / (GF[0] + GF[2]), 3) if GF[0] + GF[2] else 0.0,
+            "gfast_f1": round(2 * GF[0] / (2 * GF[0] + GF[1] + GF[2]), 3) if GF[0] else 0.0,
+            "gfast_counts": {"tp": GF[0], "fp": GF[1], "fn": GF[2]}} if gfast_gold is not None else {}),
         "first_call_ms": round(lat[0]),
         "latency_ms_p50": round(statistics.median(lat)), "latency_ms_p95": round(lat_sorted[int(0.95 * (len(lat) - 1))]),
         "out_tokens_avg": round(statistics.mean(out_tokens), 1) if out_tokens else None,

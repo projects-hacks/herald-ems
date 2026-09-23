@@ -1,0 +1,100 @@
+{"id": "v2_001", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.gaze", 1, "medic"]], "notes": "husband attribution covers LKW only; exam is the medic's. Speech not mentioned."}
+{"id": "v2_002", "gfast": []}
+{"id": "v2_003", "gfast": []}
+{"id": "v2_004", "gfast": [["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.speech", 1, "medic"]], "notes": "'Right-sided weakness, speech is slurred' is its own sentence between two daughter clauses: medic's."}
+{"id": "v2_005", "gfast": []}
+{"id": "v2_006", "gfast": [], "notes": "two-word sentences = dyspnea, not stroke-like."}
+{"id": "v2_007", "gfast": [], "notes": "hypoglycemia recovery."}
+{"id": "v2_008", "gfast": [], "notes": "by other (husband)."}
+{"id": "v2_009", "gfast": []}
+{"id": "v2_010", "gfast": []}
+{"id": "v2_011", "gfast": [["exam.gfast.facial", 0, "medic"], ["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.gaze", 0, "medic"], ["exam.gfast.speech", 1, "medic"]], "notes": "face symmetric -> 0; right arm can't lift -> 1; no gaze deviation -> 0; globally aphasic -> 1."}
+{"id": "v2_012", "gfast": []}
+{"id": "v2_013", "gfast": [], "notes": "by other (wife); hypoglycemia 'mumbling' is not stroke-like."}
+{"id": "v2_014", "gfast": [], "notes": "'RACE of six' is a total: no item labels."}
+{"id": "v2_015", "gfast": []}
+{"id": "v2_016", "gfast": []}
+{"id": "v2_017", "gfast": [["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.facial", 0, "medic"]], "notes": "run-on: 'per the son' governs the Eliquis/last-dose clause; 'left arm and leg are weak no facial droop' is a new clause, medic's (\u00a74c)."}
+{"id": "v2_018", "gfast": []}
+{"id": "v2_019", "gfast": []}
+{"id": "v2_020", "gfast": []}
+{"id": "v2_021", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"]], "notes": "'On our arrival' marks the medic's own observation; aide's clause is baseline/discovery only."}
+{"id": "v2_022", "gfast": []}
+{"id": "v2_023", "gfast": [], "notes": "new confusion is consciousness, not speech; pneumonia."}
+{"id": "v2_024", "gfast": []}
+{"id": "v2_025", "gfast": [], "notes": "by other (daughter): slurred words is a report."}
+{"id": "v2_026", "gfast": []}
+{"id": "v2_027", "gfast": []}
+{"id": "v2_028", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"]], "notes": "mild right droop, right arm drift."}
+{"id": "v2_029", "gfast": []}
+{"id": "v2_030", "gfast": [], "notes": "confusion vs baseline: not a G.F.A.S.T. item."}
+{"id": "v2_031", "gfast": [["exam.gfast.arm_leg", 1, "medic"]], "notes": "'Patient woke up with the whole left side not working' is an unattributed sentence (the roommate's hedged clause is separate) -> medic's; left side not working = left arm/leg weakness, read as current. Face not named, so no facial label."}
+{"id": "v2_032", "gfast": []}
+{"id": "v2_033", "gfast": []}
+{"id": "v2_034", "gfast": [], "notes": "trauma (fall from ladder), can't feel feet = suspected spinal injury: not stroke-like (\u00a74c/\u00a74d)."}
+{"id": "v2_035", "gfast": [["exam.gfast.facial", 0, "medic"], ["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.gaze", 1, "medic"]], "notes": "face symmetric -> 0; left arm drifts -> 1; eyes parked right -> gaze 1. Arm agnosia is not speech; speech not mentioned."}
+{"id": "v2_036", "gfast": []}
+{"id": "v2_037", "gfast": [], "notes": "hypoglycemia."}
+{"id": "v2_038", "gfast": []}
+{"id": "v2_039", "gfast": [["exam.gfast.speech", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"]], "notes": "'Now he can't get any words out and the right side's weak' is the medic's current observation; the wife's clause covers the witnessed onset."}
+{"id": "v2_040", "gfast": []}
+{"id": "v2_041", "gfast": []}
+{"id": "v2_042", "gfast": []}
+{"id": "v2_043", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"]], "notes": "'per caregiver' covers LKW only; right face droop, right arm and leg flaccid are medic's."}
+{"id": "v2_044", "gfast": []}
+{"id": "v2_045", "gfast": []}
+{"id": "v2_046", "gfast": []}
+{"id": "v2_047", "gfast": [["exam.gfast.speech", 1, "medic"]], "notes": "'She's a little slurred' is the medic's observation -> 1. Left hand clumsy is the patient's report (and hedged timing): no arm_leg."}
+{"id": "v2_048", "gfast": [], "notes": "found-down fall with hip deformity: not stroke-like."}
+{"id": "v2_049", "gfast": []}
+{"id": "v2_050", "gfast": []}
+{"id": "v2_051", "gfast": []}
+{"id": "v2_052", "gfast": []}
+{"id": "v2_053", "gfast": []}
+{"id": "v2_054", "gfast": [], "notes": "trauma GCS."}
+{"id": "v2_055", "gfast": []}
+{"id": "v2_056", "gfast": [["exam.gfast.facial", 0, "medic"], ["exam.gfast.arm_leg", 0, "medic"], ["exam.gfast.gaze", 0, "medic"], ["exam.gfast.speech", 0, "medic"]], "notes": "repeat exam all normal: no droop; both arms no drift + no leg drift = all limbs -> arm_leg 0; gaze midline; following commands and naming objects fine = language normal -> speech 0."}
+{"id": "v2_057", "gfast": []}
+{"id": "v2_058", "gfast": []}
+{"id": "v2_059", "gfast": []}
+{"id": "v2_060", "gfast": []}
+{"id": "v2_061", "gfast": []}
+{"id": "v2_062", "gfast": [], "notes": "GCS descriptors ('incomprehensible sounds') for depressed consciousness, no focal/stroke context: not a speech item."}
+{"id": "v2_063", "gfast": []}
+{"id": "v2_064", "gfast": [["exam.gfast.speech", 0, "medic"]], "notes": "vertigo + ataxia is stroke-like (\u00a74c). 'Speech sounds normal to me' is the medic's -> speech 0. 'Denies weakness or numbness' is the patient's denial, not the medic's exam -> no arm_leg 0."}
+{"id": "v2_065", "gfast": []}
+{"id": "v2_066", "gfast": []}
+{"id": "v2_067", "gfast": []}
+{"id": "v2_068", "gfast": [["exam.gfast.gaze", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.speech", 1, "medic"]], "notes": "store manager covers the collapse only; gaze deviated left, right arm flaccid, grunting with no real words (can't speak) are medic's."}
+{"id": "v2_069", "gfast": []}
+{"id": "v2_070", "gfast": []}
+{"id": "v2_071", "gfast": []}
+{"id": "v2_072", "gfast": []}
+{"id": "v2_073", "gfast": []}
+{"id": "v2_074", "gfast": [], "notes": "Whole run-on is framed 'the wife says ...' and joined by 'and': 'woke up at 6 with his right side weak and he cant talk right' read as the wife's account -> deficits, not G.F.A.S.T. (the present-tense 'cant talk right' could be read as the medic's; judged still under 'the wife says')."}
+{"id": "v2_075", "gfast": []}
+{"id": "v2_076", "gfast": []}
+{"id": "v2_077", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.gaze", 0, "medic"]], "notes": "mild droop, arm drift, leg can't come off bed, eyes midline."}
+{"id": "v2_078", "gfast": [], "notes": "hypothermia, responds to pain: not stroke-like."}
+{"id": "v2_079", "gfast": [], "notes": "hypoglycemia with confusion: not stroke-like."}
+{"id": "v2_080", "gfast": []}
+{"id": "v2_081", "gfast": [], "notes": "by other (granddaughter): droop/dropping things are reports."}
+{"id": "v2_082", "gfast": []}
+{"id": "v2_083", "gfast": []}
+{"id": "v2_084", "gfast": []}
+{"id": "v2_085", "gfast": []}
+{"id": "v2_086", "gfast": [], "notes": "GI bleed, 'pale and weak' is generalized weakness."}
+{"id": "v2_087", "gfast": [], "notes": "no deficit described, only 'woke up like this' per staff."}
+{"id": "v2_088", "gfast": []}
+{"id": "v2_089", "gfast": []}
+{"id": "v2_090", "gfast": []}
+{"id": "v2_091", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"]], "notes": "side self-corrected left->right; values unaffected."}
+{"id": "v2_092", "gfast": [], "notes": "heat stroke, confusion: not stroke-like."}
+{"id": "v2_093", "gfast": [], "notes": "choking: 'talking fine now' is not a stroke-like presentation."}
+{"id": "v2_094", "gfast": []}
+{"id": "v2_095", "gfast": []}
+{"id": "v2_096", "gfast": []}
+{"id": "v2_097", "gfast": [["exam.gfast.facial", 1, "medic"], ["exam.gfast.arm_leg", 1, "medic"], ["exam.gfast.gaze", 1, "medic"]], "notes": "complete facial paralysis, arm and leg flaccid, head and eyes turned right. Anosognosia is not speech; speech not mentioned."}
+{"id": "v2_098", "gfast": []}
+{"id": "v2_099", "gfast": []}
+{"id": "v2_100", "gfast": []}

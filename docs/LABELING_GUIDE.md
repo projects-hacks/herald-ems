@@ -132,6 +132,40 @@ When `by` is `"other"` and nothing else is said about the source, the role is th
 - **Two readings in one breath are two facts:** lying and standing, room air then on oxygen (with both `vitals.on_oxygen` false and true), or before and after a drug. "The cuff slipped, it's 140 over 86" is a correction: one fact.
 - **`stroke.onset_witnessed` needs someone who saw it.** A wife who "heard a thump" didn't see it. A security guard or store manager is a `bystander`, not facility staff.
 
+## 4d. G.F.A.S.T. items (Santa Clara County stroke screen; rules set 2026-09-23)
+Four keys, each 0 or 1: `exam.gfast.gaze`, `exam.gfast.facial`, `exam.gfast.arm_leg`, `exam.gfast.speech`
+(Protocol 700-A13 §2.3: G gaze abnormalities, F facial asymmetry, A arm or leg weakness/drift, S speech
+difficulties; T is the last-known-well time and is labeled as `stroke.lkw`, not here).
+
+- **G.F.A.S.T. is the EMS provider's own screen: label its items only from the medic's words about what the medic observes now** (role `medic`). A family member's or bystander's report ("his face drooped at dinner") is a deficit (`stroke.deficits`), not a G.F.A.S.T. item.
+- **Unlike RACE, the items are presence or absence, so plain descriptions count.** "Right-sided weakness", "slurred speech", "left face droop", "eyes deviated left" each give a 1. This differs from the RACE rule in §4b ("weakness on the right" gives RACE nothing, because RACE needs a severity).
+- **1 when the finding is present now:**
+  - gaze: deviation, gaze preference, forced gaze, can't look to one side;
+  - facial: droop, asymmetry, facial palsy, uneven smile;
+  - arm_leg: weakness or drift in **any** arm or leg, or can't lift one;
+  - speech: slurred or dysarthric speech, aphasia, word-finding trouble, garbled or nonsensical speech, can't speak.
+- **0 only when stated normal:**
+  - gaze: "eyes midline", "no gaze deviation", "tracks normally";
+  - facial: "face symmetric", "no droop";
+  - arm_leg: normal strength in **all** limbs, e.g. "no weakness", "no drift", "moves all extremities equally", "arms and legs strong". "Arms fine" alone says nothing about the legs, so no label;
+  - speech: "speech clear", "speaking normally".
+- **Not mentioned means no label,** never a guess.
+- **A stated screen result:**
+  - item by item ("GFAST: gaze positive, face positive, arm negative, speech positive"): label each;
+  - "GFAST 4 of 4" / "GFAST positive, all four": all four items 1;
+  - any other total ("GFAST of 2"): no item labels, because the total doesn't say which.
+- **RACE item scores spoken by the medic are the medic's findings.** All three G.F.A.S.T. annotators independently used this convention, and it is now the rule:
+  - facial/gaze score > 0 gives 1 for that item; a score of 0 gives 0;
+  - arm or leg score > 0 gives arm_leg 1; arm_leg 0 only when both the arm and the leg are scored 0;
+  - an aphasia score > 0 gives speech 1;
+  - an agnosia score, or aphasia 0, gives no speech label (no aphasia doesn't rule out slurred speech).
+  A RACE **total** gives nothing.
+- **Findings that resolved:** the current state wins. "Slurred earlier, speech clear now" gives speech 0.
+- **Only for stroke-like presentations** (§4c). A trauma patient's "can't move his legs" is not a G.F.A.S.T. item.
+- **The same words can also give RACE items and deficits:** "left arm drift" → `exam.gfast.arm_leg` 1, `exam.race.arm` 1, and `stroke.deficits` ["left arm drift"]. Label each key by its own rule.
+
+G.F.A.S.T. labels for the gold sets live in separate files (`eval/gold_v1_gfast.jsonl`, `eval/gold_v2_gfast.jsonl`), scored separately, so extraction F1 stays comparable with every number already published.
+
 ## 5. Corrections, negations, numbers
 - **Corrections:** "pulse 88, correction, 98" → only `vitals.hr` = 98. "BP 120 over 80, I mean 130 over 80" → SBP 130, DBP 80. The corrected value replaces the first; never label both.
 - **Negations:** "denies chest pain" gives no complaint fact (a symptom denial isn't a chief complaint in our schema). "Denies blood thinners" → `meds.anticoagulant` = "none". "No facial droop" → `exam.race.facial` = 0.
