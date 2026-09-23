@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import extract_llm, extract_rules, llm, netem, pipeline, stt, trace, vision
+from .guard import instruction_shaped
 from .telemetry import TELEMETRY
 from .relay import Relay
 from .schema import CapturedBy, FactIn, Role, Status, new_id, utcnow
@@ -105,7 +106,8 @@ async def _ingest_text(text: str, captured_by: CapturedBy, role: Optional[Role],
     rules_ms = round((_t.perf_counter() - t0) * 1000, 1)
     facts = _ingest_batch(rules_in)
     after = trace.summarize(inc().snapshot())
-    llm_on = use_llm and llm.available()
+    injected = instruction_shaped(text)
+    llm_on = use_llm and llm.available() and not injected
     entry = {"id": new_id("t"), "ts": utcnow().isoformat(), "text": text, "captured_by": captured_by.value,
              "speaker": speaker, "audio_id": audio_id, "fact_ids": [f.id for f in facts],
              "extract": {"rules": len(facts), "llm": None, "ms": rules_ms},
@@ -113,7 +115,10 @@ async def _ingest_text(text: str, captured_by: CapturedBy, role: Optional[Role],
              "trace": {"heard": {"text": text, "speaker": speaker or captured_by.value, "audio_id": audio_id,
                                  "stt": stt_info},
                        "rules": {"ms": rules_ms, "facts": [trace.fact_view(f) for f in facts]},
-                       "model": {"status": "running" if llm_on else "off", "name": llm.model_name() if llm_on else None},
+                       "model": ({"status": "running", "name": llm.model_name()} if llm_on else
+                                 {"status": "skipped", "reason": f"instruction-shaped speech (\"{injected}\"): "
+                                  "model output discarded for this utterance"} if injected else {"status": "off"}),
+                       "guard": {"instruction_shaped": injected},
                        "effects": trace.diff(before, after)}}
     inc().transcripts.append(entry)
     await broadcast()

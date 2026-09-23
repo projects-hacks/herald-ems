@@ -66,7 +66,7 @@ def _key_list() -> str:
     return "; ".join(f"{k} [{v['type']}]" for k, v in KEYS.items())
 
 
-_FILLER = {"", "unknown", "n/a", "na", "not stated", "not mentioned", "none stated", "null"}
+_FILLER = {"", "?", "unknown", "n/a", "na", "not stated", "not mentioned", "none stated", "null"}
 
 
 def _grounded(key: str, value, text: str) -> bool:

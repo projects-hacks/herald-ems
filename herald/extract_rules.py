@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from typing import Optional
 
+from .guard import instruction_shaped
 from .schema import CapturedBy, FactIn, Provenance, Role
 
 ROLE_WORDS = {
@@ -81,7 +82,10 @@ def extract(text: str, captured_by: CapturedBy = CapturedBy.medic,
     for sentence in _sentences(text):
         # Attribution is per clause: in "68-year-old female, husband says she was
         # fine at 1:40" only the second clause is the husband's.
-        for sent in [c.strip() for c in re.split(r"[,;]\s*", sentence) if c.strip()]:
+        # Clauses split on commas/semicolons, and on a colon only when followed by a space ("1:40" stays whole).
+        for sent in [c.strip() for c in re.split(r"[,;]\s*|:\s+", sentence) if c.strip()]:
+            if instruction_shaped(sent):
+                break               # an instruction and everything after it in this sentence is not a fact
             out.extend(_extract_clause(sent, captured_by, default_role, default_speaker, audio_id))
     return out
 

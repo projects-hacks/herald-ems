@@ -7,6 +7,7 @@ import time
 from typing import Optional
 
 from . import extract_llm, extract_rules, llm
+from .guard import instruction_shaped
 from .schema import CapturedBy, FactIn, Role
 
 
@@ -36,28 +37,14 @@ def extract(text: str, captured_by: CapturedBy = CapturedBy.medic, default_role:
     rules = extract_rules.extract(text, captured_by, default_role, default_speaker, audio_id)
     info = {"rules": len(rules), "llm": None, "llm_error": None}
     llm_facts: list[FactIn] = []
-    if use_llm and llm.available():
+    info["instruction_shaped"] = instruction_shaped(text)
+    if use_llm and llm.available() and not info["instruction_shaped"]:
         try:
             llm_facts = extract_llm.extract(text, captured_by, default_role, default_speaker, audio_id)
             info["llm"] = len(llm_facts)
         except Exception as e:  # the rules result still stands
             info["llm_error"] = str(e)[:200]
-    merged: dict[str, FactIn] = {}
-    for f in rules:
-        merged[f.key] = f
-    for f in llm_facts:
-        r = merged.get(f.key)
-        if r is None:
-            # Model-only facts are never auto-confirmed: the bake-off (2026-09-23) showed the model adds
-            # recall (number words, corrections) but also false facts. The medic confirms them.
-            f.confidence = min(f.confidence, 0.8)
-            merged[f.key] = f
-        elif f.key.startswith("vitals."):
-            continue
-        elif str(r.value).lower() == str(f.value).lower():
-            r.confidence = max(r.confidence, f.confidence)
-            r.provenance.extractor = f"rules+{f.provenance.extractor}"
-        else:
-            merged[f.key] = f
+    # Same semantics as the app: rules facts stand; the model's additions are appended (merge_llm).
+    out = list(rules) + merge_llm(rules, llm_facts)
     info["ms"] = round((time.perf_counter() - t0) * 1000)
-    return list(merged.values()), info
+    return out, info
