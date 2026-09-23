@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 app = FastAPI(title="Herald ED receiver")
 INCIDENTS: dict[str, dict] = {}
 CLIENTS: set[WebSocket] = set()
+LINK = {"last_contact_at": None}   # any request from the ambulance (packet or idle probe)
 
 
 def now() -> str:
@@ -24,7 +25,7 @@ def now() -> str:
 
 
 def view() -> dict:
-    return {"incidents": INCIDENTS}
+    return {"incidents": INCIDENTS, "last_contact_at": LINK["last_contact_at"]}
 
 
 async def push() -> None:
@@ -38,6 +39,7 @@ async def push() -> None:
 @app.post("/ingest")
 async def ingest(req: Request):
     raw = await req.body()
+    LINK["last_contact_at"] = now()
     p = json.loads(raw)
     inc = INCIDENTS.setdefault(p["i"], {"fields": {}, "history": {}, "packets": [], "applied": [],
                                         "duplicates": 0, "bytes": 0, "timeline": [], "dest": p.get("dest"),
@@ -63,6 +65,8 @@ async def ingest(req: Request):
 
 @app.get("/ping")
 async def ping():
+    LINK["last_contact_at"] = now()
+    await push()
     return {"ok": True}
 
 
@@ -74,6 +78,7 @@ async def state():
 @app.post("/reset")
 async def reset():
     INCIDENTS.clear()
+    LINK["last_contact_at"] = None
     await push()
     return {"ok": True}
 
@@ -85,7 +90,8 @@ async def ws(ws: WebSocket):
     await ws.send_json(view())
     try:
         while True:
-            await ws.receive_text()
+            if await ws.receive_text() == "ping":      # screen heartbeat -> stale-screen detection
+                await ws.send_json({"type": "pong", "t": now()})
     except WebSocketDisconnect:
         CLIENTS.discard(ws)
 

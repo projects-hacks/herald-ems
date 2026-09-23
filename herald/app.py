@@ -19,11 +19,11 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import extract_llm, extract_rules, llm, netem, pipeline, stt, trace, vision
+from . import contract, extract_llm, extract_rules, llm, netem, pipeline, stt, trace, vision
 from .guard import instruction_shaped
 from .telemetry import TELEMETRY
 from .relay import Relay
-from .schema import CapturedBy, FactIn, Role, Status, new_id, utcnow
+from .schema import KEYS, CapturedBy, FactIn, Role, Status, new_id, utcnow
 from .state import Incident
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -187,6 +187,12 @@ async def stack():
             "summary": f"{len(models)} models · {len(SERVICES)} services", "cloud_ai_calls": 0}
 
 
+@app.get("/api/meta")
+async def meta():
+    """Labels, units, relay tiers, change rules and checklists (the UI contract; see herald/contract.py)."""
+    return contract.ui_contract()
+
+
 @app.get("/api/health")
 async def health():
     return {"llm_model": llm.model_name(), "stt_model": stt.MODEL, "stt_loaded": stt._pipe is not None,
@@ -237,11 +243,14 @@ async def post_audio(file: UploadFile = File(...), captured_by: CapturedBy = For
         raise HTTPException(400, f"send 16-bit PCM WAV audio ({e})")
     audio_id = new_id("a")
     sf.write(AUDIO_DIR / f"{audio_id}.wav", audio, sr)
+    import time as _t
+    t0 = _t.perf_counter()
     result = await run_in_threadpool(stt.transcribe, np.asarray(audio), sr, language)
+    result["ms"] = round((_t.perf_counter() - t0) * 1000)
     if not result["text"]:
         return {"transcript": None, "facts": [], "stt": result}
     return await _ingest_text(result["text"], captured_by, None, speaker, audio_id, use_llm,
-                              {"seconds": result["seconds"], "chunks": result["chunks"]})
+                              {"seconds": result["seconds"], "ms": result["ms"], "chunks": result["chunks"]})
 
 
 @app.post("/api/photo")
@@ -253,20 +262,30 @@ async def post_photo(file: UploadFile = File(...), mode: str = Form("monitor")):
     import time as _t
     before = trace.summarize(inc().snapshot())
     t0 = _t.perf_counter()
+    heard = {"text": f"photo ({mode.replace('_', ' ')})", "photo_id": photo_id}
+    entry = {"id": new_id("t"), "ts": utcnow().isoformat(), "text": f"[photo: {mode}]", "captured_by": "camera",
+             "speaker": mode, "audio_id": None, "photo_id": photo_id, "fact_ids": [],
+             "extract": {"rules": 0, "llm": 0, "ms": 0}}
     try:
         facts_in = await run_in_threadpool(vision.read_photo, raw, mode, photo_id)
     except Exception as e:
+        # The photo is kept and the failure is recorded, so the NOW screen shows it (UX_PLAN §4.3 g).
+        entry["trace"] = {"heard": heard, "rules": {"ms": 0, "facts": []},
+                          "model": {"status": "error", "name": llm.model_name(), "error": str(e)[:200],
+                                    "ms": round((_t.perf_counter() - t0) * 1000)},
+                          "effects": trace.diff(before, before)}
+        inc().transcripts.append(entry)
+        await broadcast()
         raise HTTPException(503, f"vision model unavailable or failed: {str(e)[:200]}")
     ms = round((_t.perf_counter() - t0) * 1000)
     facts = _ingest_batch(facts_in)
-    inc().transcripts.append({"id": new_id("t"), "ts": utcnow().isoformat(), "text": f"[photo: {mode}]",
-                              "captured_by": "camera", "speaker": mode, "audio_id": None, "photo_id": photo_id,
-                              "fact_ids": [f.id for f in facts], "extract": {"rules": 0, "llm": len(facts), "ms": ms},
-                              "trace": {"heard": {"text": f"photo ({mode.replace('_', ' ')})", "photo_id": photo_id},
-                                        "rules": {"ms": 0, "facts": []},
-                                        "model": {"status": "done", "name": llm.model_name(), "ms": ms,
-                                                  "facts": [trace.fact_view(f) for f in facts]},
-                                        "effects": trace.diff(before, trace.summarize(inc().snapshot()))}})
+    entry["fact_ids"] = [f.id for f in facts]
+    entry["extract"] = {"rules": 0, "llm": len(facts), "ms": ms}
+    entry["trace"] = {"heard": heard, "rules": {"ms": 0, "facts": []},
+                      "model": {"status": "done", "name": llm.model_name(), "ms": ms,
+                                "facts": [trace.fact_view(f) for f in facts]},
+                      "effects": trace.diff(before, trace.summarize(inc().snapshot()))}
+    inc().transcripts.append(entry)
     await broadcast()
     return {"photo_id": photo_id, "facts": [f.model_dump(mode="json") for f in facts]}
 
@@ -289,15 +308,29 @@ async def get_audio(audio_id: str):
 
 @app.post("/api/facts")
 async def post_facts(facts: list[FactIn]):
-    out = []
+    """Structured facts (the simulated monitor panel, or a device feed). One trace entry per call."""
     for f in facts:
         try:
-            out.append(inc().ingest(f, record=False).model_dump(mode="json"))
+            Incident.validate(f)
         except ValueError as e:
             raise HTTPException(400, str(e))
+    before = trace.summarize(inc().snapshot())
+    added = [inc().ingest(f, record=False) for f in facts]
     inc().commit()
+    if added:
+        speaker = added[0].speaker or added[0].captured_by.value
+        said = " · ".join(f"{KEYS[f.key]['label']} {f.value}" for f in added)
+        inc().transcripts.append({
+            "id": new_id("t"), "ts": utcnow().isoformat(), "text": f"[{speaker}] {said}",
+            "captured_by": added[0].captured_by.value, "speaker": speaker, "audio_id": None,
+            "fact_ids": [f.id for f in added], "extract": {"rules": 0, "llm": None, "ms": 0},
+            "trace": {"heard": {"text": said, "speaker": speaker, "source": "structured"},
+                      "rules": {"ms": 0, "facts": [trace.fact_view(f) for f in added]},
+                      "model": {"status": "off", "reason": "structured readings; nothing to extract"},
+                      "guard": {"instruction_shaped": None},
+                      "effects": trace.diff(before, trace.summarize(inc().snapshot()))}})
     await broadcast()
-    return out
+    return [f.model_dump(mode="json") for f in added]
 
 
 @app.post("/api/facts/{fact_id}/{action}")
@@ -334,7 +367,8 @@ async def ws_endpoint(ws: WebSocket):
     await ws.send_json({"type": "state", "state": full_state()})
     try:
         while True:
-            await ws.receive_text()
+            if await ws.receive_text() == "ping":      # client heartbeat -> stale-screen detection
+                await ws.send_json({"type": "pong", "t": utcnow().isoformat()})
     except WebSocketDisconnect:
         CLIENTS.discard(ws)
 
@@ -347,4 +381,8 @@ async def _startup():
     TELEMETRY.start()
 
 
-app.mount("/", StaticFiles(directory=str(ROOT / "web"), html=True), name="web")
+# The React build at / when it exists (HERALD_UI=classic switches back); the original screen stays at /classic/.
+UI_DIST = ROOT / "ui" / "dist"
+USE_NEW_UI = os.getenv("HERALD_UI", "new") == "new" and (UI_DIST / "index.html").exists()
+app.mount("/classic", StaticFiles(directory=str(ROOT / "web"), html=True), name="classic")
+app.mount("/", StaticFiles(directory=str(UI_DIST if USE_NEW_UI else ROOT / "web"), html=True), name="web")

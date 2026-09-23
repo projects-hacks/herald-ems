@@ -29,6 +29,13 @@ CHANGE_RULES = {
     "vitals.rr": lambda a, b: abs(b - a) >= 6,
     "vitals.glucose": lambda a, b: abs(b - a) >= 50,
 }
+CHANGE_RULE_TEXT = {
+    "vitals.sbp": "SBP changed by 20 mmHg or more, or dropped to 90 or below",
+    "vitals.hr": "HR changed by 20/min or more",
+    "vitals.spo2": "SpO2 fell by 3 points or more, or dropped below 92%",
+    "vitals.rr": "RR changed by 6/min or more",
+    "vitals.glucose": "Glucose changed by 50 mg/dL or more",
+}
 
 
 def _norm(v: Any) -> Any:
@@ -111,6 +118,13 @@ class Incident:
         self.lock = threading.RLock()
 
     # ---------- ingest ----------
+    @staticmethod
+    def validate(fin: FactIn) -> None:
+        """Raise ValueError if `ingest` would reject this fact (lets a batch be all-or-nothing)."""
+        if fin.key not in KEYS:
+            raise ValueError(f"unknown key {fin.key}")
+        _coerce(fin.key, fin.value)
+
     def ingest(self, fin: FactIn, record: bool = True) -> Fact:
         if fin.key not in KEYS:
             raise ValueError(f"unknown key {fin.key}")

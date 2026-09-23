@@ -1,0 +1,3071 @@
+# Herald UX plan
+
+**Version 2, full detail (2026-09-23).** This replaces the compressed version 1 from earlier the same day. Every decision in version 1 still stands; this version adds the detail behind it.
+**Demo:** Fri 2026-09-25. **Feature freeze:** Fri 11:00. **Owners:** frontend teammates build the screens; backend owns the data contracts and `/api/telemetry`; pitch owns the stage, the 3 m test, and the video.
+
+## How to read this document
+
+- `[n]` points to a source in §9. Every standard, guideline, and number has a source or is labelled as one of these:
+  - a **measurement on this box** (the team's HP ZGX Nano, read-only, 2026-09-23);
+  - a **team measurement** (reported in TASKS.md or by a teammate, not re-measured here);
+  - a **design decision** (our own choice, with the reason given).
+- **Verified** means checked against a primary source: the standard itself, the paper, the vendor manual, official docs, or read-only inspection of this box. **Unverified** means only secondary sources, or not checked. Treat unverified items as assumptions.
+- Field names in `code` are the real names in `herald/state.py`, `herald/relay.py`, `herald/trace.py`, `herald/app.py`, `herald/schema.py`, and `ed_receiver/app.py`, as read on 2026-09-23.
+- Clinical wording rules (from AGENTS.md invariants 2 and 3) apply to every piece of copy in this document:
+  - Herald gives information, not advice.
+  - Say "the receiving team needs to know". Never say "give", "do", or "consider \<treatment\>".
+
+## What changed since version 1
+
+1. **U5 is DONE in the backend.** Every entry in `state.transcripts[]` now carries a `trace`. Its pytest is still pending in TASKS.md. §4 specifies the "Herald thinking" card against the real contract.
+2. **Nothing is cut.** All of U1–U17 ship. The "cut first" list is replaced by a build order with dependencies (§7.1).
+3. **The Thursday 14:00 gate is now only a risk checkpoint.** If the React NOW screen isn't live by then, the team adds people to it. `web/` stays at `/classic/` as a safety net, not as a plan to drop the new UI (§5.12).
+4. **Backend builds `/api/telemetry` (U15).** §5.9 defines the contract, and the frontend strip consumes it.
+5. **This plan asked the backend for a few small additions. All of them are DONE (backend, 2026-09-23 evening)**, covered by `tests/test_app.py` and `tests/test_contract.py`, and checked live on port 8100/8200:
+   - **DONE:** WebSocket `ping` → `{"type": "pong", "t": <iso>}` on both `/ws` endpoints (Herald and `ed_receiver`). Any other text is ignored. Measured round trip on the box: 0.3 ms (§5.7, U2).
+   - **DONE:** the UI contract. `python scripts/export_ui_contract.py` writes `ui/public/contract/keys.json`, `relay_tiers.json`, `change_rules.json`, and `checklists.json`. The same data is live at `GET /api/meta` (plus `relay_budget_bytes`, `contradiction_keys`, and the `role` / `captured_by` / `status` enums). Built by `herald/contract.py` (§4.6, U2).
+   - **DONE:** `scripts/record_ws.py`, the fixture recorder (§5.8). It skips `pong` messages so fixtures hold only `state` messages.
+   - **DONE:** `trace.heard.stt.ms` (and `entry.stt.ms`), the wall time of speech-to-text in `post_audio` (§4.11, U2).
+   - **DONE:** a trace entry when a photo reading fails: `captured_by: "camera"`, `fact_ids: []`, `trace.model = {status: "error", name, error, ms}`, `trace.heard.photo_id`. The endpoint still returns 503, and the photo stays at `/api/photo/{id}` for "Try again" (§4.3 g, U12).
+   - **DONE:** one trace entry per `POST /api/facts` call (the monitor panel): `captured_by: "device"`, `speaker: "monitor"`, `text: "[monitor] Systolic BP 168 · SpO2 95"`, `trace.heard = {text, speaker, source: "structured"}`, the facts under `trace.rules.facts` (their `extractor` is `manual` → "Monitor panel"), and `trace.model = {status: "off", reason: "structured readings; nothing to extract"}`. The call is now all-or-nothing: one bad fact rejects the batch with 400 and nothing is ingested (§4.2, U6).
+   - **DONE:** `last_contact_at` in `ed_receiver`, at the **top level** of the view (`{incidents, last_contact_at}`), because the link belongs to the ambulance, not to one incident. It is set by every `/ping` and `/ingest`, and cleared by `/reset`. It stays null until the medic authorizes a destination, because the rig contacts nobody before that (§3.4, U10).
+   - **DONE:** U7 serving. `/classic/` serves `web/`; `/` serves `ui/dist` when `ui/dist/index.html` exists, otherwise `web/`; `HERALD_UI=classic` switches back. `web/index.html` now loads `style.css` and `app.js` relatively (§5.10).
+
+## Glossary
+
+| Term | Meaning in this document |
+|---|---|
+| NOW screen | The medic's screen in the ambulance (laptop or tablet). Served at `/` from `ui/dist`. |
+| ED screen | The emergency-department screen, served by `ed_receiver` on a second machine. |
+| Capture page | The phone camera page, `capture.html`. |
+| Fact | One typed, timestamped piece of patient information with provenance (`schema.Fact`). In the snapshot it is a `FactView`, which adds `label` and `unit`. |
+| F | The compact fact inside a trace card: `{id,key,label,value,role,speaker,status,confidence,extractor,relay}` (`trace.fact_view`). |
+| Confirmed / unconfirmed / rejected | `schema.Status`. A fact is auto-confirmed only if the medic's own voice produced it with confidence ≥0.85 (`HERALD_AUTO_CONFIRM`). Everything else needs a tap: other speakers, photos, contradictions, code status, and model-only facts (capped at 0.8 by `pipeline.merge_llm`). |
+| ED set | The keys the relay may send (`relay.TIERS` / `relay.PRIORITY`), plus the derived keys `alert.readiness`, `score.news2`, and `score.race`. |
+| Critical update / full sync | Relay packet tiers `critical` (≤420 B budget on a weak link) and `full` (the confirmed timeline, only when the link is good). |
+| Link state | `relay.link`: `good`, `weak`, `down`, `unknown`, or `not configured`. |
+| Emulated link | The presenter degrades the link with Toxiproxy (`/api/netem/{mode}`, `state.netem`). The screen always labels this "(emulated)". |
+| Medic mode / explain mode | The product default, and the presenter's expanded view that shows the full "Herald thinking" trace (Shift+E). |
+| Presenter bar | Hidden demo controls, opened with the backtick key. |
+| Fixture | A recorded sequence of `/ws` messages that the UI replays without a backend. The screen shows a "REPLAY" banner while one is playing. |
+
+---
+
+## 1. Principles
+
+Each principle has five parts:
+- **Why:** the reasoning.
+- **Evidence:** the sources and whether each is verified.
+- **On Herald's screens:** what it means concretely.
+- **Good / Bad:** examples. These are written in the product's copy style, not as screenshots.
+
+### P1. Information, not advice
+
+**Why.** The medic decides. Herald's job is to make the patient picture complete and checkable. Advice moves responsibility onto software that the medic can't interrogate in a moving vehicle, and it invites over-reliance.
+
+**Evidence.**
+- Goddard, Roudsari and Wyatt (2012) reviewed 74 studies on automation bias. The mitigators they list include "the provision of information versus recommendation", "the position of advice on the screen", and "updated confidence levels attached to DSS output" [22] (verified, abstract).
+- FDA's Clinical Decision Support Software guidance (29 Jan 2026) recommends three things (verified, full text) [24]:
+  - The output gives the clinician "relevant patient-specific information and other knowns/unknowns … (e.g., missing, corrupted, or unexpected input data values)".
+  - Supporting information is presented in a way that "avoids information overload, including prioritizing the most decision-relevant information and making additional detail available as appropriate".
+  - The software identifies its inputs and shows how the logic was applied.
+- The same guidance says software for "a critical, time-sensitive task or decision" does not meet its Criterion 4 [24]. So a production Herald would likely be regulated as device CDS. That is our reading, not legal advice (**unverified**). The UI rule doesn't change either way.
+- AGENTS.md invariants 2 and 3: the model never decides, and Herald never recommends treatment, doses, or eligibility.
+
+**On Herald's screens.**
+- Score cards show:
+  - the value and each input's points;
+  - the published threshold crossed;
+  - the source and published accuracy (`scores.news2.source/evidence`, `scores.race.source/evidence`).
+- RACE ≥5 reads "large-vessel screen positive (≥5)" and links to the county destination-policy text. It never names a destination or a treatment.
+- Relay copy uses the words "The receiving team needs to know". For example: "The receiving team needs to know: anticoagulant (warfarin)".
+- The only imperative verbs on screen are data actions: Confirm, Reject, Use "…", Hold to talk, Authorize pre-alert, Play.
+
+**Good:** `RACE 6 · ≥5 = large-vessel screen positive · published sensitivity 0.85, specificity 0.68 (Pérez de la Ossa 2014) · County destination policy ▸`
+**Bad:** `LVO likely → go to a comprehensive stroke center` · `Consider thrombolysis` · `Give aspirin` · `Patient is deteriorating`
+
+### P2. Gap-first
+
+**Why.**
+- A form that fills in looks like an ePCR. A checklist whose gaps close shows that Herald understands the call, and it tells the medic what is still missing.
+- The spec's opening shot is "Stroke alert 0 of 6", with every item listed as missing.
+
+**Evidence.**
+- FDA: the output should include "knowns/unknowns … (e.g., missing … input data values)" [24] (verified).
+- AGENTS.md invariant 6: missing inputs are shown as missing, never guessed. A score with a missing input is "incomplete".
+
+**On Herald's screens.**
+- The empty state shows every checklist item as hollow. NEEDS ATTENTION heads the left column.
+- NEWS2 with missing inputs shows "incomplete · missing: Temperature" and no number.
+- Items move from missing → awaiting tap → done. They never vanish silently: each transition shows in the trace as "closed: …".
+
+**Good:** `NEWS2 — incomplete · missing: Temperature, Consciousness`
+**Bad:** `NEWS2 4` computed from 5 of 7 parameters. Hiding the checklist until something is captured.
+
+### P3. The top band reads in one glance
+
+**Why.** The medic looks up between tasks. Each look must answer four questions:
+1. What's missing?
+2. What's due?
+3. What disagrees?
+4. Is the ED current?
+
+**Evidence.**
+- NHTSA's visual-manual guidelines set these limits (verified). They were written for drivers; we use them as a design target, not as a medic requirement.
+  - Single glances ≤2 s, total ≤12 s per task.
+  - An occlusion variant uses 1.5 s glances [10].
+- FAA HFDS §5.1.8.10: critical information ≥16′ of arc [12] (verified).
+
+**On Herald's screens.**
+- The top band (patient line + readiness band) has a fixed height and never scrolls or reflows.
+- It shows the checklist count and segment bar, the first missing item, the next due clock, the alert count, and the ED sync summary.
+
+**Good:** `STROKE ALERT ■■■■■□ 5 of 6 · missing: Glucose · Repeat vitals in 00:03:10 · ▲ 1 · ED: 2 queued`
+**Bad:** A band that reflows when a chip is added. A count that doesn't say what is missing. Information that exists only in scrolling lists.
+
+### P4. Few alerts, ranked
+
+**Why.** Alert floods train people to ignore alerts.
+
+**Evidence.**
+- Joint Commission Sentinel Event Alert 50 (verified, PDF copy) [8]:
+  - "between 85 and 99 percent of alarm signals do not require clinical intervention";
+  - 98 alarm-related sentinel events in 2009–2012, 80 of them deaths.
+- Clinicians override drug-safety alerts in 49–96% of cases [9] (verified, abstract).
+- Amershi et al., guideline G3 "Time services based on context" [17] (verified).
+
+**On Herald's screens.**
+- No sounds; the monitor already alarms.
+- One alert card is visible at a time, with a count ("1 of N").
+- Alerts are deduplicated by (type, key).
+- No modals and no stacked toasts. Nothing covers the push-to-talk (PTT) buttons.
+- New alerts wait while PTT is held and appear on release.
+
+**Good:** `▲ CHECK · 1 of 2 · Allergies: sources disagree`
+**Bad:** Three stacked toasts, a beep, or a modal "WARNING" that must be dismissed before the medic can record.
+
+### P5. Speak the patient monitor's language
+
+**Why.** Medics already read red, yellow, and cyan on monitors. Reusing those meanings costs no training.
+
+**Evidence.**
+- **IEC 60601-1-8 Table 201** assigns priority by "potential result of failure to respond" × "onset of potential harm" [1] (verified, standard sample).
+  - Death or irreversible injury, with immediate or prompt onset → HIGH.
+  - Reversible injury, with immediate or prompt onset → HIGH or MEDIUM.
+  - Minor injury or discomfort → MEDIUM or LOW.
+- **The standard's flash rates** (**unverified**; they come from a secondary source because the standard is paywalled) [3]:
+  - high: red, flashing 1.4–2.8 Hz;
+  - medium: yellow, 0.4–0.8 Hz;
+  - low: cyan or yellow, constant.
+- **Philips IntelliVue MX100/X3 IFU** [4] (verified):
+  - red alarms and yellow alarms, plus light-blue (cyan) "INOPs" for technical problems;
+  - lamp timings: red 0.25 s on / 0.25 s off (2 Hz), yellow 1.0 s on / 1.0 s off (0.5 Hz), cyan continuous.
+- **IEC 60601-1 §7.8.1** gives green the meaning "ready for use" [66] (**unverified**, secondary forum source).
+- **IEC 60601-1-8 §6.3.2** requires the alarm priority to be perceivable from 4 m, and the specific alarm condition to be legible at 1 m [2] (verified).
+
+**On Herald's screens.**
+- Priority colors and motion follow §2.3. Herald is not an alarm system: we borrow the colors and meanings only, with no auditory alarms.
+- A network problem is a technical condition. It is cyan and never red.
+
+**Good:** `ED OFFLINE · local AI working · 5 queued`, in steady cyan with the `wifi-off` icon.
+**Bad:** A red flashing banner for a network outage. Red used for decoration or to mean "recording".
+
+### P6. Never color alone
+
+**Evidence.**
+- WCAG 2.2 SC 1.4.1 Use of Color (Level A) [11] (verified).
+- NHS design system: "Make sure that what the colour is 'saying' is available in other ways" [7] (verified).
+- About 1 in 12 men and 1 in 200 women have a color vision deficiency [15] (verified).
+
+**On Herald's screens.**
+- Every status is an icon shape, a word, and a color (§2.4).
+- Checklist segments are filled (done), hatched (awaiting tap), or outlined (missing).
+- Trends use arrows plus signed numbers.
+- U1 includes a grayscale screenshot test.
+
+**Good:** `○ Glucose — missing`, with the dashed-circle icon.
+**Bad:** A red/green dot with no word. A checklist bar where done and missing differ only by hue.
+
+### P7. Readable and operable in a moving vehicle
+
+**Evidence.**
+- FAA HFDS §5.1.8.10 [12] (verified): characters must subtend at least 10′ of arc for non-critical information and 16′ for critical information, "with 22–24 min of arc preferred", measured from the longest anticipated viewing distance.
+- Vehicle vibration significantly increases touchscreen task load. A modest increase in the size of visual elements and touch buttons mitigates this (Tang et al. 2025, 18 participants) [13] (verified, abstract).
+- Thumb targets of 9.2 mm (discrete taps) and 9.6 mm (serial taps) were large enough without hurting performance (Parhi et al. 2006) [14] (verified).
+- WCAG 2.5.8 sets targets ≥24 CSS px (AA), and 2.5.5 sets ≥44 px (AAA) [11] (verified).
+- Target sizes for gloved hands: we found no primary study (**unverified**).
+
+**On Herald's screens.**
+- The type scale in §2.5 is computed from these visual angles.
+- Targets are ≥48 px, and primary actions ≥64 px.
+- No information exists only on hover, since touchscreens have no hover. Tooltips follow WCAG 1.4.13.
+- No double-tap gestures. Press-and-hold is used only for PTT.
+
+**Good:** `[ Confirm ]` 64×64 px, with 8 px to `[ Reject ]`.
+**Bad:** 24 px ✓/✕ glyph buttons side by side (today's `web/` UI). Values shown only in tooltips.
+
+### P8. Show the record, not a story
+
+**Evidence.**
+- Turpin et al. (NeurIPS 2023): chain-of-thought explanations "can systematically misrepresent the true reason for a model's prediction" [23] (verified).
+- Amershi et al. G11: "Make clear why the system did what it did" [17] (verified).
+- FDA: helping the clinician see "how the logic was applied for the patient (e.g., matching of patient-level data to criteria…)" supports independent review [24] (verified).
+- `herald/trace.py` records "the actual record of what the system did"; its docstring says "Nothing here is … prose". The model runs with reasoning off (AGENTS.md pitfalls).
+
+**On Herald's screens.**
+- The trace card (§4) shows only recorded fields:
+  - what was heard, with its audio or photo;
+  - each extractor's output, with confidence and extractor tag;
+  - checklist, score, and alert changes;
+  - the relay's tier rationale strings from `relay.TIERS`.
+- It never says "Herald thinks …" and never shows free-text reasoning.
+
+**Good:** `CHECKED · Stroke alert 4 → 5 of 6 · closed: Glucose`
+**Bad:** `Herald reasoned that because the patient takes warfarin, bleeding risk is high, so…`
+
+### P9. Show confidence only where it changes what happens
+
+**Evidence.**
+- PAIR [18] (verified):
+  - Categories ("High / Medium / Low") are easier to use than numbers, which "presume your users have a good baseline understanding of probability".
+  - "If it doesn't make an impact on user decision making, consider not showing it."
+- Zhang, Liao and Bellamy (2020): confidence scores help calibrate trust, but "trust calibration alone is not sufficient to improve AI-assisted decision making" [19] (verified).
+- Goddard: updated confidence attached to output is a documented mitigator of automation bias [22].
+
+**On Herald's screens.**
+- There are exactly two categories, tied to behavior:
+  - **confirmed**: the medic's voice at ≥0.85, or the medic tapped;
+  - **needs your tap**: everything else.
+- The number (e.g., 0.86) appears in explain mode and in the fact's details. It is never the primary signal.
+- There is no color ramp for confidence.
+
+**Good:** `Allergies: aspirin · needs your tap · 0.86 · other speaker (daughter)`
+**Bad:** `87% confident` badges on every fact. A green-to-red confidence gradient.
+
+### P10. Force the decision on what leaves the vehicle
+
+**Evidence.**
+- Bansal et al. (CHI 2021): explanations increased acceptance of AI recommendations whether or not they were correct [20] (verified).
+- Buçinca et al. (CSCW 2021): cognitive forcing functions reduced over-reliance on incorrect AI suggestions [21] (verified).
+- AGENTS.md invariant 4: only confirmed facts leave the vehicle.
+
+**On Herald's screens.**
+- A contradiction names both values and both sources on buttons of equal weight. Nothing is preselected, and there is no "Confirm latest".
+- A photo reading shows the photo, with its crop box, next to the Confirm button.
+- Code status always needs a tap.
+- Rejected facts stay visible under "Rejected" in the Patient picture, with a "Restore" action (which confirms the fact).
+
+**Good:** `[ Use "none" · husband · 14:31 ]   [ Use "aspirin" · daughter · 14:40 ]`
+**Bad:** `[ Confirm latest ]` highlighted as the primary button.
+
+### P11. Calm, predictable updates
+
+**Evidence.**
+- Amershi et al. G14: "Update and adapt cautiously … Limit disruptive changes" [17] (verified).
+- WCAG 2.2 SC 2.2.2 requires a pause/stop/hide mechanism for auto-updating content that runs >5 s, and SC 2.3.1 allows no more than three flashes per second [11] (verified).
+- `prefers-reduced-motion` lets users ask for less non-essential motion [35] (verified).
+- CSS scroll anchoring keeps the viewport stable when content above it changes. It is Baseline 2026 per MDN [44] (verified).
+- Nielsen's response-time limits [46] (verified):
+  - 0.1 s feels instantaneous;
+  - 1 s keeps the flow of thought;
+  - 10 s is the limit of attention;
+  - longer waits need progress feedback.
+
+**On Herald's screens.**
+- Regions have fixed slots, and items update in place by id.
+- Checklist item order comes from `checklists.ALERTS` and never changes.
+- New rows fade in over 150 ms.
+- The trace follows new cards only while it is scrolled to the top.
+- While the model is running, the card shows elapsed seconds as text, not a spinner.
+
+### P12. Clinical-safety hygiene
+
+**Evidence.**
+- NHS DCB0129 requires health IT manufacturers to run documented clinical risk management [6] (verified page).
+- ANSI/AAMI HE75:2025 is the reference human-factors standard [5]. It is paywalled and was not reviewed.
+
+**On Herald's screens.** Keep this hazard log in the repo and update it when a screen changes. Severities are design judgements.
+
+| ID | UI hazard | Mitigation in this plan | Check |
+|---|---|---|---|
+| H1 | An unconfirmed fact looks confirmed | Dashed outline + `circle-question-mark` + "needs your tap"; relay line "Held"; no confirmed styling until `status == confirmed` | Grayscale screenshot; U13 test |
+| H2 | A stale screen looks live | WebSocket heartbeat; grey scrim; "last update … ago" (§3.1 S6) | Kill the server during the U2 test |
+| H3 | The emulated link is mistaken for a real outage | "(emulated)" whenever `state.netem` is set; ED `?demo=1` label | U10 |
+| H4 | Wrong patient (old incident still on screen) | Incident id and start time in the header; "New incident" asks for confirmation | U8 |
+| H5 | A score is computed from unconfirmed or missing inputs | Prevented by the engine (confirmed-only); UI shows "incomplete" and the missing list | U3 |
+| H6 | A model error hides facts | The rules result stands; the error shows in the trace; header shows "Model error" | U6 |
+| H7 | An alert is missed because it is queued | Alert count badge in the top band; "1 of N" navigation | U3 |
+| H8 | A photo is misread | Photo with crop box beside Confirm; photo facts always need a tap | U12, U13 |
+| H9 | A contradiction resolves by default | No default button; neither value is sent until the medic chooses | U13 |
+| H10 | A replay is mistaken for live data | REPLAY banner; actions disabled in fixture mode | U2 |
+| H11 | The keyboard PTT fires while typing | Hotkeys ignored in inputs; keyboard PTT can be turned off (WCAG 2.1.4) | U4, U8 |
+
+### P13. Honest system status
+
+This principle turns existing team decisions into a design rule.
+
+**Evidence.**
+- Amershi et al. G1 "Make clear what the system can do" and G2 "Make clear how well the system can do what it can do" [17] (verified).
+- Spec §7: "Do not fake the outage with a UI toggle", and "say 'emulated weak link, real packets'".
+
+**On Herald's screens.**
+- The header shows the model and speech state from `/api/health`. When `llm_model` is null it shows "Local model off · rules only".
+- The header shows "Cloud AI calls 0" from `counters.cloud_ai_calls`.
+- "(emulated)" appears whenever `netem` is set, and "REPLAY" appears in fixture mode.
+- The capture page states its limits: "Reads digits, drug labels, checked boxes. Does not interpret ECGs."
+- Telemetry says "GPU power", not "SoC power", because only GPU power is readable on this box (§6).
+
+**Good:** `Model: omni ✓ · Speech ✓ · Cloud AI calls 0 · ED link: weak (emulated)`
+**Bad:** A green "AI ✓" that stays green when the model is down. Telemetry labelled "SoC power" when it is GPU-only.
+
+---
+## 2. Visual system
+
+All tokens live in `ui/src/styles/tokens.css` as CSS custom properties. They are exposed to Tailwind v4 through `@theme inline`, as in the shadcn theming docs [60]. `web/capture.html` and `ed_receiver/web/` get the same file.
+
+### 2.1 Themes
+
+| Theme | Default on | Why |
+|---|---|---|
+| Dark | NOW screen, capture page | Night ambulance cabins: less glare and a less bright screen in a dark cabin. This is a **design decision**; we found no primary study for EMS cabins (**unverified**). |
+| Light | ED screen, and the NOW screen when projected or in daylight | Dark text on a light background gave better acuity and proofreading for both younger and older adults (Piepenbrock et al. 2013) [16] (verified, abstract). Projectors wash out dark themes (design judgement, **unverified**). |
+
+- **Switching:** Shift+L on any screen. The URL can set the theme with `?theme=light|dark`.
+- **Persistence:** the choice is saved per device in `localStorage` (wrapped in try/catch; it falls back to the default).
+- **Implementation:** `data-theme="dark|light"` on `<html>`. Switching is instant, with no crossfade.
+
+### 2.2 Color tokens
+
+Contrast ratios are the WCAG 2.x relative-luminance ratio [11], which we computed. U1 adds the script `ui/scripts/contrast.mjs` to re-check them. "s1" means `--surface-1`, the card surface.
+
+**Neutrals and surfaces**
+
+| Token | Role | Dark | Light | Contrast vs s1 (dark / light) | Rules |
+|---|---|---|---|---|---|
+| `--bg` | Page background | `#0B0F14` | `#F6F8FA` | — | — |
+| `--surface-1` | Cards, panels | `#121821` | `#FFFFFF` | — | Default container |
+| `--surface-2` | Raised: expanded card, popover, active row | `#1A2230` | `#EEF1F4` | — | — |
+| `--surface-3` | Overlay: presenter bar, sheet | `#232D3D` | `#E3E8EE` | — | Don't put `--low-fg` text on light `--surface-3` (4.35:1) |
+| `--border-subtle` | Decorative dividers | `#2A3445` | `#D0D7DE` | 1.42 / 1.45 | Decoration only; never the only boundary of a control |
+| `--border-control` | Input, button and dashed "unconfirmed" outlines | `#6B778A` | `#6E7781` | 3.93 / 4.55 | ≥3:1 non-text contrast (WCAG 1.4.11) |
+| `--text-primary` | Values, headings, body | `#E8EDF3` | `#1F2328` | 15.14 / 15.80 | — |
+| `--text-secondary` | Secondary body text | `#C3CCD7` | `#3D444D` | 10.98 / 9.85 | — |
+| `--text-muted` | Timestamps, extractor tags, missing items | `#A3AFBD` | `#57606A` | 8.00 / 6.39 | — |
+| `--text-disabled` | Disabled controls only | `#6B778A` | `#8C959F` | 3.93 / 3.04 | Disabled controls are exempt from 1.4.3; never use for content |
+| `--accent` | Links, focus ring, selected tab, explain-mode highlights | `#8AB4FF` | `#1D4ED8` | 8.53 / 6.70 | Not a priority color |
+| `--on-accent` | Text on an accent fill | `#0B0F14` | `#FFFFFF` | 9.20 / 6.70 (vs accent) | — |
+| `--capture` | PTT "listening" state | `#C4A7FF` | `#6D28D9` | 8.76 / 7.10 | Never used for priorities or for data |
+| `--scrim` | Stale-screen overlay | `rgb(11 15 20 / .72)` | `rgb(246 248 250 / .80)` | — | Text on the scrim uses `--text-primary` on `--surface-3` |
+
+**Priority and state colors.** "fg" is text or icon color. "fill" is a badge or button background, and "on-fill" is the text on it. "tint" is the background of an alert card.
+
+| Token set | Dark fg | Dark fill / on-fill | Dark tint | Light fg | Light fill / on-fill | Light tint |
+|---|---|---|---|---|---|---|
+| `high` | `#FF6B5E` (6.38 vs s1) | `#D92D20` / `#FFFFFF` (4.83) | `#2A1414` (fg 6.22, text 14.76) | `#B42318` (6.57) | `#B42318` / `#FFFFFF` (6.57) | `#FDECEA` (fg 5.75, text 13.81) |
+| `medium` | `#F5B83D` (10.02) | `#F5B83D` / `#1F2328` (8.88) | `#2A2210` (fg 8.85, text 13.37) | `#8A5A00` (5.93) | `#F5B83D` / `#1F2328` (8.88) + 1 px `#8A5A00` border | `#FFF4D6` (fg 5.41, text 14.42) |
+| `low` | `#4FD1DC` (9.75) | `#4FD1DC` / `#0B0F14` (10.51) | `#0F2529` (fg 8.72, text 13.55) | `#0E7490` (5.36) | `#0E7490` / `#FFFFFF` (5.36) | `#E0F5F8` (fg 4.74, text 13.98) |
+| `ok` | `#4AC26B` (7.82) | `#1A7F37` / `#FFFFFF` (5.08) | `#10241A` (fg 7.15, text 13.84) | `#116329` (7.39) | `#1A7F37` / `#FFFFFF` (5.08) | `#E6F4EA` (fg 6.51, text 13.91) |
+
+Notes on the table:
+- **Non-text contrast (1.4.11).** Fills vs s1: dark high 3.69, dark ok 3.51, light high 6.57, light low 5.36, light ok 5.08. All are ≥3:1.
+- **The light-theme medium fill is the one exception.** `#F5B83D` on white is only 1.78:1, so light medium badges always get a 1 px `#8A5A00` border (5.93:1).
+- **Missing** uses `--text-muted` plus the `circle-dashed` icon. **Unconfirmed** uses a 2 px dashed `--border-control` outline, the `circle-question-mark` icon, and the words "needs your tap". Neither state gets a hue of its own.
+
+### 2.3 Priority mapping
+
+Priorities follow IEC 60601-1-8 Table 201 logic, consequence × onset [1]. Herald is not an IEC 60601-1-8 alarm system: it borrows the semantics and makes no sounds.
+
+| Herald condition (data source) | Priority | Color set | Icon + word | Motion | Where it appears |
+|---|---|---|---|---|---|
+| NEWS2 aggregate ≥7 (`scores.news2.band == "high"`, or a `news2_rise` alert with `band == "high"`) | HIGH | high | `octagon-alert` HIGH | The icon alone flashes at 2 Hz (250 ms on, 250 ms off) until acknowledged, then goes steady. Philips uses the same red timing [4]; IEC's high range is 1.4–2.8 Hz [3] (**unverified**). | Alert slot, top-band badge, NEWS2 card |
+| A red field-triage criterion (`scores.field_triage.red` non-empty; card shown only for trauma or fall dispatches, TASKS P4.3) | HIGH | high | `octagon-alert` HIGH | As above | Alert slot, triage card |
+| Safety-field contradiction (`alerts[].type == "contradiction"`, key in `CONTRADICTION_KEYS`) | MEDIUM | medium | `git-compare-arrows` CHECK | Three pulses at 0.5 Hz when it arrives, then steady. Philips yellow is 1 s on / 1 s off [4]; IEC medium is 0.4–0.8 Hz [3] (**unverified**). Stopping after three pulses is our own design choice: continuous flashing makes a text-heavy screen hard to read. | Alert slot, top-band badge, ER row "held" |
+| Code status needs a tap (`alerts[].type == "confirm_required"`) | MEDIUM | medium | `triangle-alert` CHECK | Three pulses | Alert slot |
+| NEWS2 medium band 5–6 (`band == "medium"`), or any single parameter scoring 3 (`band == "low-medium"`), as in the RCP bands tested in `herald/scores.py` [28] | MEDIUM | medium | `triangle-alert` CHECK | Three pulses when the band is first reached | NEWS2 card; alert slot when `news2_rise` fires |
+| RACE ≥5 (`alerts[].type == "race_positive"`) | MEDIUM | medium | `triangle-alert` CHECK | Three pulses | Alert slot, RACE card |
+| Significant vital change (`alerts[].type == "significant_change"`, per the `state.CHANGE_RULES` thresholds) | MEDIUM | medium | `triangle-alert` CHECK | Three pulses | Alert slot, Trends tab |
+| NEWS2 rose by ≥2 but stayed below medium (`news2_rise` with `band` low or low-medium) | LOW | low | `info` | Steady | Alert slot (after any MEDIUM alerts) |
+| Reassessment due within 60 s, or overdue (`clocks[id == "reassess"]`) | LOW | low | `clock-alert` DUE / OVERDUE | Steady | Top band, Needs attention |
+| An unconfirmed photo reading | LOW | (unconfirmed style) | `circle-question-mark` needs your tap | Steady | Needs attention |
+| A checklist item missing, or a history item not yet asked | LOW | (missing style) | `circle-dashed` missing / not yet asked | Steady | Top band chips, Needs attention |
+| ED link `weak`, `down`, or `unknown` | LOW, technical | low | `signal-low` / `wifi-off` / `signal-zero` | Steady | Header pill, ER tab, top-band ED chip |
+| Local model off or failed (`/api/health.llm_model == null`, or `trace.model.status == "error"`) | LOW, technical | low | `cpu` + word | Steady | Header chip, trace card |
+| Checklist ready; field sent and acknowledged | OK | ok | `circle-check` READY / Sent | Steady | Band, ER rows |
+| WebSocket stale | System state, not a priority | scrim | `refresh-cw` + text | 200 ms fade-in | Overlay (§3.1 S6) |
+
+**Ordering in the alert slot:**
+1. HIGH before MEDIUM before LOW.
+2. Within a priority, the newest first.
+3. Items the medic has acknowledged ("Seen") drop to the end, and are stored in UI state keyed by `type + key + value`.
+
+`contradiction` and `confirm_required` alerts can't be dismissed; they leave only when resolved.
+
+### 2.4 Iconography
+
+We use Lucide [33] (ISC license), from `lucide-react`. Every name below was checked on lucide.dev on 2026-09-23 (verified; `history` redirects and is not used). Icons are 20 px in body text, 24 px in the band, and 32 px on phone tiles. Stroke width stays at the default 2. Every icon sits next to a word; an icon-only button must have an `aria-label`.
+
+| Meaning | Icon | Word shown |
+|---|---|---|
+| HIGH priority | `octagon-alert` | HIGH |
+| MEDIUM priority | `triangle-alert` | CHECK |
+| Contradiction | `git-compare-arrows` | Sources disagree |
+| LOW / technical info | `info` | (the condition, e.g. "Model off") |
+| Done / confirmed / ACKed | `circle-check` | Done · Confirmed · Sent |
+| Needs a tap / awaiting tap | `circle-question-mark` | Needs your tap |
+| Missing / not yet asked | `circle-dashed` | Missing · Not yet asked |
+| Rejected | `circle-x` | Rejected |
+| Queued for ED | `hourglass` | Queued |
+| Held on vehicle (unconfirmed) | `lock` | Held |
+| Eligible to send | `send` | Eligible |
+| Stays on vehicle (not in ED set) | `ambulance` | Stays on the vehicle |
+| Packet failed / retrying | `refresh-cw` | Retrying |
+| Link good / weak / down / unknown / not configured | `wifi` / `signal-low` / `wifi-off` / `signal-zero` / `circle-slash` | Good · Weak · Offline · Checking · Not set up |
+| Voice capture (medic, other) | `mic` | Medic · Other speaker |
+| Photo capture | `camera` / `image` | Photo |
+| Monitor panel (simulated) | `monitor` | Monitor |
+| Typed / replay text | `keyboard` | Typed |
+| Play / pause evidence | `play` / `pause` | Play |
+| Rules extractor | `list-checks` | Rules |
+| Local model | `cpu` | Model (name) |
+| Checks / effects | `activity` | Checked |
+| Scores | `gauge` | NEWS2 · RACE |
+| Clock / due | `clock` / `clock-alert` / `timer` | LKW · Due · ETA |
+| Destination | `hospital` | Valley Medical |
+| Explain mode | `eye` | Explain |
+| Presenter | `presentation` | Presenter |
+| Theme | `sun` / `moon` | Light · Dark |
+| Type size | `type` | Text size |
+| Expand / collapse | `chevron-right` / `chevron-down` | (with the section name) |
+| Cloud AI calls | `shield-check` | Cloud AI calls 0 |
+| Reset incident | `refresh-cw` | New incident |
+
+Checklist segments use shape as well as color:
+- **done:** solid `--ok-fill`;
+- **awaiting tap:** 45° hatch in `--border-control` over `--surface-2`;
+- **missing:** a 2 px `--border-control` outline with no fill.
+
+### 2.5 Typography
+
+**Fonts.**
+- Inter (variable) for all text, and JetBrains Mono (variable) for clocks, bytes, sequence numbers, and raw trace JSON.
+- Both are OFL-licensed [57] and self-hosted through Fontsource [32][58][59].
+- **Measured on this box** from the Fontsource files with fontTools:
+  - Inter cap height 0.728 em, x-height 0.546 em, with the `tnum` feature;
+  - JetBrains Mono cap height 0.73 em.
+
+**Numbers.**
+- Every number that updates uses `font-variant-numeric: tabular-nums` [52], so digits don't shift width.
+- Numbers never count up or tween; they change in one step.
+
+**How sizes were derived.**
+- cap height (mm) = font size (CSS px) × 0.728 × mm per CSS px.
+- visual angle (arcmin) ≈ 3438 × cap height (mm) ÷ viewing distance (mm).
+- Thresholds from FAA HFDS §5.1.8.10 [12]:
+  - ≥10′ for non-critical text;
+  - ≥16′ for critical text;
+  - 22–24′ preferred.
+
+**Reference setups** (design assumptions; re-measure on the real devices in U11):
+
+| Screen | Reference display | mm per CSS px | Viewing distance |
+|---|---|---|---|
+| NOW | 14″ 16:9 laptop at 1366×768 CSS px | 0.227 | 0.7 m (medic on the bench seat; **unverified**, measure in the mock-up) |
+| ED | 55″ 16:9 TV at 1920×1080 | 0.634 | 3 m (judges) |
+| Capture | iPhone-class phone, 390×844 CSS px | ≈0.166 (device-specific, **unverified**) | 0.35 m |
+
+**NOW screen type scale** (0.7 m, 0.227 mm/px):
+
+| Role | Where | Size / line height | Weight | Tracking | Cap height → angle |
+|---|---|---|---|---|---|
+| meta | Timestamps, extractor tags, "source: husband · 14:31" | 14 / 20 | 400 | 0 | 2.31 mm → 11.4′ (non-critical ✓) |
+| label | Section headings (UPPERCASE), chip captions | 14 / 20 | 600 | +0.06 em | 11.4′ (non-critical ✓) |
+| body | Trace detail, fact list, helper text | 18 / 26 | 400 | 0 | 2.97 mm → 14.6′ (non-critical ✓) |
+| critical | Needs-attention rows, alert text, ER rows, checklist chips | 20 / 28 | 500 | 0 | 3.30 mm → 16.2′ (critical ✓) |
+| value | Fact values, vitals, score numbers in lists | 24 / 30 | 600 | 0 | 3.97 mm → 19.5′ |
+| patient | Patient line | 24 / 30 | 600 | 0 | 19.5′ |
+| button | Buttons | 18 / 24 | 600 | 0 | Non-critical ✓ (the button shape carries the target) |
+| clock | LKW elapsed, due timers (JetBrains Mono) | 32 / 36 | 600 | 0 | 5.30 mm → 26.0′ (preferred ✓) |
+| hero | "5 of 6", NEWS2 value on its card | 40 / 44 | 700 | −0.01 em | 6.61 mm → 32.5′ |
+
+**ED screen type scale** (3 m, 0.634 mm/px on a 55″ 1080p TV):
+
+| Role | Size / line height | Weight | Cap height → angle |
+|---|---|---|---|
+| meta (packet feed, timestamps) | 20 / 28 | 400 | 9.23 mm → 10.6′ (non-critical ✓) |
+| body / critical | 32 / 40 | 500 | 14.77 mm → 16.9′ (critical ✓) |
+| key value (anticoagulant, allergy, LKW, vitals) | 48 / 56 | 700 | 22.15 mm → 25.4′ (preferred ✓) |
+| clock (LKW elapsed, ETA; mono) | 56 / 60 | 600 | 25.9 mm → 29.7′ |
+| banner | 64 / 72 | 800 | 29.5 mm → 33.8′ |
+
+**Capture page type scale** (0.35 m, ≈0.166 mm/px): meta 15 px (≈17.8′), body 17 px (≈20.2′), tile title 22 px/700, result value 28 px/700.
+
+**Other displays at 3 m.** Minimum and preferred sizes for critical text:
+
+| Display (1920 px wide) | mm/px | ≥16′ needs | 24′ needs | Suggested Shift+T |
+|---|---|---|---|---|
+| 43″ TV | 0.496 | 38.7 px | 57.9 px | 1.25–1.5× |
+| 55″ TV | 0.634 | 30.2 px | 45.3 px | 1.0× |
+| 65″ TV | 0.749 | 25.6 px | 38.3 px | 1.0× |
+| 100″ projected image | 1.153 | 16.6 px | 24.9 px | 1.0× |
+
+**The NOW screen on stage.** Suppose the NOW screen is mirrored to a 55″ 1080p TV, with browser zoom 140% so that 1366 CSS px fill the width.
+- Then 1 CSS px ≈ 0.89 mm, and 20 px critical text has a 13.0 mm cap height: 14.9′ at 3 m, below 16′.
+- So turn on Shift+T 1.25× on stage. That makes it 16.2 mm, or 18.6′ ✓.
+
+**Text rules.**
+- Sentence case everywhere. UPPERCASE only for section labels and the priority words HIGH and CHECK.
+- Never truncate a value. Transcripts may truncate to 2 lines in the medic-mode ticker, with the full text in the card.
+- Trace text is at most ~60 characters per line.
+- Layouts must survive WCAG 1.4.12 text spacing and 1.4.4 200% resize [11]. At 200% the NOW screen switches to its single-column layout (§3.1.1).
+
+### 2.6 Spacing, grid, radius, elevation
+
+**Spacing scale** (4 px base): `0, 2, 4, 8, 12, 16, 20, 24, 32, 40, 48, 64`.
+- Card padding: 16 (NOW), 24 (ED), 20 (phone tiles).
+- Row gap 8. Section gap 24. The gap between touch targets is ≥8.
+
+**Grids.**
+- **NOW** at 1366 px: 12 columns, 16 px gutters, 16 px margins, so each column is 96.5 px.
+- **ED** at 1920 px: 12 columns, 24 px gutters, 32 px margins.
+- **Phone:** one column, 16 px margins.
+
+**Radius.** `4` for chips and checklist segments, `8` for buttons, inputs and badges, `12` for cards, `16` for sheets and phone tiles, and `9999` for pills and PTT buttons.
+
+**Elevation.**
+- **Dark theme:** higher layers use lighter surfaces (`surface-1` → `-2` → `-3`) plus a 1 px `--border-subtle`, and no shadows. This is a design decision: shadows barely show on near-black backgrounds (**unverified**).
+- **Light theme:** three shadows.
+  - `--shadow-1`: `0 1px 2px rgb(31 35 40 / .08)`
+  - `--shadow-2`: `0 4px 12px rgb(31 35 40 / .12)`
+  - `--shadow-3`: `0 12px 32px rgb(31 35 40 / .18)`
+
+**Z-layers:** content 0, sticky header and top band 10, focused alert card 20, trace "new" pill 30, presenter bar 40, caption toast 50, stale overlay 60, dialog 70.
+
+### 2.7 Targets and hit areas
+
+- **Minimum:** every target is ≥48×48 CSS px. This is above WCAG 2.5.5 AAA (44 px) and 2.5.8 AA (24 px) [11], and above the 9.6 mm thumb target at typical densities [14].
+- **Primary actions are ≥64 px tall:** Confirm, Reject, Use "…", Authorize pre-alert, and PTT. Adjacent targets are ≥8 px apart. Vibration raises touch errors, and larger targets help [13].
+- **Specific targets:**
+  - PTT buttons: 64 px tall, ≥220 px wide.
+  - Phone tiles: ≥96 px tall, full width.
+  - Presenter-bar buttons: 48 px.
+- **Hit areas can extend past the visual edge through padding.** For example, a 24 px ▶ glyph sits inside a 48 px button.
+
+### 2.8 Motion
+
+Durations and easing come from the Material 3 motion tokens [47] (verified in the source):
+- **Durations:** short1 = 50 ms, short2 = 100, short3 = 150, short4 = 200, medium1 = 250.
+- **Easing curves:**
+  - standard `cubic-bezier(0.2, 0, 0, 1)`;
+  - standard-decelerate `cubic-bezier(0, 0, 0, 1)`;
+  - standard-accelerate `cubic-bezier(0.3, 0, 1, 1)`;
+  - emphasized-decelerate `cubic-bezier(0.05, 0.7, 0.1, 1)`.
+
+| Element | Trigger | Animation | Duration / easing | Reduced motion |
+|---|---|---|---|---|
+| New row (fact, trace card, packet, ED field) | Inserted | Opacity 0→1 and translateY 4 px→0 | 150 ms, standard-decelerate | Appears instantly |
+| Changed value | Value differs from the previous render | Background `--accent` at 20% → transparent, plus the word "new" beside it | Hold 1500 ms, then fade 500 ms linear | No fade; "new" shows for 2 s |
+| Checklist segment | State change | Background-color change | 200 ms, standard | Instant |
+| Checklist becomes ready | `ready` flips true | None: the bar turns `ok` and the word READY appears | — | Same |
+| HIGH icon | Alert active, not yet acknowledged | Square-wave opacity 1 / 0.15 at 2 Hz on the 24 px icon only | 250 ms on, 250 ms off | No flash; static icon, word HIGH, 3 px `--high-fg` outline |
+| MEDIUM arrival | New alert of this priority | 3 px outline, opacity 1 → 0.3 → 1, three cycles | 3 × 2000 ms (0.5 Hz), then steady | No pulse; outline steady |
+| LOW | Any | Never animates | — | — |
+| Alert slot content | Next alert, or resolved | Crossfade | 150 ms, standard | Instant. The slot keeps its fixed height in both modes. |
+| Collapsible (trace card, score details) | The user expands or collapses it | Height via Radix's `--radix-collapsible-content-height` [61] | 150 ms, standard | Instant |
+| Model "running" | Every 100 ms while `model.status == "running"` | Text update of elapsed seconds (tabular numerals); no spinner | — | Same (text isn't motion) |
+| PTT listening | pointerdown or key down | Button fill switches to `--capture` instantly; a 5-bar level meter follows the mic level at 20 fps | — | The meter stays, because it is essential feedback on the user's own input |
+| Link state change | `relay.link` changes | Icon, color and word swap | Instant | Same |
+| Stale overlay | 3 s without a heartbeat | Fade-in | 200 ms, standard-decelerate | Instant |
+| Caption toast (judge beat) | Transcript received for "other" | Fade in, hold 4 s, fade out | 150 / 4000 / 200 ms | Instant in and out |
+| Clocks | Every second | Text update | — | Same |
+| Sparklines | Data change | Redraw only; the line doesn't animate | — | Same |
+| ED "INCOMING" banner | New incident, or a critical packet raises the readiness count | Banner outline pulses | Three cycles at 0.5 Hz, then steady | Steady |
+| Theme or type-scale change | Hotkey | None | Instant | Same |
+
+**Never animate:**
+- number values (no tweening);
+- the position of anything in the top band;
+- list order;
+- checklist item order;
+- scroll position while the user is touching or has scrolled away from the top;
+- priority colors, except for the pulses defined above.
+
+**Reduced motion.**
+- `@media (prefers-reduced-motion: reduce)` [35] sets every transition to 0 ms and turns off flashes and pulses. The static outline and the priority word carry the meaning.
+- The demo laptop's OS setting may not be set, so the presenter bar also has a "Reduce motion" switch. It is stored in `localStorage` and sets `data-reduced-motion` on `<html>`.
+
+**WCAG 2.2.2.**
+- Live patient data (clocks, values) is essential real-time content.
+- The trace list auto-follows only while it is scrolled to the top. "Following live" can be turned off, which is the pause mechanism.
+
+---
+## 3. Screen specs
+
+**Positioning (kept from version 1).**
+- **What competitors already offer:**
+  - ImageTrend advertises OCR of pill bottles and face sheets, and "real-time AI review" of documentation [26] (verified, vendor page).
+  - ESO's iOS app scans medication labels with the camera [27] (verified, vendor page).
+- **So the UI should put Herald's differences up front:**
+  - the gap-first checklist, live during transport;
+  - provenance with one-tap playback of the words or photo behind a fact;
+  - the relay's behavior on a weak link.
+- **Clocks follow Pulsara's convention:** every timer, including last-known-well, is HH:MM:SS [25].
+
+### 3.0 Rules shared by every screen
+
+**Routes and URL parameters.**
+
+| URL | What it serves | Built from |
+|---|---|---|
+| `http://localhost:<port>/` | NOW screen | `ui/dist/index.html` (React) |
+| `http://<nano-ip>:<port>/capture.html` | Phone capture page | `ui/public/capture.html` (vanilla JS), copied into `dist` |
+| `http://localhost:<port>/classic/` | Today's NOW screen, kept as a safety net | `web/` (unchanged) |
+| `http://<ed-host>:8200/` | ED screen | `ui/dist/ed.html`, copied to `ed_receiver/web/index.html` |
+
+| Parameter | Effect |
+|---|---|
+| `?mode=explain` | Start in explain mode (same as Shift+E) |
+| `?theme=light` or `?theme=dark` | Override the theme |
+| `?type=1.25` or `?type=1.5` | Start at a larger type scale (same as Shift+T) |
+| `?fixture=<name>&speed=<n>` | Replay a recorded session with no backend (§5.8). Shows the REPLAY banner. |
+| `?demo=1` (ED only) | Shows "Demo: the link is emulated by the presenter" |
+
+**Wording rules for all copy.**
+
+| Say | Don't say | Why |
+|---|---|---|
+| "The receiving team needs to know: …" | "Alert the stroke team to …", "Give …", "Consider …" | AGENTS.md invariant 3 |
+| "Large-vessel screen positive (≥5)" | "LVO", "Stroke confirmed", "Go to …" | P1: information, not advice |
+| "Needs your tap" | "Low confidence", "AI unsure" | P9: confidence as action |
+| "Held: unconfirmed facts never leave the vehicle" | "Blocked", "Error" | The exact `trace.fact_view` wording |
+| "Not yet captured", "Not yet asked" | "Missing data!", "Incomplete record" | P2: calm gap-first |
+| "Sources disagree" | "Conflict detected", "Wrong answer" | Neutral about which source is right |
+| "Local model", "Rules" | "The AI decided", "Herald thinks" | P8: show the record |
+| "ED OFFLINE · local AI working" | "Connection lost!", "Failure" | P5: a technical condition, not a patient alarm |
+| "(emulated)" | Nothing at all during a Toxiproxy demo | P13: honest status |
+| "Seen" (acknowledge) | "Dismiss", "Ignore" | The alert stays in history |
+
+**States every live screen handles.**
+
+| State | Trigger | What the screen shows | Copy |
+|---|---|---|---|
+| Connecting | First load, before the first `state` message | The layout with "—" in every value slot. No spinners. | "Connecting to Herald on this vehicle…" |
+| Can't connect | No connection after 5 s | A band under the header, retrying every 2 s | "Can't reach the Herald server at {host}. Retrying every 2 s. Is it running?" |
+| Stale | No `state` or `pong` for >3 s while connected, or the socket closed after data arrived | A grey scrim over the data regions (not the header); clocks keep running and are marked "(last known)" | "Screen not updating. Last update {hh:mm:ss} ({elapsed} ago). Reconnecting…" |
+| Action error | A POST (confirm, reject, authorize, netem) fails or times out after 5 s | An inline message on that control, which becomes enabled again. The error is described in text (WCAG 3.3.1 [11]). | "Couldn't confirm. The Herald server didn't answer. Try again." |
+| Action pending | The POST was sent and the state hasn't reflected it yet | The button shows its pressed state within 0.1 s [46] and is disabled. After 2 s: "Still waiting for the server…" | "Confirming…" |
+| Replay | `?fixture=` is set | An accent banner across the top. Actions are disabled, with a tooltip. | "REPLAY · recorded session '{name}' · not live · actions are off" |
+
+**Two rules for actions.**
+- **No optimistic updates for clinical actions.** A fact counts as confirmed only when the server's state says so. That keeps H1 from happening.
+- **Every action is idempotent from the UI's side.** A double tap sends one request, because the button is disabled while its request is pending.
+
+### 3.1 NOW screen
+
+#### 3.1.1 Target sizes and layout modes
+
+- **Primary target:** 1366×768 CSS px, fullscreen (browser kiosk mode or F11), in the dark theme. This is a 14″ laptop at the typical OS scale.
+- **Also supported:**
+  - **1280×720:** same layout, with the trace ticker hidden when there isn't room.
+  - **Tablet landscape 1180×820 (an iPad-class device):** same layout.
+  - **1366×657 (browser toolbars showing):** the top band keeps its size, and the main panels scroll inside themselves.
+- **Below 1024 px wide, or at 200% zoom:** one column, in this order:
+  1. top band;
+  2. alert;
+  3. needs attention;
+  4. ER status;
+  5. scores;
+  6. trace;
+  7. capture bar, pinned to the bottom.
+- **Two layout modes:**
+  - **medic mode** (the default): two columns, plus a one-line trace ticker;
+  - **explain mode** (Shift+E): three columns, the third being the full trace.
+
+**Vertical budget at 768 px**
+
+| Region | y (px) | Height | Scrolls? |
+|---|---|---|---|
+| Header | 0–48 | 48 | No |
+| Patient line | 48–92 | 44 | No |
+| Readiness band (two rows) | 92–180 | 88 | No |
+| Gap | 180–188 | 8 | — |
+| Main panels | 188–656 | 468 | Inside each panel |
+| Gap | 656–664 | 8 | — |
+| Trace ticker (medic mode only) | 664–700 | 36 | No |
+| Capture bar | 700–768 | 68 | No |
+
+In explain mode the ticker is hidden and the main panels run from 188 to 692 (504 px).
+
+**Columns** (12-column grid, 96.5 px columns, 16 px gutters):
+
+| Mode | Left | Middle | Right |
+|---|---|---|---|
+| Medic | Columns 1–6 (659 px): Needs attention, then Scores | Columns 7–12 (659 px): Alert slot, then tabs (ER status / Patient picture / Trends) | — |
+| Explain | Columns 1–4 (434 px): Needs attention, then Scores | Columns 5–8 (434 px): Alert slot, then tabs | Columns 9–12 (434 px): Herald thinking trace |
+
+#### 3.1.2 Wireframes
+
+Legend for the wireframes:
+- `(v)` done/confirmed, `(?)` needs your tap, `(o)` missing or not yet asked, `<>` sources disagree;
+- `/!\` MEDIUM, `[!]` HIGH, `(i)` LOW/technical;
+- `[S]` sent, `[Q]` queued, `[H]` held;
+- `[mic]`, `[cam]`, `[img]` capture sources; `>` play; `>>` expand.
+
+**Medic mode, gap-first moment** (stroke demo, after the warfarin photo and before glucose). 1366×768; one character is about 12 px.
+
+```
++-----------------------------------------------------------------------------------------------------------------+
+| HERALD  Incident ...8f3a · started 14:12    Speech (v)  Model: omni (v)  Cloud AI calls 0  (i) ED link: weak (emulated)  14:41:07 |
+| 68 F · sudden left-sided weakness · Dispatch: possible stroke        LKW 13:40 (husband) +01:01:07   ETA 00:09:12  Scene 00:29:07 |
+| STROKE ALERT  [#][#][#][#][/][ ]  4 of 6   missing: Glucose +1     Repeat vitals in 00:03:10   /!\ 1   (i) ED: 2 queued |
+|  (v) Last known well  (v) Stroke scale (RACE)  (?) Anticoagulants · needs tap  (v) Onset witnessed  (v) Deficits  (o) Glucose |
++--------------------------------------------------------+--------------------------------------------------------+
+| NEEDS ATTENTION (4)                                    | ALERT                                     < 1 of 1 >   |
+|  Needs your tap                                        |  <> CHECK  Allergies: sources disagree                 |
+|  (?) Anticoagulant: warfarin 5 mg  [img 48x48]         |     husband    none      14:31   [ > Play ]            |
+|      photo · pill bottle · 14:38                       |     daughter   aspirin   14:40   [ > Play ]            |
+|      [   Confirm   ]  [   Reject   ]                    |  [ Use "none" · husband ]  [ Use "aspirin" · daughter ]|
+|  Not yet captured                                      |  The ED has "none" (confirmed 14:31). "aspirin" is     |
+|  (o) Glucose                                           |  held on the vehicle until you choose.                 |
+|  Not yet asked                                         +--------------------------------------------------------+
+|  (o) Medications                                       | [ER status]  Patient picture  Trends                   |
+|  Due                                                   |  -> Valley Medical · stroke pre-alert set              |
+|  Repeat vitals in 00:03:10                             |  [S] Pre-alert        Stroke alert 4/6      #6         |
+| SCORES                                                 |  [S] Last known well  13:40                 #6         |
+|  NEWS2  2   low · complete                         >>  |  [S] Deficits         left arm, left leg…   #6         |
+|  RACE   6   large-vessel screen positive (>=5)     >>  |  [H] Anticoagulant    held · needs your tap            |
+|                                                        |  [H] Allergies        held · sources disagree          |
+|                                                        |  1,204 B sent · 99.8% kept on vehicle · 6 ACK · 2 retries |
++--------------------------------------------------------+--------------------------------------------------------+
+| [mic] 14:40 daughter: "Mom's allergic to aspirin." -> 1 fact needs your tap · <> sources disagree · held   Open trace (Shift+E) |
+| [ [mic] Hold to talk · medic   (Space) ]  [ [mic] Hold to talk · other (F) ]  speaker: daughter v   41 tok/s · GPU 28 W · cloud 0 |
++-----------------------------------------------------------------------------------------------------------------+
+```
+
+**Explain mode, same moment:**
+
+```
++------------------------------------------------------------------------------------------------------------------+
+| (header, patient line and readiness band exactly as in medic mode; the header adds "Explain" in accent)           |
++-------------------------------------+-------------------------------------+--------------------------------------+
+| NEEDS ATTENTION (4)                 | ALERT                  < 1 of 1 >   | HERALD THINKING   Following live (v) |
+|  (?) Anticoagulant: warfarin [img]  |  <> CHECK Allergies: sources        | +----------------------------------+ |
+|      [ Confirm ] [ Reject ]         |     disagree                        | | 14:40:12 [mic] other · daughter  | |
+|  (o) Glucose                        |   husband  none     14:31 [>]       | |   2.1 s [>]      model checking… | |
+|  (o) Medications · not yet asked    |   daughter aspirin  14:40 [>]       | | HEARD "Mom's allergic to aspirin."| |
+|  Repeat vitals in 00:03:10          |  [Use "none"] [Use "aspirin"]       | | RULES 0.4 ms · 1 fact             | |
+| SCORES                              +-------------------------------------+ |  (?) Allergies = aspirin 0.86    | |
+|  NEWS2 2 low                    >>  | [ER status] Patient picture Trends  | |      daughter · needs your tap    | |
+|  RACE 6 screen positive (>=5)   >>  |  [S] Pre-alert  Stroke alert 4/6 #6 | |      Held: unconfirmed facts      | |
+|                                     |  [S] Last known well 13:40      #6  | |      never leave the vehicle      | |
+|                                     |  [H] Anticoagulant · needs tap      | | MODEL omni · 842 ms · 38 tokens  | |
+|                                     |  [H] Allergies · sources disagree   | |  1 already covered by rules      | |
+|                                     |                                     | | CHECKED <> Allergies: sources    | |
+|                                     |                                     | |   disagree                        | |
+|                                     |                                     | +----------------------------------+ |
+|                                     |                                     | (older cards below, collapsed)       |
++-------------------------------------+-------------------------------------+--------------------------------------+
+| [ Hold to talk · medic (Space) ]  [ Hold to talk · other (F) ] speaker: daughter v     41 tok/s · GPU 28 W · cloud 0 |
++------------------------------------------------------------------------------------------------------------------+
+```
+
+**Variants** (only the region that changes is shown):
+
+```
+Empty state (dispatch "possible stroke", nothing said yet)
+| STROKE ALERT  [ ][ ][ ][ ][ ][ ]  0 of 6   missing: Last known well +5                                         |
+|  (o) Last known well (o) Stroke scale (RACE) (o) Anticoagulants (o) Onset witnessed (o) Deficits (o) Glucose     |
+| NEEDS ATTENTION (8): Not yet captured: Glucose, Stroke scale (RACE), Deficits described                         |
+|                      Not yet asked: Last known well, Anticoagulants, Onset witnessed, Allergies, Medications   |
+| ALERT: (v) No alerts          ER STATUS: [ Authorize pre-alert... ] Once authorized, confirmed updates in scope  |
+|                                          are sent automatically. Unconfirmed facts never leave the vehicle.    |
+| TICKER: Nothing heard yet. Hold Space to talk, or take a photo at http://<nano-ip>:8100/capture.html            |
+
+ED offline (Shift+D)
+| header pill: (i) ED OFFLINE (emulated)        band chip: (i) ED: 5 queued · offline                              |
+| ER STATUS footer: Local AI keeps working. Updates wait on this vehicle and send when the link returns.          |
+
+Ready
+| STROKE ALERT  [#][#][#][#][#][#]  6 of 6   (v) READY                                                             |
+
+HIGH alert (not in the stroke demo; NEWS2 >= 7)
+| ALERT [!] HIGH  NEWS2 5 -> 7 (high band) · RR 26 (+2) · SpO2 91 (+2) · HR 118 (+2) · SBP 108 (+1)  [ Seen ]     |
+```
+
+#### 3.1.3 Header (`AppHeader`)
+
+- **Data:**
+  - `incident.id` and `incident.started`;
+  - `GET /api/health` (`llm_model`, `stt_loaded`), polled every 5 s and on every reconnect;
+  - `counters.cloud_ai_calls`;
+  - `relay.configured`, `relay.link`, and `netem`;
+  - the latest `trace.model.status`;
+  - the local clock.
+- **Elements, left to right:**
+  1. Wordmark "HERALD" as text: 16 px, weight 800, tracking +0.12 em.
+  2. Incident chip: "Incident …{last 4 of id} · started {HH:MM}".
+  3. Speech chip: "Speech ✓" when `stt_loaded`, otherwise "Speech loading…" (LOW, `info`).
+  4. Model chip, one of:
+     - "Model: {llm_model} ✓";
+     - "Model off · rules only" (LOW) when `llm_model` is null;
+     - "Model error · rules only" (LOW) when the latest trace has `model.status == "error"`, until the next "done".
+  5. "Cloud AI calls {n}", with the `shield-check` icon.
+  6. ED link pill (table below).
+  7. Explain chip (`eye`, accent) while explain mode is on.
+  8. Clock, HH:MM:SS, tabular numerals.
+- **Height:** 48 px, sticky at z-layer 10.
+
+**ED link pill**
+
+| `relay.configured` | `relay.link` | Icon | Style | Copy |
+|---|---|---|---|---|
+| false | `not configured` | `circle-slash` | muted | "ED link: not set up" |
+| true | `unknown` | `signal-zero` | LOW | "ED link: checking…" |
+| true | `good` | `wifi` | ok | "ED link: good" |
+| true | `weak` | `signal-low` | LOW | "ED link: weak" |
+| true | `down` | `wifi-off` | LOW, bold | "ED OFFLINE" |
+
+When `netem` is set, " (emulated)" is appended to every state. Clicking the pill opens the ER status tab.
+
+#### 3.1.4 Patient line (`PatientLine`)
+
+- **Data:** `summary`, `incident.dispatch`, `clocks` (`lkw`, `eta`, `scene`), and `facts["stroke.lkw"]` (for `speaker` and `status`).
+- **Summary:** e.g. "68 F · sudden left-sided weakness". When empty: "Patient details not captured yet".
+- **Dispatch:** "Dispatch: possible stroke". When null: "Dispatch: not set".
+- **LKW chip** (clock style, 32 px mono for the elapsed part): "LKW 13:40 (husband) · +01:01:07".
+  - Unconfirmed LKW: "LKW 13:40 · needs your tap", with `circle-question-mark`.
+  - No LKW fact while the stroke checklist is active: "LKW not yet asked" (missing style).
+- **ETA chip:** "ETA 00:09:12", counting down. At zero it reads "Arriving". Hidden when there is no ETA.
+- **Scene chip:** "Scene 00:29:07", from the `scene` clock, which runs from the incident's start.
+- **Clock format:** HH:MM:SS for every clock, matching Pulsara's convention [25].
+- **Data gap:** version 1's wireframe showed "ePCR 84%", but the snapshot has no ePCR completeness field. Hide it until the backend adds `epcr_pct`.
+
+#### 3.1.5 Readiness band (`ReadinessBand`)
+
+- **Data:**
+  - `readiness[]`, where `readiness[0]` is the primary checklist;
+  - `clocks[id == "reassess"]`;
+  - the active alert count;
+  - `relay.sync`, `relay.pending`, `relay.authorized`, `relay.link`.
+- **Row 1** (48 px):
+  - **Title:** `readiness[0].label` in uppercase, 20 px bold.
+  - **Segment bar:** `total` segments, each 28×16 px with 4 px gaps, styled as in §2.4.
+  - **Count:** "{done} of {total}", 40 px hero.
+  - **Status word:** "READY" (ok, `circle-check`) when `ready`. Otherwise "missing: {first non-done item label}", plus "+{n}" if more are missing.
+  - **On the right:**
+    - the due chip;
+    - the alert badge (`▲ n`, colored by the highest active priority; its space is kept when the count is 0);
+    - the ED chip.
+- **Row 2** (40 px): one chip per checklist item, in `checklists.ALERTS` order. Each chip is an icon plus the label in critical text (20 px):
+  - done → `circle-check`;
+  - pending → `circle-question-mark` plus "· needs tap";
+  - missing → `circle-dashed`.
+- **Second checklist** (e.g. STEMI as well as stroke): a compact chip "+ STEMI 2 of 6" at the end of row 1 opens a popover with that checklist.
+- **No checklist active:** row 1 reads "No pre-alert checklist active · dispatch: {dispatch or 'unknown'}". Row 2 stays as an empty 40 px space so nothing moves when a checklist appears.
+
+**Due chip**
+
+| Condition (`reassess.until − now`) | Style | Copy |
+|---|---|---|
+| No confirmed vitals yet (no `reassess` clock) | Hidden (space kept) | — |
+| > 60 s | text-secondary, `clock` | "Repeat vitals in 00:03:10" |
+| 0–60 s | LOW, `clock-alert` | "Repeat vitals due in 00:00:45" |
+| < 0 | LOW bold, `clock-alert` | "Repeat vitals overdue 00:00:40" |
+
+The interval comes from `HERALD_REASSESS_MIN` (default 10) and appears in the `reassess` clock label.
+
+**ED chip**
+
+| Condition | Copy |
+|---|---|
+| ED link not configured | Hidden |
+| Configured, not authorized | "ED: not authorized" (muted) |
+| Authorized, some `sync` rows `queued`, link not down | "ED: {n} queued" (LOW, `hourglass`) |
+| Authorized, link `down` | "ED: {n} queued · offline" (LOW) |
+| Authorized, nothing queued or pending | "ED: up to date" (ok) |
+
+#### 3.1.6 Needs attention (`NeedsAttention`)
+
+- **Data:**
+  - `facts` whose `status == "unconfirmed"`, excluding facts already shown in a `contradiction` or `confirm_required` alert;
+  - `needs_attention.missing` and `needs_attention.unknown`;
+  - `clocks[id == "reassess"]`.
+- **Header:** "NEEDS ATTENTION ({n})".
+- **Groups**, in this order (empty groups are hidden):
+  1. **Needs your tap.** Each row shows:
+     - `circle-question-mark`;
+     - the label and the value with its unit;
+     - the source line: "{speaker or role} · {HH:MM}", or "photo · {speaker} · {HH:MM}";
+     - the evidence: a 48×48 photo thumbnail with the crop box drawn, or `[ > Play ]` for audio;
+     - `[ Confirm ]` and `[ Reject ]`, each 64 px tall and at least 120 px wide.
+  2. **Not yet captured:** `needs_attention.missing`. A row with `pending_confirm` adds " — waiting for your tap above".
+  3. **Not yet asked:** `needs_attention.unknown`, with the same `pending_confirm` rule.
+  4. **Due:** the reassessment clock, using the due-chip copy.
+- **Empty:** "(v) Nothing missing for the active checklist" (ok). When no checklist is active: "Nothing to show yet".
+- **Overflow:** the panel scrolls inside itself. A bottom fade and a "{n} more ▾" button appear when content is hidden.
+- **Actions:**
+  - Confirm → `POST /api/facts/{id}/confirm`.
+  - Reject → `POST /api/facts/{id}/reject`.
+  - Both follow the pending/error rules in §3.0.
+
+#### 3.1.7 Scores (`ScoreCard` × 2, plus the field-triage card)
+
+**Compact row** (default, 48 px each):
+
+| State | NEWS2 copy | RACE copy |
+|---|---|---|
+| Complete | "NEWS2 5 · medium · ↑ from 2" | "RACE 6 · large-vessel screen positive (≥5)" |
+| Complete, below threshold | "NEWS2 2 · low" | "RACE 3 · screen negative (<5)" |
+| Incomplete | "NEWS2 — incomplete · missing: Temperature" | "RACE — incomplete · missing: Aphasia or agnosia" |
+
+**Color by band.**
+- NEWS2: `high` → HIGH; `medium` or `low-medium` → MEDIUM; `low` → neutral (text-primary with the word "low"); `incomplete` → muted.
+- RACE: `positive == true` → MEDIUM; `false` → neutral; incomplete → muted.
+
+**Expanded** (Radix Collapsible [61], toggled by ▸ or Enter):
+- **Parameter table:** Parameter | Value | Points (| Max for RACE), from `parts`.
+- **Missing inputs:** from `missing`.
+- **Threshold text:** from `thresholds`, e.g. "single parameter 3 = low-medium; 5–6 = medium; ≥7 = high".
+- **Source and evidence:** from `source` and `evidence`, e.g. "Royal College of Physicians, National Early Warning Score 2 (2017)" and "RACE ≥5: sensitivity 0.85, specificity 0.68 for large-vessel occlusion".
+- **NEWS2 history:** a sparkline of complete `news2_history` scores, with the series as text ("2 → 5").
+- **Footer:** "Computed from confirmed facts only."
+
+**RACE links to the county policy.**
+- "County destination policy ▸" opens a sheet with the policy text, once protocol lookup (TASKS P9) has loaded it.
+- Until then the sheet says: "County policy text isn't loaded on this vehicle." It never paraphrases the policy.
+
+**Field-triage card.**
+- Shown only when the dispatch or chief complaint mentions trauma or a fall (TASKS P4.3).
+- Rows: `red[]` criteria (HIGH), `yellow[]` criteria (MEDIUM), `missing[]` (missing style), and `source`.
+
+#### 3.1.8 Alert slot (`AlertSlot`)
+
+- **Size:** a fixed 188 px in both modes. Content scrolls inside the slot if it overflows.
+- **Header:** "ALERT", then "{i} of {n}", then 48 px `‹` and `›` buttons.
+- **Order:** as in §2.3.
+- **While PTT is held:** new alerts are held back and appear on release.
+
+**Variants and copy**
+
+| `type` | Title | Body | Actions → API |
+|---|---|---|---|
+| `contradiction` | `<>` CHECK "{label}: sources disagree" | One row per source (`facts[0]` older, `facts[1]` newer): speaker or role · value · HH:MM · `[ > Play ]` or a thumbnail. Helper text depends on the older fact's status: <br>• confirmed → "The ED has "{v0}" (confirmed {t0}). "{v1}" is held on the vehicle until you choose." <br>• otherwise → "Neither value leaves the vehicle until you choose." | `[ Use "{v0}" · {speaker0} ]` → `POST /api/facts/{confirm_fact_id}/reject`<br>`[ Use "{v1}" · {speaker1} ]` → `POST /api/facts/{confirm_fact_id}/confirm`<br>Both buttons have equal visual weight; neither is focused by default. |
+| `confirm_required` | CHECK "{label} needs your tap" | Value; source; photo thumbnail with the crop box. "Code status is never sent until you confirm it." | `[ Confirm ]`, `[ Reject ]` |
+| `news2_rise` (medium/high) | CHECK or HIGH "NEWS2 {from} → {to} ({band} band)" | The contributing parameters: every `scores.news2.parts` entry with points > 0, e.g. "RR 22 (+2) · HR 104 (+1) · SpO2 94 (+1)". "Published threshold: {thresholds}." If `any_single_3` is false, add "No single parameter scored 3." | `[ Seen ]` (UI state only) |
+| `news2_rise` (low) | (i) "NEWS2 {from} → {to}" | As above | `[ Seen ]` |
+| `race_positive` | CHECK "RACE {score}: large-vessel screen positive (≥5)" | "Published sensitivity 0.85, specificity 0.68 (Pérez de la Ossa 2014)." "County destination policy ▸" | `[ Seen ]` |
+| `significant_change` | CHECK "{label} changed: {series joined with →} ({signed delta})" | "Change rule: {rule text}". Rule text for each key: SBP ±20 mmHg or dropping to ≤90; HR ±20/min; SpO2 down ≥3 points or dropping below 92%; RR ±6/min; glucose ±50 mg/dL. These mirror `state.CHANGE_RULES`. | `[ Seen ]` |
+| (none) | (v) "No alerts" | — | — |
+
+**Accessibility.**
+- The slot is a region labelled "Alerts".
+- A visually hidden live region announces new alerts [45]: `aria-live="polite"` for MEDIUM and LOW, `assertive` for HIGH only.
+
+#### 3.1.9 Tabs: ER status, Patient picture, Trends
+
+**ER status** (the default tab):
+- **Header line:** "→ {authorized.destination} · {authorized.scope}".
+- **Not configured:** "ED link not set up on this vehicle (HERALD_ED_URL)." (muted).
+- **Configured, not authorized:**
+  - If `facts["transport.destination"]` is known: `[ Authorize pre-alert → {destination} ]` (64 px).
+  - Otherwise: `[ Authorize pre-alert… ]`, which opens a dialog with a destination field and the fixed scope "stroke pre-alert set".
+  - The helper text under either button: "Once authorized, confirmed updates in this scope are sent automatically. Unconfirmed facts never leave the vehicle."
+  - The button calls `POST /api/relay/authorize`.
+- **Rows:** ED-set keys in tier order: tier 1, then derived scores, vitals, logistics, and context (the same order as `relay.TIERS`).
+
+| Row state | Rule | Icon | Copy |
+|---|---|---|---|
+| Sent | `relay.sync[key] == "sent"` | `circle-check` ok | "{label}  {value}  Sent · #{seq}". `seq` is the newest `relay.log` entry with `result == "acked"` whose `keys` include the key. If none is in the last 12 entries: "Sent". |
+| Queued | `relay.sync[key] == "queued"` | `hourglass` LOW | "{label}  {value}  Queued · {tier rationale}", e.g. "the receiving team needs this before arrival" |
+| Held | Key is in the ED set and `facts[key].status == "unconfirmed"` | `lock` | "{label}  Held · needs your tap". If the key is part of a contradiction: "Held · sources disagree". |
+
+- **Footer:** "{bytes_sent} B sent · {kept_local_pct}% kept on the vehicle · {packets_acked} packets acknowledged · {retries} retries".
+- **Latest packet line:**
+  - acked: "#{seq} {tier} · {bytes} B · acked · {rtt_ms} ms · {queued_after} still queued · {HH:MM:SS}";
+  - failed: "#{seq} failed · retrying" (`refresh-cw`, LOW).
+- **Why a packet was sent:** each log line expands (▸) to show its `why[]` strings (the tier rationales) and its `keys[]`.
+- **Reconciled line.** It appears only when all of these hold:
+  - `relay.link == "good"`;
+  - `relay.pending` is empty;
+  - every `relay.sync` value is `sent`;
+  - at least one `tier == "full"` entry has `result == "acked"`.
+- The reconciled line reads: "(v) Reconciled: every confirmed field is acknowledged by the ED (0 lost). Retried packets are never applied twice."
+- The duplicate-packet count appears on the ED screen, which is where duplicates are detected (§3.4).
+
+**Patient picture:**
+- **Content:** every fact in `facts`, grouped as Patient, History, Vitals, Exam, Meds & allergies, Transport, Scene.
+- **Each `FactRow` shows:**
+  - the label;
+  - the value with its unit;
+  - a status icon;
+  - the source icon (`mic`, `camera`, `monitor`, or `keyboard`, from `captured_by`, and `keyboard` when there's no audio);
+  - the speaker or role, and HH:MM;
+  - `[ > Play ]` if `provenance.audio_id` exists. It plays `t_start`–`t_end` when both are set, otherwise the whole clip (HTMLMediaElement [67]).
+  - a photo thumbnail if `provenance.photo_id` exists (crop box from `provenance.crop`);
+  - "(was {previous_value} at {previous_ts})" when a previous value exists.
+- **Rejected facts** (from `timeline`, where `status == "rejected"`) sit in a collapsed "Rejected ({n}) ▸" group, each with `[ Restore ]` (→ confirm).
+
+**Trends:**
+- **One row per `changed[]` entry:**
+  - the label;
+  - an inline SVG sparkline (120×32, no animation);
+  - the series as text ("182 → 176 → 150");
+  - the signed delta;
+  - a direction arrow;
+  - `triangle-alert` with "big change" when `significant` is true.
+- **Last row:** NEWS2 history.
+
+#### 3.1.10 Trace ticker (medic mode only)
+
+- **Layout:** one line, 36 px, at critical text size (20 px). It shows the newest `transcripts[]` entry.
+- **Line content**, in this format: `{source icon} {HH:MM} {speaker}: "{text, up to 2 lines}" → {summary}`.
+  - The summary is built from the trace, e.g. "2 facts · 1 needs your tap · <> sources disagree · held · Stroke alert 4 → 5 of 6".
+- **While the model is running:** "· checking with local model {elapsed}s" is appended.
+- **Action:** a "Open trace (Shift+E)" button on the right switches to explain mode.
+- **Empty:** "Nothing heard yet. Hold Space to talk, or take a photo at http://{host}/capture.html".
+
+#### 3.1.11 Capture bar (`CaptureBar`)
+
+- **Height:** 68 px.
+- **Controls, left to right:**
+  - the medic PTT button (≥220×64 px);
+  - the other-speaker PTT button (≥220×64 px);
+  - the speaker select, 48 px tall, with the options patient, husband, wife, daughter, son, bystander, and "other…" (free text). The default is "family member", as today.
+  - the telemetry strip on the right (§5.9), e.g. "41 tok/s · GPU 28 W · 12.3 Wh · cloud AI 0". It opens a popover with the assumptions.
+- **Recording limit:** a clip stops automatically at 60 s ("Stopped at 60 s. Sending."). This is a design decision to bound upload size and STT time.
+- **The typed input and the simulated monitor move to the presenter bar.** They exist for rehearsal and fallback, not for the medic.
+
+**PTT states**
+
+| State | Trigger | Button | Other feedback | Copy |
+|---|---|---|---|---|
+| Idle | — | Outline, `mic` | — | "Hold to talk · medic (Space)" / "Hold to talk · other (F)" |
+| Mic blocked | `getUserMedia` rejects [68] | Disabled | Help text under the bar | "Microphone blocked. Open Herald at http://localhost:{port} (use an SSH port forward) and allow the microphone." |
+| Listening | pointerdown or key down | `--capture` fill, `mic` | Full-width listening strip above the main panels; 5-bar level meter; elapsed timer | "Listening · {medic or 'other speaker: {speaker}'} · release to send · Esc to cancel" |
+| Cancelled | Esc, pointercancel, or the pointer leaving the button while held | Back to idle | Toast for 2 s | "Recording cancelled. Nothing was sent." |
+| Sending | Release | Disabled, "Transcribing…" | Elapsed timer | "Transcribing… {elapsed}s" |
+| Heard | `/api/audio` returns a transcript | Idle | The new trace card and ticker line appear | — |
+| Nothing heard | The response has `transcript: null` | Idle | Toast for 3 s | "Didn't catch that. Nothing was heard in {seconds} s of audio." |
+| Error | HTTP error or timeout (20 s) | Idle | Inline error | "Speech service didn't answer. Try again, or type it in the presenter bar." |
+
+**Pointer handling.**
+- Uses Pointer Events [53]: `pointerdown` starts recording, `pointerup` sends, and `pointercancel`, leaving the button, or Esc cancels.
+- Satisfies WCAG 2.5.2 Pointer Cancellation (abort) [11].
+- `touch-action: none` on the PTT buttons, and the long-press context menu is suppressed.
+
+#### 3.1.12 NOW screen states, region by region
+
+| State | Top band | Needs attention | Alert slot | ER status | Trace |
+|---|---|---|---|---|---|
+| S0 Connecting | "—" everywhere | "—" | "—" | "—" | "Connecting…" |
+| S1 Empty (new incident) | "0 of 6", every chip missing | Every missing and not-yet-asked item | "No alerts" | Authorize button or "not set up" | "Nothing heard yet…" |
+| S2 Gap-first (partial) | Count, first missing item | Needs your tap / Not yet captured / Not yet asked | As applicable | Sent/queued/held rows | Cards |
+| S3 Ready | "6 of 6 · READY" | Scores and anything still unasked | As applicable | Up to date or queued | Cards |
+| S4 Contradiction | Alert badge `▲ 1` (MEDIUM) | The contradiction's facts are *not* listed here | The contradiction card | "Held · sources disagree" | "CHECKED <> sources disagree" |
+| S5 ED offline | ED chip "{n} queued · offline" | Unchanged | Unchanged | Rows queued; footer "Local AI keeps working. Updates wait on this vehicle and send when the link returns." | Relay lines show "Queued" |
+| S6 Stale websocket | Scrim; "Screen not updating…" | Scrim | Scrim | Scrim | Scrim |
+| S7 Action error | — | Inline error on that row | Inline error on that button | Inline error on Authorize | — |
+| S8 Model off | Header "Model off · rules only" | Unchanged | Unchanged | Unchanged | Model row "off" (§4.3 e) |
+| S9 Replay | REPLAY banner above the header | Actions disabled | Actions disabled | Actions disabled | Normal; ▶ disabled ("audio isn't included in the recording") |
+| S10 New incident requested | — | — | — | — | Dialog: "Start a new incident? This clears the current patient from this screen and resets the ED relay." `[ Start new incident ]` `[ Cancel ]` → `POST /api/incident` |
+
+#### 3.1.13 Keyboard, focus, touch, and accessibility
+
+**Keyboard map**
+
+| Key | Action | Notes |
+|---|---|---|
+| Space (hold) | PTT, medic | Only when keyboard PTT is on. Space then never activates a focused button; use Enter. |
+| F (hold) | PTT, other speaker | Same rule |
+| Esc (while holding) | Cancel the recording | WCAG 2.5.2 |
+| Shift+G / Shift+W / Shift+D | Link good / weak / down (emulated) | Existing hotkeys; calls `POST /api/netem/{mode}` |
+| Shift+E | Toggle explain mode | |
+| Shift+T | Cycle type scale 1.0 → 1.25 → 1.5 | Sets `--type-scale` on `<html>` |
+| Shift+L | Toggle theme | |
+| \` (backtick) | Show or hide the presenter bar | |
+| Enter / Space (keyboard PTT off) | Activate the focused control | Standard behavior |
+| Tab / Shift+Tab | Move focus | Order below |
+
+- **When hotkeys are ignored:** while focus is in an `input`, `textarea`, `select`, or `[contenteditable]`, or while a dialog is open.
+- **Turning shortcuts off:** single-character shortcuts (Space, F, \`) must be possible to turn off (WCAG 2.1.4 [11]). The presenter bar has a "Keyboard push-to-talk: on/off" switch, stored in `localStorage`.
+
+**Focus order.**
+1. "Skip to Needs attention" link (visible on focus).
+2. The header's ED link pill (opens ER status).
+3. The readiness band's alert badge (moves focus to the alert slot) and due chip.
+4. Needs attention actions, row by row.
+5. Score expanders.
+6. The alert slot: ‹ ›, then the actions.
+7. The tab list, then the active tab's content.
+8. The trace (explain mode).
+9. The capture bar.
+10. The presenter bar, when open.
+
+**Focus visibility.**
+- Focus is always visible: a 2 px `--accent` ring with a 2 px offset (WCAG 2.4.7).
+- The sticky header must never cover the focused element: `scroll-padding-top` equals the header plus band height (WCAG 2.4.11 [11]).
+
+**Accessible structure.**
+- Landmarks: `header`, `main` (the three regions, each with an `h2`), `footer` (capture bar).
+- Every icon-only button has an `aria-label`, e.g. "Play the daughter's audio, 14:40".
+- Status changes are announced politely [45]: new alert, fact confirmed, link state change, and "Reconciled".
+- Trace updates are not announced (too chatty). The ticker has `aria-live="polite"` and announces only when a card's model phase completes.
+- **Touch:** every action works with one tap, and PTT with press-and-hold. No gesture needs a path or multiple fingers (WCAG 2.5.1).
+- **Wake lock:** the screen asks for a Screen Wake Lock while an incident is active, so it doesn't dim in the vehicle [54]. It is released on "New incident". Localhost counts as a secure context.
+
+---
+### 3.2 Where the "Herald thinking" trace lives
+
+- **Medic mode:** a one-line ticker above the capture bar (§3.1.10). It summarises the newest card.
+- **Explain mode:** a full-height column, columns 9–12, 434 px wide. It shows every card for the incident, newest first; the snapshot keeps the last 20 transcripts. The card itself is specified in §4.
+- **Column header:** "HERALD THINKING" plus a "Following live" toggle.
+  - While following, the list stays scrolled to the top and new cards appear there.
+  - When the medic scrolls down, following pauses. A pill "{n} new ↑" appears at the top of the column; tapping it scrolls to the top and resumes following.
+  - This is the pause mechanism for WCAG 2.2.2 [11].
+- **Scroll stability:** the list relies on CSS scroll anchoring (`overflow-anchor: auto`, Baseline 2026 [44]). When a card above the visible area grows (its model phase finishing), the visible cards don't move.
+- **One card open by default:** the newest card is expanded and older cards are collapsed. The medic's own expand/collapse choices are kept per card id for the whole incident.
+
+### 3.3 Phone capture page (`capture.html`)
+
+**Target.**
+- 390×844 CSS px (iPhone-class) in portrait, dark theme. It must also work from 360 px wide.
+- Served by the Nano over plain HTTP on the LAN. The camera works without a secure context because it uses `<input type="file" capture="environment">` [51].
+- On a desktop browser the same control opens a file picker instead of the camera [51].
+
+**Stack.** Vanilla HTML, CSS and JS, restyled with the shared `tokens.css`. Labels come from `/keys.json` (§4.6). There is no WebSocket: the page polls `GET /api/health` every 5 s to show whether it is connected.
+
+**Wireframe (390×844)**
+
+```
++--------------------------------------+
+| HERALD · CAMERA                      |  56
+| (v) Connected to the ambulance       |
+|     computer                         |  40
++--------------------------------------+
+| [cam]  Monitor / pulse oximeter      |  >= 96
+|        Reads SpO2, pulse, BP digits  |
++--------------------------------------+
+| [cam]  Pill bottle                   |  >= 96
+|        Reads the drug name and flags |
+|        anticoagulants                |
++--------------------------------------+
+| [cam]  POLST / DNR form              |  >= 96
+|        Reads the checked box. Always |
+|        needs your tap on the main    |
+|        screen.                       |
++--------------------------------------+
+| [cam]  Scene                         |  >= 96
+|        Short factual notes for the   |
+|        ED. No judgments about people.|
++--------------------------------------+
+| LAST READING                  14:38  |
+| +--------+  Pill bottle              |
+| | photo  |  (?) Anticoagulant:       |
+| | [crop] |      warfarin             |
+| +--------+  Needs your tap on the    |
+|             main screen · 0.82       |
+|             Read in 1.8 s            |
+| [ Take another ]                     |
++--------------------------------------+
+| Photos stay on the ambulance         |
+| computer. Reads digits, drug labels  |
+| and checked boxes. Does not          |
+| interpret ECGs.                      |
++--------------------------------------+
+```
+
+**States**
+
+| State | Trigger | UI | Copy |
+|---|---|---|---|
+| Connected | `/api/health` answers | Status line in ok | "(v) Connected to the ambulance computer" |
+| Not connected | `/api/health` fails or takes >3 s | Status line in LOW; tiles still work (the photo is sent when possible) | "(i) Can't reach the ambulance computer. Is this phone on the same Wi-Fi?" |
+| Preparing | A photo was picked; the page is resizing it to 1280 px JPEG q0.85 (existing `shrink()`) | The chosen tile shows its pressed state; the result area says "Preparing photo…" | "Preparing photo…" |
+| Sending | POST `/api/photo` in progress | Elapsed timer [46] | "Sending photo ({size} MB)… {elapsed}s" |
+| Reading | Upload done, waiting for the response (the vision model is working) | Elapsed timer; the thumbnail is already shown | "Reading on the ambulance computer… {elapsed}s" |
+| Result | 200 with `facts.length > 0` | Thumbnail with every fact's `provenance.crop` box; one row per fact: label, value, (?) "Needs your tap on the main screen", the confidence number in meta size | "Read in {ms/1000} s" |
+| Nothing readable | 200 with `facts == []` | Thumbnail; LOW message | "Nothing readable in this photo. Try closer, with less glare, and fill the frame." |
+| Vision unavailable | HTTP 503 | LOW message; the photo is kept for retry | "The vision model isn't running on the ambulance computer, so no reading was made. [ Try again ]" |
+| Network error | fetch throws | LOW message; the photo is kept for retry | "Photo not sent. There's no connection to the ambulance computer. [ Try again ]" |
+| Slow | >15 s in "Reading" | Extra line | "Still reading. The result will also appear on the main screen." |
+
+**Interaction and accessibility.**
+- Each tile is a `<label>` wrapping a visually hidden file input. The whole tile is the target, ≥96 px tall.
+- The accessible name is "{title}: {description}".
+- The result area is `aria-live="polite"` [45].
+- "Try again" resends the kept image. The page doesn't ask the user to shoot again.
+- Body text is 17 px, tile titles 22 px bold, and values 28 px bold (§2.5).
+
+**Photo failures on the NOW screen.**
+- A failed photo reading appends a trace entry with `trace.model.status = "error"` and `heard.photo_id`, then returns 503 (done). The NOW trace shows the failed photo (§4.3 g).
+
+### 3.4 ED screen (`ed.html`, served by `ed_receiver`)
+
+**Target.**
+- 1920×1080 on a TV or projector, light theme, readable from 3 m (§2.5 ED type scale).
+- It is display-only: nobody needs to touch it during the demo.
+
+**Data.** The ED receiver's own `/ws` sends the whole view on every change:
+- `{"incidents": {<incident_id>: EdIncident}}` (types in §5.6);
+- the screen shows the newest incident.
+
+**Wireframe (1920×1080)**
+
+```
++------------------------------------------------------------------------------------------------------------------+
+| EMERGENCY DEPARTMENT · INCOMING                     -> Valley Medical            Last update 00:00:04 ago         | 64
++------------------------------------------------------------------------------------------------------------------+
+| [!] INCOMING  STROKE ALERT 6/6 ready · 68 F · left-sided weakness · ETA 00:09:12                                  | 96
++-------------------------------------------------------------------------------+----------------------------------+
+| CRITICAL                                                                      | LINK                             |
+|  Last known well     13:40      +01:01:07                                     |  Packets applied          7      |
+|  [!] Anticoagulant   WARFARIN                                  new            |  Retried packets ignored  3      |
+|  [!] Allergies       aspirin                                                  |   (none applied twice)           |
+|  Code status         not received                                             |  Bytes received      1,204 B     |
+|  RACE                6 · large-vessel screen positive (>=5)                   |  Still queued on the rig  0      |
+|  NEWS2               5 · medium   (2 -> 5)                                    |  Last packet #7 critical 119 B   |
++-------------------------------------------------------------------------------+   14:41:02                       |
+| VITALS, EXAM, LOGISTICS                                                       +----------------------------------+
+|  BP 176/98 (182/104 -> 176/98) · HR 104 (92 -> 104) · SpO2 94 · RR 22         | PACKETS (newest first)           |
+|  Glucose 142 · Temp 38.4 · Deficits: left face, arm, leg; gaze right          |  #7 critical 119 B  14:41:02     |
+|  Destination Valley Medical · ETA 00:09:12                                    |     Anticoagulant, Allergies     |
++-------------------------------------------------------------------------------+  #6 critical 419 B  14:40:31     |
+| FULL RECORD  (synced 14:44:10 on a good link)                           >>    |     Pre-alert, LKW, Deficits…    |
+|  14:31  Allergies = none reported · husband (family)                          |  ...                             |
++-------------------------------------------------------------------------------+----------------------------------+
+| (v) Up to date · nothing waiting on the ambulance · 3 retried packets ignored (none applied twice) · Demo: link emulated |
++------------------------------------------------------------------------------------------------------------------+
+```
+
+**Components.**
+
+**Top bar.** "EMERGENCY DEPARTMENT · INCOMING", the destination (`dest`), and "Last update {elapsed} ago", counted from the newest packet's `at`.
+
+**Incoming banner.**
+- Content:
+  - `fields["alert.readiness"].v`, e.g. "Stroke alert 6/6 ready";
+  - age and sex;
+  - the chief complaint;
+  - an ETA countdown, computed from `transport.eta_min` and the time that field arrived.
+- Style: high fill with white text and `octagon-alert`.
+  - It pulses three times at 0.5 Hz when the incident first appears or the readiness count rises, then stays steady.
+  - Why HIGH: a stroke pre-alert fits IEC Table 201's "irreversible injury × prompt" row [1].
+  - This replaces the current 1 Hz opacity flash.
+
+**Critical block** (48 px key values). Rows in this order:
+- **Last known well:**
+  - the value as received;
+  - elapsed time, if the value parses as a clock, using the same "most recent past time" rule as `state.parse_clock`;
+  - if it doesn't parse, the value only.
+- **Anticoagulant:** a critical flag (`octagon-alert`, `--high-fg`, value in uppercase) when present. When absent: "not received" (muted).
+- **Allergies:** a critical flag when the list is non-empty. An empty list shows "none reported" (neutral).
+- **Code status:** a critical flag when present, otherwise "not received".
+- **RACE:** from `score.race`, e.g. "6 positive" → "6 · large-vessel screen positive (≥5)".
+- **NEWS2:** from `score.news2`, e.g. "5 medium" → "5 · medium", with the history in brackets.
+- **Why the flags are steady red:** the red with icon and word marks critical information the receiving team needs to know. It doesn't flash. This keeps TASKS P2.5 ("warfarin in red") within P5.
+
+**Vitals, exam, logistics** (32 px body):
+- vitals with their history from `history[key]` ("182/104 → 176/98");
+- glucose, temperature, deficits;
+- destination and ETA.
+
+**Changed values.** A field whose `seq` equals the newest applied sequence gets the word "new" plus a highlight for 2 s (§2.8).
+
+**Link panel.**
+- Packets applied: `applied.length`.
+- Retried packets ignored: `duplicates`, with "(none applied twice)" under it.
+- Bytes received: `bytes`.
+- Still queued on the rig: `queued_on_rig`.
+- The last packet.
+
+**Packet feed.** Newest first, in 20 px mono: "#{seq} {tier} {bytes} B {HH:MM:SS}", then the field labels.
+
+**Full record.**
+- Appears once a full-tier packet has filled `timeline`.
+- Heading: "FULL RECORD (synced {time} on a good link)".
+- It is collapsed to the 5 newest rows, with a toggle to show all.
+
+**Footer.** The reconciliation line.
+- Shown when `queued_on_rig == 0` and the newest packet's tier is `full`.
+- Copy: "(v) Up to date · nothing waiting on the ambulance · {duplicates} retried packets ignored (none applied twice)".
+- With `?demo=1`, the footer ends with "· Demo: the link is emulated by the presenter".
+
+**States**
+
+| State | Trigger | UI | Copy |
+|---|---|---|---|
+| Waiting | No incidents | Centered message, 48 px | "No incoming patients. Waiting for the ambulance." |
+| Critical update only | Packets received, `timeline` empty | Banner, critical block, vitals; the full-record area shows a note | "Critical update received. The full record follows when the link allows." |
+| Updating | New packet | Changed fields highlighted | "new" |
+| Full record | `timeline` non-empty | Full-record section | "Synced {time} on a good link" |
+| Silent | No packet for >30 s (design decision) and not up to date | LOW line under the top bar | "No update for {elapsed}. The ambulance may be out of coverage. Showing the latest values received." |
+| Up to date | `queued_on_rig == 0` and the last tier is `full` | Footer line in ok | See the footer copy above |
+| Disconnected from the ED service | ED `/ws` closed | Stale scrim, as on the NOW screen | "Screen not updating. Reconnecting…" |
+
+**Backend addition (U10), done.**
+- `ed_receiver` records `last_contact_at` on every `/ping` and `/ingest` and includes it at the top level of `view()`.
+- It stays null until the medic authorizes a destination: the rig contacts nobody before that.
+- The ED screen then shows "Last contact with the ambulance {n} s ago". That is an honest link state seen from the ED side.
+
+**Accessibility.**
+- Display-only, so no focus management is needed beyond the default.
+- The banner and critical block are an `aria-live="polite"` region [45].
+- Text sizes follow §2.5, and colors meet contrast in the light theme.
+
+### 3.5 Presenter controls, judge beat, and video
+
+#### 3.5.1 Presenter bar
+
+**Where it sits.**
+- A floating panel at the bottom right, 420 px wide, at z-layer 40, above the capture bar.
+- The backtick key shows or hides it. It is hidden by default and never appears in medic mode unless opened.
+- It is excluded from the stale scrim, so the presenter can still act while the screen is stale.
+
+| Group | Controls | Behavior and copy |
+|---|---|---|
+| Link | Segmented `[ Good ] [ Weak ] [ Down ]` (48 px), the current `netem` mode highlighted | Calls `POST /api/netem/{mode}`, the same as Shift+G/W/D. The subtitle reads "Emulated with Toxiproxy · real packets" [65]. On a 503: "Link control unavailable: Toxiproxy isn't reachable. The relay still works." |
+| View | Explain on/off · Type 1.0 / 1.25 / 1.5 · Theme dark/light · Reduce motion · Keyboard push-to-talk on/off · Hide cursor when idle (3 s) | The same as the hotkeys. Everything is stored in `localStorage`. |
+| Rehearsal input | A text field with a speaker picker (medic / other + label) → `POST /api/transcript` `{text, captured_by, speaker, use_llm: true}`. Also a simulated monitor form (SBP, DBP, HR, RR, SpO2, Temp °C, Glucose, O2) → `POST /api/facts`, the existing contract with `captured_by: "device"` and confidence 0.99. | Labels: "Type what was said (rehearsal)" and "Simulated monitor (fallback)". Monitor facts are labelled as device facts in the trace. |
+| Incident | `[ New incident… ]` with a dispatch select (possible stroke / chest pain / fall / unknown) | A confirmation dialog (§3.1.12 S10) |
+| Judge beat | `[ Set other speaker: daughter ]` | Sets the speaker select in one tap before handing over the mic |
+| Status | WebSocket state and last message age; `/api/health` (model, STT); fixture controls in replay (pause, step, restart, speed 1×/2×/4×) | Read-only, except the fixture controls |
+
+**Safety.**
+- Presenter controls never change clinical data without an explicit button press.
+- Hotkeys don't fire in inputs.
+- Every action states its result in text.
+
+#### 3.5.2 Judge beat, step by step
+
+This is TASKS P6.
+
+| # | Who | Action | What the screens show | Expected time |
+|---|---|---|---|---|
+| 0 | Presenter | Before the demo: presenter bar → "Set other speaker: daughter". Check that "Husband says no allergies" was spoken earlier. | ER status shows "Allergies: none reported · Sent" | — |
+| 1 | Presenter | Hands the judge the card "Mom's allergic to aspirin" and the handheld mic | — | — |
+| 2 | Presenter | Holds F, or presses and holds the on-screen "other" button | Full-width strip: "Listening · other speaker: daughter · release to send · Esc to cancel", level meter moving | — |
+| 3 | Judge | Reads the card | The meter follows the judge's voice | ~2 s |
+| 4 | Presenter | Releases | "Transcribing… 0.3 s" | STT round trip 0.47 s for a 10.4 s clip (team measurement, TASKS checkpoint) |
+| 5 | — | — | Caption toast for 4 s (32 px on stage): Daughter: "Mom's allergic to aspirin." The new trace card appears with the rules phase and "Model checking…". | < 1 s |
+| 6 | — | — | The alert slot pulses three times: `<>` CHECK "Allergies: sources disagree", with both sources and times | Right after |
+| 7 | Presenter | Taps `[ > Play ]` on the daughter row | The judge's own audio plays from the Nano | — |
+| 8 | Presenter | Says: "Your voice stays on this box and is deleted after the demo." | — | — |
+| 9 | Presenter | Taps `[ Use "aspirin" · daughter ]` | ER row: "Allergies: aspirin · Queued", then "Sent · #n". The ED screen shows "Allergies aspirin" with the "new" highlight. | ≤ 2 s on a good link |
+
+**Fallbacks.**
+- If the mic fails: a teammate reads the card.
+- If speech-to-text fails: type the sentence in the presenter bar with the "other: daughter" speaker. The same contradiction fires.
+
+#### 3.5.3 Stage layout
+
+- **Two displays:** the NOW screen (left) and the ED screen (right).
+- **The ED screen runs on the second machine and network (TASKS P2.3), in the light theme.**
+- **The NOW screen is dark on the laptop, and light when mirrored to a projector** (§2.1).
+- **When the NOW screen is mirrored to a 55″ TV at 3 m,** use Shift+T 1.25× (§2.5).
+
+#### 3.5.4 Two-minute video capture
+
+**OBS setup** [43].
+- Canvas and output 1920×1080 at 30 fps.
+- MP4 (fast start), H.264 High profile, about 8 Mbps. These are YouTube's recommended 1080p SDR settings [42].
+- Record with the cursor hidden (presenter bar option) and at type scale 1.25×, so text stays readable in a small YouTube player (design decision).
+
+**Scenes.**
+1. **Title card:** team name, tagline, logo. The deliverables require all three (context.md).
+2. **NOW screen, fullscreen.**
+3. **NOW 62% + ED 38%, side by side.**
+4. **Phone inset.** Either mirror the phone's screen, or film the hands and phone with a second camera. The inset takes the lower right quarter.
+5. **Explain mode close-up** of the trace column. Use OBS crop, not zoom, so there is no blur.
+
+**Storyboard** (driven by `scripts/replay.py` for repeatability, with one live voice take):
+
+| Time | Scene | Content |
+|---|---|---|
+| 0:00–0:10 | 1 | Name, tagline, and the handover problem, in one sentence |
+| 0:10–0:25 | 2 | Gap-first: "Stroke alert 0 of 6"; the medic speaks; chips close |
+| 0:25–0:45 | 4 + 2 | Pill-bottle photo → warfarin needs a tap → Confirm |
+| 0:45–1:05 | 5 | Explain mode: heard → rules → model → checked → relay held/sent |
+| 1:05–1:25 | 2 | Contradiction in a second voice; ▶ plays the audio |
+| 1:25–1:45 | 3 | Shift+D offline → everything local keeps working; Shift+W weak → the critical update lands on the ED screen |
+| 1:45–2:00 | 3 | Shift+G → reconciled; "Cloud AI calls 0"; close line and logo |
+
+---
+## 4. "Herald thinking" trace
+
+The backend side of this is DONE (U5); its pytest is pending in TASKS.md. This section specifies the frontend card against the implemented contract, in `herald/app.py` (`_ingest_text`, `_refine_with_model`, `post_photo`) and `herald/trace.py`.
+
+### 4.1 Data contract (as implemented)
+
+Every entry in `state.transcripts[]` (the snapshot keeps the last 20) has these fields.
+
+**Entry fields**
+
+| Field | Meaning |
+|---|---|
+| `id` | `t_…`. Stable: phase 2 updates the same entry in place. |
+| `ts` | ISO time the entry was created (UTC) |
+| `text` | The heard text. For photos: `"[photo: <mode>]"`. |
+| `captured_by` | `medic`, `other`, `camera`, or `device` (monitor panel). Typed and replay text uses the value that was posted. |
+| `speaker` | The free label ("daughter"), or the photo mode |
+| `audio_id` | Present for voice clips |
+| `photo_id` | Present for photos |
+| `fact_ids[]` | Rules facts, plus model facts appended in phase 2 |
+| `extract` | `{rules, llm, ms}` counts and rules time |
+| `stt` | `{seconds, ms, chunks[{text, t:[start, end]}]}`, or null. `seconds` is the clip length; `ms` is speech-to-text wall time. |
+
+**`trace.heard`**
+
+| Field | Meaning |
+|---|---|
+| `text` | What was heard, or `"photo (pill bottle)"` |
+| `speaker` | `speaker` or `captured_by`. Absent for photos. |
+| `audio_id` / `photo_id` | The evidence |
+| `stt` | Clip length (`seconds`), speech-to-text time (`ms`), and word chunks with timestamps |
+| `source` | `"structured"` for monitor-panel entries; absent otherwise |
+
+**`trace.rules`**
+
+| Field | Meaning |
+|---|---|
+| `ms` | Rules extractor time (e.g. 0.4) |
+| `facts[]` | `F[]`, facts ingested from the rules result. Photos: `{ms: 0, facts: []}`. |
+
+**`trace.model`**
+
+| Field | Meaning |
+|---|---|
+| `status` | `running`, `done`, `error`, `off`, or `skipped`. `skipped` means the prompt-injection guard found instruction-shaped speech, so the model was not called for this utterance (see `trace.guard`). |
+| `reason` | Why the model did not run: on `skipped` (e.g. `instruction-shaped speech ("ignore previous"): model output discarded for this utterance`) and on monitor-panel `off` entries |
+| `name` | The ZRT served name (e.g. `omni`). Absent when `off` or `skipped`. |
+| `ms` | Model phase time (on `done` and `error`) |
+| `tokens` | Completion tokens (voice `done` only; may be null) |
+| `proposed` | How many facts the model returned (voice `done` only) |
+| `agreed_with_rules` | Facts the model returned with the same key and value as a rules fact (exact agreement only) |
+| `overridden_by_rules` | Facts the model returned that were dropped because the rules value wins (`pipeline.merge_llm`: vitals always keep the rules value). `proposed = len(facts) + agreed_with_rules + overridden_by_rules`. |
+| `facts[]` | `F[]` added by the model. Model-only facts are capped at confidence 0.8, so they always need a tap. |
+| `error` | Up to 200 characters, on `error` |
+
+**`trace.guard`**
+
+| Field | Meaning |
+|---|---|
+| `instruction_shaped` | Null, or the matched phrase when the utterance contains instruction-shaped speech (`herald/guard.py`). The rules extractor stops at that clause for the rest of the sentence, and the model is skipped. Show it in explain mode as "Instruction-shaped speech ignored: \"{phrase}\"". |
+
+**`trace.effects`** (see §4.6)
+
+| Field | Meaning |
+|---|---|
+| `readiness[]` | `{label, from, to, total, ready}` |
+| `alerts_new[]` | `{type, label}`. `label` is the alert's key when it has one (e.g. `allergies`), otherwise its label (e.g. `NEWS2`). |
+| `scores[]` | `{name: "NEWS2" or "RACE", from, to, detail}`. `detail` is the band string for NEWS2 and the `positive` boolean for RACE. `from` is null the first time a score becomes complete. |
+| `gaps_closed[]` | Keys that left `needs_attention` (missing or unknown), e.g. `vitals.glucose` or `@race` |
+
+**F**, the compact fact: `{id, key, label, value, role, speaker, status, confidence, extractor, relay}`. `relay` is frozen when the fact is created, and is one of:
+- `"held: unconfirmed facts never leave the vehicle"`;
+- `"eligible: <tier rationale>"`, e.g. "eligible: the receiving team needs this before arrival";
+- `"stays on the vehicle (not in the ED set)"`.
+
+Live relay state comes from `state.ed_sync[key]` (`sent` or `queued`) and `state.relay.log[]`. Each log entry is `{ts, seq, tier, bytes, keys, why[], queued_after, result: acked|failed, rtt_ms?, error?}`, and the status shows the last 12 entries.
+
+### 4.2 Lifecycle and timing
+
+**Voice capture:**
+1. PTT release, then `POST /api/audio`.
+2. Speech-to-text. A 10.4 s clip took 0.47 s round trip (team measurement, TASKS checkpoint).
+3. The rules extractor runs in about 1 ms.
+4. The entry is appended with `model.status` set to `running`, or `off` if no model is served or `use_llm` is false. The server broadcasts at once, so the card appears immediately.
+5. The model phase runs in the background. The team reports about 0.7–2 s. **Measured on this box** with `zrt metrics display` on 2026-09-23 (all requests to `omni` since service start, including benchmarks): end-to-end p50 0.79 s, p90 1.98 s, p99 4.53 s.
+6. The same entry (same `id`) is updated to `done` or `error`, the model's effects are appended to `effects`, and the server broadcasts again.
+
+**Typed or replay text** (`POST /api/transcript`, as used by `scripts/replay.py`): the same as voice, but without `audio_id` or `stt`.
+
+**Photo:**
+1. `POST /api/photo`.
+2. The vision model reads it. This is one phase: the entry is appended only after the reading, with `rules: {ms: 0, facts: []}` and `model.status = "done"`.
+3. If the vision model fails, the endpoint returns 503 **and an entry is created** with `model.status = "error"` and `heard.photo_id` (done; §4.3 g).
+
+**Monitor-panel facts** (`POST /api/facts`) create one transcript entry per call (done): `captured_by: "device"`, the facts under `trace.rules.facts`, and `model.status = "off"` with a `reason`. They also show in the Patient picture with the `monitor` icon.
+
+### 4.3 Card states and wireframes
+
+**Card anatomy** (explain column, 434 px wide, 16 px padding, so 402 px of content):
+- **Header**, two lines:
+  - source icon, time HH:MM:SS, source ("Medic", "Other speaker · daughter", "Photo · pill bottle", "Typed · medic");
+  - evidence (`[ > Play ]` with the clip length, or a 96×96 thumbnail with crop boxes) and phase status.
+- **Sections**, always in this order, each with a 14 px uppercase label:
+  - HEARD (TYPED for text without audio, SEEN for photos);
+  - RULES;
+  - MODEL (VISION for photos);
+  - CHECKED.
+- **Fact rows** (§4.4) sit under RULES and MODEL. Each has its live relay line.
+
+**a) Voice, rules done, model running**
+```
++----------------------------------------------------+
+| [mic] 14:40:12  Other speaker · daughter           |
+|       [ > Play ] 2.1 s             model checking… |
+| HEARD                                              |
+|  "Mom's allergic to aspirin."                      |
+| RULES  0.4 ms · 1 fact                             |
+|  (?) Allergies = aspirin                           |
+|      daughter (family) · Rules · 0.86 · needs tap  |
+|      [H] Held: sources disagree. Resolve it in the |
+|          alert card.                               |
+| MODEL  omni · checking… 0.9 s                      |
+|        (this row keeps its height; see 4.7)        |
+| CHECKED  (changes seen while this was processed)   |
+|  <> Allergies: sources disagree                    |
++----------------------------------------------------+
+```
+
+**b) Voice, model done, model added facts**
+```
+| MODEL  omni · 842 ms · 38 tokens                   |
+|        proposed 3 · 2 already covered by rules ·   |
+|        added 1                                     |
+|  (?) Onset witnessed = yes                         |
+|      medic · Model (omni) · 0.80 · needs tap       |
+|      [H] Held: unconfirmed facts never leave the   |
+|          vehicle                                   |
+| CHECKED                                            |
+|  Stroke alert 3 → 4 of 6 · closed: Deficits        |
+|  described                                         |
+```
+
+**c) Voice, model done, nothing new**
+```
+| MODEL  omni · 912 ms · 41 tokens                   |
+|        proposed 2 · 2 already covered by rules ·   |
+|        nothing new                                 |
+```
+If `proposed == 0`: "found no facts".
+
+**d) Voice, model error**
+```
+| MODEL  (i) omni · failed after 2.0 s               |
+|        The rules result stands.                    |
+|        error: ReadTimeout … (explain mode only)    |
+```
+- Styled as LOW technical. Never red.
+- The header's Model chip shows "Model error · rules only" until the next `done`.
+
+**e) Voice, model off**
+```
+| MODEL  off · rules only                            |
+```
+- Muted.
+- `off` is decided when the entry is created and never changes, so this card never changes size.
+
+**f) Photo reading (done)**
+```
++----------------------------------------------------+
+| [cam] 14:38:02  Photo · pill bottle                |
+|       +--------+                                   |
+|       | photo  |  (tap to open; boxes = crops)     |
+|       +--------+                                   |
+| SEEN   photo (pill bottle)                         |
+| RULES  not used for photos                         |
+| VISION omni · 1.8 s · 1 fact                       |
+|  (?) Anticoagulant = warfarin                      |
+|      photo · pill bottle · Vision (omni) · 0.82 ·  |
+|      needs tap                                     |
+|      [H] Held: unconfirmed facts never leave the   |
+|          vehicle                                   |
+|      [ Confirm ]  [ Reject ]                       |
+| CHECKED                                            |
+|  (no change until confirmed: the checklist counts  |
+|   confirmed facts only)                            |
++----------------------------------------------------+
+```
+
+**g) Photo failed.** The backend entry exists (done): `model.status = "error"`, `model.error`, `model.ms`, `heard.photo_id`, `fact_ids: []`.
+```
+| [cam] 14:39:10  Photo · POLST form                 |
+|       [thumbnail]                                  |
+| VISION (i) failed after 30.1 s: vision model       |
+|        unavailable. The photo is saved; no reading |
+|        was made.                                   |
+```
+
+**h) Typed or replay text.** The header shows the `keyboard` icon and "Typed · {speaker or medic}", there is no ▶, and the first section is labelled TYPED.
+
+**i) No facts found**
+```
+| RULES  0.3 ms · no facts                           |
+| MODEL  omni · 780 ms · found no facts              |
+| CHECKED  No change to the checklist, scores or     |
+|          alerts.                                   |
+```
+
+**j) Nothing heard.** When `/api/audio` returns `transcript: null`, no card is created. The capture bar shows "Didn't catch that…" (§3.1.11).
+
+**Phase status in the header** (right side, meta size):
+
+| Status | Copy |
+|---|---|
+| running | "model checking…" (plain text, no spinner) |
+| done | "done" |
+| error | "(i) model failed · rules stand" |
+| off | "rules only" |
+
+### 4.4 Fact row (`TraceFactRow`)
+
+| Line | Content | Style |
+|---|---|---|
+| 1 | Status icon (live status, §4.5), then `{label} = {value}{unit}` | Body 18 px. The value is 600 weight. |
+| 2 | `{source} · {extractor} · {confidence} · {category}` | Meta 14 px, muted |
+| 3 | The relay line: icon plus copy (§4.5) | Meta 14 px. Min-height is two lines (§4.7). |
+| 4 (optional) | `[ Confirm ] [ Reject ]` (48 px tall in the trace; the 64 px primary controls are in Needs attention). Shown only when the live status is `unconfirmed` and the fact isn't part of a contradiction. | Buttons |
+
+**Formatting rules.**
+- **Value:**
+  - a list is joined with ", ", and an empty list reads "none reported";
+  - `true` / `false` read "yes" / "no";
+  - times are shown as received.
+- **Unit:** from `keys.json` (§4.6). F carries none.
+- **Source:**
+  - with a speaker: "{speaker} ({role})", unless they are the same word;
+  - for photos: "photo · {speaker}", where the speaker is the photo mode;
+  - otherwise: the role.
+- **Extractor labels:**
+  - `rules` → "Rules"
+  - `llm:<name>` → "Model ({name})"
+  - `rules+llm:<name>` → "Rules + model ({name})" (older format)
+  - `vision:<name>` → "Vision ({name})"
+  - `manual` → "Monitor panel"
+  - null → "—"
+- **Confidence:** always two decimals, e.g. "0.86". It is shown only in the trace and in fact details (P9).
+- **Category:**
+  - `confirmed` → "confirmed" (`circle-check`);
+  - `unconfirmed` → "needs tap" (`circle-question-mark`);
+  - `rejected` → "rejected by the medic" (`circle-x`).
+
+### 4.5 Live status and relay lookup
+
+F is frozen when the fact is created, so the card derives its live state from the newest snapshot. The following selectors live in `ui/src/lib/selectors.ts`:
+
+```ts
+// ED_TIER mirrors relay.TIERS: key -> { tier: 1..5, why: string }. Exported by the backend
+// (U2, see 4.6). Derived keys score.news2, score.race and alert.readiness are included.
+
+export function liveFact(F: TraceFact, s: Snapshot): FactView | undefined {
+  return s.timeline.find((f) => f.id === F.id);          // snapshot keeps the last 60 facts
+}
+
+export function liveStatus(F: TraceFact, s: Snapshot): FactStatus {
+  return liveFact(F, s)?.status ?? F.status;              // falls back to the status at capture
+}
+
+export function supersededBy(F: TraceFact, s: Snapshot): FactView | undefined {
+  const cur = s.facts[F.key];                             // latest non-rejected fact per key
+  return cur && cur.id !== F.id && liveStatus(F, s) !== "rejected" ? cur : undefined;
+}
+
+export function relayLine(F: TraceFact, s: Snapshot): { icon: IconName; text: string } {
+  const status = liveStatus(F, s);
+  if (status === "rejected") return { icon: "circle-x", text: "Rejected by the medic · not used, not sent" };
+  if (status === "unconfirmed") {
+    const disputed = s.alerts.some((a) => a.type === "contradiction" && a.key === F.key);
+    return { icon: "lock", text: disputed
+      ? "Held: sources disagree. Resolve it in the alert card."
+      : "Held: unconfirmed facts never leave the vehicle" };
+  }
+  const tier = ED_TIER[F.key];
+  if (!tier) return { icon: "ambulance", text: "Stays on the vehicle (not in the ED set)" };
+  const newer = supersededBy(F, s);
+  if (newer) return { icon: "info", text: `Superseded by a newer value (${hhmm(newer.ts)})` };
+  const r = s.relay;
+  if (!r.configured) return { icon: "circle-slash", text: `Eligible: ${tier.why} · ED link not set up` };
+  if (!r.authorized) return { icon: "send", text: `Eligible: ${tier.why} · waiting for pre-alert authorization` };
+  const sync = s.ed_sync[F.key];
+  if (sync === "sent") {
+    const pkt = [...r.log].reverse().find((e) => e.result === "acked" && e.keys.includes(F.key));
+    return { icon: "circle-check", text: pkt
+      ? `Sent to the ED · packet #${pkt.seq} · ${pkt.bytes} B · acked in ${pkt.rtt_ms} ms`
+      : "Sent to the ED" };                               // older than the last 12 log entries
+  }
+  if (sync === "queued") {
+    return { icon: "hourglass", text: `Queued: ${tier.why}${r.link === "down" ? " · waiting for the link" : ""}` };
+  }
+  return { icon: "send", text: `Eligible: ${tier.why}` };
+}
+```
+
+The code follows these facts about the backend (verified by reading the code):
+- `ed_sync` is `relay.status().sync`, placed into the snapshot by `app.full_state()`.
+- A key is `sent` only when the ED acknowledged the *current confirmed* value. A newer confirmed value makes it `queued` again.
+- Unconfirmed facts are never in `critical_values()`, so they can't be `sent`.
+
+**Relay-line copy, all states**
+
+| State | Copy |
+|---|---|
+| Rejected | "Rejected by the medic · not used, not sent" |
+| Held | "Held: unconfirmed facts never leave the vehicle" |
+| Held, disputed | "Held: sources disagree. Resolve it in the alert card." |
+| Not in the ED set | "Stays on the vehicle (not in the ED set)" |
+| Superseded | "Superseded by a newer value (14:44)" |
+| No ED link | "Eligible: {why} · ED link not set up" |
+| Not authorized | "Eligible: {why} · waiting for pre-alert authorization" |
+| Queued | "Queued: {why}", plus " · waiting for the link" when down |
+| Sent | "Sent to the ED · packet #{seq} · {bytes} B · acked in {rtt} ms" |
+
+### 4.6 Effects, and labels for keys
+
+**The CHECKED section** renders `effects` in this order:
+1. **Readiness:** "{label} {from} → {to} of {total}", plus " · READY" when `ready` and `to == total`.
+2. **Closed gaps:** "closed: {labels joined with ', '}". `@race` reads "Stroke scale (RACE)"; other keys use `keys.json` labels.
+3. **Scores:**
+   - NEWS2: "NEWS2 {from} → {to} ({detail})". When `from` is null: "NEWS2 now complete: {to} ({detail})".
+   - RACE: "RACE {from} → {to} · screen positive (≥5)" or "· screen negative (<5)". When `from` is null: "RACE complete: {to} · …".
+4. **New alerts**, by `type`:
+   - `contradiction` → "<> {label}: sources disagree"
+   - `confirm_required` → "(?) {label} needs your tap"
+   - `news2_rise` → "NEWS2 rose (see the alert)"
+   - `race_positive` → "RACE ≥5: large-vessel screen positive"
+   - `significant_change` → "{label} changed significantly"
+   - When `label` is a canonical key, it maps through `keys.json`.
+5. **None of the above:** "No change to the checklist, scores or alerts."
+
+**Section caption:** "changes seen while this was processed".
+- `effects` is a before/after diff of the snapshot around each phase (verified by reading `app.py`).
+- So a change made at the same moment by another capture, or by a confirm tap, can show up in this card.
+- A confirmation made later never shows here. It shows in the live relay line instead.
+- A photo fact counts toward the checklist only after it is confirmed, so photo cards usually show "no change until confirmed" (§4.3 f).
+
+**Labels for keys.** Keys that closed are no longer in the snapshot, so the UI needs a copy of the vocabulary.
+- **The export (U2, backend):** a script `scripts/export_ui_contract.py` writes three files into `ui/public/contract/`:
+  - `keys.json`: `schema.KEYS`, with each key's label, type, unit, and kind;
+  - `relay_tiers.json`: `relay.TIERS`, as key → {tier, why};
+  - `change_rules.json`: the human-readable text of `state.CHANGE_RULES`.
+- **When it runs:** as part of `npm run build` (`prebuild`). The capture page and the ED screen load the same files.
+- **A test** compares the export with the live modules, so the UI and engine can't drift.
+
+### 4.7 In-place updates without layout shift
+
+1. **Identity.** The card's React key is the transcript `id`. The store replaces the entry object in place by `id`, so the card never remounts, and its expanded state and focus survive the update.
+2. **Fixed skeleton.** The sections (HEARD/TYPED/SEEN, RULES, MODEL/VISION, CHECKED) always render in the same order, with their headers, from the first render.
+3. **Reserved model row.** In `running`, the MODEL section is exactly one status line plus one reserved fact-row height (36 px).
+   - Moving to `done` with nothing added, or to `error`, fills the same height: no shift.
+   - With N facts added, the section grows by N rows below its header. The rows fade in over 150 ms. Height is never animated.
+4. **Stable relay lines.** Relay lines have a min-height of two lines of meta text. A change from "Held…" to "Sent to the ED · packet #7…" changes only the text.
+5. **Tabular timers.** Elapsed timers ("checking… 0.9 s") use tabular numerals in a fixed-width span.
+6. **Scroll anchoring.** When a card above the viewport grows, scroll anchoring (`overflow-anchor: auto`, the default [44]) keeps the visible cards still. While following live, the newest card is at the top and grows downward, so nothing moves under the part being read.
+7. **Busy state.** `aria-busy="true"` is set on the card while `running`, and cleared on `done` or `error` [45].
+8. **Slow model phases.**
+   - After 10 s in `running`, the status reads "checking… 12 s · taking longer than usual; the rules result already counts" [46].
+   - The model call's HTTP timeout is 60 s (`llm.chat` default), after which the backend records `error`.
+
+**Test** (U6).
+- Record a fixture with one voice entry that goes from running to done with 2 model facts.
+- In Chromium, observe `layout-shift` entries with a `PerformanceObserver` while the fixture plays. The trace column must report no shifts that weren't caused by user input.
+- The trace should show a 150 ms fade, not a jump.
+
+### 4.8 Medic ticker and explain column
+
+| Element | Medic mode | Explain mode |
+|---|---|---|
+| Trace visible as | One-line ticker (newest entry) | Full column, all cards |
+| Fact rows | Counts only ("2 facts · 1 needs tap") | Every fact, with relay lines |
+| Confidence numbers | Hidden | Shown |
+| Model name, ms, tokens | Hidden | Shown |
+| Error text | "model failed · rules stand" | Plus the first 200 characters of `error` |
+| Raw record | No | "Raw record ▸" shows the entry's JSON (read-only, mono). This proves to judges that the card is the actual record. |
+| Confirm/Reject in the card | No (use Needs attention) | Yes, for unconfirmed facts that aren't disputed |
+
+**How the ticker summary is built:**
+- `n = rules.facts.length + (model.facts?.length ?? 0)` → "{n} facts".
+- The count of live-unconfirmed facts → "{k} needs your tap".
+- Each `alerts_new` item → its short copy.
+- The first readiness change → "Stroke alert 4 → 5 of 6".
+- Relay: "held" if any fact is held; otherwise "sent #{seq}" for the newest acked packet that contains any of the card's keys.
+
+### 4.9 Interactions
+
+- **Expand or collapse:** click the header, or press Enter or Space on it when keyboard PTT is off. Radix Collapsible [61].
+- **Play:**
+  - one shared `<audio>` element for the whole app [67];
+  - starting a clip stops any other;
+  - while playing, the button shows `pause`;
+  - the source is `/api/audio/{audio_id}`.
+- **Play just the words:** a fact row gets "Play the words" when `liveFact(F).provenance` has `t_start` and `t_end`. It seeks and stops at the end.
+- **Photo:**
+  - the thumbnail opens a sheet with `/api/photo/{photo_id}` at full size;
+  - it draws the crop box of every fact from that photo (`provenance.crop`, normalized `[x0, y0, x1, y1]`);
+  - Confirm and Reject for each fact sit inside the sheet.
+- **Confirm or Reject in the card:** the same APIs and pending/error behavior as §3.0.
+- **Fixture mode:** ▶ and the photo are disabled, with the hint "audio and photos aren't included in the recording".
+
+### 4.10 Accessibility of the trace
+
+- **Structure:** each card is an `<article aria-labelledby>`. Its title reads e.g. "14:40:12, other speaker, daughter". Sections are `h4`.
+- **Icons:** every status icon has visible text next to it (P6).
+- **Announcements:**
+  - the column doesn't announce card updates;
+  - the medic-mode ticker is `aria-live="polite"` and announces once per completed card [45].
+- **Keyboard:** everything is reachable by keyboard. Tab moves through header, ▶, facts' actions, and "Raw record" in that order.
+
+### 4.11 Explain mode for judges
+
+**Stage line at the top of each card:**
+- Content: "Heard {clip s} → Rules {ms} → Model {ms} ({tokens} tokens) → Relay {held / queued / sent #n}".
+- Speech-to-text time comes from `trace.heard.stt.ms` (done). Typed, replayed, photo, and monitor entries have no `stt`, so their line starts at "Rules" (or "Vision").
+
+**"How to read this" panel** at the top of the column. It is collapsible and open by default in explain mode. The text:
+> Rules: a deterministic extractor that runs first. Model: the local language model on this box ({name}). Facts from other speakers, from photos, or from the model alone always need your tap. Scores, checklists, contradictions, and what the relay sends are plain code; the model never decides them. Nothing here is written by the model: it is the record of what the system did.
+
+**Where to see why a packet was sent:** the ER status tab. Every log line expands to its `why[]` tier rationales (§3.1.9).
+
+### 4.12 Trace acceptance tests
+
+These run against fixtures (§5.8) and live (U6).
+
+| # | Scenario | Expected |
+|---|---|---|
+| T1 | Voice, model on | The card appears within 1 WebSocket message of the POST, with `running`. The same DOM node later shows `done` with the model's facts. No layout shift is reported. |
+| T2 | Model error (stop ZRT, or point `llm.BASE_URL` at a dead port) | The card shows "failed after … · The rules result stands". The header chip shows "Model error · rules only". |
+| T3 | Model off (`replay.py --no-llm`) | "MODEL off · rules only". The card never changes size. |
+| T4 | Photo | Thumbnail with crop boxes; VISION section; "no change until confirmed" |
+| T5 | Confirm after capture | The relay line goes Held → Queued → Sent · packet #n, and the ER row matches |
+| T6 | Contradiction (husband "none", then daughter "aspirin") | CHECKED shows "<> Allergies: sources disagree". The relay line says "Held: sources disagree…". There are no Confirm/Reject buttons in the card. |
+| T7 | Superseded (two BP readings) | The first card's BP row reads "Superseded by a newer value (hh:mm)" |
+| T8 | Relay not authorized | "Eligible: … · waiting for pre-alert authorization" |
+| T9 | Link down (Shift+D), then good (Shift+G) | "Queued: … · waiting for the link" → "Sent to the ED · packet #n" |
+| T10 | More than 20 captures | The oldest cards drop off, because the snapshot keeps 20. No errors are thrown. |
+
+---
+## 5. Stack
+
+### 5.1 Decision
+
+**React 19 + TypeScript + Vite + Tailwind v4 + shadcn/ui on Radix primitives [29], with Zustand for state, lucide-react for icons [33], Fontsource for self-hosted fonts [32], and hand-drawn SVG sparklines (no chart library).**
+
+**Why.**
+1. **Keyed rendering.** The trace card must keep its expanded state and keyboard focus while the server pushes new snapshots. Today's `web/app.js` rebuilds each region with `innerHTML` on every message, which loses both. React reconciles by key, so a card updated in place (§4.7) stays the same DOM node.
+2. **Accessible primitives.** Radix gives collapsible, tooltip, tabs, sheet, dialog and popover with focus management and ARIA built in [61]. Hand-rolling these for 1.5 days would cost more than the setup.
+3. **Staffing.** It is the most widely documented web stack. Any teammate can pick up a component.
+4. **Offline at runtime.** Everything is bundled into static files served by FastAPI. No CDN and no Node at runtime (§5.11).
+
+### 5.2 Alternatives we rejected
+
+| Option | Why not |
+|---|---|
+| Streamlit or Gradio (both in the ZGX Toolkit's library [37]) | Streamlit reruns the script top to bottom on every interaction. Fragments rerun on interaction or a `run_every` interval [34], so server-driven push arrives as polling. Press-and-hold PTT, global hotkeys, and in-place card updates would all need custom components. Fine for an eval-results viewer (§6). |
+| Vanilla JS plus a design CSS | No reconciliation (problem 1 above), and no accessible primitives. It stays as the safety net at `/classic/`. |
+| Next.js | Server rendering adds nothing: the screens are client-only and fed by a WebSocket. It would add a second server process to the demo. |
+
+### 5.3 Packages and versions
+
+These are the latest versions on the npm registry, queried 2026-09-23 [57]. Pin exact versions (`save-exact`).
+
+| Package | Version | Kind | License | Notes |
+|---|---|---|---|---|
+| Node.js (conda-forge `nodejs`) | 22.23.2 | toolchain | MIT | Resolves for linux-aarch64; the dry run was verified on this box [31]. Meets Vite's `^20.19.0 \|\| >=22.12.0` [30]. |
+| `react`, `react-dom` | 19.3.0 | dep | MIT | |
+| `zustand` | 5.0.15 | dep | MIT | Store (§5.7); `useShallow` for multi-field selectors [56] |
+| `lucide-react` | 1.47.0 | dep | ISC | Icons; tree-shaken |
+| `radix-ui` | 1.6.7 | dep | MIT | The unified Radix package, installed through shadcn components. Which Radix packages `shadcn add` pulls in is **unverified**; U1 records it. |
+| `class-variance-authority` | 0.7.1 | dep | Apache-2.0 | shadcn variants |
+| `clsx` | 2.1.1 | dep | MIT | |
+| `tailwind-merge` | 3.7.0 | dep | MIT | |
+| `@fontsource-variable/inter` | 5.3.0 | dep | OFL-1.1 | [58] |
+| `@fontsource-variable/jetbrains-mono` | 5.3.0 | dep | OFL-1.1 | [59] |
+| `vite` | 8.3.0 | dev | MIT | Uses `build.rolldownOptions`; `rollupOptions` is a deprecated alias [49] |
+| `@vitejs/plugin-react` | 6.1.1 | dev | MIT | Peer `vite ^8` |
+| `typescript` | 5.9.3 | dev | Apache-2.0 | **Pinned below the latest (7.0.2).** 7.x is a newer compiler line that we didn't test with this toolchain (**unverified** compatibility). |
+| `tailwindcss`, `@tailwindcss/vite` | 4.3.3 | dev | MIT | Plugin peer `vite ^5.2 … ^8` |
+| `tw-animate-css` | 1.4.0 | dev | MIT | shadcn animation utilities. Our motion rules (§2.8) override the durations. |
+| `@types/react`, `@types/react-dom` | 19.3.0 | dev | MIT | |
+| `@types/node` | 26.6.2 | dev | MIT | For `vite.config.ts` |
+| `shadcn` (CLI, via `npx`) | 4.21.0 | tool | MIT | Not a runtime dependency. Needs Node ≥20.18.1. |
+| `vitest` | 5.0.1 | dev | MIT | Needs Node ^22.12; unit tests for selectors and the store |
+| `jsdom` | 30.1.1 | dev | MIT | Needs Node ^22.22.2 (22.23.2 is fine) |
+| `@testing-library/react` | 16.3.3 | dev | MIT | Component tests for the trace card |
+
+### 5.4 Scaffolding commands
+
+**These commands have not been run on this box; U1 runs them and records the output.** Run them in your own clone under `~/work/<name>/herald-ems`, per AGENTS.md.
+
+```bash
+# 1) Node without sudo, from conda-forge (once per machine)
+~/miniforge3/bin/mamba create -y -n herald-ui -c conda-forge nodejs=22.23.2
+export PATH=~/miniforge3/envs/herald-ui/bin:$PATH
+node -v                                    # expect v22.23.2
+
+# 2) Scaffold the app
+npm create vite@latest ui -- --template react-ts
+cd ui
+printf 'save-exact=true\nengine-strict=true\n' > .npmrc
+npm install react@19.3.0 react-dom@19.3.0 zustand@5.0.15 lucide-react@1.47.0 \
+  class-variance-authority@0.7.1 clsx@2.1.1 tailwind-merge@3.7.0 \
+  @fontsource-variable/inter@5.3.0 @fontsource-variable/jetbrains-mono@5.3.0
+npm install -D vite@8.3.0 @vitejs/plugin-react@6.1.1 typescript@5.9.3 \
+  tailwindcss@4.3.3 @tailwindcss/vite@4.3.3 tw-animate-css@1.4.0 \
+  @types/react@19.3.0 @types/react-dom@19.3.0 @types/node@26.6.2 \
+  vitest@5.0.1 jsdom@30.1.1 @testing-library/react@16.3.3
+
+# 3) shadcn/ui: copies component source into src/components/ui
+npx shadcn@4.21.0 init
+npx shadcn@4.21.0 add button badge card collapsible tooltip tabs sheet dialog popover \
+  select separator scroll-area switch toggle-group
+```
+
+**`package.json` scripts**
+
+| Script | Command |
+|---|---|
+| `prebuild` | `python ../scripts/export_ui_contract.py` (uses the `zgx` env, or any Python with the repo on its path) |
+| `build` | `tsc -b && vite build` |
+| `postbuild` | `node scripts/copy-ed.mjs` |
+| `dev` | `vite` |
+| `test` | `vitest run` |
+| `contrast` | `node scripts/contrast.mjs` |
+
+Also set `"engines": {"node": ">=22.12"}`.
+
+**`vite.config.ts`** (Vite multi-page build [48]; dev proxy with WebSockets [50]):
+
+```ts
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import { resolve } from "node:path";
+
+const API = process.env.HERALD_API ?? "http://127.0.0.1:8101";   // your dev port (AGENTS.md)
+const ED = process.env.HERALD_ED ?? "http://127.0.0.1:8200";
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  resolve: { alias: { "@": resolve(import.meta.dirname, "src") } },
+  build: {
+    outDir: "dist",
+    rolldownOptions: {
+      input: {
+        now: resolve(import.meta.dirname, "index.html"),
+        ed: resolve(import.meta.dirname, "ed.html"),
+      },
+    },
+  },
+  server: {
+    host: "127.0.0.1", port: 5173,          // reach it through an SSH port forward: the mic needs localhost
+    proxy: {
+      "/api": API,
+      "/ws": { target: API.replace("http", "ws"), ws: true },
+      "/ed-ws": { target: ED.replace("http", "ws"), ws: true, rewrite: (p) => p.replace(/^\/ed-ws/, "/ws") },
+    },
+  },
+});
+```
+
+In dev, `ed.html` connects to `/ed-ws`. In production it is served by `ed_receiver`, so it connects to `/ws` there:
+
+```ts
+const url = import.meta.env.DEV ? "/ed-ws" : "/ws";
+```
+
+### 5.5 File tree
+
+```
+ui/
+  package.json · package-lock.json      exact versions; the lockfile is always committed
+  .npmrc                                save-exact, engine-strict
+  vite.config.ts                        two entries (NOW, ED); dev proxy
+  tsconfig*.json                        strict mode; "@/*" alias
+  components.json                       shadcn config (paths, aliases, CSS file)
+  index.html                            NOW entry
+  ed.html                               ED entry
+  public/
+    capture.html · capture.js           phone page, vanilla (restyled copy of web/capture.html)
+    tokens.css                          copy of src/styles/tokens.css, for the phone page
+    contract/keys.json                  exported from schema.KEYS (prebuild)
+    contract/relay_tiers.json           exported from relay.TIERS
+    contract/change_rules.json          human-readable CHANGE_RULES
+    fixtures/stroke_demo.jsonl          recorded /ws messages (U2)
+  scripts/
+    contrast.mjs                        checks every token pair in §2.2; exits non-zero on failure
+    copy-ed.mjs                         dist/ed.html → ../ed_receiver/web/index.html, plus assets
+  src/
+    styles/tokens.css                   all §2 tokens, dark and light, type scale, motion, reduced motion
+    styles/index.css                    @import "tailwindcss"; @theme inline mapping; base styles
+    main-now.tsx · main-ed.tsx          entries: fonts, theme init, root component
+    lib/types.ts                        the contract types (§5.6)
+    lib/contract.ts                     loads contract/*.json; label(), unit(), edTier(), changeRule()
+    lib/ws.ts                           socket, backoff, heartbeat, stale detection, fixture player
+    lib/store.ts                        Zustand store (§5.7)
+    lib/selectors.ts                    liveFact, liveStatus, relayLine, sortedAlerts, needsTap, …
+    lib/api.ts                          POST helpers with pending/error state
+    lib/format.ts                       hhmm, hhmmss, elapsed, formatValue, extractorLabel
+    lib/audio.ts                        the one shared <audio> player
+    lib/telemetry.ts                    polls /api/telemetry every 2 s
+    hooks/usePushToTalk.ts              mic → 16 kHz WAV → POST /api/audio (ported from web/app.js)
+    hooks/useHotkeys.ts                 global keys, with input/dialog guards and the keyboard-PTT switch
+    hooks/useWakeLock.ts                Screen Wake Lock while an incident is active [54]
+    hooks/useNow.ts                     one shared 1 Hz tick for every clock
+    components/ui/                      shadcn primitives
+    components/StatusIcon.tsx           icon + word + color for every §2.4 state
+    components/AppHeader.tsx · LinkPill.tsx · PatientLine.tsx · ClockChip.tsx
+    components/ReadinessBand.tsx · ReadinessBar.tsx
+    components/NeedsAttention.tsx · FactRow.tsx · ScoreCard.tsx · FieldTriageCard.tsx · Sparkline.tsx
+    components/AlertSlot.tsx · alerts/{Contradiction,ConfirmRequired,News2Rise,RacePositive,SignificantChange}.tsx
+    components/ErStatus.tsx · PatientPicture.tsx · Trends.tsx
+    components/trace/{TracePanel,TraceCard,TraceFactRow,TraceTicker,RawRecord}.tsx
+    components/CaptureBar.tsx · PttButton.tsx · SpeakerSelect.tsx · TelemetryStrip.tsx
+    components/PresenterBar.tsx · StaleOverlay.tsx · ReplayBanner.tsx · CaptionToast.tsx · PhotoSheet.tsx
+    screens/NowApp.tsx                  medic/explain layouts (§3.1)
+    screens/EdApp.tsx                   ED screen (§3.4)
+    test/selectors.test.ts · store.test.ts · TraceCard.test.tsx
+  dist/                                 build output; committed on the demo tag only
+scripts/                                (repo root)
+  export_ui_contract.py                 backend: writes ui/public/contract/*.json (U2)
+  record_ws.py                          records /ws messages to JSONL (U2)
+  build_ui.sh                           export → npm ci → build → copy ED bundle
+```
+
+### 5.6 TypeScript contract (`ui/src/lib/types.ts`)
+
+These types are derived from `herald/state.py` `snapshot()`, `herald/relay.py` `status()`, `herald/trace.py`, `herald/app.py`, and `ed_receiver/app.py`, as read on 2026-09-23. When the backend changes a field, change it here in the same PR.
+
+```ts
+// ---------- enums (schema.py) ----------
+export type Role = "medic" | "patient" | "family" | "bystander" | "device" | "photo";
+export type CapturedBy = "medic" | "other" | "device" | "camera";
+export type FactStatus = "unconfirmed" | "confirmed" | "rejected";
+export type FactValue = string | number | boolean | string[] | null;
+
+// ---------- facts ----------
+export interface Provenance {
+  audio_id: string | null; t_start: number | null; t_end: number | null; text: string | null;
+  photo_id: string | null; crop: [number, number, number, number] | null; extractor: string | null;
+}
+export interface FactView {                    // state._fact_view(): Fact.model_dump + label + unit
+  id: string; key: string; value: FactValue; unit: string | null; label: string;
+  role: Role; speaker: string | null; captured_by: CapturedBy; confidence: number;
+  provenance: Provenance; ts: string; status: FactStatus;
+  previous_value: FactValue; previous_ts: string | null;
+}
+
+// ---------- checklists, gaps, trends ----------
+export interface ReadinessItem { key: string; label: string; state: "done" | "pending" | "missing" }
+export interface Readiness { id: "stroke" | "stemi"; label: string; done: number; total: number; ready: boolean; items: ReadinessItem[] }
+export interface NeedItem { key: string; label: string; pending_confirm: boolean }
+export interface Changed {
+  key: string; label: string; series: number[]; times: string[]; delta: number;
+  direction: "up" | "down" | "flat"; significant: boolean;
+}
+
+// ---------- scores (scores.py) ----------
+export type News2Band = "incomplete" | "low" | "low-medium" | "medium" | "high";
+export interface News2 {
+  name: "NEWS2"; score: number; complete: boolean; band: News2Band; any_single_3: boolean;
+  parts: Record<string, { value: FactValue; points: number }>; missing: string[];
+  thresholds: string; source: string; evidence: string;
+}
+export interface News2Point { ts: string; score: number; complete: boolean; band: News2Band }
+export interface Race {
+  name: "RACE"; score: number; complete: boolean; positive: boolean | null;
+  parts: Record<string, { value: number; points: number; max: number }>; missing: string[];
+  thresholds: string; source: string; evidence: string;
+}
+export interface FieldTriage { name: string; red: string[]; yellow: string[]; missing: string[]; source: string }
+
+// ---------- alerts ----------
+export type Alert =
+  | { type: "contradiction"; key: string; label: string; confirm_fact_id: string; facts: FactView[] }
+  | { type: "confirm_required"; key: string; label: string; confirm_fact_id: string; facts: FactView[] }
+  | { type: "significant_change"; key: string; label: string; series: number[] }
+  | { type: "news2_rise"; label: "NEWS2"; from: number; to: number; band: News2Band }
+  | { type: "race_positive"; label: "RACE"; score: number };
+export type AlertType = Alert["type"];
+
+// ---------- clocks ----------
+export interface Clock {
+  id: "scene" | "lkw" | "eta" | "reassess"; label: string; seconds: number;
+  since?: string; until?: string; confirmed?: boolean;
+}
+
+// ---------- trace (trace.py, app.py) ----------
+export type RelayAtCapture =
+  | "held: unconfirmed facts never leave the vehicle"
+  | `eligible: ${string}`
+  | "stays on the vehicle (not in the ED set)";
+export interface TraceFact {
+  id: string; key: string; label: string; value: FactValue; role: Role; speaker: string | null;
+  status: FactStatus; confidence: number; extractor: string | null; relay: RelayAtCapture;
+}
+export interface SttInfo { seconds: number; chunks: { text: string; t: [number | null, number | null] }[]; ms?: number }
+export interface Trace {
+  heard: { text: string; speaker?: string | null; audio_id?: string | null; photo_id?: string;
+           stt?: SttInfo | null; source?: "structured" };
+  rules: { ms: number; facts: TraceFact[] };
+  model: {
+    status: "running" | "done" | "error" | "off" | "skipped"; name?: string | null; ms?: number;
+    tokens?: number | null; proposed?: number; agreed_with_rules?: number; overridden_by_rules?: number;
+    facts?: TraceFact[]; error?: string; reason?: string;
+  };
+  guard?: { instruction_shaped: string | null };          // absent on photo entries
+  effects: {
+    readiness: { label: string; from: number; to: number; total: number; ready: boolean }[];
+    alerts_new: { type: AlertType; label: string }[];
+    scores: { name: "NEWS2" | "RACE"; from: number | null; to: number; detail: string | boolean }[];
+    gaps_closed: string[];
+  };
+}
+export interface TranscriptEntry {
+  id: string; ts: string; text: string; captured_by: CapturedBy; speaker: string | null;
+  audio_id: string | null; photo_id?: string; fact_ids: string[];
+  extract: { rules: number; llm: number | null; ms: number };
+  stt?: SttInfo | null; trace: Trace;
+}
+
+// ---------- relay (relay.py status()) ----------
+export type LinkState = "good" | "weak" | "down" | "unknown" | "not configured";
+export interface RelayLogEntry {
+  ts: string; seq: number; tier: "critical" | "full"; bytes: number; keys: string[]; why: string[];
+  queued_after: number; result: "acked" | "failed"; rtt_ms?: number; error?: string;
+}
+export interface RelayStatus {
+  configured: boolean; ed_url: string | null;
+  authorized: { destination: string; scope: string; at: string } | null;
+  link: LinkState; pending: { key: string; priority: number; why: string }[];
+  sync: Record<string, "sent" | "queued">; bytes_sent: number; local_bytes: number;
+  kept_local_pct: number; packets_acked: number; retries: number; last_ack_at: string | null;
+  log: RelayLogEntry[];                                   // last 12
+}
+
+// ---------- the snapshot (app.full_state()) ----------
+export interface Snapshot {
+  incident: { id: string; dispatch: string | null; started: string };
+  summary: string;
+  readiness: Readiness[];
+  needs_attention: { missing: NeedItem[]; unknown: NeedItem[] };
+  changed: Changed[];
+  scores: { news2: News2; news2_history: News2Point[]; race: Race; field_triage: FieldTriage };
+  alerts: Alert[];
+  clocks: Clock[];
+  facts: Record<string, FactView>;                        // latest non-rejected fact per key
+  timeline: FactView[];                                   // last 60 facts, all statuses
+  transcripts: TranscriptEntry[];                         // last 20
+  ed_sync: Record<string, "sent" | "queued">;             // = relay.sync
+  counters: { facts: number; cloud_ai_calls: number };
+  relay: RelayStatus;
+  netem: "good" | "weak" | "down" | null;
+}
+export type NowMessage = { type: "state"; state: Snapshot } | { type: "pong"; t: string };
+
+// ---------- REST ----------
+export interface Health { llm_model: string | null; stt_model: string; stt_loaded: boolean; incident: string; cloud_ai_calls: number }
+
+// ---------- ED receiver (ed_receiver/app.py view()) ----------
+export interface EdIncident {
+  fields: Record<string, { v: FactValue; seq: number; t: string }>;
+  history: Record<string, { v: FactValue; t: string }[]>;
+  packets: { seq: number; tier: "critical" | "full"; bytes: number; keys: string[]; at: string }[];
+  applied: number[]; duplicates: number; bytes: number;
+  timeline: { k: string; v: FactValue; t: string; r: Role; s: string | null }[];
+  dest: string | null; queued_on_rig: number; first_at: string;
+}
+export interface EdView { incidents: Record<string, EdIncident>; last_contact_at: string | null }  // U10, done
+export type EdMessage = EdView | { type: "pong"; t: string };   // EdView has no `type` field
+```
+
+### 5.7 WebSocket store (`lib/ws.ts`, `lib/store.ts`)
+
+**Store shape (Zustand).**
+
+```ts
+interface HeraldState {
+  snapshot: Snapshot | null;
+  conn: "connecting" | "open" | "closed";
+  lastMessageAt: number;          // performance.now() of the last state or pong
+  lastStateAt: number;
+  stale: boolean;
+  source: "live" | "fixture";
+  health: Health | null;          // GET /api/health every 5 s
+  telemetry: Telemetry | null;    // GET /api/telemetry every 2 s (§5.9)
+  ui: {
+    mode: "medic" | "explain"; theme: "dark" | "light"; typeScale: 1 | 1.25 | 1.5;
+    reducedMotion: boolean; keyboardPtt: boolean; presenterOpen: boolean;
+    followTrace: boolean; expanded: Record<string, boolean>;   // by transcript id
+    seenAlerts: Record<string, true>; alertIndex: number; heldAlerts: boolean; // true while PTT held
+  };
+  pending: Record<string, "pending" | { error: string }>;    // e.g. "confirm:f_123"
+}
+```
+
+**Connection.**
+- **One socket** to `/ws`, opened on load.
+- **Every message:** parse it. A `state` message calls `setSnapshot`; a `pong` updates `lastMessageAt` only.
+- **Heartbeat:** the client sends the text `"ping"` every 1 s.
+  - This needs the backend change in U2: `ws_endpoint` replies `{"type": "pong", "t": …}` when it receives `"ping"`.
+  - Today the server ignores client text, and it broadcasts only on change. So silence can't be told apart from a dead server without the heartbeat.
+- **Stale detection:** a 500 ms interval sets `stale = true` when the socket is open and `now − lastMessageAt > 3000`, or when the socket is closed after data has arrived.
+- **Reconnect** backoff: 0.5 s, 1 s, 2 s, then every 2 s. This matches the copy "Retrying every 2 s".
+- **Background tabs:** timestamps rather than timer counts decide staleness, so timer throttling in background tabs can't cause false alarms.
+
+**Updating in place.**
+- `setSnapshot` replaces the snapshot object.
+- Components subscribe to slices, using `useShallow` for multi-field picks [56].
+- Every slice changes identity on every message. At about one message per second and a dozen components, React 19 re-renders cheaply.
+- An optional optimization is to reuse unchanged sub-objects by comparing them as JSON (not needed at this scale).
+- Card continuity comes from the React `key` (the transcript id) and from `ui.expanded[id]` in the store, not from object identity.
+- **Snapshot size:** 3.5 KB for an empty incident (measured on this box, `/api/state`). A full stroke replay is expected to be tens of KB (**unverified**); measure it in U2.
+
+**Actions (`lib/api.ts`).**
+1. Set `pending[key] = "pending"`, so the button disables within 0.1 s [46].
+2. `fetch` with a 5 s timeout (`AbortController`).
+3. On an HTTP error or timeout: `pending[key] = { error }`, and the inline error copy shows (§3.0).
+4. On success, keep the pending state until the next snapshot reflects the change, then clear it. There is no optimistic update (H1).
+5. In fixture mode every action is a no-op, and a toast says "Replay: actions are off".
+
+**Alerts held during PTT.** While PTT is held, `ui.heldAlerts` is true, and the alert slot keeps showing its previous content. On release the slot updates (P4).
+
+**ED store.** A separate small store for `ed.html`: `view`, `conn`, `stale`, `lastPacketAt`, and the same heartbeat. It needs the same `ping` → `pong` addition in `ed_receiver` (U10).
+
+### 5.8 Fixture recorder and player
+
+**Why.**
+- Frontend teammates can build every state on a laptop with no Nano, model, or mic.
+- The video and the U6 tests replay the same sequence.
+- The REPLAY banner keeps a fixture from being mistaken for live data (H10).
+
+**Recorder** (`scripts/record_ws.py`, run with the `zgx` env, which has `websockets` 17.1; verified on this box):
+
+```python
+"""Record every /ws message from a running Herald server to JSONL (UI fixtures)."""
+import asyncio, json, sys, time
+import websockets
+
+async def main(url: str, out: str) -> None:
+    t0 = time.monotonic()
+    async with websockets.connect(url, max_size=None) as ws:
+        with open(out, "w") as f:
+            async for raw in ws:
+                f.write(json.dumps({"t_ms": round((time.monotonic() - t0) * 1000),
+                                    "msg": json.loads(raw)}) + "\n")
+                f.flush()
+
+if __name__ == "__main__":
+    asyncio.run(main(sys.argv[1], sys.argv[2]))   # ws://127.0.0.1:8101/ws  ui/public/fixtures/x.jsonl
+```
+
+**Recording procedure.**
+1. Start your dev server. Configure the ED receiver and the link if you want relay states in the recording.
+2. Start `record_ws.py`.
+3. Run `scripts/replay.py scenarios/stroke_demo.json --url http://localhost:8101`. Toggle Shift+D and Shift+G at the moments you want.
+4. Stop the recorder with Ctrl+C.
+5. Save the file as `ui/public/fixtures/stroke_demo.jsonl`.
+
+**Other fixtures to record:**
+- `model_error.jsonl` (ZRT stopped);
+- `rules_only.jsonl` (`--no-llm`);
+- `photo.jsonl` (one pill-bottle photo);
+- `offline.jsonl` (Shift+D during the queue).
+
+The scenario is synthetic: fixtures hold transcript text only. Never record real patient data or judges' voices (AGENTS.md: no real patient data).
+
+**Player** (in `lib/ws.ts`):
+- `?fixture=<name>&speed=<1|2|4>` fetches `/fixtures/<name>.jsonl` and dispatches each `msg` after `(t_ms − previous t_ms) / speed` milliseconds.
+- It sets `source = "fixture"` and shows the REPLAY banner.
+- The presenter bar offers pause, step (the next message), restart, and speed.
+- Audio and photo buttons are disabled (§4.9).
+
+### 5.9 `/api/telemetry` contract (backend-provided, U15)
+
+The backend builds this endpoint; the frontend only reads it. Values are sampled in a background task every 2 s and cached, so the endpoint is cheap.
+
+```jsonc
+GET /api/telemetry  →  200
+{
+  "ts": "2026-09-24T21:40:00.123Z",
+  "window_s": 10,                                   // window for the per-second rates
+  "model": {
+    "served_name": "omni",                          // llm.model_name()
+    "reachable": true,                              // the metrics fetch succeeded
+    "requests_running": 0, "requests_waiting": 0    // vllm:num_requests_running / _waiting
+  },
+  "tokens": {
+    "server_prompt_total": 556702,                  // vllm:prompt_tokens_total (every client of this model server)
+    "server_generation_total": 25357,               // vllm:generation_tokens_total
+    "generation_per_s": 41.2,                       // Δ server_generation_total / window_s; null until 2 samples
+    "prompt_per_s": 812.0,
+    "herald_prompt": 18230,                         // sum of `usage` from Herald's own LLM/vision calls
+    "herald_completion": 1904,
+    "since": "2026-09-24T20:05:11Z"                 // Herald process start
+  },
+  "latency_ms": { "ttft_p50": 185, "e2e_p50": 790, "e2e_p90": 1978 },   // from histogram buckets; may be null
+  "power": {
+    "gpu_w": 28.2,                                  // nvidia-smi --query-gpu=power.draw.instant
+    "gpu_w_avg": 27.9,                              // power.draw.average
+    "scope": "GPU only (nvidia-smi). SoC and module power aren't exposed on this box.",
+    "sample_every_s": 2
+  },
+  "energy": { "gpu_wh": 12.34, "since": "2026-09-24T20:05:11Z" },   // trapezoidal integral of gpu_w
+  "cost": {
+    "local_usd": 0.0019,                            // gpu_wh / 1000 × usd_per_kwh
+    "cloud_equiv_usd": 0.43,                        // herald_prompt × in + herald_completion × out, per million tokens
+    "net_savings_usd": 0.428,                       // cloud_equiv_usd − local_usd
+    "assumptions": {
+      "usd_per_kwh": 0.15,                          // as shown on HP's ZGX console at the event; no public URL
+      "cloud_usd_per_mtok_in": null,                // backend sets these, with a citation:
+      "cloud_usd_per_mtok_out": null,
+      "cloud_price_ref": "provider · model · date · URL"   // required whenever the prices are set
+    }
+  },
+  "cloud_ai_calls": 0,                              // the same counter as snapshot.counters.cloud_ai_calls
+  "errors": []                                      // e.g. ["metrics unreachable", "nvidia-smi missing"]
+}
+```
+
+**Where the numbers come from (verified on this box, 2026-09-23).**
+- **ZRT proxy metrics:** `GET http://127.0.0.1:8080/metrics/<served-name>` (e.g. `/metrics/omni`) returns vLLM's Prometheus metrics through the ZRT proxy [63].
+  - Available names include `vllm:prompt_tokens_total`, `vllm:generation_tokens_total`, `vllm:num_requests_running`, `vllm:num_requests_waiting`, `vllm:time_to_first_token_seconds` (histogram), and `vllm:e2e_request_latency_seconds` (histogram).
+  - `/metrics/` without a slug returns an error.
+- **GPU power:** `nvidia-smi --query-gpu=power.draw,power.draw.average,power.draw.instant --format=csv,noheader` works. We saw 11–28 W [64].
+  - `nvidia-smi -q -d POWER` reports "Module Power Readings: N/A", so we have no SoC or module power.
+
+**Honesty rules.**
+- Label it "GPU power" and "GPU energy", never "SoC" (P13).
+- Show "net compute savings" only when the cloud prices are set *and* cited. Otherwise show "— (cloud price not set)".
+- `herald_*` tokens count Herald's own calls. The `server_*` counters include every client of the model server, such as teammates' benchmarks. Label them "model server, all clients".
+
+**Frontend use (`TelemetryStrip`, U15).**
+- **Polling:** every 2 s. It pauses while the tab is hidden (Page Visibility API).
+- **Strip copy:** "{generation_per_s} tok/s · GPU {gpu_w} W · {gpu_wh} Wh · cloud AI {cloud_ai_calls}".
+- **Popover** (click, persistent and dismissible per WCAG 1.4.13):
+  - every number with its scope and source;
+  - the assumptions;
+  - "net savings ${net_savings_usd} vs cloud at {assumptions}", or the "not set" text.
+- **Errors:**
+  - endpoint fails → "Telemetry unavailable";
+  - partial `errors[]` → a "—" for the affected values, with the reason in the popover.
+
+### 5.10 Build and serving with FastAPI
+
+**Backend changes (U7).** In `herald/app.py`, replace the single mount at the end:
+
+```python
+UI_DIST = ROOT / "ui" / "dist"
+USE_NEW_UI = os.getenv("HERALD_UI", "new") == "new" and (UI_DIST / "index.html").exists()
+app.mount("/classic", StaticFiles(directory=str(ROOT / "web"), html=True), name="classic")
+app.mount("/", StaticFiles(directory=str(UI_DIST if USE_NEW_UI else ROOT / "web"), html=True), name="web")
+```
+
+- **Mount order matters.** `/classic` must come before `/`. API and WebSocket routes stay declared above both [55].
+- **Switching back takes one environment variable:** `HERALD_UI=classic`.
+- **The classic page needs a one-line fix.** `web/index.html` loads `/style.css` and `/app.js` with absolute paths, which would 404 under `/classic/` while `/` serves the new UI. Change them to `style.css` and `app.js` (relative). They then work at both `/` and `/classic/`. Its API and WebSocket URLs are already absolute (`/api/…`, `/ws`), which is correct.
+- **The phone page** is `ui/public/capture.html`, which Vite copies into `dist`, so it is served at `/capture.html`. The old one is still at `/classic/capture.html`.
+
+**The ED bundle.**
+- `postbuild` runs `node scripts/copy-ed.mjs`, which does three things:
+  - copies `dist/ed.html` to `ed_receiver/web/index.html`;
+  - copies `dist/assets/` to `ed_receiver/web/assets/`;
+  - keeps the old page as `ed_receiver/web/classic.html` the first time it runs.
+- The ED service keeps serving its folder with `StaticFiles(html=True)`, with no change.
+- **The ED machine needs Python only.**
+
+**`scripts/build_ui.sh`**:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+~/miniforge3/envs/zgx/bin/python scripts/export_ui_contract.py   # writes ui/public/contract/*.json
+export PATH=~/miniforge3/envs/herald-ui/bin:$PATH
+( cd ui && npm ci && npm run build )                              # postbuild copies the ED bundle
+echo "built: ui/dist (NOW + capture) and ed_receiver/web (ED)"
+```
+
+**Dev loop.**
+- On the Nano, run `npm run dev`, bound to 127.0.0.1:5173.
+- From a laptop: `ssh -L 5173:127.0.0.1:5173 -L 8101:127.0.0.1:8101 <nano>`, then open `http://localhost:5173`. The mic works because this is localhost (AGENTS.md pitfall).
+- Without the Nano: open `http://localhost:5173/?fixture=stroke_demo`.
+
+### 5.11 Offline-first details
+
+- **No external requests at runtime.**
+  - No CDN tags in `index.html` or `ed.html`.
+  - Fonts are imported from `@fontsource-variable/*` and bundled as woff2.
+  - Icons are tree-shaken from `lucide-react`.
+  - No analytics or error-reporting services.
+- **Check the build:** `grep -rEo "https?://[^\"') ]+" ui/dist | sort -u`. Only SVG namespace URIs and license comments may appear. Add this to U1's checklist.
+- **Check at runtime:** play the full stroke fixture and the live replay with the DevTools Network panel recording. Export a HAR file; every request must go to the page's own host. (DevTools' "Offline" setting also blocks localhost, so use the HAR check instead.)
+- **Lockfile:** `package-lock.json` is always committed, and `npm ci` gives a reproducible install.
+- **Committed build:** `ui/dist` is committed on the demo tag, as decided in version 1, so a clean clone serves the new UI with Python alone. The node is wiped after the event (context.md).
+- **No service worker.** The pages are always served by the local box.
+
+### 5.12 Thursday 14:00 risk checkpoint
+
+This is a checkpoint, not a cut decision. All U-tasks ship.
+
+**Pass criteria.** All of these must hold on your dev port, reached through localhost:
+1. `scripts/build_ui.sh` succeeds on the Nano from `npm ci`.
+2. `/` serves the new NOW screen, and `/classic/` still serves the old one.
+3. A full `replay.py scenarios/stroke_demo.json` run renders correctly, with no console errors:
+   - the band goes 0/6 → 6/6;
+   - Needs attention updates;
+   - the contradiction appears in the alert slot;
+   - ER status rows update.
+4. Push-to-talk (Space and F) records, and a trace ticker line appears.
+5. Confirm and Reject work from Needs attention.
+6. The stale overlay appears within 3 s of stopping the server, and clears after a restart.
+
+**If any criterion fails:**
+- The team lead adds people to the failing items (for example, pitch or ML teammates pair with frontend) and names an owner for each failing criterion.
+- Rehearsals continue on `/classic/` in parallel, so the demo script is never blocked.
+- `/classic/` is a safety net. The new UI stays the target, and the checkpoint is re-run at 17:00.
+
+**Later checkpoints:**
+- **Thu 20:00:** every U-task is feature-complete.
+- **Fri 09:00:** three full rehearsals on the new UI.
+- **Fri 11:00:** feature freeze, then the video (U17).
+
+---
+## 6. What HP and NVIDIA provide on the ZGX
+
+### 6.1 Findings
+
+We inspected this box read-only on 2026-09-23 and searched the public web. Nothing on the box was changed.
+
+| What | What we found | How we know |
+|---|---|---|
+| NVIDIA DGX Dashboard | `dgx-dashboard.service` runs `/opt/nvidia/dgx-dashboard-service/dashboard-service -port 11000 serve` as a dedicated service user. `dgx-dashboard-admin.service` runs `/opt/nvidia/dgx-dashboard/dashboard-admin`. It listens on **127.0.0.1:11000 only**, so remote use needs an SSH tunnel [36][62]. | `systemctl status` (read-only); `ss -ltn` |
+| What the dashboard is | A React Router single-page app ("DGX Dashboard"): NVIDIA's `nv-*` components, the NVIDIA Sans font, ECharts. It shows GPU utilization and memory, system memory, JupyterLab launch (per-user ports in `/opt/nvidia/dgx-dashboard-service/jupyterlab_ports.yaml`), system updates, and settings (hostname, data-collection consent) [36][62]. | Its JS bundle, fetched from `localhost:11000` (read-only) |
+| App catalog in the dashboard? | **No.** The bundle's routes are only `routes/index`, `routes/settings`, and `routes/rebooting`. We found no strings for "installed applications", "net compute savings", or "launch estimate". | Bundle inspection |
+| HP customizations on the box | `/opt/nvidia/dgx-oobe-customizations` exists. HP's user guide says the desktop "Dashboard UI" has an HP link, top right, to the ZGX Toolkit quick start [39]. | `ls /opt/nvidia`; HP user guide |
+| HP ZGX Toolkit (ZTK) | A VS Code extension: finds devices on the LAN, pairs them over SSH (and ConnectX pairing from v1.21.1), and installs a curated stack: Python packages, Ollama, curl, nvtop, Gradio, Streamlit, MiniForge, MLflow Server, and more [37][38]. It has no app registry or app manifest. `~/.ztk*` doesn't exist on this box. | GitHub README; HP pages; `ls` |
+| HP Z Runtime (ZRT) | Snap `zrt` 0.30.7 (publisher `hp-snaps`, classic). A vLLM wrapper. Its proxy listens on 127.0.0.1:8080, with auth `none` and TLS off (`/opt/hp/zrt/zrt.yaml`). It supports JWT/OIDC settings for secured deployments. Commands: `serve`, `status`, `metrics display` / `monitor`, `logs`, `bench`. **The proxy serves models only, not web apps.** | `zrt --help`, `zrt config get`, `zrt status` (read-only) |
+| Model metrics | `GET /metrics/<served-name>` through the ZRT proxy returns vLLM Prometheus metrics. `zrt metrics display` summarized, for `omni`: TTFT p50 185 ms, end-to-end p50 790 ms / p90 1.98 s / p99 4.53 s, 452 requests (all clients since the service started). | Measured on this box [63] |
+| Power | `nvidia-smi` GPU power works (11–28 W observed). Module/SoC power reads N/A. hwmon exposes no power sensor for the SoC. **So where HP's console gets "SoC power" is unverified.** | `nvidia-smi -q -d POWER`; `/sys/class/hwmon` [64] |
+| HP GitHub | `HPInc/ZGX-Toolkit` [37]; `HPInc/AI-Blueprints` (Jupyter, MLflow, and Streamlit or HTML/JS front ends; built for HP AI Studio) [40]; `HPInc/ai-models-performance-measurement-suite` (TTFT, tokens/s, CPU/GPU/NPU utilization and memory; JSON and Plotly output) [41]. None of them has a ZGX-console app manifest, API, or telemetry format. | GitHub |
+| "ZGX console" (the one the team saw: installed apps such as Doctor NoteAI and Hermes Agent Local, NET COMPUTE SAVINGS, token counts, SoC power, "Launch estimate", "See a demo", "Open the app", Guest vs Admin) | **We found no public documentation, manifest format, registration API, or telemetry hook.** It's probably HP's showcase environment (the organizers' "ZGX Example Dashboard"). **Whether a team can register its own app there is unverified.** | Web search; box inspection |
+
+### 6.2 Recommendations
+
+**Do:**
+1. **Ask the HP mentor on Thursday morning (U16)**, using the questions in §6.3. Record the answers in TASKS.md.
+2. **Show HP's metrics in our own telemetry strip** (U15, §5.9): tokens/s, GPU W, Wh, dollars vs. cloud at $0.15/kWh (the price shown on HP's console), and cloud AI calls 0. Label the scope honestly: GPU-only power, and model-server-wide token counters.
+3. **Use ZRT as it is.** It serves the models on `127.0.0.1:8080/v1`, and its `/metrics/<name>` feeds the telemetry. That is all we need from it.
+4. **Use the DGX Dashboard during rehearsals** to watch GPU memory while Whisper and the model share the box (AGENTS.md: one GPU-heavy job at a time). Reach it through an SSH tunnel to port 11000.
+5. **Name the platform in plain text:** "Runs on HP ZGX Nano (NVIDIA GB10)", in the telemetry popover and on the video's title card.
+
+**Don't:**
+1. Modify or embed anything in the DGX Dashboard. Its binaries are root-owned services, and the event rules say not to break the node.
+2. Copy HP or NVIDIA branding into our UI: logos, NVIDIA Sans, or the `nv-*` visual style. Our own design system (§2) applies.
+3. Try to route our web app through ZRT's proxy. It's a model proxy.
+4. Build live screens in Streamlit or Gradio (§5.2). They're fine for an optional eval-results page.
+5. Spend time on HP AI Studio or MLflow deployment for the UI. It isn't needed for a local web app.
+
+### 6.3 Questions for the HP mentor, verbatim
+
+1. "We saw the ZGX console that lists installed applications with NET COMPUTE SAVINGS, token counts, SoC power, and a launch estimate. Can a hackathon team register its own app there? If yes, what do you need from us — a manifest file, a launch URL and port, a demo video link — and is there a metrics endpoint or format the console reads?"
+2. "How does the console compute NET COMPUTE SAVINGS? Which cloud price per token does it use, and which electricity price? We'd like to show the same numbers the same way."
+3. "Where does the console read SoC power? On our box `nvidia-smi` reports GPU power only, and module power reads N/A. Is there an HP or NVIDIA tool or API we should use?"
+4. "Is the source of the ZGX Example Dashboard available? May teams reuse its visual style, or should we avoid HP branding in our app?"
+5. "Is 'HP Nano AI Projects (GitHub)' a specific repository? We found HPInc/ZGX-Toolkit, HPInc/AI-Blueprints, and the performance-measurement suite. Is there another one we should look at?"
+6. "For judging, is our own web app on a forwarded port fine for the live demo, or do you prefer apps launched from the ZGX console?"
+
+---
+## 7. Tasks
+
+Every task ships. There is no cut list: the build order below sequences the work so that dependencies land first, and the 14:00 checkpoint (§5.12) adds people where needed. The protect levels (P1…P6) refer to the TASKS.md P-order and say which demo moment each task serves. D2 is the video deliverable.
+
+### 7.1 Build order
+
+| Phase | When | Frontend | Backend | Pitch |
+|---|---|---|---|---|
+| A: foundations | Thu 08:00–10:00 | U1 toolchain and tokens | U2 backend parts (ping/pong, contract export, fixture recordings); U7 serving; U15 endpoint begins | U16 ask HP (morning); U11 gets the displays and measures mm/px |
+| B: core screen | Thu 10:00–14:00 | U2 store and player → U3 NOW layout; in parallel U4 PTT and U13 confirm/contradiction | U15 endpoint | Rehearse the script on `/classic/` |
+| Checkpoint | Thu 14:00 | §5.12 criteria. If one fails, add people and re-check at 17:00. | | |
+| C: explainability and ED | Thu 14:00–18:00 | U6 trace panel; U9 ED screen; U10 link UX and reconciliation; U8 presenter controls | Optional additions (stt.ms, `last_contact_at`, monitor trace entries) | U14 judge-beat script and props |
+| D: integration | Thu 18:00–22:00 | U12 capture restyle; U15 strip; U14 UI parts; polish from the 3 m test | Support | U11 3 m test on the real displays; OBS scene test |
+| Checkpoint | Thu 20:00 | Every U-task feature-complete | | |
+| E: rehearsal | Fri 08:00–11:00 | Fix what the rehearsals find; build `ui/dist` and tag it | Soak test | Three full rehearsals |
+| Freeze | Fri 11:00 | No new features | | |
+| F: video | Fri 11:00–15:00 | Support | Support | U17 video; upload |
+
+**Dependencies**
+
+| Task | Needs | Unblocks |
+|---|---|---|
+| U1 | — | U2, U3, U4, U6, U8, U9, U12 (tokens), U13, U15 (strip) |
+| U2 | U1 (frontend part) | U3, U6, U9, U10, the U6 tests, frontend work on laptops through fixtures |
+| U5 (done) | — | U6 |
+| U7 | — | Live serving at `/`; the 14:00 checkpoint |
+| U3 | U1, U2 | U6 (column), U8, U10, U13, U15 (strip placement) |
+| U4 | U1, U2 | U14 |
+| U13 | U3 | U14 |
+| U6 | U2, U3, U5 | U17 (explain scene) |
+| U9 | U1, U2 | U10 (ED side), U11 |
+| U10 | U3, U9 | U11, U17 |
+| U15 | Backend endpoint → frontend strip | U17 (telemetry on screen) |
+| U8 | U3, U4 | U11, U17 (hidden cursor, type scale) |
+| U11 | U9, U10, U8 | U17 |
+| U12 | U1, U2 (contract) | U17 (phone scene) |
+| U14 | U4, U13 | U17 |
+| U16 | — | Optional console registration |
+| U17 | Everything above | Submission |
+
+**Suggested staffing** (the team lead assigns the final names in TASKS.md):
+- **FE-1:** U1, U2 (frontend), U3, U6.
+- **FE-2:** U4, U13, U10, and the U14 UI.
+- **FE-3** (or the pitch teammate, from phase C): U8, U9, U12, and the U15 strip.
+- **Backend:** U2 (backend), U7, U15 (endpoint), and the optional additions.
+- **Pitch:** U11, U14 script, U16, U17.
+
+### 7.2 Task specs
+
+#### U1: Toolchain and design tokens
+
+**Owner** frontend · **Estimate** 2 h · **Depends on** — · **Protect** P1
+
+**Steps:**
+1. Create the `herald-ui` conda env with `nodejs=22.23.2` (§5.4). Record `node -v` and `npm -v` in the PR.
+2. Scaffold `ui/` from the `react-ts` template. Pin every version in §5.3, add `.npmrc`, and set `engines`.
+3. Add Tailwind v4 and its Vite plugin. Run `shadcn init`, then add the component list (§5.4). Record which Radix packages were installed.
+4. Write `src/styles/tokens.css`, with dark and light themes:
+   - every token in §2.2;
+   - the type-scale variables (§2.5), with `--type-scale` multiplying the root size;
+   - spacing, radius, elevation, and z-layers (§2.6);
+   - motion variables (§2.8), plus the reduced-motion block.
+   Map them to Tailwind with `@theme inline` [60].
+5. Import both Fontsource variable fonts in each entry. Turn on `tabular-nums` for numeric classes [52].
+6. Write `scripts/contrast.mjs`. It checks every §2.2 pair (text ≥4.5:1; large text and non-text ≥3:1) and exits non-zero on failure.
+7. Add a dev-only token preview (`/?tokens`): swatches, the type scale, every §2.4 icon-and-word pair, and checklist segment styles.
+8. Grayscale test: view the token preview and the NOW fixture with `filter: grayscale(1)`. Every state must still be distinguishable by icon and word.
+9. Run `npm run build` on the Nano. Grep `dist` for external URLs (§5.11).
+
+**Acceptance:**
+- [ ] `npm ci && npm run build` passes on the Nano from a clean checkout, and the lockfile is committed.
+- [ ] `npm run contrast` passes, and its output matches the §2.2 ratios.
+- [ ] A full fixture replay makes zero requests to other hosts (HAR export attached).
+- [ ] The grayscale screenshots are in the PR.
+
+#### U2: WebSocket store, fixtures, and contract export (frontend + backend)
+
+**Owner** frontend + backend · **Estimate** 2 h (backend 0.5, frontend 1.5) · **Depends on** U1 for the frontend part · **Protect** P1
+
+**Backend steps:**
+1. **DONE.** In `herald/app.py` `ws_endpoint`, reply to the text `"ping"` with `{"type": "pong", "t": <iso>}`. Other text is still ignored.
+2. **DONE** (also `checklists.json`, and live at `GET /api/meta`). Write `scripts/export_ui_contract.py`. It writes `ui/public/contract/keys.json` (`schema.KEYS`), `relay_tiers.json` (`relay.TIERS` as key → {tier, why}), and `change_rules.json` (human-readable rule text).
+3. **DONE** (`tests/test_contract.py`). Add a pytest that the export matches the live modules.
+4. **Script DONE; recordings pending** (made on a quiet GPU so model timings are representative). Add `scripts/record_ws.py` (§5.8). Record `stroke_demo`, `rules_only`, `model_error`, `photo`, and `offline` into `ui/public/fixtures/`.
+5. **DONE.** Optional: add `trace.heard.stt.ms`, the speech-to-text time, in `post_audio`.
+
+**Frontend steps:**
+1. Write `lib/types.ts` exactly as in §5.6.
+2. Write `lib/ws.ts` (§5.7): connection, heartbeat, stale detection, backoff, and the fixture player with speed, pause, step, and restart.
+3. Write `lib/store.ts`. Persist theme, type scale, reduced motion, and keyboard PTT in `localStorage`, wrapping every access in try/catch.
+4. Write `lib/api.ts` (pending/error per §3.0 and §5.7; no-ops in fixture mode).
+5. Write vitest tests:
+   - a transcript entry updated by `id` keeps the same list position, and `ui.expanded[id]` survives;
+   - with fake timers, `stale` flips true after 3 s with no messages;
+   - fixture timing respects `speed`.
+
+**Acceptance:**
+- [ ] `/?fixture=stroke_demo` renders all 10 replay steps with no backend.
+- [ ] Stopping the server shows the stale overlay within 3 s, and a restart clears it.
+- [ ] The REPLAY banner is visible in fixture mode, and actions show "Replay: actions are off".
+- [ ] The contract-export pytest passes.
+
+#### U3: NOW screen layout and states
+
+**Owner** frontend · **Estimate** 5 h · **Depends on** U1, U2 · **Protect** P1
+
+**Steps:**
+1. Build `NowApp` with the medic and explain layouts, on the §3.1.1 grid and vertical budget. Add the single-column fallback for <1024 px and 200% zoom.
+2. Build the header components: `AppHeader`, `LinkPill` (all five states plus "(emulated)"), `PatientLine`, and `ClockChip`, driven by the shared 1 Hz `useNow`.
+3. Build `ReadinessBand` (§3.1.5):
+   - both rows and the segment styles;
+   - the due chip, alert badge, and ED chip;
+   - the no-checklist state and the second-checklist popover.
+4. Build `NeedsAttention` (§3.1.6): all four groups, overflow, and empty states. Contradiction and confirm-required facts are excluded.
+5. Build the score cards (§3.1.7): compact and expanded rows, band colors, sparkline, and the county-policy sheet with its "not loaded" copy. `FieldTriageCard` shows only for trauma or fall dispatches.
+6. Build `AlertSlot` (§3.1.8): ordering, `news2_rise`, `race_positive`, `significant_change`, the empty state, "Seen", ‹ ›, and live regions. The contradiction and confirm variants are U13.
+7. Build the tabs (§3.1.9):
+   - ER status: rows, authorize flow, footer, and expandable log;
+   - Patient picture: groups, and Rejected with Restore;
+   - Trends.
+8. Handle global states S0–S10 (§3.1.12): stale overlay, replay banner, and the new-incident dialog.
+9. Accessibility (§3.1.13): landmarks, skip link, focus order, focus ring, and live regions. Also add `useWakeLock`.
+
+**Acceptance:**
+- [ ] At 1366×768 fullscreen, in both modes, the header, patient line, readiness band, the first three Needs-attention rows, and the alert slot are all visible without scrolling. Screenshots are in the PR.
+- [ ] Every state S0–S10 can be reproduced (fixture or live) and matches §3.1.12. Screenshots are in the PR.
+- [ ] Someone outside the team, watching the stroke replay, calls it "a checklist filling up", not "a form". Record who and when (spec §5).
+- [ ] The whole screen can be operated by keyboard alone in the §3.1.13 order, and focus is always visible and never hidden by the sticky header.
+- [ ] The full stroke replay produces no console errors.
+
+#### U4: Push-to-talk, typed input, and monitor fallback
+
+**Owner** frontend · **Estimate** 2 h · **Depends on** U1, U2 · **Protect** P1
+
+**Steps:**
+1. Port the capture code from `web/app.js` into `hooks/usePushToTalk.ts`:
+   - `getUserMedia` [68] → PCM → 16 kHz WAV;
+   - `POST /api/audio` with `file`, `captured_by`, and `speaker`;
+   - the same form fields as today.
+   `ScriptProcessorNode` is kept for parity; moving to an AudioWorklet is optional.
+2. Use Pointer Events [53] for press, release, cancel, and pointer-leave. Esc cancels. Set `touch-action: none`, suppress the context menu, and stop automatically at 60 s.
+3. Build the level meter (`AnalyserNode`, 5 bars, 20 fps) and the elapsed timer.
+4. Build every state in §3.1.11, with its copy.
+5. Hold new alerts while recording (`ui.heldAlerts`).
+6. Obey the keyboard-PTT switch, and ignore keys while typing.
+7. Build the rehearsal forms that U8 places in the presenter bar:
+   - typed input (`POST /api/transcript`);
+   - the simulated monitor (`POST /api/facts`, the existing contract).
+
+**Acceptance:**
+- [ ] Space and F each record through `http://localhost:<port>`, and a trace ticker line appears.
+- [ ] Esc and pointer-leave cancel, with the "Recording cancelled" copy.
+- [ ] Silence shows "Didn't catch that…". Opening from the LAN IP shows the mic-blocked help.
+- [ ] Typed input and monitor readings reach the state (a card or a fact appears).
+
+#### U5: Per-card trace (backend) — DONE
+
+**Owner** backend · **Estimate** 2 h (spent) · **Status: DONE**. The pytest is still pending in TASKS.md.
+
+**Already implemented:**
+- the two-phase entry (rules, then model, same `id`);
+- `trace.heard`, `rules`, `model`, and `effects`;
+- the photo entry;
+- `fact_view` with its frozen relay string.
+
+**To close the task**, add pytests for:
+- [ ] (a) The rules-phase entry has `model.status == "running"` when a model is served, and `"off"` with `use_llm=false`.
+- [ ] (b) Phase 2 updates the same `id` to `done`, with `proposed`, `agreed_with_rules`, and `facts`.
+- [ ] (c) A failing model call gives `status == "error"`, with `ms` and `error`.
+- [ ] (d) A photo gives an entry with `heard.photo_id`, `rules.facts == []`, and `model.status == "done"`.
+- [ ] (e) `effects` reports `readiness`, `gaps_closed`, `scores`, and `alerts_new` for the stroke demo steps.
+
+#### U6: "Herald thinking" trace panel
+
+**Owner** frontend · **Estimate** 4 h · **Depends on** U2, U3, U5 · **Protect** P1
+
+**Steps:**
+1. Build `TracePanel`: the explain column, "Following live", and the "{n} new ↑" pill (§3.2).
+2. Build `TraceCard` for every state a–j in §4.3, with the fixed section skeleton and the reserved model row (§4.7).
+3. Build `TraceFactRow` (§4.4) with the live status and relay line (`selectors.ts`, §4.5).
+4. Write vitest cases for every relay-line state in §4.5, and every extractor label.
+5. Render effects (§4.6), with contract labels and the caption.
+6. Build the ticker in medic mode (§3.1.10, §4.8).
+7. Add the explain-mode extras: the stage line, the "How to read this" panel, and the raw record (§4.11).
+8. Add the photo sheet with crop boxes, and the shared audio player with "Play the words" (§4.9).
+9. Accessibility (§4.10).
+10. Run the layout-shift test with a `PerformanceObserver` on the running→done fixture (§4.7).
+11. **DONE (backend).** Optional backend: trace entries for monitor-panel facts (§4.2).
+
+**Acceptance:**
+- [ ] T1–T10 in §4.12 pass, live or on fixtures.
+- [ ] The running→done update reports no layout shift without user input, and the card keeps its expanded state and focus.
+- [ ] A judge can play the audio behind any voice fact, and see the crop box behind any photo fact.
+- [ ] No model-written prose appears anywhere in the trace (P8).
+
+#### U7: Serve `ui/dist` at `/` and `web/` at `/classic/`
+
+**Owner** backend · **Estimate** 0.5 h · **Depends on** — · **Protect** P1
+
+**Steps:**
+1. Add the mount code from §5.10 to `herald/app.py`, with the `HERALD_UI` environment variable.
+2. In `web/index.html`, change `/style.css` and `/app.js` to relative paths.
+3. Smoke-test:
+   - `curl -s localhost:8101/ | grep -c 'id="root"'` → 1;
+   - `curl -s localhost:8101/classic/ | grep -c 'app.js'` → 1;
+   - `/capture.html` loads.
+
+**Acceptance:**
+- [ ] Both UIs work on the dev port, and the old UI works at `/classic/`.
+- [ ] `HERALD_UI=classic` plus a restart serves the old UI at `/`.
+- [ ] The API and `/ws` are unaffected.
+
+#### U8: Presenter controls
+
+**Owner** frontend · **Estimate** 1.5 h · **Depends on** U3, U4 · **Protect** P1
+
+**Steps:**
+1. Build `useHotkeys` with the guards in §3.1.13: inputs, dialogs, and the keyboard-PTT switch.
+2. Build `PresenterBar` with every group in §3.5.1: link, view, rehearsal input (from U4), incident, judge-beat preset, and status with fixture controls.
+3. Add the new-incident confirmation dialog.
+4. Add the "Reduce motion" switch and the idle cursor hiding.
+5. Handle the netem 503 with its copy.
+
+**Acceptance:**
+- [ ] Shift+G/W/D/E/T/L and backtick work, and are ignored while typing.
+- [ ] The bar is hidden by default and doesn't show in medic mode unless opened.
+- [ ] A Toxiproxy outage shows the 503 copy.
+- [ ] "New incident" can't happen without confirmation (H4).
+
+#### U9: ED screen
+
+**Owner** frontend · **Estimate** 3 h · **Depends on** U1, U2 · **Protect** P2
+
+**Steps:**
+1. Build `EdApp` with every component and state in §3.4, in the light theme, at the ED type scale.
+2. Build the ED store with the heartbeat. The `ed_receiver` ping/pong is added in U10.
+3. Parse LKW and show its elapsed time, using the most-recent-past rule. Show the critical flags. Add the banner's three pulses and the "new" highlight.
+4. Build the link panel, packet feed, full-record section, and reconciliation footer. Add the `?demo=1` label.
+5. Write `scripts/copy-ed.mjs`, and keep the old page as `ed_receiver/web/classic.html`.
+6. Run it on the second machine (TASKS P2.3) with Python only.
+
+**Acceptance:**
+- [ ] A stranger at 3 m reads LKW, "warfarin", and the last-update time on the real display, using the §8.2 protocol.
+- [ ] Every ED state in §3.4 can be reproduced.
+- [ ] The second machine runs the ED screen with `uvicorn ed_receiver.app:app` alone.
+
+#### U10: Link UX and reconciliation on both screens
+
+**Owner** frontend (plus optional backend) · **Estimate** 2 h · **Depends on** U3, U9 · **Protect** P2/P3
+
+**Steps:**
+1. NOW screen: finish the link pill states, the ED chip, and the ER rows' offline copy (§3.1.3, §3.1.5, §3.1.9).
+2. Add the reconciled line on the NOW screen, following the exact conditions in §3.1.9.
+3. Add the ED footer reconciliation and duplicate count (§3.4).
+4. Backend: `ed_receiver` ping/pong. Optionally, `last_contact_at` on `/ping` and `/ingest`, included in `view()`.
+5. Live test through Toxiproxy (TASKS P2.4):
+   - weak → the critical update lands;
+   - down → the updates queue;
+   - good → full sync and the reconciled line.
+
+**Acceptance:**
+- [ ] Shift+G/W/D show on both screens within 2 s.
+- [ ] The "(emulated)" label is visible whenever `netem` is set.
+- [ ] "0 lost" and "retried packets ignored (none applied twice)" come from the real counters. Grep the source: no hard-coded "0 lost".
+
+#### U11: Two-screen stage and the 3 m test
+
+**Owner** pitch · **Estimate** 2 h · **Depends on** U8, U9, U10 · **Protect** P2
+
+**Steps:**
+1. Get the actual demo displays. Measure mm per CSS px for each (§2.5), and set the type scale for each screen.
+2. Run the §8.2 protocol with at least 3 people from outside the team.
+3. Set up the OBS scenes (§3.5.4), and record a 30 s test.
+
+**Acceptance:**
+- [ ] §8.2 passes. The results table is committed in TASKS.md.
+- [ ] The OBS test file plays back at 1080p30.
+
+#### U12: Phone capture page restyle
+
+**Owner** frontend (plus optional backend) · **Estimate** 1 h · **Depends on** U1, U2 (contract) · **Protect** P5
+
+**Steps:**
+1. Restyle with `tokens.css` and move the script to `capture.js`.
+2. Build every state in §3.3, with its copy.
+3. Poll the health check.
+4. Use labels from `contract/keys.json`.
+5. Draw crop boxes on the result thumbnail.
+6. Keep the photo for retry.
+7. **DONE (backend).** Optional backend: on a vision failure, append a trace entry with `model.status = "error"` and `heard.photo_id` (§4.3 g).
+
+**Acceptance:**
+- [ ] It works on the team's phone over LAN HTTP.
+- [ ] A photo produces a trace card on the NOW screen.
+- [ ] The median time from shutter to card is recorded over 5 tries (for the deck).
+- [ ] The 503 and network-error states show their copy, and retry works.
+
+#### U13: Confirm, reject, and the contradiction card
+
+**Owner** frontend · **Estimate** 2 h · **Depends on** U3 · **Protect** P1 (confirm) / P6 (contradiction)
+
+**Steps:**
+1. Add the Confirm and Reject actions in Needs attention (64 px).
+2. Build the contradiction variant of the alert slot: equal-weight "Use …" buttons, no default focus, and the helper copy chosen by the older fact's status (§3.1.8).
+3. Build the `confirm_required` variant, with the photo and crop box.
+4. Add pending and error states (§3.0).
+5. Make it keyboard-accessible.
+
+**Acceptance:**
+- [ ] Every confirmation takes one tap.
+- [ ] The contradiction card preselects nothing (H9).
+- [ ] An unconfirmed fact never uses confirmed styling (H1).
+- [ ] After "Use 'aspirin'", the ER row goes Held → Queued → Sent and the ED screen shows "aspirin".
+
+#### U14: Judge beat
+
+**Owner** pitch + frontend · **Estimate** 1 h · **Depends on** U4, U13 · **Protect** P6
+
+**Steps:**
+1. Build the listening strip and the caption toast (§3.5.2), plus the "Set other speaker: daughter" preset.
+2. Print the card "Mom's allergic to aspirin".
+3. Rehearse the full sequence three times with people from outside the team.
+4. Rehearse the fallback (typed input with the daughter speaker).
+
+**Acceptance:**
+- [ ] It works 3 times out of 3 with a stranger's voice.
+- [ ] Playing back the audio is audible 3 m away.
+- [ ] The fallback takes under 15 s.
+
+#### U15: Telemetry (backend endpoint + frontend strip)
+
+**Owner** backend (endpoint), frontend (strip) · **Estimate** 2.5 h (backend 1.5, frontend 1) · **Depends on** — for the endpoint; U3 for the strip · **Protect** P4 (metrics on screen)
+
+**Backend steps:**
+1. Build a sampling task every 2 s:
+   - ZRT `/metrics/<served-name>` → token counters, request gauges, and histogram quantiles;
+   - `nvidia-smi` → GPU W;
+   - trapezoidal Wh.
+2. Accumulate Herald's own `usage` from the LLM and vision calls.
+3. Build `GET /api/telemetry` exactly as in §5.9. Include cloud prices only with `cloud_price_ref`.
+4. Tests: parsing with sample Prometheus text; `errors[]` when metrics or `nvidia-smi` are unavailable.
+
+**Frontend steps:**
+1. Build `TelemetryStrip` and its popover (§5.9), polling every 2 s and pausing while the tab is hidden.
+
+**Acceptance:**
+- [ ] The numbers update every 2 s during a replay.
+- [ ] It says "GPU", not "SoC".
+- [ ] Net savings appear only with a cited cloud price.
+- [ ] With ZRT stopped, the strip shows "—" and the reason, without breaking the screen.
+
+#### U16: Ask HP about the console
+
+**Owner** pitch · **Estimate** 0.5 h · **Depends on** — · **Protect** —
+
+**Steps:**
+1. Ask the §6.3 questions on Thursday morning.
+2. Record the answers verbatim in TASKS.md.
+3. If registration is possible, send the name, one-line description, launch URL, and video link.
+
+**Acceptance:**
+- [ ] The answers are logged, and registration is either done or recorded as "not available".
+
+#### U17: Two-minute video
+
+**Owner** pitch · **Estimate** 3 h · **Depends on** everything · **Protect** D2 (deliverable)
+
+**Steps:**
+1. Set up OBS per §3.5.4: 1080p30, H.264, about 8 Mbps [42].
+2. Follow the storyboard, driven by `replay.py` plus one live voice take.
+3. Add the title card (team name, tagline, logo).
+4. Check the deliverable list: problem, who it's for, the core feature using local inference, a live demo, and something a non-technical viewer can follow.
+5. Upload publicly to YouTube.
+
+**Acceptance:**
+- [ ] There is a public YouTube URL.
+- [ ] Duration ≤ 2:00.
+- [ ] 1080p.
+- [ ] Every deliverable element is present.
+
+### 7.3 Summary table
+
+| ID | Owner | h | Protect | Depends on | Status |
+|---|---|---|---|---|---|
+| U1 | frontend | 2 | P1 | — | ⏳ |
+| U2 | frontend + backend | 2 | P1 | U1 | ⏳ |
+| U3 | frontend | 5 | P1 | U1, U2 | ⏳ |
+| U4 | frontend | 2 | P1 | U1, U2 | ⏳ |
+| U5 | backend | 2 | P1 | — | ✅ done (pytest pending) |
+| U6 | frontend | 4 | P1 | U2, U3, U5 | ⏳ |
+| U7 | backend | 0.5 | P1 | — | ⏳ |
+| U8 | frontend | 1.5 | P1 | U3, U4 | ⏳ |
+| U9 | frontend | 3 | P2 | U1, U2 | ⏳ |
+| U10 | frontend (+ backend optional) | 2 | P2/P3 | U3, U9 | ⏳ |
+| U11 | pitch | 2 | P2 | U8, U9, U10 | ⏳ |
+| U12 | frontend (+ backend optional) | 1 | P5 | U1, U2 | ⏳ |
+| U13 | frontend | 2 | P1/P6 | U3 | ⏳ |
+| U14 | pitch + frontend | 1 | P6 | U4, U13 | ⏳ |
+| U15 | backend + frontend | 2.5 | P4 | — / U3 | ⏳ |
+| U16 | pitch | 0.5 | — | — | ⏳ |
+| U17 | pitch | 3 | D2 | all | ⏳ |
+
+**Totals:**
+- About 36 h, of which about 2 h (U5) is done.
+- Frontend: about 25 h, which needs 2–3 people on Thursday.
+- Backend: about 4.5 h remaining (U2 backend, U7, U15 endpoint, the optional additions).
+- Pitch: about 7.5 h.
+
+---
+## 8. Demo-day UX checklist and the 3 m legibility test
+
+### 8.1 Demo-day UX checklist
+
+**T−60 min: the system**
+- [ ] ZRT model shows **Ready** in `sg zrt -c "zrt status"`. Don't restart it: the first start takes about 23 min (AGENTS.md pitfall).
+- [ ] Send one warm-up extraction: a typed "BP 120 over 80" in the presenter bar. The trace shows MODEL "done".
+- [ ] Speech is loaded: the header shows "Speech ✓".
+- [ ] Toxiproxy is up (`scripts/link.sh start …`). Presenter bar → Link → Good. The ED screen answers `/ping`.
+- [ ] The ED receiver runs on the **second machine and network** (TASKS P2.3), opened at `http://<ed-host>:8200/?demo=1`.
+- [ ] `/api/telemetry` returns numbers, and the strip shows tok/s and GPU W.
+- [ ] Safety nets are open in background tabs: `/classic/`, and `/?fixture=stroke_demo`. The backup video file is on the desktop.
+
+**T−30 min: the displays**
+- [ ] The NOW screen is fullscreen (F11 or kiosk). Browser zoom is 100% on the laptop, or 140% when mirrored to a 1080p TV (§2.5).
+- [ ] The theme suits each display: NOW dark on the laptop, or light when projected; ED light.
+- [ ] The type scale matches the U11 measurements (Shift+T), for example 1.25× for the mirrored NOW screen.
+- [ ] OS do-not-disturb is on, notifications are off, and sleep is off. The Screen Wake Lock is active: no dimming after 2 min.
+- [ ] Audio output goes to the room speakers. Play one clip, and it's audible at 3 m.
+- [ ] The mic works through `http://localhost:<port>`. A test clip gives a card.
+- [ ] The cursor hides when idle, and the presenter bar is closed.
+
+**T−15 min: the incident**
+- [ ] Presenter bar → New incident → dispatch "possible stroke". The band shows "0 of 6".
+- [ ] The ED screen shows "No incoming patients". (Use `POST /reset` on the ED receiver if it doesn't.)
+- [ ] Props are on the table: fingertip pulse oximeter, the "WARFARIN 5 MG" bottle, and the judge card "Mom's allergic to aspirin".
+- [ ] The phone is on the same Wi-Fi, has the capture page bookmarked, and screen brightness at maximum. It shows "(v) Connected to the ambulance computer".
+- [ ] Keyboard PTT is on, and explain mode is off at the start (turned on for the "how" segment).
+
+**During the demo**
+- [ ] Follow the spec §11 order: gap-first → talk → show (photos) → judge beat → offline → weak link → reconcile.
+- [ ] Say "emulated weak link, real packets" when using Shift+W/D.
+- [ ] If the screen goes stale (grey scrim), keep narrating on `/classic/` or the fixture, and say so.
+
+**After the demo**
+- [ ] Delete the judge's audio clip, as promised on stage. Find the `audio_id` on the judge's trace card, then `rm data/audio/<audio_id>.wav`. Never commit `data/audio/*` (AGENTS.md).
+- [ ] Presenter bar → New incident, so the next session starts clean.
+
+### 8.2 3 m legibility test protocol (U11)
+
+**Purpose.** Show that judges at 3 m can read the critical information in a glance, on the actual displays.
+
+**Basis.**
+- FAA HFDS §5.1.8.10: critical text ≥16′ of arc, 22–24′ preferred [12].
+- NHTSA's occlusion method, with 1.5 s glances [10], as the glance budget. We use it as a design target.
+
+**Setup.**
+- The real NOW and ED displays, positioned as on stage, at event-like lighting (a bright room).
+- Viewers seated **3.0 m** from the screen plane (measure with a tape), eyes about level with the screen center.
+- The type scale set per §2.5.
+- The stroke fixture, paused at five frames:
+
+| Frame | Screen | Moment |
+|---|---|---|
+| F1 | NOW | Gap-first, "4 of 6", Glucose missing |
+| F2 | NOW | Contradiction in the alert slot |
+| F3 | NOW | ED offline (emulated) |
+| F4 | ED | After the critical update: LKW, WARFARIN, ETA |
+| F5 | Both | Reconciled |
+
+**Participants.**
+- At least 3 people from outside the team.
+- At least one wears glasses or contacts, and uses their normal correction.
+- If a person with a color vision deficiency is available, include them. Otherwise the U1 grayscale test covers color.
+
+**Procedure** (for each frame):
+1. The participant looks away while the presenter sets up the frame.
+2. The presenter says "look" and starts a 1.5 s timer, then says "away".
+3. The participant answers the questions for that frame without looking again. Allow at most two glances per frame.
+4. Record each answer, and the number of glances it took.
+
+**Questions**
+
+| Frame | Question | Expected answer |
+|---|---|---|
+| F1 | "How many stroke-alert items are ready, and what's missing?" | "4 of 6; glucose (+1)" |
+| F1 | "Is anything flagged?" | "Yes, one alert" |
+| F2 | "What do the sources disagree about?" | "Allergies (none vs aspirin)" |
+| F3 | "Is the hospital link working?" | "No, offline (emulated)" |
+| F4 | "What blood thinner is she on? When was she last known well?" | "Warfarin; 13:40" (or the scenario's time) |
+| F5 | "Is anything still waiting to be sent?" | "No, reconciled / up to date" |
+
+**Measurement.**
+- With a ruler held against the display, measure the cap height of the smallest critical text on each screen, such as the "W" in WARFARIN or the checklist chip text.
+- Compute its visual angle: arcmin ≈ 3438 × height (mm) ÷ 3000.
+- Record every value.
+
+**Pass criteria.**
+- [ ] Every participant answers every question correctly within two 1.5 s glances.
+- [ ] Every measured critical text is ≥16′ (cap height ≥14 mm at 3 m).
+- [ ] Key values (WARFARIN, LKW, the checklist count) are ≥22′ (≥19.2 mm). This is preferred; a miss means increasing the type scale.
+
+**If it fails.**
+1. Raise the type scale (Shift+T) or use a larger display.
+2. Re-measure and re-test with a new participant, since a repeat viewer already knows the answers.
+3. Record the final settings in TASKS.md.
+
+**Results template** (copy into TASKS.md):
+
+| Display | mm/px | Type scale | Smallest critical cap height (mm) | Angle (′) | P1 correct / glances | P2 | P3 | Pass? |
+|---|---|---|---|---|---|---|---|---|
+| NOW (laptop or TV) | | | | | | | | |
+| ED (TV) | | | | | | | | |
+
+---
+
+## 9. Sources
+
+Sources 1–43 keep their version 1 numbers. Sources 44–68 are new in version 2.
+
+1. IEC 60601-1-8 Table 201, alarm condition priorities (standard sample): https://cdn.standards.iteh.ai/samples/37404/02bc9af9db9f4cf0805ee27fd344ea0d/IEC-60601-1-8-2003.pdf
+2. IEC 60601-1-8 §6.3.2, visual alarm signals (4 m / 1 m): https://standards.har-el.com/Projects/181701/60601-1-8/html/6-3-2-Visual-Generation.htm
+3. Elsmar Cove (secondary source for the IEC colors and flash rates): https://elsmar.com/elsmarqualityforum/threads/light-indication.89977/
+4. Philips IntelliVue MX100/X3 Instructions for Use (red 0.25 s, yellow 1 s, cyan steady): https://www.documents.philips.com/assets/Instruction%20for%20Use/20230214/5030e45d060748efac61afa900ef6a2e.pdf
+5. ANSI/AAMI HE75:2025: https://webstore.ansi.org/standards/aami/ansiaamihe752025
+6. NHS DCB0129 clinical risk management: https://digital.nhs.uk/data-and-information/information-standards/information-standards-and-data-collections-including-extractions/publications-and-notifications/standards-and-collections/dcb0129-clinical-risk-management-its-application-in-the-manufacture-of-health-it-systems
+7. NHS design system, colour: https://service-manual.nhs.uk/design-system/styles/colour
+8. Joint Commission Sentinel Event Alert 50: https://www.jointcommission.org/en-us/knowledge-library/newsletters/sentinel-event-alert/issue-50 (PDF copy used for verification: https://www.kff.org/wp-content/uploads/sites/2/2013/04/sea_50_alarms_4_5_13_final1.pdf)
+9. van der Sijs et al. 2006, overriding of drug safety alerts: https://pubmed.ncbi.nlm.nih.gov/16357358/
+10. NHTSA visual-manual driver distraction guidelines: https://www.federalregister.gov/documents/2013/04/26/2013-09883/visual-manual-nhtsa-driver-distraction-guidelines-for-in-vehicle-electronic-devices
+11. WCAG 2.2: https://www.w3.org/TR/WCAG22/
+12. FAA Human Factors Design Standard, chapter 5, §5.1.8.10: https://rosap.ntl.bts.gov/view/dot/71695/dot_71695_DS1.pdf
+13. Tang et al. 2025, interface element size and vehicle vibration: https://pubmed.ncbi.nlm.nih.gov/39973705/
+14. Parhi, Karlson, Bederson 2006, target size for thumb use: https://www.microsoft.com/en-us/research/wp-content/uploads/2006/01/parhi-mobileHCI06.pdf
+15. Colour Blind Awareness, prevalence: https://www.colourblindawareness.org/colour-blindness/
+16. Piepenbrock et al. 2013, display polarity: https://pubmed.ncbi.nlm.nih.gov/23654206/
+17. Amershi et al. 2019, Guidelines for Human-AI Interaction: https://doi.org/10.1145/3290605.3300233
+18. Google PAIR, Explainability + Trust: https://pair.withgoogle.com/chapter/explainability-trust/
+19. Zhang, Liao, Bellamy 2020, confidence and trust calibration: https://arxiv.org/abs/2001.02114
+20. Bansal et al. 2021, explanations and team performance: https://dl.acm.org/doi/10.1145/3411764.3445717
+21. Buçinca et al. 2021, cognitive forcing functions: https://arxiv.org/abs/2102.09692
+22. Goddard, Roudsari, Wyatt 2012, automation bias: https://pubmed.ncbi.nlm.nih.gov/21685142/
+23. Turpin et al. 2023, unfaithful chain-of-thought: https://arxiv.org/abs/2305.04388
+24. FDA, Clinical Decision Support Software guidance (29 Jan 2026): https://www.fda.gov/media/109618/download
+25. Pulsara 7.3 release notes (HH:MM:SS timers, RACE): https://www.pulsara.com/blog/pulsara-version-7.3-includes-new-stroke-score-capabilities-and-edits-to-timer-panel-and-alerts
+26. ImageTrend ePCR: https://www.imagetrend.com/platform/epcr-software/
+27. ESO EHR iOS: https://www.eso.com/ehr-ios/
+28. RCP NEWS2 (bands as tested in `herald/scores.py`): https://www.rcp.ac.uk/improving-care/resources/national-early-warning-score-news-2/
+29. shadcn/ui on Vite: https://ui.shadcn.com/docs/installation/vite
+30. Vite guide (Node requirement): https://vite.dev/guide/
+31. conda-forge `nodejs`: https://anaconda.org/conda-forge/nodejs
+32. Fontsource: https://fontsource.org/
+33. Lucide (ISC license): https://lucide.dev/license
+34. Streamlit fragments and execution model: https://docs.streamlit.io/develop/concepts/architecture/fragments
+35. MDN `prefers-reduced-motion`: https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion
+36. NVIDIA DGX Spark playbook, DGX Dashboard: https://build.nvidia.com/spark/dgx-dashboard/instructions
+37. HP ZGX Toolkit: https://github.com/HPInc/ZGX-Toolkit
+38. HP ZGX AI Stations software (ZTK, ZRT): https://www.hp.com/us-en/workstations/ai-stations/zgx-ai-stations-software.html
+39. HP ZGX Nano user guide: https://kaas.hpcloud.hp.com/pdf-public/pdf_12595996_en-US-1.pdf
+40. HP AI-Blueprints: https://github.com/HPInc/AI-Blueprints
+41. HP AI models performance measurement suite: https://github.com/HPInc/ai-models-performance-measurement-suite
+42. YouTube recommended upload encoding settings: https://support.google.com/youtube/answer/1722171
+43. OBS Studio: https://obsproject.com/
+44. MDN `overflow-anchor` (scroll anchoring; Baseline 2026): https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-anchor
+45. MDN `aria-live`: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Attributes/aria-live
+46. Nielsen, "Response Times: The 3 Important Limits": https://www.nngroup.com/articles/response-times-3-important-limits/
+47. Material 3 motion tokens (durations, easing), Material Web source: https://github.com/material-components/material-web/blob/main/tokens/versions/v0_192/_md-sys-motion.scss
+48. Vite, building for production (multi-page app): https://vite.dev/guide/build
+49. Vite build options (`build.rolldownOptions`; `rollupOptions` deprecated): https://vite.dev/config/build-options
+50. Vite server options (`server.proxy`, WebSocket proxying): https://vite.dev/config/server-options
+51. MDN HTML `capture` attribute: https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/capture
+52. MDN `font-variant-numeric`: https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-numeric
+53. MDN Pointer Events: https://developer.mozilla.org/en-US/docs/Web/API/Pointer_events
+54. MDN Screen Wake Lock API: https://developer.mozilla.org/en-US/docs/Web/API/Screen_Wake_Lock_API
+55. FastAPI static files: https://fastapi.tiangolo.com/tutorial/static-files/
+56. Zustand `useShallow`: https://zustand.docs.pmnd.rs/reference/hooks/use-shallow
+57. npm registry (package versions, engines, licenses; queried 2026-09-23): https://registry.npmjs.org/
+58. Fontsource, Inter: https://fontsource.org/fonts/inter
+59. Fontsource, JetBrains Mono: https://fontsource.org/fonts/jetbrains-mono
+60. shadcn/ui theming (CSS variables, `@theme inline`): https://ui.shadcn.com/docs/theming
+61. Radix Primitives, Collapsible: https://www.radix-ui.com/primitives/docs/components/collapsible
+62. NVIDIA DGX Spark documentation, DGX Dashboard: https://docs.nvidia.com/dgx/dgx-spark/dgx-dashboard.html
+63. vLLM metrics: https://docs.vllm.ai/en/latest/design/metrics.html
+64. NVIDIA `nvidia-smi` documentation: https://docs.nvidia.com/deploy/nvidia-smi/index.html
+65. Toxiproxy: https://github.com/Shopify/toxiproxy
+66. Elsmar Cove (secondary source: IEC 60601-1 §7.8.1 indicator colors; green = ready for use): https://elsmar.com/elsmarqualityforum/threads/medical-device-warning-lights-colors.63082/
+67. MDN HTMLMediaElement: https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement
+68. MDN `getUserMedia`: https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
+
+**Internal sources** (repo and team files, read on 2026-09-23):
+- `AGENTS.md` (invariants, pitfalls);
+- `TASKS.md` (P-order, checkpoint measurements);
+- `herald/state.py`, `herald/relay.py`, `herald/trace.py`, `herald/app.py`, `herald/schema.py`, `herald/scores.py`, `herald/checklists.py`, `herald/pipeline.py`, `herald/llm.py`;
+- `ed_receiver/app.py`;
+- `web/app.js`, `web/index.html`, `web/capture.html`;
+- the product spec `../.agent/ideas/herald-ems-copilot.md` and the event context `../.agent/context.md` (both Nano-only, never committed).
+
+**Measurements on this box (2026-09-23, read-only):**
+- `systemctl status dgx-dashboard*`;
+- the DGX Dashboard bundle from `localhost:11000`;
+- `zrt --help`, `zrt config get`, `zrt status`, `zrt metrics display`;
+- `GET 127.0.0.1:8080/metrics/omni`;
+- `nvidia-smi` power queries;
+- the conda-forge `nodejs` dry run;
+- font metrics read with fontTools;
+- `/api/state` size on the demo instance.
