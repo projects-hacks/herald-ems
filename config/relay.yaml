@@ -1,0 +1,13 @@
+# What reaches the emergency department first over a weak link. Lower tier = sent first.
+# Derived keys: score.<id> (published scores), alert.readiness (checklist progress).
+tiers:
+  - {tier: 1, why: the receiving team needs this before arrival,
+     keys: [alert.readiness, code_status, meds.anticoagulant, allergies, stroke.lkw, complaint.chief]}
+  - {tier: 2, why: deterioration / published score changed, keys: [score.news2, score.race, score.gfast]}
+  - {tier: 3, why: latest vitals and exam,
+     keys: [vitals.sbp, vitals.dbp, vitals.hr, vitals.spo2, vitals.rr, vitals.glucose, vitals.consciousness, stroke.deficits]}
+  - {tier: 4, why: arrival logistics, keys: [transport.eta_min, transport.destination]}
+  - {tier: 5, why: demographics and context,
+     keys: [patient.age, patient.sex, stroke.onset_witnessed, vitals.temp, vitals.on_oxygen, meds.list, scene.notes]}
+# Bytes per packet by measured link state (an unmeasured link is treated as weak).
+budget_bytes: {good: 64000, weak: 420, down: 0}

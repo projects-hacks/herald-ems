@@ -1,0 +1,26 @@
+# National Early Warning Score 2. Every band is copied from the published chart and tested at each
+# boundary (tests/test_scores.py). Bands: ascending [inclusive upper bound, points]; `above` = points
+# for values above the last bound.
+id: news2
+name: NEWS2
+kind: banded
+source: Royal College of Physicians, National Early Warning Score 2 (2017)
+evidence: >-
+  Pooled across 30 studies / 185,835 patients: AUC 0.88 for 2-day mortality
+  (sens 0.81, spec 0.81), prehospital and ED combined
+thresholds_text: single parameter 3 = low-medium; 5-6 = medium; >=7 = high
+parameters:
+  - {key: vitals.rr, label: Respiratory rate, bands: [[8, 3], [11, 1], [20, 0], [24, 2]], above: 3}
+  - {key: vitals.spo2, label: SpO2 (scale 1), bands: [[91, 3], [93, 2], [95, 1]], above: 0}
+  - {key: vitals.on_oxygen, label: Air or oxygen, boolean: {true: 2, false: 0}}
+  - {key: vitals.sbp, label: Systolic BP, bands: [[90, 3], [100, 2], [110, 1], [219, 0]], above: 3}
+  - {key: vitals.hr, label: Pulse, bands: [[40, 3], [50, 1], [90, 0], [110, 1], [130, 2]], above: 3}
+  - {key: vitals.consciousness, label: Consciousness, levels: {A: 0, C: 3, V: 3, P: 3, U: 3}}
+  - {key: vitals.temp, label: Temperature, bands: [[35.0, 3], [36.0, 1], [38.0, 0], [39.0, 1]], above: 2}
+# Total bands, checked in order; `any_single` = any one parameter scoring this many points.
+risk_bands:
+  - {band: high, total_at_least: 7}
+  - {band: medium, total_at_least: 5}
+  - {band: low-medium, any_single: 3}
+  - {band: low, total_at_least: 0}
+relay_text: "{score} {band}"   # how the score appears in a relay packet to the ED

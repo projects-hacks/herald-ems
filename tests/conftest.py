@@ -1,19 +1,24 @@
 import pytest
 
-from herald import county
+from herald.core.snapshot import default_counties
+
+
+def _switch(county_id):
+    reg = default_counties()
+    before = reg.active["id"]
+    reg.activate(county_id)
+    return reg, before
 
 
 @pytest.fixture
 def generic_county():
-    before = county.active()["id"]
-    county.activate("generic")
+    reg, before = _switch("generic")
     yield
-    county.activate(before)
+    reg.activate(before)
 
 
 @pytest.fixture
 def santa_clara_county():
-    before = county.active()["id"]
-    county.activate("santa_clara")
+    reg, before = _switch("santa_clara")
     yield
-    county.activate(before)
+    reg.activate(before)

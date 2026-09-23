@@ -1,0 +1,19 @@
+# 2021 National Guideline for the Field Triage of Injured Patients: the vital-sign RED criteria and the
+# anticoagulant YELLOW criterion. Each criterion type is interpreted by herald/scoring/field_triage.py.
+id: field_triage
+name: Field triage (2021)
+kind: criteria
+source: National Guideline for the Field Triage of Injured Patients (2021)
+red:
+  - {type: below, key: vitals.gcs_motor, value: 6, text: "Unable to follow commands (motor GCS < 6)"}
+  - {type: outside, key: vitals.rr, low: 10, high: 29, text: "RR {value} (< 10 or > 29)"}
+  - {type: room_air_below, key: vitals.spo2, value: 90, text: "Room-air SpO2 {value}% (< 90%)"}
+  - type: sbp_by_age
+    bands:
+      - {age_max: 9, sbp_below_base: 70, sbp_below_per_year: 2, text: "SBP {sbp} < 70 + 2×age ({limit})"}
+      - {age_min: 10, age_max: 64, sbp_below: 90, text: "SBP {sbp} < 90"}
+      - {age_min: 65, sbp_below: 110, text: "SBP {sbp} < 110 (age ≥ 65)"}
+  - {type: hr_above_sbp, min_age: 10, text: "HR {hr} > SBP {sbp}"}
+yellow:
+  - {type: anticoagulant, key: meds.anticoagulant, text: "Anticoagulant use ({value})"}
+required_for_display: [{key: patient.age, label: Age}, {key: vitals.sbp, label: Systolic BP}]

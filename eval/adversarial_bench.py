@@ -30,10 +30,9 @@ def main():
     ap.add_argument("--runs", type=int, default=1)
     ap.add_argument("--set", default="eval/adversarial_v1.jsonl")
     a = ap.parse_args()
-    if a.model:
-        os.environ["HERALD_LLM_MODEL"] = a.model
-    from herald import extract_llm, extract_rules, pipeline
-    from herald.schema import CapturedBy, Role
+    from bench_extract import build_extractor
+    from herald.core.schema import CapturedBy, Role
+    ext, _, _ = build_extractor(a.extractor, a.model)
     items = [json.loads(l) for l in open(a.set) if l.strip()]
     for run in range(a.runs):
         fails = []
@@ -41,12 +40,7 @@ def main():
             by = CapturedBy(it.get("by", "medic"))
             role = Role.family if by == CapturedBy.other else Role.medic
             try:
-                if a.extractor == "rules":
-                    facts = extract_rules.extract(it["text"], by, role, it.get("speaker"))
-                elif a.extractor == "llm":
-                    facts = extract_llm.extract(it["text"], by, role, it.get("speaker"))
-                else:
-                    facts, _ = pipeline.extract(it["text"], by, role, it.get("speaker"))
+                facts = ext.extract(it["text"], by, role, it.get("speaker"))
             except Exception as e:
                 fails.append((it["id"], it["attack"], f"crash: {type(e).__name__}"))
                 continue

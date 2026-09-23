@@ -21,7 +21,9 @@ import sys
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from herald.extract_llm import SHORT_SYSTEM  # noqa: E402  (the served extractor must use the same prompt)
+from herald.config import load_text  # noqa: E402
+
+SHORT_SYSTEM = load_text("prompts/extract_finetuned.md")   # the served extractor uses the same prompt file
 
 
 def rows(path, limit=None):

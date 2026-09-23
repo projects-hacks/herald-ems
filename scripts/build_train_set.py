@@ -18,8 +18,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from herald.schema import KEYS  # noqa: E402
-from herald.state import _coerce  # noqa: E402
+from herald.core.vocabulary import default_vocabulary  # noqa: E402
+
+VOCAB = default_vocabulary()
+KEYS = VOCAB.keys
 
 WHO = {"medic": "m", "patient": "p", "bystander": "b"}
 
@@ -37,7 +39,7 @@ def annotated_row(r: dict) -> dict:
         source = fact[3] if len(fact) > 3 else None
         if k not in KEYS or role not in ("medic", "patient", "family", "bystander"):
             raise ValueError(f"bad key/role {k}/{role}")
-        _coerce(k, v)
+        VOCAB.coerce(k, v)
         out.append([k, v, who_code(role, source, r.get("speaker"))])
     return {"id": r["id"], "text": r["text"], "source": "annotated",
             "completion": json.dumps({"f": out}, separators=(",", ":"), ensure_ascii=False)}

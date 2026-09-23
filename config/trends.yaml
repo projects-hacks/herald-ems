@@ -1,0 +1,9 @@
+# Significant-change rules for trends: a display and alert aid, not a diagnosis. Rule fields:
+#   abs_change: |new - old| >= n      falls_by: old - new >= n
+#   falls_to_or_below: old > n >= new falls_below: old >= n > new
+change_rules:
+  vitals.sbp: {abs_change: 20, falls_to_or_below: 90, text: "SBP changed by 20 mmHg or more, or dropped to 90 or below"}
+  vitals.hr: {abs_change: 20, text: "HR changed by 20/min or more"}
+  vitals.spo2: {falls_by: 3, falls_below: 92, text: "SpO2 fell by 3 points or more, or dropped below 92%"}
+  vitals.rr: {abs_change: 6, text: "RR changed by 6/min or more"}
+  vitals.glucose: {abs_change: 50, text: "Glucose changed by 50 mg/dL or more"}

@@ -1,2 +1,1 @@
-"""Herald: offline EMS copilot. The patient's story arrives before the doors open."""
-__version__ = "0.1.0"
+"""Herald: an offline AI copilot for the back of the ambulance (see AGENTS.md for the package map)."""

@@ -1,0 +1,6 @@
+# Instruction-shaped speech (prompt injection through the mic). One regular expression per entry,
+# case-insensitive. Measured by eval/adversarial_bench.py.
+instruction_patterns:
+- '\b(ignore (?:all |the |your |that|this|those)?(?:previous |prior |above )?(?:instructions?|rules|prompt|that|this)?|system(?: override)?\s*:|assistant\s*:|user\s*:|override|output (?:this|exactly|the
+  following)|return (?:this|exactly) json|pretend (?:you|to)|repeat your (?:system )?prompt|list every key|forget (?:the|your|all)|(?:set|change|update) (?:the |her |his )?[a-z0-9 ]{2,20}? to\b|mark (?:every|all|it|them|this|that|[a-z
+  ]{2,30}? as)|write (?:in|into|on) (?:the )?chart|delete (?:the |that|this)|remove (?:the |that|this)|add (?:a )?dnr|so the alarm stops|just put|put down|don''t bother checking)'

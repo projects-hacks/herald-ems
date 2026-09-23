@@ -26,3 +26,10 @@ def test_cost_math_uses_stated_assumptions():
     assert s["cost"]["cloud_breakdown"]["stt_usd"] == round(10 * 0.006, 5)
     assert s["cost"]["local_usd"] == round(0.1 * 0.15, 5)
     assert s["cloud_ai_calls"] == 0
+
+
+def test_rates_come_from_config_with_sources_and_env_overrides():
+    t = Telemetry(rates={"electricity_usd_per_kwh": 0.30})
+    s = t.snapshot(model=None)["assumptions"]
+    assert s["electricity_usd_per_kwh"] == 0.30 and s["cloud_llm_usd_per_1m_out"] == 2.50
+    assert "Gemini" in s["sources"]["cloud_llm_usd_per_1m_out"]

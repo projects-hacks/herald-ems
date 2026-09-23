@@ -73,7 +73,7 @@ Status: ✅ done · 🔄 in progress · ⏳ todo · ⛔ blocked. Update this fil
 ## P5: Eyes (photo reading)
 | ID | Task | Owner | Status | Done when |
 |---|---|---|---|---|
-| P5.1 | `herald/vision.py`, `/api/photo`, `web/capture.html` | ML/frontend | ✅ code | — |
+| P5.1 | `herald/models/vision.py`, `/api/photo`, `web/capture.html` | ML/frontend | ✅ code | — |
 | P5.2 | Smoke test on `eval/photos/synthetic_*.jpg` | ML | ✅ 3/3 each | warfarin + SpO2 94 / PR 104 read correctly |
 | P5.3 | Props: fingertip pulse oximeter, empty bottle with a printed "WARFARIN 5 MG" label, printed CA POLST | pitch | ⏳ | bought/printed |
 | P5.4 | Photo test set: ~50 real phone photos of the props (angles, glare) + gold labels → photo-reading accuracy | data | ⏳ | number for the deck |
@@ -109,7 +109,7 @@ Status: ✅ done · 🔄 in progress · ⏳ todo · ⛔ blocked. Update this fil
 | M7 | 30-item gold v0 → **independent held-out gold v1 (100 items)**: labeler A writes and labels per `docs/LABELING_GUIDE.md`, labeler B labels blind, agreement measured, disagreements adjudicated | data | ✅ F1 0.993; bench 3× done | agreement ≥ 0.9 F1 between labelers; bench rerun 3× on v1 |
 | M7b | **Gold v2 (100 items), the held-out set from now on**: same protocol, stricter phrasing variety; quotas for onset phrasing, non-anticoagulant brand names, misspelled drug names, EMS-given drugs | data | 🔄 labeler A ✅ (317 facts), labeler B running | agreement ≥ 0.9; adjudicated `eval/gold_v2.jsonl`; every extractor 3× |
 | M8 | Speaker diarization (`pyannote/speaker-diarization-community-1`, the model HP's Audio2Text and Doctor NoteAI use): check it installs on aarch64 with torch 2.14 (gated on HF: accept terms with the team token), then measure whether it labels medic vs family correctly on multi-speaker clips | ML | ⏳ | works on 10 two-speaker clips, or a documented reason it can't |
-| M9 | Adversarial speech eval + prompt-injection containment (`herald/guard.py`, `eval/adversarial_v1.jsonl`, `eval/adversarial_bench.py`) | ML/eval | ✅ 25/25 rules and 25/25 ×3 pipeline (was 21 and 18–19) | see MODEL_PLAN §0b |
+| M9 | Adversarial speech eval + prompt-injection containment (`herald/extraction/guard.py`, `eval/adversarial_v1.jsonl`, `eval/adversarial_bench.py`) | ML/eval | ✅ 25/25 rules and 25/25 ×3 pipeline (was 21 and 18–19) | see MODEL_PLAN §0b |
 | M9b | Fresh adversarial set (≥30) written by someone who hasn't read `guard.py`; measure guard false positives on gold v1 | eval | ⏳ | pass rate on unseen attacks; 0 legitimate facts blocked on gold v1 |
 | M10 | Measure warm restart time of `omni` (the kernel cache is populated now) and whole-stack cold start; write the pre-demo warm-up procedure | ML | ⏳ | numbers in MODEL_PLAN; checklist in the demo runbook |
 | M4 | **Gold set v1: ~100 utterances** incl. shorthand, number words, negations, corrections, attribution; two labelers; free-text keys scored by presence. **Blocks the text-model decision** (30 items can't separate ±0.04) | data | ✅ (= M7) | agreement reported |

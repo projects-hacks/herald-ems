@@ -10,7 +10,7 @@
   - a **team measurement** (reported in TASKS.md or by a teammate, not re-measured here);
   - a **design decision** (our own choice, with the reason given).
 - **Verified** means checked against a primary source: the standard itself, the paper, the vendor manual, official docs, or read-only inspection of this box. **Unverified** means only secondary sources, or not checked. Treat unverified items as assumptions.
-- Field names in `code` are the real names in `herald/state.py`, `herald/relay.py`, `herald/trace.py`, `herald/app.py`, `herald/schema.py`, and `ed_receiver/app.py`, as read on 2026-09-23.
+- Field names in `code` are the real names in the backend. After the modular restructure (2026-09-23 night) they live in `herald/core/snapshot.py` (the snapshot), `herald/relay/relay.py` (`status()`), `herald/api/trace.py` and `herald/api/capture.py` (trace entries), `herald/core/schema.py`, and `ed_receiver/app.py`. The field names and shapes did not change.
 - Clinical wording rules (from AGENTS.md invariants 2 and 3) apply to every piece of copy in this document:
   - Herald gives information, not advice.
   - Say "the receiving team needs to know". Never say "give", "do", or "consider \<treatment\>".
@@ -210,7 +210,7 @@ Each principle has five parts:
 - Turpin et al. (NeurIPS 2023): chain-of-thought explanations "can systematically misrepresent the true reason for a model's prediction" [23] (verified).
 - Amershi et al. G11: "Make clear why the system did what it did" [17] (verified).
 - FDA: helping the clinician see "how the logic was applied for the patient (e.g., matching of patient-level data to criteria…)" supports independent review [24] (verified).
-- `herald/trace.py` records "the actual record of what the system did"; its docstring says "Nothing here is … prose". The model runs with reasoning off (AGENTS.md pitfalls).
+- `herald/api/trace.py` records "the actual record of what the system did"; its docstring says "Nothing here is … prose". The model runs with reasoning off (AGENTS.md pitfalls).
 
 **On Herald's screens.**
 - The trace card (§4) shows only recorded fields:
@@ -381,7 +381,7 @@ Priorities follow IEC 60601-1-8 Table 201 logic, consequence × onset [1]. Heral
 | A red field-triage criterion (`scores.field_triage.red` non-empty; card shown only for trauma or fall dispatches, TASKS P4.3) | HIGH | high | `octagon-alert` HIGH | As above | Alert slot, triage card |
 | Safety-field contradiction (`alerts[].type == "contradiction"`, key in `CONTRADICTION_KEYS`) | MEDIUM | medium | `git-compare-arrows` CHECK | Three pulses at 0.5 Hz when it arrives, then steady. Philips yellow is 1 s on / 1 s off [4]; IEC medium is 0.4–0.8 Hz [3] (**unverified**). Stopping after three pulses is our own design choice: continuous flashing makes a text-heavy screen hard to read. | Alert slot, top-band badge, ER row "held" |
 | Code status needs a tap (`alerts[].type == "confirm_required"`) | MEDIUM | medium | `triangle-alert` CHECK | Three pulses | Alert slot |
-| NEWS2 medium band 5–6 (`band == "medium"`), or any single parameter scoring 3 (`band == "low-medium"`), as in the RCP bands tested in `herald/scores.py` [28] | MEDIUM | medium | `triangle-alert` CHECK | Three pulses when the band is first reached | NEWS2 card; alert slot when `news2_rise` fires |
+| NEWS2 medium band 5–6 (`band == "medium"`), or any single parameter scoring 3 (`band == "low-medium"`), as in the RCP bands in `config/scores/news2.yaml`, tested in `tests/test_scores.py` [28] | MEDIUM | medium | `triangle-alert` CHECK | Three pulses when the band is first reached | NEWS2 card; alert slot when `news2_rise` fires |
 | RACE ≥5 (`alerts[].type == "race_positive"`) | MEDIUM | medium | `triangle-alert` CHECK | Three pulses | Alert slot, RACE card |
 | Significant vital change (`alerts[].type == "significant_change"`, per the `state.CHANGE_RULES` thresholds) | MEDIUM | medium | `triangle-alert` CHECK | Three pulses | Alert slot, Trends tab |
 | NEWS2 rose by ≥2 but stayed below medium (`news2_rise` with `band` low or low-medium) | LOW | low | `info` | Steady | Alert slot (after any MEDIUM alerts) |
@@ -1391,7 +1391,7 @@ This is TASKS P6.
 ---
 ## 4. "Herald thinking" trace
 
-The backend side of this is DONE (U5); its pytest is pending in TASKS.md. This section specifies the frontend card against the implemented contract, in `herald/app.py` (`_ingest_text`, `_refine_with_model`, `post_photo`) and `herald/trace.py`.
+The backend side of this is DONE (U5); its pytest is pending in TASKS.md. This section specifies the frontend card against the implemented contract, in `herald/api/capture.py` (`CaptureService.text`, `_refine`, `photo`; formerly `herald/app.py` `_ingest_text`, `_refine_with_model`, `post_photo`) and `herald/trace.py`.
 
 ### 4.1 Data contract (as implemented)
 
@@ -1450,7 +1450,7 @@ Every entry in `state.transcripts[]` (the snapshot keeps the last 20) has these 
 
 | Field | Meaning |
 |---|---|
-| `instruction_shaped` | Null, or the matched phrase when the utterance contains instruction-shaped speech (`herald/guard.py`). The rules extractor stops at that clause for the rest of the sentence, and the model is skipped. Show it in explain mode as "Instruction-shaped speech ignored: \"{phrase}\"". |
+| `instruction_shaped` | Null, or the matched phrase when the utterance contains instruction-shaped speech (`herald/extraction/guard.py`, patterns in `config/guard.yaml`). The rules extractor stops at that clause for the rest of the sentence, and the model is skipped. Show it in explain mode as "Instruction-shaped speech ignored: \"{phrase}\"". |
 
 **`trace.effects`** (see §4.6)
 
@@ -2024,7 +2024,7 @@ scripts/                                (repo root)
 
 ### 5.6 TypeScript contract (`ui/src/lib/types.ts`)
 
-These types are derived from `herald/state.py` `snapshot()`, `herald/relay.py` `status()`, `herald/trace.py`, `herald/app.py`, and `ed_receiver/app.py`, as read on 2026-09-23. When the backend changes a field, change it here in the same PR.
+These types are derived from `herald/core/snapshot.py` (`Projector.snapshot()`), `herald/relay/relay.py` `status()`, `herald/api/trace.py`, `herald/api/capture.py`, and `ed_receiver/app.py`, as read on 2026-09-23 (after the modular restructure; shapes unchanged). When the backend changes a field, change it here in the same PR.
 
 ```ts
 // ---------- enums (schema.py) ----------
@@ -2108,7 +2108,7 @@ export interface Trace {
   effects: {
     readiness: { label: string; from: number; to: number; total: number; ready: boolean }[];
     alerts_new: { type: AlertType; label: string }[];
-    scores: { name: "NEWS2" | "RACE"; from: number | null; to: number; detail: string | boolean }[];
+    scores: { name: "NEWS2" | "RACE" | "GFAST"; from: number | null; to: number; detail: string | boolean }[];
     gaps_closed: string[];
   };
 }
@@ -3013,7 +3013,7 @@ Sources 1–43 keep their version 1 numbers. Sources 44–68 are new in version 
 25. Pulsara 7.3 release notes (HH:MM:SS timers, RACE): https://www.pulsara.com/blog/pulsara-version-7.3-includes-new-stroke-score-capabilities-and-edits-to-timer-panel-and-alerts
 26. ImageTrend ePCR: https://www.imagetrend.com/platform/epcr-software/
 27. ESO EHR iOS: https://www.eso.com/ehr-ios/
-28. RCP NEWS2 (bands as tested in `herald/scores.py`): https://www.rcp.ac.uk/improving-care/resources/national-early-warning-score-news-2/
+28. RCP NEWS2 (bands in `config/scores/news2.yaml`, tested in `tests/test_scores.py`): https://www.rcp.ac.uk/improving-care/resources/national-early-warning-score-news-2/
 29. shadcn/ui on Vite: https://ui.shadcn.com/docs/installation/vite
 30. Vite guide (Node requirement): https://vite.dev/guide/
 31. conda-forge `nodejs`: https://anaconda.org/conda-forge/nodejs
@@ -3058,7 +3058,7 @@ Sources 1–43 keep their version 1 numbers. Sources 44–68 are new in version 
 **Internal sources** (repo and team files, read on 2026-09-23):
 - `AGENTS.md` (invariants, pitfalls);
 - `TASKS.md` (P-order, checkpoint measurements);
-- `herald/state.py`, `herald/relay.py`, `herald/trace.py`, `herald/app.py`, `herald/schema.py`, `herald/scores.py`, `herald/checklists.py`, `herald/pipeline.py`, `herald/llm.py`;
+- the backend as of the first read (`herald/state.py`, `relay.py`, `trace.py`, `app.py`, `schema.py`, `scores.py`, `checklists.py`, `pipeline.py`, `llm.py`), since restructured into packages (AGENTS.md layout) with the same contract;
 - `ed_receiver/app.py`;
 - `web/app.js`, `web/index.html`, `web/capture.html`;
 - the product spec `../.agent/ideas/herald-ems-copilot.md` and the event context `../.agent/context.md` (both Nano-only, never committed).

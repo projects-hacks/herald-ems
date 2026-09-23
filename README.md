@@ -47,17 +47,15 @@ The language model only turns speech and photos into facts. Checklists, scores, 
 
 | Path | What |
 |---|---|
-| `herald/schema.py` | Fact model and the canonical key vocabulary |
-| `herald/state.py` | Patient state engine: projection, checklists, gaps, contradictions, trends, clocks |
-| `herald/scores.py` | NEWS2, RACE, 2021 field-triage criteria (published tables, unit-tested) |
-| `herald/checklists.py` | Alert-ready checklists (stroke, STEMI) |
-| `herald/extract_rules.py` | Deterministic extractor (fallback and benchmark baseline) |
-| `herald/extract_llm.py`, `herald/llm.py` | Local LLM extractor (OpenAI-compatible endpoint on this box) |
-| `herald/pipeline.py` | Merges rules and LLM output |
-| `herald/stt.py` | Local Whisper |
-| `herald/app.py` | FastAPI server + WebSocket |
-| `web/` | NOW screen |
-| `tests/` | Score and state tests |
+| `config/` | Reviewed content with sources: key vocabulary, score tables, checklists, relay tiers, prompts, county rules |
+| `herald/core/` | Fact model, vocabulary, incident store, and the projection to the patient picture |
+| `herald/scoring/` | NEWS2, RACE, G.F.A.S.T., 2021 field triage: data-driven engines, tested at every band boundary |
+| `herald/checklists/` | Alert-ready checklists (stroke from the county config, STEMI) |
+| `herald/extraction/` | Speech to facts: local model extractor, grounding and injection guards, rules fallback |
+| `herald/models/` | Adapters to the local model servers: LLM (ZRT/vLLM, localhost only), Whisper, photo reading |
+| `herald/relay/` | Weak-link relay to the emergency department |
+| `herald/telemetry/` | Tokens, GPU power, energy, cost vs a cloud equivalent |
+| `herald/api/` | FastAPI app, WebSocket hub, composition root |
 
 ## Evidence behind the scores
 

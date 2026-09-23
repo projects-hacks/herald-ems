@@ -1,30 +1,16 @@
 """HTTP/WebSocket behaviour the screens rely on: heartbeat, monitor-panel and failed-photo trace
 entries, all-or-nothing structured facts, and the /classic/ safety-net page."""
-import os
+from fastapi.testclient import TestClient
 
-os.environ["HERALD_WARM_STT"] = "0"
-
-from fastapi.testclient import TestClient  # noqa: E402
-
-from ed_receiver import app as ed_mod  # noqa: E402
-from herald import app as app_mod  # noqa: E402
-from herald import llm, vision  # noqa: E402
+from ed_receiver import app as ed_mod
+from fakes import FakeVision, make_client
 
 MONITOR = {"captured_by": "device", "role": "device", "speaker": "monitor", "confidence": 0.99,
            "provenance": {"extractor": "manual"}}
 
 
-def _client(monkeypatch):
-    monkeypatch.setattr(app_mod.RELAY, "ed_url", None)
-    monkeypatch.setattr(llm, "available", lambda: False)
-    monkeypatch.setattr(llm, "model_name", lambda: None)
-    c = TestClient(app_mod.app)
-    c.post("/api/incident", json={"dispatch": "possible stroke"})
-    return c
-
-
-def test_ws_heartbeat(monkeypatch):
-    c = _client(monkeypatch)
+def test_ws_heartbeat():
+    c, _ = make_client()
     with c.websocket_connect("/ws") as ws:
         assert ws.receive_json()["type"] == "state"
         ws.send_text("ping")
@@ -35,8 +21,8 @@ def test_ws_heartbeat(monkeypatch):
         assert ws.receive_json()["type"] == "pong"
 
 
-def test_monitor_facts_get_one_trace_entry(monkeypatch):
-    c = _client(monkeypatch)
+def test_monitor_facts_get_one_trace_entry():
+    c, _ = make_client()
     r = c.post("/api/facts", json=[{"key": "vitals.sbp", "value": 150, **MONITOR},
                                    {"key": "vitals.hr", "value": 88, **MONITOR}])
     assert r.status_code == 200 and len(r.json()) == 2
@@ -51,8 +37,8 @@ def test_monitor_facts_get_one_trace_entry(monkeypatch):
     assert "150" in e["trace"]["heard"]["text"] and "88" in e["trace"]["heard"]["text"]
 
 
-def test_structured_facts_are_all_or_nothing(monkeypatch):
-    c = _client(monkeypatch)
+def test_structured_facts_are_all_or_nothing():
+    c, _ = make_client()
     r = c.post("/api/facts", json=[{"key": "vitals.sbp", "value": 150, **MONITOR},
                                    {"key": "vitals.nope", "value": 1, **MONITOR}])
     assert r.status_code == 400
@@ -60,12 +46,8 @@ def test_structured_facts_are_all_or_nothing(monkeypatch):
     assert not s["facts"] and s["transcripts"] == []
 
 
-def test_failed_photo_leaves_a_trace_entry(monkeypatch):
-    c = _client(monkeypatch)
-
-    def boom(raw, mode, photo_id):
-        raise RuntimeError("vision model unavailable")
-    monkeypatch.setattr(vision, "read_photo", boom)
+def test_failed_photo_leaves_a_trace_entry(tmp_path):
+    c, _ = make_client(vision=FakeVision(fail=True), data_dir=tmp_path)
     r = c.post("/api/photo", files={"file": ("x.jpg", b"\xff\xd8fake", "image/jpeg")}, data={"mode": "form"})
     assert r.status_code == 503
     e = c.get("/api/state").json()["transcripts"][-1]
@@ -75,8 +57,8 @@ def test_failed_photo_leaves_a_trace_entry(monkeypatch):
     assert c.get(f"/api/photo/{e['photo_id']}").status_code == 200   # the photo is kept for retry
 
 
-def test_classic_page_is_served_with_relative_assets(monkeypatch):
-    c = _client(monkeypatch)
+def test_classic_page_is_served_with_relative_assets():
+    c, _ = make_client()
     page = c.get("/classic/")
     assert page.status_code == 200 and 'src="app.js"' in page.text
     assert c.get("/classic/app.js").status_code == 200

@@ -4,10 +4,10 @@ import asyncio
 import json
 import random
 
-from herald.extract_rules import extract
+from herald.extraction.rules import extract
 from herald.relay import Relay
-from herald.schema import CapturedBy, Role
-from herald.state import Incident
+from herald.core.schema import CapturedBy, Role
+from herald.core.incident import Incident
 
 
 class FakeED:

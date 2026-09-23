@@ -1,0 +1,91 @@
+"""The composition root: builds every dependency once and wires them together (AGENTS.md rule 4).
+
+Tests and tools pass their own Settings and fakes (e.g. a stub TextModel) to `build_context`.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Optional
+from zoneinfo import ZoneInfo
+
+from ..checklists import ChecklistEngine
+from ..config import Settings, get_settings
+from ..config.county import CountyRegistry
+from ..core.confirmation import ConfirmationPolicy
+from ..core.incident import Incident
+from ..core.ports import PhotoReader, SpeechToText, TextModel
+from ..core.snapshot import Projector
+from ..core.trends import TrendRules
+from ..core.vocabulary import Vocabulary, default_vocabulary
+from ..extraction import ExtractionPipeline, ModelExtractor, RulesExtractor
+from ..extraction.guard import InstructionGuard, default_guard
+from ..models import LocalLLMClient, VisionReader, WhisperSTT
+from ..relay import LinkEmulator, Relay, RelayTiers, default_tiers
+from ..scoring import ScaleRegistry, default_scales
+from ..telemetry import Telemetry
+from .contract import UIContract
+from .trace import TraceRecorder
+
+
+@dataclass
+class AppContext:
+    settings: Settings
+    vocab: Vocabulary
+    scales: ScaleRegistry
+    counties: CountyRegistry
+    checklists: ChecklistEngine
+    projector: Projector
+    policy: ConfirmationPolicy
+    tiers: RelayTiers
+    trends: TrendRules
+    guard: InstructionGuard
+    telemetry: Telemetry
+    text_model: TextModel
+    stt: SpeechToText
+    vision: PhotoReader
+    rules: RulesExtractor
+    model_extractor: ModelExtractor
+    pipeline: ExtractionPipeline
+    tracer: TraceRecorder
+    contract: UIContract
+    link: LinkEmulator
+    relay: Optional[Relay] = None
+    incident: Optional[Incident] = None
+    netem_mode: Optional[str] = None
+    extra: dict = field(default_factory=dict)
+
+    def new_incident(self, dispatch: Optional[str]) -> Incident:
+        self.incident = Incident(dispatch, vocabulary=self.vocab, policy=self.policy, projector=self.projector)
+        return self.incident
+
+    def full_state(self) -> dict:
+        snap = self.incident.snapshot()
+        rs = self.relay.status()
+        snap["relay"], snap["ed_sync"], snap["netem"] = rs, rs["sync"], self.netem_mode
+        return snap
+
+
+def build_context(settings: Optional[Settings] = None, *, text_model: Optional[TextModel] = None,
+                  stt: Optional[SpeechToText] = None, vision: Optional[PhotoReader] = None,
+                  telemetry: Optional[Telemetry] = None) -> AppContext:
+    s = settings or get_settings()
+    vocab, scales, tiers, guard = default_vocabulary(), default_scales(), default_tiers(), default_guard()
+    counties = CountyRegistry(s.county)
+    checklists = ChecklistEngine.from_config(counties)
+    trends = TrendRules.from_config()
+    projector = Projector(vocab, scales, checklists, counties, trends, ZoneInfo(s.timezone), s.reassess_min)
+    tel = telemetry or Telemetry(s.metrics_url, s.price_overrides)
+    model = text_model or LocalLLMClient(s.llm_url, s.llm_model, usage=tel)
+    rules = RulesExtractor(guard)
+    model_extractor = ModelExtractor(model, vocabulary=vocab, finetuned_labels=s.finetuned_models)
+    ctx = AppContext(
+        settings=s, vocab=vocab, scales=scales, counties=counties, checklists=checklists, projector=projector,
+        policy=ConfirmationPolicy(vocab, s.auto_confirm), tiers=tiers, trends=trends, guard=guard, telemetry=tel,
+        text_model=model, stt=stt or WhisperSTT(s.stt_model, usage=tel), vision=vision or VisionReader(model),
+        rules=rules, model_extractor=model_extractor,
+        pipeline=ExtractionPipeline(rules, model_extractor, guard, model_available=model.available),
+        tracer=TraceRecorder(vocab, tiers), contract=UIContract(vocab, tiers, trends, checklists, counties),
+        link=LinkEmulator(s.toxiproxy_url))
+    ctx.new_incident(s.dispatch)
+    ctx.relay = Relay(lambda: ctx.incident, s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir)
+    return ctx

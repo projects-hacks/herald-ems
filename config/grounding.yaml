@@ -1,0 +1,30 @@
+# Grounding validator for model-extracted facts: a fact must be supported by words that were said.
+# (Live test 2026-09-23: from 'sudden left-sided weakness' the model invented four RACE item scores.)
+# key_requires_words: case-insensitive regex that must match the utterance for that key.
+filler_values:
+- ''
+- '?'
+- unknown
+- n/a
+- na
+- not stated
+- not mentioned
+- none stated
+- 'null'
+vitals_digits_must_appear: true
+vitals_digits_exempt:
+- vitals.temp
+key_requires_words:
+  vitals.consciousness: alert|confus|disorient|voice|verbal|pain|unrespons|a ?& ?o|oriented
+  code_status: dnr|polst|resusc|full code|dni
+  exam.race.facial: face|facial|droop|smile|palsy|asymmetr
+  exam.race.arm: \barm
+  exam.race.leg: \bleg
+  exam.race.gaze: gaze|eyes?\b|look(ing|s)? (to|toward)|deviat
+  exam.race.aphasia_agnosia: speak|speech|aphasi|agnosi|recogni|neglect|words
+  exam.gfast.gaze: gaze|eyes?\b|look(ing|s)? (to|toward)|deviat
+  exam.gfast.facial: face|facial|droop|smile|palsy|asymmetr
+  exam.gfast.arm_leg: \barm|\bleg|weak|drift
+  exam.gfast.speech: speak|speech|slur|aphasi|words|talk
+  stroke.onset_witnessed: witness|saw (it|her|him)|in front of|found|woke|collapsed|watched
+  vitals.gcs_motor: gcs|motor|obey|command|localiz|withdraw|flex|extens

@@ -1,0 +1,33 @@
+# Photo-reading prompts per capture mode, and the tighter plausibility ranges applied to photo readings
+# (misread digits are common on real displays).
+system: You read photos for a paramedic's record. Output strict JSON only.
+modes:
+  monitor: This is a photo of a pulse oximeter or patient monitor screen. Read ONLY numbers that are clearly visible. Return
+    JSON {"facts":[{"key":k,"value":number,"confidence":0-1,"box":[x0,y0,x1,y1]}]} using keys vitals.spo2 (SpO2 %), vitals.hr
+    (pulse/heart rate), vitals.sbp, vitals.dbp, vitals.rr. Boxes are normalized 0-1. If a value is not clearly readable, omit
+    it.
+  pill_bottle: This is a photo of a prescription medication label. Return JSON {"facts":[{"key":"meds.list","value":["<generic
+    or brand drug name, lowercase>"],"strength":"<e.g. 5 mg>","confidence":0-1,"box":[x0,y0,x1,y1]}]}. Read only what is printed.
+    If unreadable, return {"facts":[]}.
+  form: This is a photo of a medical order form such as a California POLST. Report which resuscitation box is checked, exactly
+    as printed. Return JSON {"facts":[{"key":"code_status","value":"<checked option text>","confidence":0-1,"box":[x0,y0,x1,y1]}]}.
+    If no box is clearly checked, return {"facts":[]}.
+  scene: This is a photo of the room a patient was found in. List up to 4 short, factual, non-judgmental observations useful
+    to an emergency department (mobility aids, oxygen equipment, medication organizers and whether doses remain, fall hazards).
+    Return JSON {"facts":[{"key":"scene.notes","value":["..."],"confidence":0-1}]}. No guesses about the person.
+plausible_ranges:
+  vitals.spo2:
+  - 50
+  - 100
+  vitals.hr:
+  - 20
+  - 250
+  vitals.sbp:
+  - 50
+  - 260
+  vitals.dbp:
+  - 20
+  - 180
+  vitals.rr:
+  - 4
+  - 60

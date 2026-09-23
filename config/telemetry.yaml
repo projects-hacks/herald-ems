@@ -1,0 +1,8 @@
+# Stated assumptions for the cost comparison; always shown next to the numbers (GET /api/telemetry).
+# Environment variables override them (HERALD_PRICE_KWH, HERALD_CLOUD_IN_PER_M, ...). Verify before the deck.
+rates:
+  electricity_usd_per_kwh: {value: 0.15, source: "rate used by HP's ZGX console"}
+  cloud_llm_usd_per_1m_in: {value: 0.30, source: "Gemini 2.5 Flash list price, https://ai.google.dev/gemini-api/docs/pricing"}
+  cloud_llm_usd_per_1m_out: {value: 2.50, source: "Gemini 2.5 Flash list price, https://ai.google.dev/gemini-api/docs/pricing"}
+  cloud_stt_usd_per_min: {value: 0.006, source: "OpenAI Whisper API list price"}
+energy_scope: "GPU power from nvidia-smi (whole-module power is not exposed on GB10): a floor"

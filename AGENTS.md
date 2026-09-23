@@ -57,29 +57,28 @@ An offline AI copilot for the back of the ambulance, running entirely on an HP Z
 4. **Only confirmed facts leave the vehicle.** Photo readings, other speakers, low-confidence extractions, contradictions, and code status start `unconfirmed`.
 5. **Every fact has provenance**: the audio clip or photo it came from, who said it (`role`, `speaker`), and the extractor tag.
 6. **Missing inputs are shown as missing, never guessed.** A score with a missing input is "incomplete".
-7. **Canonical keys only.** Add new keys to `KEYS` in `herald/schema.py` first. Extractors must never invent keys.
+7. **Canonical keys only.** Add new keys to `config/vocabulary.yaml` first (with a plausibility range for numbers). Extractors must never invent keys.
 8. **Tests must pass**: `python -m pytest -q`. Add tests for any new rule or score. The published score tables are tested at every band boundary; keep it that way.
 
 ## Layout
-| Path | Owner area | Notes |
+| Path | Responsibility | Notes |
 |---|---|---|
-| `herald/schema.py` | state | `FactIn`/`Fact`, `KEYS` vocabulary, `CONTRADICTION_KEYS` |
-| `herald/state.py` | state | `Incident`: ingest → projection → `snapshot()` (the single source for every screen) |
-| `herald/scores.py` | state | NEWS2, RACE, 2021 field triage. Cite sources in code. |
-| `herald/checklists.py` | state | alert-ready checklists (stroke, STEMI) |
-| `herald/extract_rules.py` | ML | deterministic extractor; the fallback and benchmark baseline |
-| `herald/extract_llm.py`, `herald/llm.py` | ML | local LLM extraction; reasoning off; JSON only |
-| `herald/pipeline.py` | ML | merges rules + LLM (vitals prefer rules) |
-| `herald/stt.py` | ML | Whisper large-v3-turbo on the GPU |
-| `herald/vision.py` | ML | photo → facts (monitor, pill_bottle, form, scene) |
-| `herald/relay.py` | relay | prioritized, budgeted, ACKed updates; link probe |
-| `herald/netem.py`, `scripts/link.sh` | relay | Toxiproxy link emulation (demo only) |
-| `herald/app.py` | backend | FastAPI + WebSocket `/ws` pushes `full_state()` |
+| `config/` | **content** (reviewed data, with sources) | `vocabulary.yaml` (canonical keys, plausibility ranges), `scores/*.yaml` (NEWS2, RACE, G.F.A.S.T., field triage), `checklists.yaml`, `trends.yaml`, `relay.yaml`, `telemetry.yaml` (cost rates), `guard.yaml`, `grounding.yaml`, `lexicons.yaml`, `stack.yaml`, `prompts/` (model prompts, worked examples, vision, STT), `counties/*.json` |
+| `herald/config/` | settings and loading | `settings.py` (every environment variable, one object), `loader.py` (reads `config/`), `county.py` (county registry, live switch) |
+| `herald/core/` | domain model, no I/O | `schema.py` (`FactIn`/`Fact`), `vocabulary.py`, `incident.py` (fact store), `confirmation.py`, `snapshot.py` (`Projector`: the single source for every screen), `trends.py`, `clock.py`, `ports.py` (interfaces) |
+| `herald/scoring/` | published scores | data-driven engines (`banded`, `item_sum`, `criteria`) + `registry`; a new score is a new YAML file |
+| `herald/checklists/` | alert-ready checklists | engine over `config/checklists.yaml` + the county's stroke checklist |
+| `herald/extraction/` | speech → facts | `rules.py` (fallback only; not extended), `model.py` (local model extractor), `grounding.py`, `guard.py` (injection containment), `pipeline.py` |
+| `herald/models/` | adapters to local model servers | `llm_client.py` (ZRT/vLLM, localhost only), `stt.py` (Whisper), `vision.py` (photo reading) |
+| `herald/relay/` | weak-link relay | `relay.py`, `tiers.py`, `netem.py` (Toxiproxy link emulation, demo only) |
+| `herald/telemetry/` | tokens, power, cost | `collector.py`, `prometheus.py` |
+| `herald/api/` | HTTP + WebSocket only | `app.py` (factory), `context.py` (**composition root**), `capture.py`, `trace.py`, `contract.py`, `hub.py`, `routes/` |
+| `herald/app.py` | ASGI entry point | `uvicorn herald.app:app` |
 | `ed_receiver/` | relay/frontend | mock ED service + screen (plain HTTP, no AI) |
-| `web/index.html`, `web/app.js`, `web/style.css` | frontend | NOW screen (gap-first) |
-| `web/capture.html` | frontend | phone camera page |
-| `eval/` | data+eval | gold set, `bench_extract.py`, photos |
+| `web/` | frontend (classic, served at `/classic/`) | NOW screen, phone capture page |
+| `eval/` | data + eval | gold sets, `bench_extract.py`, `adversarial_bench.py`, dumps |
 | `scenarios/`, `scripts/replay.py` | pitch | rehearsal replays |
+| `tests/` | everyone | `fakes.py` holds test doubles for the interfaces in `herald/core/ports.py` |
 
 ## Run
 ```bash

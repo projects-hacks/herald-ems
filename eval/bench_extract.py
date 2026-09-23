@@ -31,8 +31,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from herald import extract_rules  # noqa: E402
-from herald.schema import KEYS, CapturedBy, Role  # noqa: E402
+from herald.config import Settings  # noqa: E402
+from herald.core.schema import CapturedBy, Role  # noqa: E402
+from herald.core.vocabulary import default_vocabulary  # noqa: E402
+from herald.extraction import ExtractionPipeline, ModelExtractor, RulesExtractor  # noqa: E402
+from herald.models import LocalLLMClient  # noqa: E402
+
+KEYS = default_vocabulary().keys
 
 
 TIME_KEYS = {"stroke.lkw", "symptom.onset", "ecg.twelve_lead_time"}
@@ -108,28 +113,32 @@ def score(gold, pred, free_text=False):
     return len(tp), len(p) - len(tp), len(g) - len(tp), role_ok, sorted(set(p) - set(g)), sorted(set(g) - set(p))
 
 
+def build_extractor(kind: str, model: str | None):
+    """The same extractors the app wires (herald/api/context.py), for one served model label."""
+    s = Settings.from_env()
+    client = LocalLLMClient(s.llm_url, model or s.llm_model)
+    rules = RulesExtractor()
+    model_x = ModelExtractor(client, finetuned_labels=s.finetuned_models)
+    ext = {"rules": rules, "llm": model_x,
+           "pipeline": ExtractionPipeline(rules, model_x, model_available=client.available)}[kind]
+    return ext, model_x, client
+
+
 def predict(a, rows):
     """Run the extractor on every row. Yields (row, pred as (key, value, role) tuples, ms, tokens, error)."""
-    if a.model:
-        os.environ["HERALD_LLM_MODEL"] = a.model
-    from herald import extract_llm, pipeline  # import after env is set
+    ext, model_x, _ = build_extractor(a.extractor, a.model)
     for r in rows:
         by = CapturedBy(r.get("by", "medic"))
         role = Role.family if by == CapturedBy.other else Role.medic
-        extract_llm.extract.last_usage = {}
+        model_x.last_usage = {}
         t0 = time.perf_counter()
         err = None
         try:
-            if a.extractor == "rules":
-                pred = extract_rules.extract(r["text"], by, role, r.get("speaker"))
-            elif a.extractor == "llm":
-                pred = extract_llm.extract(r["text"], by, role, r.get("speaker"))
-            else:
-                pred, _info = pipeline.extract(r["text"], by, role, r.get("speaker"))
+            pred = ext.extract(r["text"], by, role, r.get("speaker"))
         except Exception as e:
             pred, err = [], f"{type(e).__name__}: {str(e)[:200]}"
         ms = (time.perf_counter() - t0) * 1000
-        tokens = (extract_llm.extract.last_usage or {}).get("completion_tokens") if a.extractor != "rules" else None
+        tokens = (model_x.last_usage or {}).get("completion_tokens") if a.extractor != "rules" else None
         yield r, [(f.key, f.value, f.role.value) for f in pred], ms, tokens, err
 
 
@@ -162,8 +171,7 @@ def main():
         label = first.get("label") or first["extractor"]
         items = replay(a.rescore, rows)
     else:
-        from herald import llm
-        name = a.model or llm.model_name()
+        name = a.model or build_extractor("rules", None)[2].model_name()
         label = {"rules": "rules", "llm": f"llm:{name}", "pipeline": f"rules+llm:{name}"}[a.extractor]
         items = predict(a, rows)
     TP = FP = FN = ROLE = 0

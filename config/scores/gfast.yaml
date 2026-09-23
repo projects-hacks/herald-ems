@@ -1,0 +1,20 @@
+# Santa Clara County's stroke screen. Item labels exactly as Protocol 700-A13 §2.3; T (time last known well)
+# carries no points and is tracked as stroke.lkw. Routing text lives in the county config, not here.
+id: gfast
+name: G.F.A.S.T.
+kind: item_sum
+source: Santa Clara County EMS Protocol 700-A13 Stroke (effective 2026-01-01), sections 2.3 and 3.2-3.3
+evidence: >-
+  Santa Clara County Stroke Critical Care System Plan (2019): with all four G.F.A.S.T. findings the median
+  NIHSS is 14 (range 8-22); with one to three findings the median NIHSS is 3
+thresholds_text: >-
+  4 of 4 = Comprehensive Stroke Center (closest stroke center if > 45 min transport);
+  3 or fewer = closest stroke center (Policy 602)
+items:
+  - {key: exam.gfast.gaze, label: G Gaze abnormalities, max: 1}
+  - {key: exam.gfast.facial, label: F Facial asymmetry, max: 1}
+  - {key: exam.gfast.arm_leg, label: A Arm or leg weakness/drift, max: 1}
+  - {key: exam.gfast.speech, label: S Speech difficulties, max: 1}
+positive_at_least: 4
+alert_type: gfast_positive
+relay_text: "{score}/4"

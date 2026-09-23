@@ -1,0 +1,35 @@
+# Word lists used by the deterministic fallback extractor and photo reading.
+# anticoagulants: brand or generic -> generic. To be replaced by RxNorm-based normalization (MODEL_PLAN).
+attribution_words:
+  husband: family
+  wife: family
+  daughter: family
+  son: family
+  mother: family
+  father: family
+  mom: family
+  dad: family
+  family: family
+  brother: family
+  sister: family
+  caregiver: family
+  patient: patient
+  bystander: bystander
+  neighbor: bystander
+  neighbour: bystander
+  witness: bystander
+anticoagulants:
+  warfarin: warfarin
+  coumadin: warfarin
+  jantoven: warfarin
+  apixaban: apixaban
+  eliquis: apixaban
+  rivaroxaban: rivaroxaban
+  xarelto: rivaroxaban
+  dabigatran: dabigatran
+  pradaxa: dabigatran
+  edoxaban: edoxaban
+  savaysa: edoxaban
+  enoxaparin: enoxaparin
+  lovenox: enoxaparin
+  heparin: heparin

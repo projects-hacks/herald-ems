@@ -1,8 +1,25 @@
-"""The scores are arithmetic from published tables, so we prove them exhaustively
-at every band boundary. If any of these fail, the score shown to a medic is wrong."""
+"""The scores are arithmetic from published tables (config/scores/*.yaml), so we prove the loaded tables
+exhaustively at every band boundary. If any of these fail, the score shown to a medic is wrong."""
 import pytest
 
-from herald import scores as S
+from herald.scoring import default_scales
+
+SC = default_scales()
+N2 = SC["news2"]
+
+
+class S:  # the published calculators, read through the registry
+    news2_rr = staticmethod(lambda v: N2.points("vitals.rr", v))
+    news2_spo2_scale1 = staticmethod(lambda v: N2.points("vitals.spo2", v))
+    news2_sbp = staticmethod(lambda v: N2.points("vitals.sbp", v))
+    news2_hr = staticmethod(lambda v: N2.points("vitals.hr", v))
+    news2_temp = staticmethod(lambda v: N2.points("vitals.temp", v))
+    news2_consciousness = staticmethod(lambda v: N2.points("vitals.consciousness", v))
+    news2_oxygen = staticmethod(lambda v: N2.points("vitals.on_oxygen", v))
+    news2 = staticmethod(N2.evaluate)
+    race = staticmethod(SC["race"].evaluate)
+    gfast = staticmethod(SC["gfast"].evaluate)
+    field_triage = staticmethod(SC["field_triage"].evaluate)
 
 
 @pytest.mark.parametrize("rr,pts", [(8, 3), (9, 1), (11, 1), (12, 0), (20, 0), (21, 2), (24, 2), (25, 3)])
@@ -83,3 +100,17 @@ def test_field_triage_age_adjusted():
     assert S.field_triage({"meds.anticoagulant": "warfarin"})["yellow"] == ["Anticoagulant use (warfarin)"]
     assert S.field_triage({"meds.anticoagulant": "none"})["yellow"] == []
     assert S.field_triage({"vitals.spo2": 88, "vitals.on_oxygen": False})["red"] == ["Room-air SpO2 88% (< 90%)"]
+
+
+def test_gfast_is_four_binary_items_positive_only_at_four():
+    items = {"exam.gfast.gaze": 1, "exam.gfast.facial": 1, "exam.gfast.arm_leg": 1, "exam.gfast.speech": 1}
+    r = S.gfast(items)
+    assert (r["score"], r["positive"], r["complete"]) == (4, True, True)
+    assert S.gfast({**items, "exam.gfast.gaze": 0})["positive"] is False
+    assert S.gfast({k: v for k, v in items.items() if k != "exam.gfast.speech"})["positive"] is None
+    assert "700-A13" in r["source"]
+
+
+def test_every_score_definition_cites_a_source():
+    for sid in SC.ids():
+        assert SC[sid].d.get("source"), sid

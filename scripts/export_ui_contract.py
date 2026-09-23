@@ -14,7 +14,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from herald import contract  # noqa: E402
+from herald.api import build_context  # noqa: E402
+from herald.config import Settings  # noqa: E402
 
 
 def main() -> None:
@@ -22,8 +23,9 @@ def main() -> None:
     ap.add_argument("--out", default=str(ROOT / "ui" / "public" / "contract"))
     out = Path(ap.parse_args().out)
     out.mkdir(parents=True, exist_ok=True)
-    for name, build in contract.FILES.items():
-        (out / name).write_text(json.dumps(build(), indent=2, ensure_ascii=False) + "\n")
+    ctx = build_context(Settings.from_env({}))       # content only: no model server is contacted
+    for name, content in ctx.contract.files().items():
+        (out / name).write_text(json.dumps(content, indent=2, ensure_ascii=False) + "\n")
         print(f"wrote {out / name}")
 
 

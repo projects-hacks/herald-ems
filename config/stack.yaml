@@ -1,0 +1,12 @@
+# The AI stack in HP's ZGX console terms (GET /api/stack). Status is computed live.
+models:
+  - {id: openai/whisper-large-v3-turbo, component: stt, role: speech-to-text}
+  - {id: nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-NVFP4, served_as: omni, component: text_model,
+     role: speech-to-facts extraction and photo reading}
+services:
+  - {name: Deterministic scoring engine, detail: "NEWS2, RACE, G.F.A.S.T., 2021 field triage; published tables as reviewed data, unit-tested"}
+  - {name: Gap-first alert checklists, detail: "stroke / STEMI pre-alert readiness from county configuration"}
+  - {name: Provenance and contradiction engine, detail: "every fact linked to its audio or photo and speaker"}
+  - {name: Grounding and plausibility validators, detail: "model facts must be supported by what was said; impossible values rejected"}
+  - {name: Weak-link relay, detail: "prioritized, byte-budgeted, acknowledged updates of confirmed facts only"}
+  - {name: Synthetic evaluation harness, detail: "held-out gold sets, 3-run benchmarks with spread (eval/)"}

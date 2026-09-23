@@ -1,0 +1,62 @@
+# Alert-ready checklists: what the receiving team needs before a pre-alert. The stroke checklist is replaced
+# by the active county's (config/counties/*.json). "@<scale>" means that stroke scale is complete.
+# triggers: words in the dispatch or chief complaint that open the checklist.
+default_unknowns:
+- allergies
+- meds.list
+alerts:
+  stroke:
+    label: Stroke alert
+    items:
+    - - stroke.lkw
+      - Last known well
+    - - vitals.glucose
+      - Glucose
+    - - '@race'
+      - Stroke scale (RACE)
+    - - meds.anticoagulant
+      - Anticoagulants
+    - - stroke.onset_witnessed
+      - Onset witnessed
+    - - stroke.deficits
+      - Deficits described
+    triggers:
+    - stroke
+    - weakness
+    - facial droop
+    - slurred
+    - aphasia
+    - hemipar
+    - cva
+    - tia
+    unknowns:
+    - stroke.lkw
+    - meds.anticoagulant
+    - stroke.onset_witnessed
+    - allergies
+  stemi:
+    label: STEMI alert
+    items:
+    - - symptom.onset
+      - Symptom onset
+    - - ecg.twelve_lead_time
+      - 12-lead time
+    - - ecg.attached
+      - 12-lead attached
+    - - allergies
+      - Allergies
+    - - meds.anticoagulant
+      - Anticoagulants
+    - - vitals.sbp
+      - Blood pressure
+    triggers:
+    - chest pain
+    - stemi
+    - 'mi '
+    - heart attack
+    - acs
+    - st elevation
+    unknowns:
+    - symptom.onset
+    - allergies
+    - meds.anticoagulant
