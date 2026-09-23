@@ -6,7 +6,9 @@ kind: item_sum
 source: Santa Clara County EMS Protocol 700-A13 Stroke (effective 2026-01-01), sections 2.3 and 3.2-3.3
 evidence: >-
   Santa Clara County Stroke Critical Care System Plan (2019): with all four G.F.A.S.T. findings the median
-  NIHSS is 14 (range 8-22); with one to three findings the median NIHSS is 3
+  NIHSS is 14 (range 8-22); with one to three, 3. Published G-FAST (same four items) at >= 3 for
+  large-vessel occlusion, pooled across 13 studies and 12,414 patients: sensitivity 0.73, specificity 0.74,
+  AUC 0.80 (Wang JJ et al., Emerg Med J 2026); the county routes on 4 of 4
 thresholds_text: >-
   4 of 4 = Comprehensive Stroke Center (closest stroke center if > 45 min transport);
   3 or fewer = closest stroke center (Policy 602)

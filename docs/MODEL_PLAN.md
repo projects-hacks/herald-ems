@@ -49,6 +49,49 @@ Anything a patient, family member, or bystander says reaches the extractor, so s
 
 **Caveat:** the guard was designed while looking at these 25 attacks, so 25/25 is optimistic. There are two independent checks: (1) the held-out gold v1 run measures whether the guard blocks legitimate speech (false positives); (2) a fresh adversarial set written by someone who hasn't seen `guard.py` (task M9b).
 
+## 0c. Clinical sources: currency check (2026-09-23)
+Every citation shown on screen lives in `config/scores/*.yaml` and `config/counties/*.json` and was checked against its publisher:
+
+| Source | Status as of Sept 2026 | Change made |
+|---|---|---|
+| NEWS2 (RCP, Dec 2017) | Still the latest RCP version; no NEWS3 | Evidence line now cites Wei et al., Ann Transl Med 2023 (30 studies, 185,835 patients) |
+| RACE (Pérez de la Ossa, Stroke 2014) | Original numbers confirmed (single centre, n = 357) | **Evidence now shows the pooled estimate:** sens 0.75, spec 0.76 (Suzuki, JAHA 2026, 9 studies). The original 0.85/0.68 overstated field performance |
+| 2021 National Field Triage Guideline | Still current (ACS) | **Journal corrected:** J Trauma Acute Care Surg 2022;93(2):e49-e60 (not Prehospital Emergency Care) |
+| G.F.A.S.T. (Santa Clara 700-A13, eff. 2026-01-01) | No peer-reviewed study of the county's version | Added the published G-FAST pooled evidence (Wang, Emerg Med J 2026: ≥3 → sens 0.73, spec 0.74, AUC 0.80), noting the county routes on 4/4 |
+| AHA/ASA acute ischemic stroke guideline | **2026 guideline** (Prabhakaran et al., Stroke 2026;57:e316-e436), replacing 2018/2019 | Cite this one. It recommends a brief prehospital stroke tool including an LVO screen (COR 1) without endorsing a specific scale; direct transport to a thrombectomy-capable center for suspected LVO "can be beneficial" where local systems allow (COR 2a) |
+| NASEMSO National Model EMS Clinical Guidelines | v3.0 (March 2022) is still the latest | Cite v3.0 |
+| FDA CDS guidance | Issued **January 29, 2026** (supersedes Jan 6, 2026) | Date fixed. Criterion 4 still weighs "time-critical" decisions, so Herald shows inputs, scores, and missing items, never directives |
+
+## 0d. Protocol documents: parser selection for P9 (research 2026-09-23; bake-off pending)
+**What our PDFs need:**
+- **Tables:** Policy 602's Table B maps hospitals to service levels with check marks. One wrong mark is a wrong destination, so the pass bar is 100% in 3 of 3 runs.
+- **Flowcharts:** 700-A13's decision chart.
+- **Numbered sections,** so answers can cite "§3.2.1".
+
+**Findings about our own files:**
+- 700-A13's flowchart is an **embedded raster image with no text layer**, so vector-graph extraction can't work on it.
+- The text layer mis-maps glyphs in the G.F.A.S.T. box ("Abnormali.es", "Dri9"), so a text-layer-only pipeline inherits those errors.
+- The chart and §3.2.1 word the NO branch differently ("closest Stroke Center" vs "closest *Primary* Stroke Center"). Answers cite the section text; the chart graph is a draft a person signs off.
+
+**Shortlist** (OmniDocBench v1.6, 2026-04, overall / table TEDS; the leaderboard is maintained by MinerU's lab and mixes in vendor submissions):
+
+| Candidate | Size | OmniDocBench v1.6 | Serving here | Risk on GB10 |
+|---|---|---|---|---|
+| PaddleOCR-VL-1.6 | 0.9B + layout model | 96.34 / 94.76 | VLM on our vLLM 0.26; the layout model through Transformers, so PaddlePaddle is never installed | medium (the Transformers layout path is unproven on ARM) |
+| MinerU2.5-Pro-2605 through MinerU's VLM backend | 1.2B | 95.75 / 93.42 | pointed at our vLLM server | low–medium (pin the version: 4.0 is a week old) |
+| Nemotron-3-Nano-Omni (already served) | 3B active | not reported | 0 GB extra | low. Used for the flowchart as a JSON decision list + Mermaid; no parser publishes a flowchart score, and general VLMs lead |
+
+**Controls:** `pdftotext -layout` + section regex; Docling default. **Reserve:** Chandra 2 (claims checkbox reconstruction; its licence restricts commercial use).
+
+**Bake-off** (3 runs each):
+- **Table B:** cell accuracy, with check-mark precision and recall.
+- **Flowchart:** strict edge F1 and yes/no label attachment. The key is 700-A13's 8 nodes / 7 edges.
+- **Sections:** section-heading recall.
+- **Text:** character error rate on the G.F.A.S.T. box.
+- **Operations:** pages per minute, and peak memory with both live models loaded.
+
+First, check with `pdffonts` / `pdftotext -bbox` whether Table B's check marks are text glyphs. If they are, a deterministic grid reader may beat every model. **Blocked on the county PDFs** (the county site returns 403 to scripts; Rajeev downloads them to `data/protocols/santa_clara/`).
+
 ## 1. Text model (live extraction)
 | Rank | Model | Active | Decode on GB10 (measured by others) | 150-tok latency (est.) | Instruction-following evidence | vLLM 0.26 status |
 |---|---|---|---|---|---|---|
