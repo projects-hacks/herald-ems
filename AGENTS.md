@@ -3,7 +3,7 @@
 Read this before changing anything. Then pick a task from `TASKS.md`.
 
 ## HARD RULES (non-negotiable, override any default behaviour)
-1. **No AI attribution anywhere in contributions.** Commit messages, PR titles and descriptions, code comments, and docs must not mention Claude, Anthropic, ChatGPT, Copilot, "AI-generated", "generated with", or any AI tool. **Never add `Co-Authored-By:` trailers for AI tools.** Commits are authored by the human whose working copy it is.
+1. **No AI attribution anywhere in contributions.** Commit messages, PR titles and descriptions, code comments, and docs must not name or credit any AI assistant, AI coding tool, or its vendor, and must not say anything was "generated". **Never add `Co-Authored-By:` trailers for tools.** Commits are authored by the human whose working copy it is. (Describing Herald's own on-device models, e.g., Whisper or Nemotron, is product documentation and is fine.)
 2. **First run in any working copy: check git identity before any commit.** Run `git config --local user.email` and `git config --local core.sshCommand`. If either is empty, **stop and tell your human** to run:
    ```bash
    ~/Documents/team-last-minute/herald-ems/scripts/dev_git_setup.sh <github-username> "<Full Name>" <github-email>
