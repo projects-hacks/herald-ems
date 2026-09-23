@@ -1,0 +1,100 @@
+{"id": "v1_001", "text": "Sixty-eight year old female, sudden left-sided weakness, husband says she was normal at one forty.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers", "attribution", "multi_event"]}
+{"id": "v1_002", "text": "58 yom c/o crushing substernal chest pain radiating to the left arm, started 40 minutes ago while shoveling snow.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "multi_event"]}
+{"id": "v1_003", "text": "Medic 14 to Valley Medical, we're en route with a stroke alert, ETA eight minutes.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers"]}
+{"id": "v1_004", "text": "On exam she's got a mild right facial droop, right arm drifts, right leg holds fine, no gaze deviation, she's following commands and her speech is clear.", "by": "medic", "speaker": null, "phenomena": ["negation", "multi_event"]}
+{"id": "v1_005", "text": "86 yof, ground level fall, caregiver found her on the bathroom floor this morning, unknown down time.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "attribution", "multi_event"]}
+{"id": "v1_006", "text": "67 yom, COPD exacerbation, sats 84 percent on room air, RR 32, tripoding with pursed lip breathing.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "multi_event"]}
+{"id": "v1_007", "text": "She was totally fine when I talked to her at 9 am, then her neighbor called me and said she couldn't get her words out.", "by": "other", "speaker": "daughter", "phenomena": ["attribution", "other_speaker"]}
+{"id": "v1_008", "text": "D-stick reads 38, patient is responsive to voice only, cool and diaphoretic.", "by": "medic", "speaker": null, "phenomena": ["shorthand"]}
+{"id": "v1_009", "text": "RACE is, uh, face two, arm two, leg one, gaze one, aphasia two, so total of eight.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers", "multi_event", "disfluency"]}
+{"id": "v1_010", "text": "It feels like an elephant is sitting on my chest, it started when I was walking the dog, maybe half an hour ago?", "by": "other", "speaker": "patient", "phenomena": ["other_speaker", "uncertain"]}
+{"id": "v1_011", "text": "Copy, meeting you there.", "by": "medic", "speaker": null, "phenomena": ["no_facts"]}
+{"id": "v1_012", "text": "Patient says she tripped over the dog and fell, denies hitting her head, denies any loss of consciousness.", "by": "medic", "speaker": null, "phenomena": ["negation", "attribution"]}
+{"id": "v1_013", "text": "seventy four yom slurred speech in right sided weakness wife found him like this in the recliner", "by": "medic", "speaker": null, "phenomena": ["shorthand", "spoken_numbers", "attribution", "multi_event", "asr_noise"]}
+{"id": "v1_014", "text": "Nursing home patient, 91 yof, temp 101.8, heart rate 118, BP 88 over 50, resps 24, sats 90 percent on two liters nasal cannula, skin warm and flushed, foley bag is cloudy, we're headed to Mercy General, ETA twelve.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "spoken_numbers", "multi_event", "fahrenheit"]}
+{"id": "v1_015", "text": "Husband thinks maybe she was okay around eleven last night, but he went to bed early so he's not sure.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers", "attribution", "no_facts", "uncertain"]}
+{"id": "v1_016", "text": "BP one forty two over eighty eight, pulse one oh four, resps twenty, sats ninety six on room air.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "spoken_numbers", "multi_event"]}
+{"id": "v1_017", "text": "Sixty-one yof, c/c altered mental status, confused and disoriented to time and place, sugar one twenty two, no diabetic history.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "spoken_numbers", "negation", "multi_event"]}
+{"id": "v1_018", "text": "Left facial droop, left arm drift, eyes deviated to the right, last known well 10 pm per son.", "by": "medic", "speaker": null, "phenomena": ["attribution", "multi_event"]}
+{"id": "v1_019", "text": "Obvious deformity to the right hip, shortened and externally rotated, CMS intact distally.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "no_facts"]}
+{"id": "v1_020", "text": "He was fine at dinner, uh, six thirty, and then he just slumped over at the table, I saw the whole thing.", "by": "other", "speaker": "son", "phenomena": ["spoken_numbers", "other_speaker", "disfluency"]}
+{"id": "v1_021", "text": "He's used his ProAir like four times since dinner and it's not doing anything, he can barely talk.", "by": "other", "speaker": "mother", "phenomena": ["other_speaker", "brand_names"]}
+{"id": "v1_022", "text": "Pressure's one sixty over, sorry, one sixty-eight over ninety-four.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers", "correction", "disfluency"]}
+{"id": "v1_023", "text": "She's got weakness in the right arm and leg, and her speech is kind of garbled.", "by": "medic", "speaker": null, "phenomena": ["clean"]}
+{"id": "v1_024", "text": "She's allergic to shellfish and she had shrimp at dinner, her lips started swelling fifteen minutes ago.", "by": "other", "speaker": "husband", "phenomena": ["spoken_numbers", "other_speaker"]}
+{"id": "v1_025", "text": "Can you grab the stair chair and the drug box off the rig?", "by": "medic", "speaker": null, "phenomena": ["no_facts"]}
+{"id": "v1_026", "text": "Pt denies blood thinners, NKDA, home meds are lisinopril and Lipitor, no head strike.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "negation", "attribution", "brand_names"]}
+{"id": "v1_027", "text": "He took two of his nitro before you got here and it didn't help at all.", "by": "other", "speaker": "wife", "phenomena": ["shorthand", "other_speaker"]}
+{"id": "v1_028", "text": "GCS 14, E4 V4 M6, pupils PERRL, c-collar applied.", "by": "medic", "speaker": null, "phenomena": ["shorthand"]}
+{"id": "v1_029", "text": "RACE five, um, face one, arm two, leg one, no gaze deviation, aphasia one.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers", "negation", "multi_event", "disfluency"]}
+{"id": "v1_030", "text": "Wife says he's been short of breath for three days, worse tonight, and he ran out of his home oxygen yesterday.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers", "attribution"]}
+{"id": "v1_031", "text": "He's a type one diabetic, takes Lantus at night and Humalog with meals, and he skipped dinner tonight.", "by": "other", "speaker": "wife", "phenomena": ["other_speaker", "brand_names"]}
+{"id": "v1_032", "text": "BP 210 over 110, correction, 201 over 110, heart rate 88, glucose 132.", "by": "medic", "speaker": null, "phenomena": ["correction", "multi_event"]}
+{"id": "v1_033", "text": "She tripped on the curb and fell and hit her head on the sidewalk, but she never passed out.", "by": "other", "speaker": "bystander", "phenomena": ["negation", "other_speaker"]}
+{"id": "v1_034", "text": "Hx of MI with two stents, takes Plavix, metoprolol and Lipitor, allergic to morphine.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "brand_names"]}
+{"id": "v1_035", "text": "last known well 2 30 per daughter and daughter says she takes elequis", "by": "medic", "speaker": null, "phenomena": ["attribution", "brand_names", "asr_noise"]}
+{"id": "v1_036", "text": "BGL was 42, gave an amp of D50, recheck is 156, now A and O times four.", "by": "medic", "speaker": null, "phenomena": ["shorthand"]}
+{"id": "v1_037", "text": "uh were gonna package her up and move now my partners driving", "by": "medic", "speaker": null, "phenomena": ["no_facts", "disfluency", "asr_noise"]}
+{"id": "v1_038", "text": "Arm score is two, she can't lift the right arm at all, leg is a one.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers"]}
+{"id": "v1_039", "text": "Facility nurse says she's been more confused than baseline since yesterday, foley in place, urine cloudy and foul smelling.", "by": "medic", "speaker": null, "phenomena": ["attribution"]}
+{"id": "v1_040", "text": "BP one ten over seventy, uh, wait, one oh two over seventy, heart rate one eighteen, skin pale cool and clammy.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers", "correction", "disfluency"]}
+{"id": "v1_041", "text": "Placed on CPAP at 10, sats coming up to 92, wet crackles in all fields.", "by": "medic", "speaker": null, "phenomena": ["shorthand"]}
+{"id": "v1_042", "text": "Maybe a slight droop on the left side of her face, hard to tell with her dentures out.", "by": "medic", "speaker": null, "phenomena": ["no_facts", "uncertain"]}
+{"id": "v1_043", "text": "fifty two year old female chest tightness and nausea since three a m very diaphoretic", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers", "multi_event", "asr_noise"]}
+{"id": "v1_044", "text": "Bystanders say she seized for about two minutes, she's postictal now, only responding to voice.", "by": "medic", "speaker": null, "phenomena": ["attribution"]}
+{"id": "v1_045", "text": "No facial droop, arms and legs are strong with no drift, speech is normal, eyes midline.", "by": "medic", "speaker": null, "phenomena": ["negation", "multi_event"]}
+{"id": "v1_046", "text": "glucose 5 hundred and 12 pt says he ran out of his metformin last week", "by": "medic", "speaker": null, "phenomena": ["shorthand", "spoken_numbers", "attribution", "asr_noise"]}
+{"id": "v1_047", "text": "Twelve lead done at fourteen thirty two, ST elevation in two, three and aVF, I'll attach it to the ED report.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "spoken_numbers"]}
+{"id": "v1_048", "text": "Pt is on Lovenox shots since his knee replacement, lac to the forehead, bleeding controlled.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "brand_names"]}
+{"id": "v1_049", "text": "Change of plans, Mercy's on stroke divert, we're going to St. Joseph's instead, new ETA twenty two.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers", "correction"]}
+{"id": "v1_050", "text": "She takes Xarelto and something for her thyroid, she's allergic to penicillin, and she fell getting out of the tub.", "by": "other", "speaker": "husband", "phenomena": ["other_speaker", "multi_event", "brand_names"]}
+{"id": "v1_051", "text": "Stroke alert, 81 year old male, LKW 0630, RACE of 7, he's on Eliquis per the wife, BP 196 over 104, glucose 118, going to Regional, ETA 14 minutes, please have CT ready.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "attribution", "multi_event", "brand_names"]}
+{"id": "v1_052", "text": "seven year old male audible weezing sats ninety one percent heart rate one forty mom thinks he might have a peanut allergy", "by": "medic", "speaker": null, "phenomena": ["shorthand", "spoken_numbers", "attribution", "multi_event", "uncertain", "asr_noise"]}
+{"id": "v1_053", "text": "She's usually alert and chatty, but today she only opens her eyes when you pinch her.", "by": "other", "speaker": "caregiver", "phenomena": ["other_speaker"]}
+{"id": "v1_054", "text": "Right arm drifts down in about five seconds, left arm holds without drift.", "by": "medic", "speaker": null, "phenomena": ["negation"]}
+{"id": "v1_055", "text": "HR 42, sinus brady, BP 84/50, pale and diaphoretic, A&O x3.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "multi_event"]}
+{"id": "v1_056", "text": "Witness says he fell off the ladder, maybe ten feet, and he's not sure if the guy's on blood thinners.", "by": "medic", "speaker": null, "phenomena": ["attribution", "uncertain"]}
+{"id": "v1_057", "text": "Leg, uh, she can't lift the left leg off the bed at all, and the arm's the same.", "by": "medic", "speaker": null, "phenomena": ["disfluency"]}
+{"id": "v1_058", "text": "Allergic to sulfa and codeine, full code per the daughter.", "by": "medic", "speaker": null, "phenomena": ["attribution"]}
+{"id": "v1_059", "text": "Resps are, um, twenty eight, twenty eight and labored, sat's eighty nine on two liters nasal cannula, gonna bump him to a non-rebreather.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "spoken_numbers", "disfluency"]}
+{"id": "v1_060", "text": "Eyes are looking to the right, and she doesn't recognize her left arm, doesn't even know she's weak.", "by": "medic", "speaker": null, "phenomena": ["negation"]}
+{"id": "v1_061", "text": "Stroke team's been notified, they'll meet us in CT.", "by": "medic", "speaker": null, "phenomena": ["no_facts"]}
+{"id": "v1_062", "text": "Sugar's forty-eight, uh, no, eighty-four, I read it upside down.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers", "correction", "disfluency"]}
+{"id": "v1_063", "text": "sixty two yof a phasic right arm is flaccid polst on the fridge says dnr", "by": "medic", "speaker": null, "phenomena": ["shorthand", "spoken_numbers", "multi_event", "asr_noise"]}
+{"id": "v1_064", "text": "Describes it as pressure, eight out of ten, doesn't radiate, denies shortness of breath or nausea.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers", "negation", "no_facts"]}
+{"id": "v1_065", "text": "MVC, restrained driver, moderate front end damage, airbags deployed, self-extricated and ambulatory on scene.", "by": "medic", "speaker": null, "phenomena": ["shorthand"]}
+{"id": "v1_066", "text": "Temp one oh three point one tympanic, pulse one thirty, pressure's soft, eighty over, no, ninety over sixty.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers", "correction", "multi_event", "fahrenheit"]}
+{"id": "v1_067", "text": "Wife witnessed the onset, says he dropped his coffee cup at 7:15 and couldn't get a word out.", "by": "medic", "speaker": null, "phenomena": ["attribution"]}
+{"id": "v1_068", "text": "Satting 88 on 4 liters, correction, 6 liters, still 88.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "correction"]}
+{"id": "v1_069", "text": "Unresponsive, GCS 3, sugar 29.", "by": "medic", "speaker": null, "phenomena": ["shorthand"]}
+{"id": "v1_070", "text": "daughter says she's been dragging her left leg and dropping things with her left hand sense this morning", "by": "medic", "speaker": null, "phenomena": ["attribution", "asr_noise"]}
+{"id": "v1_071", "text": "Mom's on Coumadin and she hit her head pretty hard on the nightstand.", "by": "other", "speaker": "daughter", "phenomena": ["other_speaker", "brand_names"]}
+{"id": "v1_072", "text": "Twelve lead is attached to the report, time on it is 10:47.", "by": "medic", "speaker": null, "phenomena": ["clean"]}
+{"id": "v1_073", "text": "No known allergies, meds are Synthroid, Norvasc and a baby aspirin daily.", "by": "medic", "speaker": null, "phenomena": ["negation", "brand_names"]}
+{"id": "v1_074", "text": "ETA is 15, um, make that 18 minutes, traffic's backed up on 101.", "by": "medic", "speaker": null, "phenomena": ["correction", "disfluency"]}
+{"id": "v1_075", "text": "seventy nine year old woman with right sided facial droop and aphasia on cumadin for a fib lkw nine fifteen", "by": "medic", "speaker": null, "phenomena": ["shorthand", "spoken_numbers", "multi_event", "brand_names", "asr_noise"]}
+{"id": "v1_076", "text": "Temp ninety five point four, she was on the floor all night, room air sat ninety one.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers", "fahrenheit"]}
+{"id": "v1_077", "text": "Eighty two, sorry, seventy two year old male, right facial droop, slurred speech.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers", "correction", "multi_event"]}
+{"id": "v1_078", "text": "I don't take any blood thinners, and I'm not allergic to anything.", "by": "other", "speaker": "patient", "phenomena": ["negation", "other_speaker"]}
+{"id": "v1_079", "text": "shortness of breath started an hour ago history of chf takes lasix and eloquis", "by": "medic", "speaker": null, "phenomena": ["shorthand", "multi_event", "brand_names", "asr_noise"]}
+{"id": "v1_080", "text": "Patient says he took his insulin this morning but hasn't eaten anything, he's a little confused but answering questions.", "by": "medic", "speaker": null, "phenomena": ["attribution"]}
+{"id": "v1_081", "text": "34 year old female, c/o lower right abdominal pain since yesterday, vomiting times three, temp ninety nine point six.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "spoken_numbers", "multi_event", "fahrenheit"]}
+{"id": "v1_082", "text": "Numbness and tingling in her right hand and face, started twenty minutes ago.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers"]}
+{"id": "v1_083", "text": "Neighbor says he's been drinking since noon and fell off the porch steps.", "by": "medic", "speaker": null, "phenomena": ["attribution"]}
+{"id": "v1_084", "text": "Engine 6 on scene, one patient, requesting ALS.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "no_facts"]}
+{"id": "v1_085", "text": "Found down by the neighbor this morning, last seen normal at 10 pm per the neighbor.", "by": "medic", "speaker": null, "phenomena": ["attribution"]}
+{"id": "v1_086", "text": "Heart rate one twenty, correction, one ten, still in a fib.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers", "correction"]}
+{"id": "v1_087", "text": "Temp one oh two point four, resps twenty six, sats ninety three on room air, crackles in the right base.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "spoken_numbers", "multi_event", "fahrenheit"]}
+{"id": "v1_088", "text": "Son says she's been vomiting for two days, now she's unresponsive, sugar reads HI on the meter, breathing deep and rapid.", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers", "attribution"]}
+{"id": "v1_089", "text": "She passed out in the checkout line, the cashier thinks she's diabetic, maybe on insulin, but isn't sure.", "by": "medic", "speaker": null, "phenomena": ["attribution", "uncertain"]}
+{"id": "v1_090", "text": "Pupils equal, grips unequal, weaker on the right, no other deficits noted.", "by": "medic", "speaker": null, "phenomena": ["negation"]}
+{"id": "v1_091", "text": "Wife thinks his sugar was around sixty earlier but she's not sure, he's awake and talking now, A&O x4.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "spoken_numbers", "attribution", "uncertain"]}
+{"id": "v1_092", "text": "C-collar on, sats ninety eight on a non-rebreather, resps twenty four and shallow.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "spoken_numbers"]}
+{"id": "v1_093", "text": "Stroke scale, facial palsy is, um, a one, mild, arm and leg both zero, no gaze deviation, speech is slurred, she's on Pradaxa per her daughter, sugar is ninety four, BP one seventy eight over ninety, and she's A&O times four.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "spoken_numbers", "negation", "attribution", "multi_event", "brand_names", "disfluency"]}
+{"id": "v1_094", "text": "Patient states he took two baby aspirin at home, didn't touch the pain.", "by": "medic", "speaker": null, "phenomena": ["attribution"]}
+{"id": "v1_095", "text": "Gave 324 of aspirin chewed and one nitro sublingual, pain's down to a five.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "no_facts"]}
+{"id": "v1_096", "text": "LKW two thirty, sorry, correction, two fifteen per husband.", "by": "medic", "speaker": null, "phenomena": ["shorthand", "spoken_numbers", "correction", "attribution"]}
+{"id": "v1_097", "text": "Wife is showing me his out-of-hospital DNR, it's signed and dated, he's comfort care.", "by": "medic", "speaker": null, "phenomena": ["clean"]}
+{"id": "v1_098", "text": "transporting emergent too good sam eta eleven", "by": "medic", "speaker": null, "phenomena": ["shorthand", "spoken_numbers", "asr_noise"]}
+{"id": "v1_099", "text": "Speech is fine, face symmetric, no drift in either arm, but the left leg drifts down and hits the bed.", "by": "medic", "speaker": null, "phenomena": ["negation", "multi_event"]}
+{"id": "v1_100", "text": "Lights and sirens to Regional, we're about ten minutes out, can you have a bed ready?", "by": "medic", "speaker": null, "phenomena": ["spoken_numbers"]}

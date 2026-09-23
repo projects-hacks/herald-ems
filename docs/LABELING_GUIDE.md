@@ -38,6 +38,7 @@ Label a fact **only if the words in the utterance state it**. Do not infer, diag
 - `patient`: "patient says/states/denies…", "she tells me…", or the patient speaking into the mic.
 - `family`: "husband/wife/daughter/son/mom/dad/brother/sister/caregiver says…", or a family member speaking into the mic (`by: "other"`).
 - `bystander`: "neighbor/witness/bystander/passer-by says…".
+- **Facility staff** (nursing-home nurse or aide, home-health aide, group-home staff) are caregivers → `family`. They know the patient's baseline, like family does. (Adjudicated on gold v1, item v1_039.)
 
 Attribution applies only to the clause it governs. In "68-year-old female, sudden left-sided weakness, husband says she was fine at 1:40", only the last-known-well time is `family`; age, sex, and deficits are `medic`.
 
@@ -82,9 +83,9 @@ When `by` is `"other"` and nothing else is said about the source, the role is th
 ### Per-key normalization
 - **`patient.age`**: integer years. "Seventy-two" → 72. "72-year-old", "72 yo", "72 yom" → 72.
 - **`patient.sex`**: `"F"` or `"M"`. Female, woman, lady, "yof", "she" *alone does not count* (pronouns are not a statement of sex; only label sex when stated as a descriptor, e.g., "68-year-old female").
-- **`complaint.chief`**: short free text, only when a complaint is stated ("chest pain", "shortness of breath", "fall"). Scored by presence only.
+- **`complaint.chief`**: short free text, only when a complaint is stated ("chest pain", "shortness of breath", "fall"). **Mechanisms of injury count** ("fall", "MVC", "assault"; adjudicated on v1_065). **Don't repeat a finding already captured by a structured key** (e.g., "more confused than baseline" is `vitals.consciousness` = C, not also a complaint; v1_039). Not for "stroke alert", exam signs, or deficits. Scored by presence only.
 - **`symptom.onset`**: time or duration as spoken ("20 minutes ago", "since 3").
-- **`stroke.lkw`**: last-known-well time **as spoken**, lowercase: "1:40", "10 pm", "9 am". "Fine at", "normal at", "last seen normal" all count.
+- **`stroke.lkw`**: last-known-well time **as spoken**, lowercase: "1:40", "10 pm", "9 am", "0630". "Fine at", "normal at", "last seen normal", "LKW" all count. The scorer treats "0630", "06:30" and "6:30" as equal. A clock time of a witnessed onset ("dropped his cup at 7:15") is `symptom.onset`, not `stroke.lkw`.
 - **`stroke.onset_witnessed`**: `true` if the onset was seen happening ("collapsed in front of him", "witnessed"); `false` if the patient was found or woke up with symptoms ("found on the floor", "unwitnessed", "woke up like this").
 - **`stroke.deficits`**: list of short phrases as said ("left-sided weakness", "facial droop", "slurred speech"). Scored by presence only.
 - **RACE exam items** (label only when the exam finding is explicitly described):
@@ -110,6 +111,26 @@ When `by` is `"other"` and nothing else is said about the source, the role is th
 - **`transport.destination`**: hospital name as said, title case ("Valley Medical"). Scored by presence only.
 - **`transport.eta_min`**: integer minutes ("ETA 12", "12 minutes out", "8 minutes").
 - **`scene.notes`**: only for explicit scene observations ("walker by the bed", "pill organizer still full"). Scored by presence only.
+
+## 4b. Rules settled while building gold v1 (from both labelers' notes)
+- **RACE without a formal exam:** stroke findings stated in words ("left facial droop, left arm drift, eyes deviated") get RACE items per §4, whether or not the word "exam" is used. Vague wording ("weakness", "slurred", "garbled") gets deficits only. A RACE **total** ("RACE of 7") gets no item scores.
+- **A positive RACE finding is also a deficit:** "facial droop" → `exam.race.facial` and `stroke.deficits` ["facial droop"]. Negative findings get only the RACE 0.
+- **Rechecked vitals are two facts, not a correction:** "BGL 42 … recheck 156" labels both values.
+- **Drugs given by EMS are interventions, not home meds:** no `meds.list`. Home medications taken before EMS arrived ("took a nitro before we got here") are labeled.
+- **Future actions are not facts:** "I'll attach the 12-lead" → no `ecg.attached`.
+- **CPAP counts as oxygen delivery:** `vitals.on_oxygen` = true; a CPAP number is pressure, not litres.
+- **"c/o" (complains of) is the medic's report shorthand:** role `medic`, not `patient`.
+- **Nested attribution:** the daughter on the mic relaying the neighbor → the neighbor's statement is `bystander` (clause-level attribution wins over the speaker's default role).
+
+## 4c. Rules settled while building gold v2 (adjudication of 15 disagreements, 2026-09-23)
+- **`stroke.*` keys only for stroke-like presentations.** `stroke.onset_witnessed`, `stroke.lkw` and `stroke.deficits` are labeled when the words describe stroke-like symptoms: focal weakness, facial droop, speech or language trouble, gaze deviation, sudden collapse with neuro signs, vertigo with ataxia. They are **not** labeled for a trauma mechanism (a witnessed bike crash), a found-down fall, hypoglycemia, hypothermia, or numbness from a suspected spinal injury (v2_013, 019, 034, 048, 072, 078, 079).
+- **Attribution is clause-scoped, also in run-ons.** "per mom she's been vomiting since yesterday she's fourteen and on an insulin pump": only the vomiting clause is the mother's. A new clause (a new subject, or a subjectless shorthand clause like "takes lipiter and metoprolol") is the medic's (v2_022, v2_057).
+- **A stated presenting problem that no structured key captures is `complaint.chief`:** "lethargic", "collapsed", "vomiting", "room spinning". This joins the rules for "fall" and "MVC". Still, don't repeat what a structured key holds: fever goes in `vitals.temp`, and new confusion in `vitals.consciousness` (v2_016, v2_068).
+- **Response words give an ACVPU letter; a GCS number doesn't.** "Eyes open to pain" or "only responds to pain" → P. "GCS nine" alone gives no letter (v2_062).
+- **A drug class without a drug name is not `meds.list`:** "birth control", "something for her thyroid", "a water pill". A named drug is, including an ingredient named by its device ("insulin pump" → insulin) (v2_084, v1_050).
+- **Time values:** kept as spoken, lowercase, with number words as digits. "Last night" adds pm ("went to bed at ten thirty last night" → "10:30 pm"). A discovery time ("found at 0400", "woke up at 6") is neither LKW nor onset. Approximators ("about", "around", "like") are dropped; hedges ("maybe", "I think", "not sure") mean no fact (v2_074, v2_064).
+- **Two readings in one breath are two facts:** lying and standing, room air then on oxygen (with both `vitals.on_oxygen` false and true), or before and after a drug. "The cuff slipped, it's 140 over 86" is a correction: one fact.
+- **`stroke.onset_witnessed` needs someone who saw it.** A wife who "heard a thump" didn't see it. A security guard or store manager is a `bystander`, not facility staff.
 
 ## 5. Corrections, negations, numbers
 - **Corrections:** "pulse 88, correction, 98" → only `vitals.hr` = 98. "BP 120 over 80, I mean 130 over 80" → SBP 130, DBP 80. The corrected value replaces the first; never label both.

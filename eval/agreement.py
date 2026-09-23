@@ -15,13 +15,15 @@ from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from bench_extract import FREE_TEXT, norm  # noqa: E402
+from bench_extract import FREE_TEXT, atoms  # noqa: E402
 
 
 def pairs(facts):
-    out = {}
+    """The benchmark's atomic facts (scorer v2: list items, normalized times); free-text keys by presence."""
+    out = atoms([(k, v, r) for k, v, r in facts if k not in FREE_TEXT])
     for k, v, r in facts:
-        out[(k, None) if k in FREE_TEXT else (k, norm(k, v))] = r
+        if k in FREE_TEXT:
+            out[(k, None)] = r
     return out
 
 

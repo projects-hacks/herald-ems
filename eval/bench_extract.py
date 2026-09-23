@@ -5,8 +5,21 @@
   python eval/bench_extract.py --extractor llm --model omni          # a model served by ZRT on :8080
   python eval/bench_extract.py --extractor llm --model omni --gold eval/gold_v0.jsonl --out eval/results.jsonl
 
-Scores (key, value) pairs: precision / recall / F1, role accuracy on matched facts,
-JSON validity, and per-utterance latency. Numbers go straight into the deck.
+  python eval/bench_extract.py --rescore dump.jsonl --gold eval/gold_v1.jsonl  # re-score saved predictions
+
+Scores atomic facts: precision / recall / F1, role accuracy on matched facts, JSON validity, and
+per-utterance latency. Numbers go straight into the deck.
+
+What an atomic fact is (scorer v2, 2026-09-23; v1 scored whole facts):
+- scalar keys: (key, normalized value);
+- list keys (meds.list, allergies): one atom per item, so a 2-of-3 med list earns 2 true positives and
+  1 miss instead of a miss plus a false positive; list facts for the same key are unioned, as the patient
+  state does for accumulating keys; an empty list (e.g. "no known allergies") is the atom (key, "<none>");
+- time keys: compared after normalizing how a time is said ("since 3 a.m." == "3 am", "fifteen minutes
+  ago" == "15 minutes ago", "06:30" == "0630");
+- free-text keys (FREE_TEXT): presence only, reported separately.
+Drug names are NOT normalized by the scorer: mapping brands and misspellings to generic names is the
+extractor's job (LABELING_GUIDE §4).
 """
 import argparse
 import json
@@ -19,10 +32,33 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from herald import extract_rules  # noqa: E402
-from herald.schema import CapturedBy, Role  # noqa: E402
+from herald.schema import KEYS, CapturedBy, Role  # noqa: E402
+
+
+TIME_KEYS = {"stroke.lkw", "symptom.onset", "ecg.twelve_lead_time"}
+_NUM = {w: str(i) for i, w in enumerate("zero one two three four five six seven eight nine ten eleven twelve "
+                                        "thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split())}
+_NUM.update({"twenty": "20", "thirty": "30", "forty": "40", "fifty": "50", "sixty": "60", "half": "30"})
+_TIME_FILLER = r"\b(since|for|at|around|about|approximately|approx|roughly|like|the)\b"
+
+
+def norm_time(v) -> str:
+    """How a time was said, reduced to its content: "since 3 a.m." -> "3am", "an hour ago" -> "1hourago"."""
+    import re
+    s = str(v).strip().lower().replace("a.m.", "am").replace("p.m.", "pm").replace("o'clock", "")
+    s = re.sub(r"\ban?\s+(hour|minute|day|week)", r"1 \1", s)
+    s = re.sub(r"\b(twenty|thirty|forty|fifty)[\s-](one|two|three|four|five|six|seven|eight|nine)\b",
+               lambda m: str(int(_NUM[m.group(1)]) + int(_NUM[m.group(2)])), s)
+    s = re.sub(r"[a-z]+", lambda m: _NUM.get(m.group(0), m.group(0)), s)
+    s = re.sub(r"\bthe past\b", "", s)            # "for the past 2 hours" == "2 hours"
+    s = re.sub(_TIME_FILLER, "", s)
+    s = re.sub(r"[\s:.,~-]", "", s)
+    return s.lstrip("0") or "0"
 
 
 def norm(key, v):
+    if key in TIME_KEYS:
+        return norm_time(v)
     if isinstance(v, list):
         return tuple(sorted(str(x).strip().lower() for x in v))
     if isinstance(v, bool):
@@ -41,22 +77,68 @@ def norm(key, v):
 FREE_TEXT = {"complaint.chief", "stroke.deficits", "transport.destination", "scene.notes"}
 
 
+def atoms(facts) -> dict:
+    """(key, normalized value) -> role, for facts given as (key, value, role). See the module docstring."""
+    out = {}
+    for k, v, r in facts:
+        if KEYS.get(k, {}).get("type") == "list":
+            items = v if isinstance(v, list) else [v]
+            if not items:
+                out[(k, "<none>")] = r
+            for x in items:
+                out[(k, " ".join(str(x).strip().lower().split()))] = r
+        else:
+            out[(k, norm(k, v))] = r
+    return out
+
+
 def score(gold, pred, free_text=False):
+    """gold, pred: lists of (key, value, role). Returns tp, fp, fn, role_ok, extra, missed."""
     keep = (lambda k: k in FREE_TEXT) if free_text else (lambda k: k not in FREE_TEXT)
     gold = [(k, v, r) for k, v, r in gold if keep(k)]
-    pred = [f for f in pred if keep(f.key)]
+    pred = [(k, v, r) for k, v, r in pred if keep(k)]
     if free_text:   # presence only
         g = {(k, None): r for k, v, r in gold}
-        p = {(f.key, None): f.role.value for f in pred}
+        p = {(k, None): r for k, v, r in pred}
         tp = set(g) & set(p)
         return len(tp), len(p) - len(tp), len(g) - len(tp), sum(1 for x in tp if g[x] == p[x]), [], []
-    g = {(k, norm(k, v)): r for k, v, r in gold}
-    p = {}
-    for f in pred:
-        p[(f.key, norm(f.key, f.value))] = f.role.value
+    g, p = atoms(gold), atoms(pred)
     tp = set(g) & set(p)
     role_ok = sum(1 for x in tp if g[x] == p[x])
     return len(tp), len(p) - len(tp), len(g) - len(tp), role_ok, sorted(set(p) - set(g)), sorted(set(g) - set(p))
+
+
+def predict(a, rows):
+    """Run the extractor on every row. Yields (row, pred as (key, value, role) tuples, ms, tokens, error)."""
+    if a.model:
+        os.environ["HERALD_LLM_MODEL"] = a.model
+    from herald import extract_llm, pipeline  # import after env is set
+    for r in rows:
+        by = CapturedBy(r.get("by", "medic"))
+        role = Role.family if by == CapturedBy.other else Role.medic
+        extract_llm.extract.last_usage = {}
+        t0 = time.perf_counter()
+        err = None
+        try:
+            if a.extractor == "rules":
+                pred = extract_rules.extract(r["text"], by, role, r.get("speaker"))
+            elif a.extractor == "llm":
+                pred = extract_llm.extract(r["text"], by, role, r.get("speaker"))
+            else:
+                pred, _info = pipeline.extract(r["text"], by, role, r.get("speaker"))
+        except Exception as e:
+            pred, err = [], f"{type(e).__name__}: {str(e)[:200]}"
+        ms = (time.perf_counter() - t0) * 1000
+        tokens = (extract_llm.extract.last_usage or {}).get("completion_tokens") if a.extractor != "rules" else None
+        yield r, [(f.key, f.value, f.role.value) for f in pred], ms, tokens, err
+
+
+def replay(path, rows):
+    """Saved predictions from a --dump file, in gold order."""
+    saved = {d["id"]: d for d in map(json.loads, open(path))}
+    for r in rows:
+        d = saved[r["id"]]
+        yield r, [tuple(x) for x in d["pred"]], d["ms"], d.get("tokens"), d.get("error")
 
 
 def main():
@@ -67,43 +149,40 @@ def main():
     ap.add_argument("--out", default="eval/results.jsonl")
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--dump", default=None, help="write per-utterance details (pred, latency, errors) to this JSONL")
+    ap.add_argument("--rescore", default=None, help="score the predictions saved in this --dump file (no model calls)")
+    ap.add_argument("--ids", default=None, help="score only these ids: a range like v1_001-v1_050")
     a = ap.parse_args()
-    if a.model:
-        os.environ["HERALD_LLM_MODEL"] = a.model
-    from herald import extract_llm, llm, pipeline  # import after env is set
 
     rows = [json.loads(line) for line in open(a.gold) if line.strip()]
+    if a.ids:
+        lo, hi = a.ids.split("-")
+        rows = [r for r in rows if lo <= r["id"] <= hi]
+    if a.rescore:
+        first = json.loads(open(a.rescore).readline())
+        label = first.get("label") or first["extractor"]
+        items = replay(a.rescore, rows)
+    else:
+        from herald import llm
+        name = a.model or llm.model_name()
+        label = {"rules": "rules", "llm": f"llm:{name}", "pipeline": f"rules+llm:{name}"}[a.extractor]
+        items = predict(a, rows)
     TP = FP = FN = ROLE = 0
     FT = [0, 0, 0]
-    dump = open(a.dump, "a") if a.dump else None
+    dump = open(a.dump, "w") if a.dump else None
     lat, invalid, out_tokens = [], 0, []
-    for r in rows:
-        by = CapturedBy(r.get("by", "medic"))
-        role = Role.family if by == CapturedBy.other else Role.medic
-        t0 = time.perf_counter()
-        try:
-            if a.extractor == "rules":
-                pred = extract_rules.extract(r["text"], by, role, r.get("speaker"))
-            elif a.extractor == "llm":
-                pred = extract_llm.extract(r["text"], by, role, r.get("speaker"))
-                out_tokens.append(getattr(extract_llm.extract, "last_usage", {}).get("completion_tokens", 0))
-            else:
-                pred, _info = pipeline.extract(r["text"], by, role, r.get("speaker"))
-                out_tokens.append(getattr(extract_llm.extract, "last_usage", {}).get("completion_tokens", 0))
-        except Exception as e:
-            pred, invalid = [], invalid + 1
-            err = f"{type(e).__name__}: {str(e)[:200]}"
-            if a.verbose:
-                print(f"  {r['id']} ERROR {err}")
-        else:
-            err = None
-        lat.append((time.perf_counter() - t0) * 1000)
+    for r, pred, ms, tokens, err in items:
+        lat.append(ms)
+        invalid += err is not None
+        if tokens is not None:
+            out_tokens.append(tokens)
+        if err and a.verbose:
+            print(f"  {r['id']} ERROR {err}")
         tp, fp, fn, role_ok, extra, missed = score(r["facts"], pred)
         ft = score(r["facts"], pred, free_text=True)
         FT = [FT[0] + ft[0], FT[1] + ft[1], FT[2] + ft[2]]
         if dump:
-            dump.write(json.dumps({"id": r["id"], "extractor": a.extractor, "ms": round(lat[-1]), "error": err,
-                                   "pred": [[f.key, f.value, f.role.value] for f in pred],
+            dump.write(json.dumps({"id": r["id"], "extractor": a.extractor, "label": label, "ms": round(ms),
+                                   "tokens": tokens, "error": err, "pred": [list(x) for x in pred],
                                    "extra": [list(x) for x in extra], "missed": [list(x) for x in missed]},
                                   default=str) + "\n")
         TP, FP, FN, ROLE = TP + tp, FP + fp, FN + fn, ROLE + role_ok
@@ -116,9 +195,9 @@ def main():
     ftp, ffp, ffn = FT
     ft_f1 = (2 * ftp / (2 * ftp + ffp + ffn)) if (ftp + ffp + ffn) else 0.0
     res = {
-        "extractor": {"rules": "rules", "llm": f"llm:{llm.model_name()}",
-                      "pipeline": f"rules+llm:{llm.model_name()}"}[a.extractor],
-        "gold": a.gold, "n": len(rows), "precision": round(P, 3), "recall": round(R, 3), "f1": round(F1, 3),
+        "extractor": label, "gold": a.gold + (f"[{a.ids}]" if a.ids else ""), "scorer": "v2",
+        "rescored_from": a.rescore, "n": len(rows),
+        "precision": round(P, 3), "recall": round(R, 3), "f1": round(F1, 3),
         "role_acc": round(ROLE / TP, 3) if TP else 0.0, "json_invalid": invalid,
         "free_text_presence_f1": round(ft_f1, 3),
         "first_call_ms": round(lat[0]),

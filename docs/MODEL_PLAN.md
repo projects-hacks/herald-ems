@@ -167,6 +167,46 @@ Any failure → ship rules + Omni, and present the fine-tune as a slide with wha
 4. Pick the model with the best F1 at p95 latency ≤ 2 s. Tie → prefer the model that also reads photos (one model, less memory).
 5. Record results below and in `eval/results.jsonl`.
 
+### Held-out results on `gold_v1` (100 utterances), frozen extractors, 3 runs each (2026-09-23, night)
+
+**The set.** `eval/gold_v1.jsonl` was written and labeled by an annotator who never saw the extractors, the earlier gold set, or any results. It was labeled a second time, blind, by another annotator. Agreement before adjudication: fact F1 **0.993**, 97 of 100 items identical, role agreement 0.993. The 3 disagreements were settled by rules now written into `docs/LABELING_GUIDE.md`: facility staff count as `family`, a mechanism of injury ("MVC") counts as `complaint.chief`, and "0630" = "06:30". After adjudication, agreement with labeler B is F1 0.998. Caveat: both annotators are the same kind of annotator, so their agreement is an upper bound on how clean the labels are, not proof.
+
+**Scorer v2** (`eval/bench_extract.py`, unit-tested in `tests/test_bench_score.py`). The v1 audit found three measurement flaws that understated every extractor. They are fixed in the scorer, not in any extractor:
+- list keys (`meds.list`, `allergies`) are scored per item, and repeated list facts are unioned, as the patient state does. Before, a 2-of-3 med list scored as one miss plus one false positive;
+- time phrases are compared after normalizing how a time is said: "since 3 a.m." = "3 am", "fifteen minutes ago" = "15 minutes ago", "06:30" = "0630";
+- drug names are **not** normalized by the scorer. Mapping brands to generic names is the extractor's job, per the guide.
+
+Effect of the scorer change on the saved predictions (`--rescore`, no new model calls): **±0.01 F1**. So the drop from `gold_v0` below is not a scoring artifact.
+
+| Extractor (frozen, unchanged since `gold_v0`) | F1 per run | Mean F1 | Spread | Precision | Recall | Role acc | p50 / p95 ms |
+|---|---|---|---|---|---|---|---|
+| rules | 0.571 | **0.571** | 0 | 0.906 | 0.417 | 0.927 | 0 / 0 |
+| Omni alone | 0.676 / 0.664 / 0.676 | **0.672** | 0.012 | 0.68–0.69 | 0.65–0.66 | 0.93 | ~950 / ~2,650 |
+| rules + Omni (the app) | 0.729 / 0.739 / 0.720 | **0.729** | 0.019 | 0.69–0.71 | 0.76–0.77 | 0.93 | ~950 / ~2,650 |
+
+Per-utterance predictions are saved in `eval/dumps/gold_v1/` and can be rescored with `--rescore`.
+
+**Verdict: genuine.** It isn't noise: the spreads are 0.012–0.019, and v0 → v1 is −0.19 to −0.35. It isn't the test: the scorer and labels were audited, and the adjudicated labels match the second annotator at 0.998.
+- The `gold_v0` numbers (0.917 / 0.860 / 0.964) were **optimistic**, exactly as warned below. The rules fixes were designed on the same 30 items, and the rules extractor doesn't generalize to new phrasing: recall 0.42.
+- Rules + Omni still beats either alone by 5–16 points, and every extractor's precision is below 0.91.
+
+**What Omni gets wrong** (read on the v1 dev half, v1_001–050). All of these are model errors, not labeling calls:
+- confuses symptom onset with last known well ("started 40 minutes ago" → `stroke.lkw`), and misses onset phrases ("for three days", "since yesterday");
+- invents temperatures that were never said (37.0 from a GCS line; "D-stick reads 38" read as a temperature, where D-stick is a glucose meter), and leaves Fahrenheit unconverted (101.8);
+- keeps brand names (Lipitor, ProAir, Lovenox, Humalog) instead of generics, lists drugs EMS gave (D50) as home meds, and calls clopidogrel (an antiplatelet) an anticoagulant;
+- keeps the value before a spoken correction ("210 over 110, correction, 201 over 110" → 210);
+- scores RACE items from vague deficits ("weakness in the right arm and leg" → arm 2, leg 2), and misses explicit negative exams ("no facial droop, no drift, eyes midline" → nothing);
+- treats a future action as done ("I'll attach it" → `ecg.attached`);
+- **copies its own worked example:** on v1_034 it output age 54 and sex M, which come from the first few-shot example in the prompt, not from the utterance.
+
+**Direction (team lead, 2026-09-23): no hardcoding. Extraction must work like AI.** These errors are fixed through the model, not with lookup tables or phrase regexes:
+- the fine-tuned extractor learns them from training data (brands → generics, onset vs LKW, corrections, negative exams, home vs given meds, unit conversion);
+- Omni gets general instructions, not item-specific ones, and its few-shot examples are reviewed because they leak;
+- the scorer's normalization is measurement, not product behavior;
+- the published score tables and the safety validators (grounding, ranges) stay deterministic by design (AGENTS.md invariant 2).
+
+**Status of the sets.** v1 errors have now been read in both halves, so **`gold_v1` becomes a dev set** from here on. A fresh held-out **`gold_v2`** (100 items, the same two-annotator protocol, stricter phrasing variety, with quotas for onset phrasing, non-anticoagulant brand names, and EMS-given drugs) is being written. It is the set any new claim is judged on.
+
 ### Current results on `gold_v0` (30 utterances), after the fixes, 3 runs each (2026-09-23, evening)
 | Extractor | Mean F1 | Spread | Precision | Recall | Role acc | p50 / p95 ms |
 |---|---|---|---|---|---|---|

@@ -1,0 +1,47 @@
+"""The extraction scorer (eval/bench_extract.py, scorer v2): atomic facts, list items, time phrasing."""
+import importlib.util
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location("bench", Path(__file__).resolve().parent.parent / "eval" / "bench_extract.py")
+bench = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(bench)
+
+
+def test_time_phrasing_is_normalized_not_guessed():
+    n = bench.norm_time
+    assert n("since 3 a.m.") == n("3 am") == n("3am")
+    assert n("fifteen minutes ago") == n("15 minutes ago")
+    assert n("an hour ago") == n("1 hour ago")
+    assert n("06:30") == n("0630") == n("6:30")
+    assert n("nine fifteen") == n("9:15")
+    assert n("since yesterday") == n("yesterday")
+    assert n("for the past two hours") == n("2 hours")
+    assert n("9:15") != n("9:50")                 # different times stay different
+    assert n("10 pm") != n("10 am")
+
+
+def test_list_items_are_scored_individually_and_unioned():
+    gold = [("meds.list", ["clopidogrel", "metoprolol", "atorvastatin"], "medic")]
+    pred = [("meds.list", ["clopidogrel", "metoprolol"], "medic"), ("meds.list", ["Lipitor"], "medic")]
+    tp, fp, fn, role_ok, extra, missed = bench.score(gold, pred)
+    assert (tp, fp, fn) == (2, 1, 1)
+    assert extra == [("meds.list", "lipitor")] and missed == [("meds.list", "atorvastatin")]
+
+
+def test_empty_list_is_a_fact():
+    assert bench.score([("allergies", [], "patient")], [("allergies", [], "patient")])[:3] == (1, 0, 0)
+    assert bench.score([("allergies", [], "patient")], [])[:3] == (0, 0, 1)
+
+
+def test_scalars_and_roles():
+    gold = [("vitals.sbp", 148, "medic"), ("patient.sex", "F", "medic")]
+    pred = [("vitals.sbp", 148.0, "medic"), ("patient.sex", "f", "family"), ("vitals.temp", 37.0, "medic")]
+    tp, fp, fn, role_ok, *_ = bench.score(gold, pred)
+    assert (tp, fp, fn, role_ok) == (2, 1, 0, 1)
+
+
+def test_free_text_is_presence_only():
+    gold = [("complaint.chief", "chest pain", "medic")]
+    pred = [("complaint.chief", "crushing substernal chest pain", "medic")]
+    assert bench.score(gold, pred)[:3] == (0, 0, 0)
+    assert bench.score(gold, pred, free_text=True)[:3] == (1, 0, 0)
