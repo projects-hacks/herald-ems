@@ -27,6 +27,11 @@ PROMPTS = {
 }
 
 
+# Physiological plausibility: a photo reading outside these ranges is dropped, never shown as a fact.
+RANGES = {"vitals.spo2": (50, 100), "vitals.hr": (20, 250), "vitals.sbp": (50, 260), "vitals.dbp": (20, 180),
+          "vitals.rr": (4, 60)}
+
+
 def read_photo(image_bytes: bytes, mode: str, photo_id: Optional[str] = None) -> list[FactIn]:
     if mode not in PROMPTS:
         raise ValueError(f"mode must be one of {list(PROMPTS)}")
@@ -38,6 +43,13 @@ def read_photo(image_bytes: bytes, mode: str, photo_id: Optional[str] = None) ->
         key, value = f.get("key"), f.get("value")
         if key is None or value in (None, "", []):
             continue
+        if key in RANGES:
+            try:
+                lo, hi = RANGES[key]
+                if not (lo <= float(value) <= hi):
+                    continue
+            except (TypeError, ValueError):
+                continue
         prov = Provenance(photo_id=photo_id, crop=f.get("box"), extractor=tag,
                           text=f.get("strength") and f"{value} {f['strength']}")
         common = dict(role=Role.photo, speaker=mode.replace("_", " "), captured_by=CapturedBy.camera,
@@ -49,4 +61,8 @@ def read_photo(image_bytes: bytes, mode: str, photo_id: Optional[str] = None) ->
                 canon = ANTICOAG.get(str(n).lower().split()[0])
                 if canon:
                     out.append(FactIn(key="meds.anticoagulant", value=canon, **common))
+    sbp = next((f.value for f in out if f.key == "vitals.sbp"), None)
+    dbp = next((f.value for f in out if f.key == "vitals.dbp"), None)
+    if sbp is not None and dbp is not None and float(dbp) >= float(sbp):
+        out = [f for f in out if f.key not in ("vitals.sbp", "vitals.dbp")]
     return out

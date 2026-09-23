@@ -34,7 +34,7 @@ def available() -> bool:
 
 def chat_json(system: str, user: str, *, image_b64: Optional[str] = None,
               max_tokens: int = 256, timeout: float = 60.0, schema: Optional[dict] = None,
-              usage: Optional[dict] = None) -> dict:
+              usage: Optional[dict] = None, examples: Optional[list[tuple[str, str]]] = None) -> dict:
     """One chat call that must return a JSON object. Reasoning is switched off."""
     model = model_name()
     if not model:
@@ -45,7 +45,10 @@ def chat_json(system: str, user: str, *, image_b64: Optional[str] = None,
                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}]
     body = {
         "model": model, "temperature": 0, "max_tokens": max_tokens,
-        "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}],
+        "messages": ([{"role": "system", "content": system}]
+                     + [m for u, a in (examples or []) for m in ({"role": "user", "content": u},
+                                                                 {"role": "assistant", "content": a})]
+                     + [{"role": "user", "content": content}]),
         # strict JSON schema: grammar-constrained from the first token (no <think>, no prose).
         "response_format": ({"type": "json_schema", "json_schema": {"name": "out", "strict": True, "schema": schema}}
                             if schema else {"type": "json_object"}),
@@ -59,4 +62,22 @@ def chat_json(system: str, user: str, *, image_b64: Optional[str] = None,
     text = data["choices"][0]["message"]["content"] or ""
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()
     m = re.search(r"\{.*\}", text, flags=re.S)
-    return json.loads(m.group(0) if m else text)
+    try:
+        return json.loads(m.group(0) if m else text)
+    except json.JSONDecodeError:
+        return _salvage(text)
+
+
+def _salvage(text: str) -> dict:
+    """Output cut off at max_tokens: keep every complete [..] fact before the cut, drop the rest."""
+    facts = []
+    for m in re.finditer(r"\[\s*\"[a-z0-9_.]+\"\s*,.*?\](?=\s*[,\]])", text):
+        try:
+            row = json.loads(m.group(0))
+            if isinstance(row, list):
+                facts.append(row)
+        except json.JSONDecodeError:
+            continue
+    if not facts:
+        raise json.JSONDecodeError("unrecoverable model output", text, 0)
+    return {"f": facts, "_salvaged": True}

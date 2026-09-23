@@ -29,6 +29,9 @@ def extract(text: str, captured_by: CapturedBy = CapturedBy.medic, default_role:
     for f in llm_facts:
         r = merged.get(f.key)
         if r is None:
+            # Model-only facts are never auto-confirmed: the bake-off (2026-09-23) showed the model adds
+            # recall (number words, corrections) but also false facts. The medic confirms them.
+            f.confidence = min(f.confidence, 0.8)
             merged[f.key] = f
         elif f.key.startswith("vitals."):
             continue

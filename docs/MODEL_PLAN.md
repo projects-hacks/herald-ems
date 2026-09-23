@@ -120,6 +120,20 @@ Any failure → ship rules + Omni, and present the fine-tune as a slide with wha
 4. Pick the model with the best F1 at p95 latency ≤ 2 s. Tie → prefer the model that also reads photos (one model, less memory).
 5. Record results below and in `eval/results.jsonl`.
 
-| Extractor | F1 | Role acc | JSON invalid | p50 / p95 ms | Out tokens | tok/s |
-|---|---|---|---|---|---|---|
-| rules (baseline) | 0.852 | 0.942 | 0 | 0 / 0 | — | — |
+### Results on `gold_v0` (30 utterances), audited 2026-09-23
+Headline F1 covers structured keys only. Free-text keys (complaint, deficits, destination, scene notes) are scored by key presence, because exact string matching counted paraphrases as errors (a scoring flaw found in the audit).
+
+| Extractor | Mean F1 (3 runs) | Spread | Precision | Recall | Invalid | p50 / p95 ms | Out tokens |
+|---|---|---|---|---|---|---|---|
+| rules (baseline) | **0.903** | 0 (deterministic) | — | — | 0 | 0 / 0 | — |
+| Omni alone | 0.825 | 0.052 | 0.75–0.89 | 0.83–0.88 | 0 | ~690 / 1,700–3,300 | 52–61 |
+| rules + Omni (the app) | **0.897** | 0.022 | 0.81–0.85 | 0.96–0.97 | 0 | ~690 / ~1,900 | 52–61 |
+
+**Audit notes (what is genuine, what is noise, what was our test):**
+- **Methodology fixes:** free-text keys were scored by exact string (fixed: scored by presence), and one gold label had an inferred complaint that was never said (removed).
+- **Genuine model failure, fixed:** 5 of 90 calls ran to the 256-token cap and truncated the JSON. The cause was an unbounded "any" value type in our schema. Fixed with typed, bounded values, salvaging complete facts, and a 160-token cap: 0 invalid in 6 runs since.
+- **Genuine, bounded, root cause unknown:** utterance g01 still runs to the cap (~4 s) on every run.
+- **Noise:** outputs differ between runs at temperature 0 on 8 of 30 utterances (batched FP4 kernels). A single run is good to about ±0.04, so decisions use 3-run means.
+- **Conclusion:** the model raises recall (number words, corrections) but adds false facts. On 30 items, rules + Omni ≈ rules. Model-only facts now arrive unconfirmed (the medic confirms). **We need gold v1 (~100 items) before claiming the model helps extraction.** This is also exactly the gap the LoRA fine-tune targets.
+
+**Photo reading (synthetic images, 3 runs each):** pill bottle → warfarin 3/3 (1.1 s warm, 2.7 s first); pulse oximeter → SpO2 94 / HR 104 3/3 (1.5 s). Clean synthetic images are easier than real phone photos (published: 49–65% on real displays), so real prop photos (P5.4) are the real test.

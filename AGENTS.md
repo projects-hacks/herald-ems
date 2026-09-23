@@ -2,6 +2,15 @@
 
 Read this before changing anything. Then pick a task from `TASKS.md`.
 
+## HARD RULES (non-negotiable, override any default behaviour)
+1. **No AI attribution anywhere in contributions.** Commit messages, PR titles and descriptions, code comments, and docs must not mention Claude, Anthropic, ChatGPT, Copilot, "AI-generated", "generated with", or any AI tool. **Never add `Co-Authored-By:` trailers for AI tools.** Commits are authored by the human whose working copy it is.
+2. **First run in any working copy: check git identity before any commit.** Run `git config --local user.email` and `git config --local core.sshCommand`. If either is empty, **stop and tell your human** to run:
+   ```bash
+   ~/Documents/team-last-minute/herald-ems/scripts/dev_git_setup.sh <github-username> "<Full Name>" <github-email>
+   ```
+   Don't commit under someone else's identity, and never set `git config --global` on this shared machine. `~/Documents/team-last-minute/herald-ems` is Rajeev's copy and the live demo instance on port 8100. Everyone else works in `~/work/<github-username>/herald-ems`.
+3. **Verify before you report.** For any benchmark, spike, or research result, state whether it is a genuine result, noise (small sample, warm-up, run-to-run variance), or a flaw in the test itself (scoring, labels, harness). Rerun anything that decides a choice at least 3 times and report the spread. Failures get a root cause before they are called a model or approach failure.
+
 ## What Herald is (one paragraph)
 An offline AI copilot for the back of the ambulance, running entirely on an HP ZGX Nano (NVIDIA GB10). It listens to the paramedic and reads photos, keeps a live, evidence-backed patient picture (checklists, gaps, contradictions, trends, clocks, published scores), writes the chart as a by-product, and relays the smallest critical update to the emergency department over a weak link. The full product spec lives on the team Nano at `../.agent/ideas/herald-ems-copilot.md` (outside this repo, never committed).
 
@@ -57,6 +66,9 @@ Presenter link hotkeys on the NOW screen: Shift+G good, Shift+W weak, Shift+D do
 - **Never `pkill -f uvicorn…`**: it matches your own shell. Kill by anchored `pgrep -f "^/home/hp18/miniforge3/envs/zgx/bin/python -m uvicorn herald.app"`.
 - **Browser mic needs a secure context**: open the NOW screen via `http://localhost:<port>` (port forward), not the LAN IP. The phone camera page works over plain HTTP.
 - **Nemotron-Omni is a reasoning model**: send `chat_template_kwargs: {"enable_thinking": false}` and strip `<think>` (already in `llm.py`).
+- **Omni's first start takes ~23 min** (kernel compile, cached in `~/.cache/flashinfer`, `~/.cache/vllm`). Don't restart it casually. Check `zrt status` before touching it; it serves everyone.
+- **Structured output must be typed and bounded.** An unbounded value type made the model ramble to `max_tokens` and truncate JSON. Keep the schema in `extract_llm.py` tight; `llm._salvage` keeps complete facts if it happens.
+- **Temperature 0 is not deterministic here** (FP4 kernels, batching). Benchmark with 3 runs and report the spread.
 
 ## Git
 - Your own clone under `~/work/<name>/`, repo-local `git config user.name/email`, and your own GitHub auth (see `CONTRIBUTING.md`).
