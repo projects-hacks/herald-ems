@@ -11,8 +11,34 @@ Read this before changing anything. Then pick a task from `TASKS.md`.
    Don't commit under someone else's identity, and never set `git config --global` on this shared machine. `~/Documents/team-last-minute/herald-ems` is Rajeev's copy and the live demo instance on port 8100. Everyone else works in `~/work/<github-username>/herald-ems`.
 3. **Verify before you report.** For any benchmark, spike, or research result, state whether it is a genuine result, noise (small sample, warm-up, run-to-run variance), or a flaw in the test itself (scoring, labels, harness). Rerun anything that decides a choice at least 3 times and report the spread. Failures get a root cause before they are called a model or approach failure.
 
+## Document map: read these before you start
+
+Every decision in this project was researched and written down. Before proposing a change, check the doc that owns that topic, and follow the decisions recorded there unless you have new evidence. If you change a decision, update the owning doc in the same PR.
+
+### In this repo (public; committed)
+| Doc | What's in it | Read it when | Kept current by |
+|---|---|---|---|
+| [`README.md`](README.md) | Public overview for judges: what Herald does, how to run it, architecture, the evidence behind the scores. | You need the 2-minute picture, or you're changing anything user-visible about setup. | pitch + integration |
+| [`AGENTS.md`](AGENTS.md) (this file) | Hard rules, invariants, layout, run commands, pitfalls already hit on this box, the doc map. | Always, first. | everyone |
+| [`TASKS.md`](TASKS.md) | The task board: verified checkpoint, protect order P1–P10, model tasks M*, UI tasks U*, infra and deliverables, owners, done-criteria. | Before picking work; after finishing work (update the status in the same PR). | everyone |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Per-person git setup on the shared `hp18` login, shared secrets (HF token), branches, ports, GPU etiquette, owners. | Your first session; before your first commit. | lead |
+| [`docs/MODEL_PLAN.md`](docs/MODEL_PLAN.md) | Why each model was chosen (published benchmarks + measured GB10 throughput, with sources); exact serve flags; the audited bake-off (3 runs each, what's genuine vs noise vs test flaws); the complete fine-tuning plan with go/no-go checks; what NOT to do. | Before touching `herald/llm.py`, `extract_llm.py`, `vision.py`, `stt.py`, ZRT, or any training. | ML lead |
+| [`docs/UX_PLAN.md`](docs/UX_PLAN.md) | Evidence-based UI plan: principles tied to IEC 60601-1-8 alarm priorities, WCAG 2.2, human-AI interaction guidelines, FDA CDS guidance; color tokens and type scale; screen specs (NOW, "Herald thinking" trace, phone capture, ED screen, presenter controls); stack decision (React + TS + Vite + Tailwind + shadcn/ui) with a fallback gate; what HP/NVIDIA provide on the ZGX; U-task list. | Before any frontend work, and before adding any alert, color, or animation. | frontend lead |
+| [`eval/`](eval/) | Gold set (`gold_v0.jsonl`), benchmark (`bench_extract.py`), test photos, and result history (`results.jsonl`). | Before claiming any accuracy number. | data + eval |
+| [`scenarios/`](scenarios/) + [`scripts/replay.py`](scripts/replay.py) | The stroke demo as a replayable script (rehearsal, video, regression). | Rehearsing, recording, or checking the demo still works after a change. | pitch |
+
+### On the team Nano only (internal; NEVER commit, never copy into the repo)
+These live outside the repo because they contain pitch strategy, judge Q&A preparation, and ideation history. Everyone SSHes into the same machine, so the absolute paths work for every teammate and every agent.
+
+| Doc | What's in it | Read it when |
+|---|---|---|
+| `/home/hp18/Documents/team-last-minute/.agent/ideas/herald-ems-copilot.md` | **The product spec, the source of truth for what we build and how we pitch it.** Problem and evidence (§1); product definition and pitch-language rules (§2); architecture (§3); state engine (§4); NOW and ED screen specs (§5); every-call copilot features with "ours vs table stakes" (§6); relay design, tiers and network-control commands (§7, §7a); local AI stack (§8); fine-tuning component (§9); metrics and the five-metric final slide (§10); the 5-minute demo script, stroke scenario, judge beat and props (§11); scope, MVP/V2/cut and the protect order (§12); competitors, prior art, the ems-ai.com co-pilot vision mapping and honesty rules (§13); rehearsed Q&A answers incl. FDA/liability (§14); plain-language FAQ (§15); public data sources (§15a); risks (§16); team split and day plan (§17); decision log (§18). | Before any feature work, any UI copy, anything said on stage, or anything that touches clinical wording. |
+| `/home/hp18/Documents/team-last-minute/.agent/context.md` | Hackathon rules, tracks and judging criteria, the deliverables checklist and deadline, machine specs and setup history, the full ideation and decision history (why EMS, rejected ideas and why), the track recommendation (AI for Community Impact, pending organizers' answer on prizes). | Before anything that affects submission, track choice, or deliverables; when you need to know why something was decided. |
+| `/home/hp18/Documents/team-last-minute/.agent/sources/` | Primary sources downloaded for the spec (e.g., the 2021 National Guideline for the Field Triage of Injured Patients, PDF + text). | When implementing or citing a clinical rule. |
+| `~/.config/herald/secrets.env` | Shared `HF_TOKEN` and `HF_REPO_ID` (mode 600, loaded by every `hp18` shell). | Never print, log, commit, or paste its contents. Use the env vars. |
+
 ## What Herald is (one paragraph)
-An offline AI copilot for the back of the ambulance, running entirely on an HP ZGX Nano (NVIDIA GB10). It listens to the paramedic and reads photos, keeps a live, evidence-backed patient picture (checklists, gaps, contradictions, trends, clocks, published scores), writes the chart as a by-product, and relays the smallest critical update to the emergency department over a weak link. The full product spec lives on the team Nano at `../.agent/ideas/herald-ems-copilot.md` (outside this repo, never committed).
+An offline AI copilot for the back of the ambulance, running entirely on an HP ZGX Nano (NVIDIA GB10). It listens to the paramedic and reads photos, keeps a live, evidence-backed patient picture (checklists, gaps, contradictions, trends, clocks, published scores), writes the chart as a by-product, and relays the smallest critical update to the emergency department over a weak link. The full product spec lives on the team Nano at `/home/hp18/Documents/team-last-minute/.agent/ideas/herald-ems-copilot.md` (outside this repo, never committed; see the document map above).
 
 ## Invariants: never break these
 1. **No cloud AI.** All inference runs locally. The LLM/VLM is reached only at `http://127.0.0.1:8080/v1` (ZRT/vLLM on this box).
@@ -59,7 +85,7 @@ Presenter link hotkeys on the NOW screen: Shift+G good, Shift+W weak, Shift+D do
 
 ## Pitfalls already hit on this box (don't rediscover them)
 - **ZRT needs the `zrt` group**: run via `sg zrt -c "zrt …"` in old shells. The API is `127.0.0.1:8080/v1`, with auth and TLS off, localhost only.
-- **vLLM kernel JIT needs Python headers** (`python3.12-dev` isn't installed). Export `C_INCLUDE_PATH=CPLUS_INCLUDE_PATH=~/miniforge3/envs/zgx/include/python3.12` before `zrt serve`.
+- **vLLM kernel JIT needs Python headers.** `python3.12-dev` is now installed system-wide (2026-09-23), which fixes it. The older workaround (`C_INCLUDE_PATH=CPLUS_INCLUDE_PATH=~/miniforge3/envs/zgx/include/python3.12` before `zrt serve`) is harmless if you see it in scripts.
 - **The JIT compile can OOM the box** (one `cicc` per core, about 4.5 GB each). Export `MAX_JOBS=3 NVCC_THREADS=1` before `zrt serve`.
 - **Always cap vLLM memory**: `--gpu-memory-fraction 0.35` or lower. Whisper and the app share the same 121 GiB.
 - **One GPU-heavy job at a time.** Fine-tuning and model swaps get announced to the team.
@@ -73,5 +99,5 @@ Presenter link hotkeys on the NOW screen: Shift+G good, Shift+W weak, Shift+D do
 ## Git
 - Your own clone under `~/work/<name>/`, repo-local `git config user.name/email`, and your own GitHub auth (see `CONTRIBUTING.md`).
 - Branch `feat/<area>`; small PRs; `main` always runs the demo.
-- Never commit `../.agent/`, `data/audio/*`, `data/photos/*`, tokens, or the device password.
+- Never commit `/home/hp18/Documents/team-last-minute/.agent/` (or any copy of it), `data/audio/*`, `data/photos/*`, `~/.config/herald/secrets.env`, tokens, or the device password.
 - Commit messages: imperative, what and why.

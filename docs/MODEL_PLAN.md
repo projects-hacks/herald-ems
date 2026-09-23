@@ -8,6 +8,24 @@ Rule: published benchmarks pick the candidates; our own benchmark on `eval/gold_
 - **Output length dominates latency**: each 10 JSON tokens costs about 150 ms. Our extractor therefore emits compact arrays (`{"f":[[key,value,who]]}`), only keys that are present, under a strict JSON schema, with `max_tokens` capped at 256.
 - Runtime: HP Z Runtime (ZRT) wraps **vLLM 0.26.0**. vLLM flags must go after `--` or in `--extra`. The organizers' example command fails as written (`unknown flag: --tensor-parallel-size`).
 
+## 0. How HP's own reference apps use the ZGX (from the HP ZGX console, 2026-09-23)
+The organizers' ZGX console lists HP-built apps with their AI stacks, telemetry, and "net compute savings". What they run, and what it means for us:
+
+| HP app | Models | "Intelligence services" | What we take from it |
+|---|---|---|---|
+| Audio2Text (Healthcare) | `openai/whisper-large-v3-turbo`, `pyannote/speaker-diarization-community-1`, `Qwen/Qwen3-32B-AWQ` | none | **Same speech-to-text as ours.** They add speaker diarization (who spoke when). That's a stronger "who said it" than inferring it from phrasing → task M8. |
+| Doctor NoteAI (Healthcare) | whisper-large-v3-turbo, pyannote diarization, Qwen3-32B-AWQ, Qwen3-32B-BF16 | none | Dense 32B models write notes **after** the conversation. Herald must update **during** the call (sub-second), which is why we use rules + a 3B-active MoE model. |
+| Contract & Legal Auditor | `nvidia/Nemotron-Mini-4B-Instruct` + `nvidia/Llama-3.1-Nemotron-70B-Instruct` ("dual engine") | clause-aware hybrid retrieval, citation validation, **prompt-injection containment**, **synthetic evaluation harness** | Small + large "dual engine" is the same pattern as our rules-instantly + model-refines. HP names evaluation harnesses and injection containment as features. We have the harness; injection testing → task M9. |
+| Enterprise Support Router | 3 models, 3 services; "Express and Premium engines" | — | Routing between fast and strong engines, like ours. |
+| Hermes Agent Local (9.87M tokens, the heaviest user) | `nvidia/Qwen3.6-35B-A3B-NVFP4`, 64.8 GiB allocated | on-device Qwen inference | **A 3B-active MoE in NVFP4, the same class we chose**, and exactly our photo-reading fallback. |
+| Wildfire VLM Lab / VLM2 | Qwen2.5-VL base + LoRA ("immutable base vs resident LoRA", "held-out evidence", "verified training evidence") | — | HP presents fine-tunes as base-vs-LoRA with held-out evidence. That's exactly our P10 plan and audit discipline. |
+
+**Console telemetry and what we can match on this box:**
+- "Inference speed (t/s)" and "Number of tokens": ZRT exposes vLLM counters at `http://127.0.0.1:8080/metrics/<model>`. Herald's `/api/telemetry` reports them.
+- "SoC power": `nvidia-smi` gives GPU power (≈11 W idle, ≈26 W during generation). Whole-module power reads N/A, so our energy is GPU-only, a floor. Stated in the API.
+- "Memory bandwidth" and "Tensor active": **not available** here. `nvidia-smi`'s `utilization.memory` reads 0% even at 96% GPU utilization on GB10's unified memory, and DCGM isn't installed. HP's console must use its own profiling agent. We report GPU utilization instead and say so.
+- "Net compute savings" = cloud-equivalent cost of the tokens − local electricity at $0.15/kWh, with "rates configured per application and model with provider, service, unit, currency, and effective date". Herald's `/api/telemetry` uses the same formula with stated rates. **Caveat:** savings scale with token volume (Hermes: +$46.73 on 9.87M tokens; low-token apps show ±$0.00–0.21), so per-call savings are tiny. The case for Herald is offline operation and privacy; dollars are supporting evidence.
+
 ## 1. Text model (live extraction)
 | Rank | Model | Active | Decode on GB10 (measured by others) | 150-tok latency (est.) | Instruction-following evidence | vLLM 0.26 status |
 |---|---|---|---|---|---|---|
@@ -120,7 +138,22 @@ Any failure → ship rules + Omni, and present the fine-tune as a slide with wha
 4. Pick the model with the best F1 at p95 latency ≤ 2 s. Tie → prefer the model that also reads photos (one model, less memory).
 5. Record results below and in `eval/results.jsonl`.
 
-### Results on `gold_v0` (30 utterances), audited 2026-09-23
+### Current results on `gold_v0` (30 utterances), after the fixes, 3 runs each (2026-09-23, evening)
+| Extractor | Mean F1 | Spread | Precision | Recall | Role acc | p50 / p95 ms |
+|---|---|---|---|---|---|---|
+| rules | **0.917** | 0 | 0.971 | 0.868 | 0.939 | 0 / 0 |
+| Omni alone | 0.860 | 0.033 | 0.84–0.93 | 0.83–0.84 | 0.95–0.98 | ~690 / ~1,880 |
+| **rules + Omni (the app)** | **0.964** | 0.007 | 0.94–0.95 | 0.97–0.99 | 0.95 | ~680 / ~1,830 |
+
+**What changed since the first audit (and why):**
+- Spoken corrections are handled in the rules extractor, pair-aware for blood pressure. "88, correction, 98" was kept as 88, and a first version of the fix turned "120 over 80, i mean 130 over 80" into SBP 120 / DBP 130. Both are now covered by regression tests.
+- Model facts for exam findings, witness status and GCS must be grounded in words that were said. In a live test, the model invented four RACE item scores from "sudden left-sided weakness".
+- The trace separates "agreed with rules" from "overridden by rules".
+
+**Is the +0.047 over rules genuine?** It's larger than the run-to-run spread (0.007), so it isn't noise. **But it is optimistic:** the fixes were designed while looking at failures from this same 30-item set. The confirmation needs an **independently written held-out gold set** (M4, being built by a labeler who has never seen our extractor), and the claim goes in the deck only after that.
+
+### First audit (same day, before the fixes), kept for the record
+
 Headline F1 covers structured keys only. Free-text keys (complaint, deficits, destination, scene notes) are scored by key presence, because exact string matching counted paraphrases as errors (a scoring flaw found in the audit).
 
 | Extractor | Mean F1 (3 runs) | Spread | Precision | Recall | Invalid | p50 / p95 ms | Out tokens |

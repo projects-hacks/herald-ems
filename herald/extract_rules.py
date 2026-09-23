@@ -69,6 +69,15 @@ def extract(text: str, captured_by: CapturedBy = CapturedBy.medic,
             default_role: Role = Role.medic, default_speaker: Optional[str] = None,
             audio_id: Optional[str] = None) -> list[FactIn]:
     out: list[FactIn] = []
+    # Spoken corrections: "pulse was 88, correction, 98" -> "pulse was 98" (before clause splitting,
+    # which would otherwise separate the corrected number from its label).
+    corr = r"\s*[,.]?\s*(?:correction|i mean|sorry|scratch that|no wait)\s*[,.:]?\s*"
+    # blood-pressure pairs first: "120 over 80, i mean 130 over 80" -> "130 over 80"
+    text = re.sub(r"\b(\d{2,3})\s*(?:over|/)\s*(\d{2,3})" + corr + r"(\d{2,3})\s*(?:over|/)\s*(\d{2,3})\b",
+                  r"\3 over \4", text, flags=re.I)
+    # single numbers, but never split a BP pair: "88, correction, 98" -> "98"
+    text = re.sub(r"\b(\d+(?:\.\d+)?)(?!\s*(?:over|/))" + corr + r"(\d+(?:\.\d+)?)\b(?!\s*(?:over|/))",
+                  r"\2", text, flags=re.I)
     for sentence in _sentences(text):
         # Attribution is per clause: in "68-year-old female, husband says she was
         # fine at 1:40" only the second clause is the husband's.

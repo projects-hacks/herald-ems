@@ -57,3 +57,16 @@ def test_news2_rise_alert():
     snap = inc.snapshot()
     rise = next(a for a in snap["alerts"] if a["type"] == "news2_rise")
     assert rise["to"] >= 5 and rise["band"] == "medium"
+
+
+def test_spoken_corrections_take_the_corrected_value():
+    cases = {
+        "Pulse was 88, correction, 98.": {"vitals.hr": 98},
+        "Sugar is 58, correction, 68.": {"vitals.glucose": 68},
+        "BP 120 over 80, i mean 130 over 80.": {"vitals.sbp": 130, "vitals.dbp": 80},
+        "BP 120 over 80, pulse 90.": {"vitals.sbp": 120, "vitals.dbp": 80, "vitals.hr": 90},
+        "Pressure 140 over 90, sorry, 150 over 95.": {"vitals.sbp": 150, "vitals.dbp": 95},
+    }
+    for text, want in cases.items():
+        got = {f.key: f.value for f in extract(text) if f.key in want}
+        assert got == want, (text, got)

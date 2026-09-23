@@ -8,7 +8,12 @@ from typing import Optional
 
 import httpx
 
+from .telemetry import TELEMETRY
+
 BASE_URL = os.getenv("HERALD_LLM_URL", "http://127.0.0.1:8080/v1")
+# Invariant: inference is local. Refuse any model endpoint that isn't on this machine.
+if not re.match(r"^https?://(127\.0\.0\.1|localhost|\[::1\])(:\d+)?/", BASE_URL):
+    raise RuntimeError(f"HERALD_LLM_URL must point at this box, got {BASE_URL}")
 _model_cache: Optional[str] = None
 
 
@@ -57,6 +62,7 @@ def chat_json(system: str, user: str, *, image_b64: Optional[str] = None,
     r = httpx.post(f"{BASE_URL}/chat/completions", json=body, timeout=timeout)
     r.raise_for_status()
     data = r.json()
+    TELEMETRY.record_llm(data.get("usage") or {}, kind="vision" if image_b64 else "text")
     if usage is not None:
         usage.update(data.get("usage") or {})
     text = data["choices"][0]["message"]["content"] or ""

@@ -50,6 +50,8 @@ def transcribe(audio: np.ndarray, sr: int, language: Optional[str] = None) -> di
     except Exception:
         pass
     out = pipe({"raw": audio, "sampling_rate": sr}, generate_kwargs=kwargs, return_timestamps=True)
+    from .telemetry import TELEMETRY
+    TELEMETRY.record_stt(len(audio) / sr)
     text = out.get("text", "").strip()
     if PROMPT[:30] in text:          # Whisper occasionally echoes the prompt
         text = text.replace(PROMPT, "").strip()

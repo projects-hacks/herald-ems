@@ -86,6 +86,19 @@ def _grounded(key: str, value, text: str) -> bool:
         return False
     if key == "code_status" and not re.search(r"dnr|polst|resusc|full code|dni", text, re.I):
         return False
+    # Exam findings and witness status must be grounded in words that were actually said. Live test
+    # (2026-09-23): from "sudden left-sided weakness" the model invented four RACE item scores.
+    need = {
+        "exam.race.facial": r"face|facial|droop|smile|palsy|asymmetr",
+        "exam.race.arm": r"\barm",
+        "exam.race.leg": r"\bleg",
+        "exam.race.gaze": r"gaze|eyes?\b|look(ing|s)? (to|toward)|deviat",
+        "exam.race.aphasia_agnosia": r"speak|speech|aphasi|agnosi|recogni|neglect|words",
+        "stroke.onset_witnessed": r"witness|saw (it|her|him)|in front of|found|woke|collapsed|watched",
+        "vitals.gcs_motor": r"gcs|motor|obey|command|localiz|withdraw|flex|extens",
+    }.get(key)
+    if need and not re.search(need, text, re.I):
+        return False
     return True
 
 
