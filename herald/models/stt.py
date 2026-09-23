@@ -31,7 +31,7 @@ class WhisperSTT:
                 import torch
                 from transformers import pipeline
                 self._pipe = pipeline("automatic-speech-recognition", model=self.model,
-                                      torch_dtype=torch.bfloat16, device=self.device)
+                                      dtype=torch.bfloat16, device=self.device)
         return self._pipe
 
     def warm(self) -> None:

@@ -153,7 +153,8 @@ difficulties; T is the last-known-well time and is labeled as `stroke.lkw`, not 
 - **A stated screen result:**
   - item by item ("GFAST: gaze positive, face positive, arm negative, speech positive"): label each;
   - "GFAST 4 of 4" / "GFAST positive, all four": all four items 1;
-  - any other total ("GFAST of 2"): no item labels, because the total doesn't say which.
+  - "GFAST 0" / "GFAST negative": all four items 0 (a zero total does say which);
+  - any other total ("GFAST of 2"): no item labels, because the total doesn't say which. If the medic names the positive items ("two of four, face and speech"), those are 1 and the unnamed ones get no label unless stated negative.
 - **RACE item scores spoken by the medic are the medic's findings.** All three G.F.A.S.T. annotators independently used this convention, and it is now the rule:
   - facial/gaze score > 0 gives 1 for that item; a score of 0 gives 0;
   - arm or leg score > 0 gives arm_leg 1; arm_leg 0 only when both the arm and the leg are scored 0;

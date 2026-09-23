@@ -1,0 +1,1085 @@
+{
+ "source": "AO-2025-005_policy-602-destination_eff-2025-04-01.pdf page 20",
+ "source_detail": "Physical PDF page 20 = printed \"Page 9 of 10\" of the CLEAN copy of Policy 602 (effective April 1, 2025) inside Administrative Order AO 2025-005. The same table also appears on physical page 10 (tracked-changes/redline copy of Policy 602, also printed \"Page 9 of 10\"); both copies were keyed and are cell-for-cell identical.",
+ "table_title": "Table B: Approved In-County Services",
+ "banner": "Approved In-County Services",
+ "printed_orientation": "As printed, service levels are the table ROWS (left stub) and facilities are the COLUMNS (abbreviations only). This key is transposed to the requested format: \"columns\" = service levels, \"rows\" = facilities.",
+ "columns": [
+  "Emergency Department (Adult)",
+  "Burn Center",
+  "Primary Stroke Center",
+  "Comprehensive Stroke Center",
+  "STEMI Center",
+  "Adult Trauma Center",
+  "Pediatric Trauma Center",
+  "Advanced Pediatric Center",
+  "General Pediatric Center",
+  "*Psychiatric Facility",
+  "*VAD Center",
+  "*Labor & Delivery",
+  "*SAFE Center",
+  "*Helipads"
+ ],
+ "facility_order_as_printed": [
+  "EPS",
+  "ECH",
+  "GSH",
+  "KSC",
+  "LGH",
+  "OCH",
+  "PAV",
+  "RSJ",
+  "SLH",
+  "STH",
+  "SUH",
+  "VMC"
+ ],
+ "rows": [
+  {
+   "facility": "Emergency Psychiatric Services (EPS)",
+   "abbrev": "EPS",
+   "city": null,
+   "checks": {
+    "Emergency Department (Adult)": false,
+    "Burn Center": false,
+    "Primary Stroke Center": false,
+    "Comprehensive Stroke Center": false,
+    "STEMI Center": false,
+    "Adult Trauma Center": false,
+    "Pediatric Trauma Center": false,
+    "Advanced Pediatric Center": false,
+    "General Pediatric Center": false,
+    "*Psychiatric Facility": true,
+    "*VAD Center": false,
+    "*Labor & Delivery": false,
+    "*SAFE Center": false,
+    "*Helipads": false
+   },
+   "note": "Not listed in Table A. Name taken from Policy 602 V.B.2.a (page 13/3): \"transported to Emergency Psychiatric Services (EPS)\", where EPS is reached when \"Santa Clara Valley Medical Center is written as the destination\"."
+  },
+  {
+   "facility": "El Camino Hospital of Mountain View",
+   "abbrev": "ECH",
+   "city": "Mountain View",
+   "checks": {
+    "Emergency Department (Adult)": true,
+    "Burn Center": false,
+    "Primary Stroke Center": true,
+    "Comprehensive Stroke Center": true,
+    "STEMI Center": true,
+    "Adult Trauma Center": false,
+    "Pediatric Trauma Center": false,
+    "Advanced Pediatric Center": false,
+    "General Pediatric Center": true,
+    "*Psychiatric Facility": true,
+    "*VAD Center": false,
+    "*Labor & Delivery": true,
+    "*SAFE Center": false,
+    "*Helipads": false
+   }
+  },
+  {
+   "facility": "Good Samaritan Hospital",
+   "abbrev": "GSH",
+   "city": "San Jose",
+   "checks": {
+    "Emergency Department (Adult)": true,
+    "Burn Center": false,
+    "Primary Stroke Center": true,
+    "Comprehensive Stroke Center": true,
+    "STEMI Center": true,
+    "Adult Trauma Center": false,
+    "Pediatric Trauma Center": false,
+    "Advanced Pediatric Center": false,
+    "General Pediatric Center": true,
+    "*Psychiatric Facility": true,
+    "*VAD Center": false,
+    "*Labor & Delivery": true,
+    "*SAFE Center": false,
+    "*Helipads": true
+   }
+  },
+  {
+   "facility": "Kaiser Foundation Santa Clara",
+   "abbrev": "KSC",
+   "city": "Santa Clara",
+   "checks": {
+    "Emergency Department (Adult)": true,
+    "Burn Center": false,
+    "Primary Stroke Center": true,
+    "Comprehensive Stroke Center": true,
+    "STEMI Center": true,
+    "Adult Trauma Center": false,
+    "Pediatric Trauma Center": false,
+    "Advanced Pediatric Center": true,
+    "General Pediatric Center": true,
+    "*Psychiatric Facility": true,
+    "*VAD Center": true,
+    "*Labor & Delivery": true,
+    "*SAFE Center": false,
+    "*Helipads": true
+   }
+  },
+  {
+   "facility": "El Camino Hospital of Los Gatos",
+   "abbrev": "LGH",
+   "city": "Los Gatos",
+   "checks": {
+    "Emergency Department (Adult)": true,
+    "Burn Center": false,
+    "Primary Stroke Center": true,
+    "Comprehensive Stroke Center": false,
+    "STEMI Center": false,
+    "Adult Trauma Center": false,
+    "Pediatric Trauma Center": false,
+    "Advanced Pediatric Center": false,
+    "General Pediatric Center": false,
+    "*Psychiatric Facility": true,
+    "*VAD Center": false,
+    "*Labor & Delivery": true,
+    "*SAFE Center": false,
+    "*Helipads": false
+   }
+  },
+  {
+   "facility": "O’Connor Hospital",
+   "abbrev": "OCH",
+   "city": "San Jose",
+   "checks": {
+    "Emergency Department (Adult)": true,
+    "Burn Center": false,
+    "Primary Stroke Center": true,
+    "Comprehensive Stroke Center": false,
+    "STEMI Center": true,
+    "Adult Trauma Center": false,
+    "Pediatric Trauma Center": false,
+    "Advanced Pediatric Center": false,
+    "General Pediatric Center": true,
+    "*Psychiatric Facility": true,
+    "*VAD Center": false,
+    "*Labor & Delivery": true,
+    "*SAFE Center": false,
+    "*Helipads": false
+   }
+  },
+  {
+   "facility": "Palo Alto Veterans Administration Hospital",
+   "abbrev": "PAV",
+   "city": "Palo Alto",
+   "checks": {
+    "Emergency Department (Adult)": true,
+    "Burn Center": false,
+    "Primary Stroke Center": false,
+    "Comprehensive Stroke Center": false,
+    "STEMI Center": false,
+    "Adult Trauma Center": false,
+    "Pediatric Trauma Center": false,
+    "Advanced Pediatric Center": false,
+    "General Pediatric Center": false,
+    "*Psychiatric Facility": true,
+    "*VAD Center": false,
+    "*Labor & Delivery": false,
+    "*SAFE Center": false,
+    "*Helipads": false
+   }
+  },
+  {
+   "facility": "Regional Medical Center of San Jose",
+   "abbrev": "RSJ",
+   "city": "San Jose",
+   "checks": {
+    "Emergency Department (Adult)": true,
+    "Burn Center": false,
+    "Primary Stroke Center": true,
+    "Comprehensive Stroke Center": true,
+    "STEMI Center": true,
+    "Adult Trauma Center": true,
+    "Pediatric Trauma Center": false,
+    "Advanced Pediatric Center": false,
+    "General Pediatric Center": true,
+    "*Psychiatric Facility": true,
+    "*VAD Center": false,
+    "*Labor & Delivery": false,
+    "*SAFE Center": false,
+    "*Helipads": true
+   }
+  },
+  {
+   "facility": "Saint Louise Regional Medical Center",
+   "abbrev": "SLH",
+   "city": "Gilroy",
+   "checks": {
+    "Emergency Department (Adult)": true,
+    "Burn Center": false,
+    "Primary Stroke Center": true,
+    "Comprehensive Stroke Center": false,
+    "STEMI Center": false,
+    "Adult Trauma Center": false,
+    "Pediatric Trauma Center": false,
+    "Advanced Pediatric Center": false,
+    "General Pediatric Center": true,
+    "*Psychiatric Facility": true,
+    "*VAD Center": false,
+    "*Labor & Delivery": true,
+    "*SAFE Center": true,
+    "*Helipads": true
+   }
+  },
+  {
+   "facility": "Kaiser Foundation San Jose",
+   "abbrev": "STH",
+   "city": "San Jose",
+   "checks": {
+    "Emergency Department (Adult)": true,
+    "Burn Center": false,
+    "Primary Stroke Center": true,
+    "Comprehensive Stroke Center": false,
+    "STEMI Center": true,
+    "Adult Trauma Center": false,
+    "Pediatric Trauma Center": false,
+    "Advanced Pediatric Center": false,
+    "General Pediatric Center": true,
+    "*Psychiatric Facility": true,
+    "*VAD Center": false,
+    "*Labor & Delivery": true,
+    "*SAFE Center": false,
+    "*Helipads": false
+   },
+   "note": "Table A prints the ID \"STH\" for Kaiser Foundation San Jose (not \"KSJ\"); keyed as printed."
+  },
+  {
+   "facility": "Stanford Health Care",
+   "abbrev": "SUH",
+   "city": "Palo Alto",
+   "checks": {
+    "Emergency Department (Adult)": true,
+    "Burn Center": false,
+    "Primary Stroke Center": true,
+    "Comprehensive Stroke Center": true,
+    "STEMI Center": true,
+    "Adult Trauma Center": true,
+    "Pediatric Trauma Center": true,
+    "Advanced Pediatric Center": true,
+    "General Pediatric Center": true,
+    "*Psychiatric Facility": true,
+    "*VAD Center": true,
+    "*Labor & Delivery": true,
+    "*SAFE Center": true,
+    "*Helipads": true
+   }
+  },
+  {
+   "facility": "Santa Clara Valley Medical Center",
+   "abbrev": "VMC",
+   "city": "San Jose",
+   "checks": {
+    "Emergency Department (Adult)": true,
+    "Burn Center": true,
+    "Primary Stroke Center": true,
+    "Comprehensive Stroke Center": false,
+    "STEMI Center": true,
+    "Adult Trauma Center": true,
+    "Pediatric Trauma Center": true,
+    "Advanced Pediatric Center": true,
+    "General Pediatric Center": true,
+    "*Psychiatric Facility": true,
+    "*VAD Center": false,
+    "*Labor & Delivery": true,
+    "*SAFE Center": true,
+    "*Helipads": true
+   }
+  }
+ ],
+ "by_service": {
+  "Emergency Department (Adult)": [
+   "ECH",
+   "GSH",
+   "KSC",
+   "LGH",
+   "OCH",
+   "PAV",
+   "RSJ",
+   "SLH",
+   "STH",
+   "SUH",
+   "VMC"
+  ],
+  "Burn Center": [
+   "VMC"
+  ],
+  "Primary Stroke Center": [
+   "ECH",
+   "GSH",
+   "KSC",
+   "LGH",
+   "OCH",
+   "RSJ",
+   "SLH",
+   "STH",
+   "SUH",
+   "VMC"
+  ],
+  "Comprehensive Stroke Center": [
+   "ECH",
+   "GSH",
+   "KSC",
+   "RSJ",
+   "SUH"
+  ],
+  "STEMI Center": [
+   "ECH",
+   "GSH",
+   "KSC",
+   "OCH",
+   "RSJ",
+   "STH",
+   "SUH",
+   "VMC"
+  ],
+  "Adult Trauma Center": [
+   "RSJ",
+   "SUH",
+   "VMC"
+  ],
+  "Pediatric Trauma Center": [
+   "SUH",
+   "VMC"
+  ],
+  "Advanced Pediatric Center": [
+   "KSC",
+   "SUH",
+   "VMC"
+  ],
+  "General Pediatric Center": [
+   "ECH",
+   "GSH",
+   "KSC",
+   "OCH",
+   "RSJ",
+   "SLH",
+   "STH",
+   "SUH",
+   "VMC"
+  ],
+  "*Psychiatric Facility": [
+   "EPS",
+   "ECH",
+   "GSH",
+   "KSC",
+   "LGH",
+   "OCH",
+   "PAV",
+   "RSJ",
+   "SLH",
+   "STH",
+   "SUH",
+   "VMC"
+  ],
+  "*VAD Center": [
+   "KSC",
+   "SUH"
+  ],
+  "*Labor & Delivery": [
+   "ECH",
+   "GSH",
+   "KSC",
+   "LGH",
+   "OCH",
+   "SLH",
+   "STH",
+   "SUH",
+   "VMC"
+  ],
+  "*SAFE Center": [
+   "SLH",
+   "SUH",
+   "VMC"
+  ],
+  "*Helipads": [
+   "GSH",
+   "KSC",
+   "RSJ",
+   "SLH",
+   "SUH",
+   "VMC"
+  ]
+ },
+ "check_count": 84,
+ "cell_count": 168,
+ "footnote_as_printed": "*Note: Santa Clara County EMS Agency does not designate/regulate helipads, L&D, SAFE, VAD, or Psychiatric Centers, this is intended for supplemental information use only.",
+ "text_layer_glyphs": [
+  {
+   "service": "Emergency Department (Adult)",
+   "abbrev": "ECH",
+   "xMin": 212.4,
+   "yMin": 327.2,
+   "col_center_offset_pt": 0.7,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "Emergency Department (Adult)",
+   "abbrev": "GSH",
+   "xMin": 242.4,
+   "yMin": 327.2,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "Emergency Department (Adult)",
+   "abbrev": "KSC",
+   "xMin": 272.16,
+   "yMin": 327.2,
+   "col_center_offset_pt": 0.67,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "Emergency Department (Adult)",
+   "abbrev": "LGH",
+   "xMin": 302.16,
+   "yMin": 327.2,
+   "col_center_offset_pt": 0.68,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "Emergency Department (Adult)",
+   "abbrev": "OCH",
+   "xMin": 332.16,
+   "yMin": 327.2,
+   "col_center_offset_pt": 0.64,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "Emergency Department (Adult)",
+   "abbrev": "PAV",
+   "xMin": 361.92,
+   "yMin": 327.2,
+   "col_center_offset_pt": 0.6,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "Emergency Department (Adult)",
+   "abbrev": "RSJ",
+   "xMin": 391.92,
+   "yMin": 327.2,
+   "col_center_offset_pt": 0.58,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "Emergency Department (Adult)",
+   "abbrev": "SLH",
+   "xMin": 421.68,
+   "yMin": 327.2,
+   "col_center_offset_pt": 0.5,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "Emergency Department (Adult)",
+   "abbrev": "STH",
+   "xMin": 451.68,
+   "yMin": 327.2,
+   "col_center_offset_pt": 0.6,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "Emergency Department (Adult)",
+   "abbrev": "SUH",
+   "xMin": 481.44,
+   "yMin": 327.2,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "Emergency Department (Adult)",
+   "abbrev": "VMC",
+   "xMin": 511.44,
+   "yMin": 327.2,
+   "col_center_offset_pt": 0.36,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "Burn Center",
+   "abbrev": "VMC",
+   "xMin": 511.44,
+   "yMin": 352.16,
+   "col_center_offset_pt": 0.36,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "Primary Stroke Center",
+   "abbrev": "ECH",
+   "xMin": 212.4,
+   "yMin": 377.12,
+   "col_center_offset_pt": 0.7,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "Primary Stroke Center",
+   "abbrev": "GSH",
+   "xMin": 242.4,
+   "yMin": 377.12,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "Primary Stroke Center",
+   "abbrev": "KSC",
+   "xMin": 272.16,
+   "yMin": 377.12,
+   "col_center_offset_pt": 0.67,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "Primary Stroke Center",
+   "abbrev": "LGH",
+   "xMin": 302.16,
+   "yMin": 377.12,
+   "col_center_offset_pt": 0.68,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "Primary Stroke Center",
+   "abbrev": "OCH",
+   "xMin": 332.16,
+   "yMin": 377.12,
+   "col_center_offset_pt": 0.64,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "Primary Stroke Center",
+   "abbrev": "RSJ",
+   "xMin": 391.92,
+   "yMin": 377.12,
+   "col_center_offset_pt": 0.58,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "Primary Stroke Center",
+   "abbrev": "SLH",
+   "xMin": 421.68,
+   "yMin": 377.12,
+   "col_center_offset_pt": 0.5,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "Primary Stroke Center",
+   "abbrev": "STH",
+   "xMin": 451.68,
+   "yMin": 377.12,
+   "col_center_offset_pt": 0.6,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "Primary Stroke Center",
+   "abbrev": "SUH",
+   "xMin": 481.44,
+   "yMin": 377.12,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "Primary Stroke Center",
+   "abbrev": "VMC",
+   "xMin": 511.44,
+   "yMin": 377.12,
+   "col_center_offset_pt": 0.36,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "Comprehensive Stroke Center",
+   "abbrev": "ECH",
+   "xMin": 212.4,
+   "yMin": 402.08,
+   "col_center_offset_pt": 0.7,
+   "row_center_offset_pt": 0.4
+  },
+  {
+   "service": "Comprehensive Stroke Center",
+   "abbrev": "GSH",
+   "xMin": 242.4,
+   "yMin": 402.08,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.4
+  },
+  {
+   "service": "Comprehensive Stroke Center",
+   "abbrev": "KSC",
+   "xMin": 272.16,
+   "yMin": 402.08,
+   "col_center_offset_pt": 0.67,
+   "row_center_offset_pt": 0.4
+  },
+  {
+   "service": "Comprehensive Stroke Center",
+   "abbrev": "RSJ",
+   "xMin": 391.92,
+   "yMin": 402.08,
+   "col_center_offset_pt": 0.58,
+   "row_center_offset_pt": 0.4
+  },
+  {
+   "service": "Comprehensive Stroke Center",
+   "abbrev": "SUH",
+   "xMin": 481.44,
+   "yMin": 402.08,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.4
+  },
+  {
+   "service": "STEMI Center",
+   "abbrev": "ECH",
+   "xMin": 212.4,
+   "yMin": 427.28,
+   "col_center_offset_pt": 0.7,
+   "row_center_offset_pt": 0.27
+  },
+  {
+   "service": "STEMI Center",
+   "abbrev": "GSH",
+   "xMin": 242.4,
+   "yMin": 427.28,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.27
+  },
+  {
+   "service": "STEMI Center",
+   "abbrev": "KSC",
+   "xMin": 272.16,
+   "yMin": 427.28,
+   "col_center_offset_pt": 0.67,
+   "row_center_offset_pt": 0.27
+  },
+  {
+   "service": "STEMI Center",
+   "abbrev": "OCH",
+   "xMin": 332.16,
+   "yMin": 427.28,
+   "col_center_offset_pt": 0.64,
+   "row_center_offset_pt": 0.27
+  },
+  {
+   "service": "STEMI Center",
+   "abbrev": "RSJ",
+   "xMin": 391.92,
+   "yMin": 427.28,
+   "col_center_offset_pt": 0.58,
+   "row_center_offset_pt": 0.27
+  },
+  {
+   "service": "STEMI Center",
+   "abbrev": "STH",
+   "xMin": 451.68,
+   "yMin": 427.28,
+   "col_center_offset_pt": 0.6,
+   "row_center_offset_pt": 0.27
+  },
+  {
+   "service": "STEMI Center",
+   "abbrev": "SUH",
+   "xMin": 481.44,
+   "yMin": 427.28,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.27
+  },
+  {
+   "service": "STEMI Center",
+   "abbrev": "VMC",
+   "xMin": 511.44,
+   "yMin": 427.28,
+   "col_center_offset_pt": 0.36,
+   "row_center_offset_pt": 0.27
+  },
+  {
+   "service": "Adult Trauma Center",
+   "abbrev": "RSJ",
+   "xMin": 391.92,
+   "yMin": 452.24,
+   "col_center_offset_pt": 0.58,
+   "row_center_offset_pt": 0.27
+  },
+  {
+   "service": "Adult Trauma Center",
+   "abbrev": "SUH",
+   "xMin": 481.44,
+   "yMin": 452.24,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.27
+  },
+  {
+   "service": "Adult Trauma Center",
+   "abbrev": "VMC",
+   "xMin": 511.44,
+   "yMin": 452.24,
+   "col_center_offset_pt": 0.36,
+   "row_center_offset_pt": 0.27
+  },
+  {
+   "service": "Pediatric Trauma Center",
+   "abbrev": "SUH",
+   "xMin": 481.44,
+   "yMin": 477.2,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "Pediatric Trauma Center",
+   "abbrev": "VMC",
+   "xMin": 511.44,
+   "yMin": 477.2,
+   "col_center_offset_pt": 0.36,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "Advanced Pediatric Center",
+   "abbrev": "KSC",
+   "xMin": 272.16,
+   "yMin": 502.16,
+   "col_center_offset_pt": 0.67,
+   "row_center_offset_pt": 0.31
+  },
+  {
+   "service": "Advanced Pediatric Center",
+   "abbrev": "SUH",
+   "xMin": 481.44,
+   "yMin": 502.16,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.31
+  },
+  {
+   "service": "Advanced Pediatric Center",
+   "abbrev": "VMC",
+   "xMin": 511.44,
+   "yMin": 502.16,
+   "col_center_offset_pt": 0.36,
+   "row_center_offset_pt": 0.31
+  },
+  {
+   "service": "General Pediatric Center",
+   "abbrev": "ECH",
+   "xMin": 212.4,
+   "yMin": 527.12,
+   "col_center_offset_pt": 0.7,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "General Pediatric Center",
+   "abbrev": "GSH",
+   "xMin": 242.4,
+   "yMin": 527.12,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "General Pediatric Center",
+   "abbrev": "KSC",
+   "xMin": 272.16,
+   "yMin": 527.12,
+   "col_center_offset_pt": 0.67,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "General Pediatric Center",
+   "abbrev": "OCH",
+   "xMin": 332.16,
+   "yMin": 527.12,
+   "col_center_offset_pt": 0.64,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "General Pediatric Center",
+   "abbrev": "RSJ",
+   "xMin": 391.92,
+   "yMin": 527.12,
+   "col_center_offset_pt": 0.58,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "General Pediatric Center",
+   "abbrev": "SLH",
+   "xMin": 421.68,
+   "yMin": 527.12,
+   "col_center_offset_pt": 0.5,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "General Pediatric Center",
+   "abbrev": "STH",
+   "xMin": 451.68,
+   "yMin": 527.12,
+   "col_center_offset_pt": 0.6,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "General Pediatric Center",
+   "abbrev": "SUH",
+   "xMin": 481.44,
+   "yMin": 527.12,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "General Pediatric Center",
+   "abbrev": "VMC",
+   "xMin": 511.44,
+   "yMin": 527.12,
+   "col_center_offset_pt": 0.36,
+   "row_center_offset_pt": 0.28
+  },
+  {
+   "service": "*Psychiatric Facility",
+   "abbrev": "EPS",
+   "xMin": 182.64,
+   "yMin": 550.64,
+   "col_center_offset_pt": 0.69,
+   "row_center_offset_pt": 1.84
+  },
+  {
+   "service": "*Psychiatric Facility",
+   "abbrev": "ECH",
+   "xMin": 212.4,
+   "yMin": 552.08,
+   "col_center_offset_pt": 0.7,
+   "row_center_offset_pt": 0.4
+  },
+  {
+   "service": "*Psychiatric Facility",
+   "abbrev": "GSH",
+   "xMin": 242.4,
+   "yMin": 552.08,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.4
+  },
+  {
+   "service": "*Psychiatric Facility",
+   "abbrev": "KSC",
+   "xMin": 272.16,
+   "yMin": 552.08,
+   "col_center_offset_pt": 0.67,
+   "row_center_offset_pt": 0.4
+  },
+  {
+   "service": "*Psychiatric Facility",
+   "abbrev": "LGH",
+   "xMin": 302.16,
+   "yMin": 552.08,
+   "col_center_offset_pt": 0.68,
+   "row_center_offset_pt": 0.4
+  },
+  {
+   "service": "*Psychiatric Facility",
+   "abbrev": "OCH",
+   "xMin": 332.16,
+   "yMin": 552.08,
+   "col_center_offset_pt": 0.64,
+   "row_center_offset_pt": 0.4
+  },
+  {
+   "service": "*Psychiatric Facility",
+   "abbrev": "PAV",
+   "xMin": 361.92,
+   "yMin": 552.08,
+   "col_center_offset_pt": 0.6,
+   "row_center_offset_pt": 0.4
+  },
+  {
+   "service": "*Psychiatric Facility",
+   "abbrev": "RSJ",
+   "xMin": 391.92,
+   "yMin": 552.08,
+   "col_center_offset_pt": 0.58,
+   "row_center_offset_pt": 0.4
+  },
+  {
+   "service": "*Psychiatric Facility",
+   "abbrev": "SLH",
+   "xMin": 421.68,
+   "yMin": 552.08,
+   "col_center_offset_pt": 0.5,
+   "row_center_offset_pt": 0.4
+  },
+  {
+   "service": "*Psychiatric Facility",
+   "abbrev": "STH",
+   "xMin": 451.68,
+   "yMin": 552.08,
+   "col_center_offset_pt": 0.6,
+   "row_center_offset_pt": 0.4
+  },
+  {
+   "service": "*Psychiatric Facility",
+   "abbrev": "SUH",
+   "xMin": 481.44,
+   "yMin": 552.08,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.4
+  },
+  {
+   "service": "*Psychiatric Facility",
+   "abbrev": "VMC",
+   "xMin": 511.44,
+   "yMin": 552.08,
+   "col_center_offset_pt": 0.36,
+   "row_center_offset_pt": 0.4
+  },
+  {
+   "service": "*VAD Center",
+   "abbrev": "KSC",
+   "xMin": 272.16,
+   "yMin": 577.28,
+   "col_center_offset_pt": 0.67,
+   "row_center_offset_pt": 0.27
+  },
+  {
+   "service": "*VAD Center",
+   "abbrev": "SUH",
+   "xMin": 481.44,
+   "yMin": 577.28,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.27
+  },
+  {
+   "service": "*Labor & Delivery",
+   "abbrev": "ECH",
+   "xMin": 212.4,
+   "yMin": 603.44,
+   "col_center_offset_pt": 0.7,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "*Labor & Delivery",
+   "abbrev": "GSH",
+   "xMin": 242.4,
+   "yMin": 603.44,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "*Labor & Delivery",
+   "abbrev": "KSC",
+   "xMin": 272.16,
+   "yMin": 603.44,
+   "col_center_offset_pt": 0.67,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "*Labor & Delivery",
+   "abbrev": "LGH",
+   "xMin": 302.16,
+   "yMin": 603.44,
+   "col_center_offset_pt": 0.68,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "*Labor & Delivery",
+   "abbrev": "OCH",
+   "xMin": 332.16,
+   "yMin": 603.44,
+   "col_center_offset_pt": 0.64,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "*Labor & Delivery",
+   "abbrev": "SLH",
+   "xMin": 421.68,
+   "yMin": 603.44,
+   "col_center_offset_pt": 0.5,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "*Labor & Delivery",
+   "abbrev": "STH",
+   "xMin": 451.68,
+   "yMin": 603.44,
+   "col_center_offset_pt": 0.6,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "*Labor & Delivery",
+   "abbrev": "SUH",
+   "xMin": 481.44,
+   "yMin": 603.44,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "*Labor & Delivery",
+   "abbrev": "VMC",
+   "xMin": 511.44,
+   "yMin": 603.44,
+   "col_center_offset_pt": 0.36,
+   "row_center_offset_pt": 0.29
+  },
+  {
+   "service": "*SAFE Center",
+   "abbrev": "SLH",
+   "xMin": 421.68,
+   "yMin": 629.6,
+   "col_center_offset_pt": 0.5,
+   "row_center_offset_pt": 0.31
+  },
+  {
+   "service": "*SAFE Center",
+   "abbrev": "SUH",
+   "xMin": 481.44,
+   "yMin": 629.6,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.31
+  },
+  {
+   "service": "*SAFE Center",
+   "abbrev": "VMC",
+   "xMin": 511.44,
+   "yMin": 629.6,
+   "col_center_offset_pt": 0.36,
+   "row_center_offset_pt": 0.31
+  },
+  {
+   "service": "*Helipads",
+   "abbrev": "GSH",
+   "xMin": 242.4,
+   "yMin": 656.0,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.31
+  },
+  {
+   "service": "*Helipads",
+   "abbrev": "KSC",
+   "xMin": 272.16,
+   "yMin": 656.0,
+   "col_center_offset_pt": 0.67,
+   "row_center_offset_pt": 0.31
+  },
+  {
+   "service": "*Helipads",
+   "abbrev": "RSJ",
+   "xMin": 391.92,
+   "yMin": 656.0,
+   "col_center_offset_pt": 0.58,
+   "row_center_offset_pt": 0.31
+  },
+  {
+   "service": "*Helipads",
+   "abbrev": "SLH",
+   "xMin": 421.68,
+   "yMin": 656.0,
+   "col_center_offset_pt": 0.5,
+   "row_center_offset_pt": 0.31
+  },
+  {
+   "service": "*Helipads",
+   "abbrev": "SUH",
+   "xMin": 481.44,
+   "yMin": 656.0,
+   "col_center_offset_pt": 0.59,
+   "row_center_offset_pt": 0.31
+  },
+  {
+   "service": "*Helipads",
+   "abbrev": "VMC",
+   "xMin": 511.44,
+   "yMin": 656.0,
+   "col_center_offset_pt": 0.36,
+   "row_center_offset_pt": 0.31
+  }
+ ],
+ "notes": "CHECK MARKS ARE TEXT GLYPHS, NOT GRAPHICS. pdffonts on page 20 lists two embedded subset fonts AAAAAX+Wingdings2 (MacRoman, no ToUnicode) and AAAAAY+Wingdings2 (WinAnsi, ToUnicode present). pdftohtml -xml shows every check mark is the character \"R\" (U+0052) set in AAAAAY+Wingdings2 at ~22 pt; Wingdings 2 code 0x52 draws a ballot box with check (U+2611). The other font, AAAAAX+Wingdings2, carries only space characters used to pad empty cells, so empty cells contain no glyph at all. pdftotext therefore emits each checked cell as a bare \"R\" (e.g. \"Department (Adult)     R R R R R R R R R R R\"), and a naive text extraction loses the column alignment and even moves the *Helipads row of Rs above its label. Coordinates approach used for the text-layer key: pdftotext -bbox-layout -f 20 -l 20; the column x-centres come from the header abbreviations (EPS..VMC, yMin 308.92); each R glyph box (about 17.8 x 20.6 pt) is assigned to the nearest column x-centre (max offset 0.70 pt) and to the row label whose vertical centre is nearest (max offset 1.84 pt; row pitch is about 25 pt, so the assignment is not close to ambiguous). Page-20 text layer has 84 R glyphs, all black (#000000). INDEPENDENT KEYINGS: (1) text layer/bbox as above; (2) visual reading of 200-dpi renders (pdftoppm crops) cell by cell; (3) a pixel check: grid lines detected in a 200-dpi grayscale render, dark-pixel fraction inside each of the 168 cell interiors (checked cells 0.184-0.205, empty cells 0.000; no cell in between). All three agree on all 168 cells (84 checked, 84 empty); no disagreements needed reconciling. Cross-copy check: the redline copy on page 10 also has 84 R glyphs giving the identical grid. On page 10, exactly two check glyphs are blue (#0078d4) with an underline, marking tracked insertions: RSJ / STEMI Center and RSJ / Adult Trauma Center. This matches the AO 2025-005 cover memo (page 1): Regional Medical Center is designated an Adult Trauma Center and STEMI Receiving Center as of April 1, 2025. On clean page 20 those two checks are plain black. Facility full names come from Table A on the same page. EPS is not in Table A, so its name comes from the policy text. Table A prints \"STH\" for Kaiser Foundation San Jose. Asterisked rows are unregulated/supplemental per the footnote. Known currency caveat from SOURCES.md: AO 2025-006 (Sept 1 2025) and AO 2025-007 (Oct 16 2025) amend Policy 602 and are NOT captured here, so this key is exact for the April 1, 2025 document only and may not match the table currently in force."
+}

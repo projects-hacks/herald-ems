@@ -210,6 +210,35 @@ Any failure → ship rules + Omni, and present the fine-tune as a slide with wha
 4. Pick the model with the best F1 at p95 latency ≤ 2 s. Tie → prefer the model that also reads photos (one model, less memory).
 5. Record results below and in `eval/results.jsonl`.
 
+### FINAL held-out results on `gold_v2` (100 utterances), 3 runs each (2026-09-23, night) — the deck uses these
+`gold_v2` was written and labeled by two annotators who never saw the extractors, earlier gold sets, or training data (agreement F1 0.976 before adjudication). Scorer v2; predictions in `eval/dumps/gold_v2/`.
+
+| Extractor | F1 per run | Mean | Spread | Precision | Recall | Role acc | Free-text presence | p50 / p95 ms |
+|---|---|---|---|---|---|---|---|---|
+| rules (fallback only) | 0.444 | 0.444 | 0 | 0.802 | 0.307 | 0.83 | 0.32 | 0 / 0 |
+| Omni, prompt p3 | 0.644 / 0.668 / 0.671 | 0.661 | 0.027 | 0.69 | 0.63 | 0.84 | 0.65 | ~950 / ~1,930 |
+| rules + Omni | 0.696 / 0.695 / 0.689 | 0.693 | 0.007 | 0.67 | 0.71 | 0.84 | 0.61 | ~900 / ~1,930 |
+| **fine-tuned run B (`ems-b`)** | 0.860 / 0.862 / 0.862 | **0.861** | 0.002 | **0.90** | **0.83** | **0.96** | **0.82** | ~1,890 / ~4,040 |
+| rules + run B | 0.854 × 3 | 0.854 | 0 | 0.84 | 0.86 | 0.90 | 0.81 | ~1,880 / ~4,030 |
+
+- **Verdict: genuine.** Run B leads Omni by 0.20 F1 and rules + Omni by 0.17, with spreads of 0.002–0.027.
+- **Dev → held-out drop:** −0.04 for run B (0.903 → 0.861), about the same as Omni (0.710 → 0.661). So run B's lead is not overfitting to v1, which it never saw in training either.
+- **Contamination check:** only 3 of 100 v2 items share ≥30% of their 4-grams with any training utterance (formulaic EMS phrases). None overlap the labeling guide above that bar.
+- **Rules add nothing on top of run B:** precision −0.05, recall +0.03, role accuracy −0.06. With a good model, the regex rules only hurt attribution. That is the evidence for keeping them as a fallback only.
+- **Latency, solved by FP8 serving (B6):** the same merged model served with `--quantization=fp8` (`ems-b-fp8`, 14 GB instead of 18.7 GB), 3 runs each:
+
+  | | BF16 `ems-b` | FP8 `ems-b-fp8` |
+  |---|---|---|
+  | gold v1 dev F1 | 0.903 | 0.911 |
+  | gold v2 held-out F1 | 0.861 | 0.858 |
+  | role accuracy (v2) | 0.956 | 0.959 |
+  | p50 / p95 on v2 | ~1,890 / ~4,040 ms | **~910 / ~1,965 ms** |
+  | decode | ~22 tok/s | **46 tok/s** |
+
+  Accuracy is unchanged (±0.008, deterministic runs); latency halves and p95 meets the 2 s target. **The live instance uses `ems-b-fp8`.**
+- **Disclosure:** Omni's third run started after the modular restructure was pulled into the working copy, so its key list also contained the four G.F.A.S.T. keys (not yet their instruction). Its F1 (0.671) is inside the spread of runs 1–2.
+- **G.F.A.S.T.** is scored separately (`--gfast-gold eval/gold_v2_gfast.jsonl`, 40 labels from two blind annotators, 99/100 items identical). Run B: 0 of 40, never trained on those keys. Run C is the fix.
+
 ### Held-out results on `gold_v1` (100 utterances), frozen extractors, 3 runs each (2026-09-23, night)
 
 **The set.** `eval/gold_v1.jsonl` was written and labeled by an annotator who never saw the extractors, the earlier gold set, or any results. It was labeled a second time, blind, by another annotator. Agreement before adjudication: fact F1 **0.993**, 97 of 100 items identical, role agreement 0.993. The 3 disagreements were settled by rules now written into `docs/LABELING_GUIDE.md`: facility staff count as `family`, a mechanism of injury ("MVC") counts as `complaint.chief`, and "0630" = "06:30". After adjudication, agreement with labeler B is F1 0.998. Caveat: both annotators are the same kind of annotator, so their agreement is an upper bound on how clean the labels are, not proof.

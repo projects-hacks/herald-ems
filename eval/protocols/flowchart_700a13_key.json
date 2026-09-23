@@ -1,0 +1,163 @@
+{
+ "source": "700-A13_stroke_eff-2026-01-01.pdf page 3",
+ "section": "7",
+ "section_title": "Stroke Center Transport Determination Flow Chart",
+ "nodes": [
+  {
+   "id": "n1",
+   "text": "Routine Medical Care - Blood Glucose Level",
+   "lines": [
+    "Routine Medical Care",
+    "- Blood Glucose Level"
+   ],
+   "shape": "rounded terminator (grey)",
+   "role": "start"
+  },
+  {
+   "id": "n2",
+   "text": "Time Last Known Well",
+   "lines": [
+    "Time Last",
+    "Known Well"
+   ],
+   "shape": "diamond (peach)",
+   "role": "decision"
+  },
+  {
+   "id": "n3",
+   "text": "Continue routine medical care",
+   "lines": [
+    "Continue routine",
+    "medical care"
+   ],
+   "shape": "rounded terminator (grey)",
+   "role": "end"
+  },
+  {
+   "id": "n4",
+   "text": "GFAST Exam",
+   "lines": [
+    "GFAST",
+    "Exam"
+   ],
+   "shape": "diamond (peach)",
+   "role": "decision"
+  },
+  {
+   "id": "n5",
+   "text": "Transport to closest Stroke Center",
+   "lines": [
+    "Transport to closest",
+    "Stroke Center"
+   ],
+   "shape": "rounded terminator (grey)",
+   "role": "end"
+  },
+  {
+   "id": "n6",
+   "text": "Transport to Comprehensive Stroke Center in less than 45 minutes?",
+   "lines": [
+    "Transport to",
+    "Comprehensive",
+    "Stroke Center in",
+    "less than 45",
+    "minutes?"
+   ],
+   "shape": "diamond (peach)",
+   "role": "decision"
+  },
+  {
+   "id": "n7",
+   "text": "Transport to closest Stroke Center",
+   "lines": [
+    "Transport to closest",
+    "Stroke Center"
+   ],
+   "shape": "rounded terminator (grey)",
+   "role": "end"
+  },
+  {
+   "id": "n8",
+   "text": "Transport to Comprehensive Stroke Center",
+   "lines": [
+    "Transport to",
+    "Comprehensive",
+    "Stroke Center"
+   ],
+   "shape": "rounded terminator (grey)",
+   "role": "end"
+  }
+ ],
+ "edges": [
+  {
+   "from": "n1",
+   "to": "n2",
+   "label": null
+  },
+  {
+   "from": "n2",
+   "to": "n3",
+   "label": "More than 24 hours"
+  },
+  {
+   "from": "n2",
+   "to": "n4",
+   "label": "Less than 24 hours"
+  },
+  {
+   "from": "n4",
+   "to": "n5",
+   "label": "GFAST 1-3"
+  },
+  {
+   "from": "n4",
+   "to": "n6",
+   "label": "GFAST 4"
+  },
+  {
+   "from": "n6",
+   "to": "n7",
+   "label": "NO"
+  },
+  {
+   "from": "n6",
+   "to": "n8",
+   "label": "YES"
+  }
+ ],
+ "node_count": 8,
+ "edge_count": 7,
+ "text_vs_chart_mismatches": [
+  {
+   "chart": "n6 -NO-> n7 \"Transport to closest Stroke Center\"",
+   "text": "§3.2.1 (page 1): \"If transport time to closest Comprehensive Stroke Center is greater than forty-five (45) minutes, transport to the closest Primary Stroke Center.\"",
+   "difference": "On the NO branch the chart says \"closest Stroke Center\" (any level). The text says \"closest Primary Stroke Center\". Policy 602 VI.E.1.c agrees with the text (\"transport to the closest Primary Stroke Center\")."
+  },
+  {
+   "chart": "n6 decision \"Transport to Comprehensive Stroke Center in less than 45 minutes?\" with YES/NO",
+   "text": "§3.2.1: \"greater than forty-five (45) minutes\" -> Primary Stroke Center",
+   "difference": "The boundary differs. At exactly 45 minutes the text sends the patient to the CSC (45 is not greater than 45), but the chart answers NO (45 is not less than 45) and sends the patient to the closest Stroke Center. The chart also asks about transport TO the CSC, not the time to the closest CSC."
+  },
+  {
+   "chart": "n4 -\"GFAST 1-3\"-> n5 \"Transport to closest Stroke Center\"",
+   "text": "§3.3 (page 2): \"If patient has three (3) or fewer points ... transport the patient to the closest Stroke Center (Comprehensive or Primary) (Policy 602).\"",
+   "difference": "The chart edge covers scores 1-3 only. The text says \"three (3) or fewer\", which includes a GFAST of 0. A score of 0 has no branch in the chart. The chart node also drops \"(Comprehensive or Primary)\"."
+  },
+  {
+   "chart": "n4 -\"GFAST 4\"-> n6",
+   "text": "§3.2 (page 1): \"If patient has four (4) points on the G.F.A.S.T stroke screening transport the patient to a Comprehensive Stroke Center (Policy 602).\"",
+   "difference": "Consistent. Section 2.3 names the screen \"G.F.A.S.T.\" while the chart and §6.2 write \"GFAST\"."
+  },
+  {
+   "chart": "n2 edges \"Less than 24 hours\" / \"More than 24 hours\"",
+   "text": "§3.1 (page 1): \"Patient will be considered a Stroke Alert Patient if the Time Last Known Well is within twenty-four (24) hours\"",
+   "difference": "Neither chart edge covers exactly 24 hours. \"Within\" in the text arguably includes 24 hours. The chart also never names the \"Stroke Alert\" status."
+  },
+  {
+   "chart": "n1 \"Routine Medical Care - Blood Glucose Level\"",
+   "text": "§2.1 \"Routine Medical Care – Adult (700-S04)\"; §2.2 \"Determine Blood Glucose Level (BGL) (700-A03)\"; §4.2 \"if less than 60 mg/dL see Protocol (700-A03)\"",
+   "difference": "The chart has no glucose branch. The hypoglycemia handoff to 700-A03 (BGL < 60 mg/dL) and the seizure exclusion in §2.4 (seizure during the symptoms, or actively seizing -> 700-A02 and the appropriate Emergency Department) appear only in the text."
+  }
+ ],
+ "notes": "The flowchart is one embedded raster image (image object 37 on page 3: 1330x2009 px RGB plus soft mask, 318 ppi). The page-3 text layer holds only the header, the section heading \"7. Stroke Center Transport Determination Flow Chart\", the \"Protocol # 700-A13\" side tab and the footer, so no chart text can be extracted without OCR or vision. Keyed by eye from the image extracted at native resolution (pdfimages -png, composited over white with its soft mask), with zoomed crops of small labels. Node \"text\" joins the printed lines with single spaces, and \"lines\" keeps the printed line breaks. n1 has two lines: \"Routine Medical Care\" in a larger font, then a smaller sub-line \"- Blood Glucose Level\" that starts with an ASCII hyphen-minus (checked on a 3x zoom). The \"GFAST 1-3\" label uses a short hyphen, not an en dash (checked on a 4x zoom). Edge labels sit on the connector lines. Arrowheads point down the spine (n1->n2->n4->n6->n8) and to the right on the side branches. n5 and n7 have identical text; they are separate nodes in the drawing. Every edge has a label except n1->n2. The labels are written in the chart: \"More than 24 hours\", \"Less than 24 hours\", \"GFAST 1-3\", \"GFAST 4\", \"NO\", \"YES\" (NO and YES are upper case). The chart does not show the seizure exclusion (§2.4), the hypoglycemia handoff to 700-A03 (§2.2/§4.2), or the \"Stroke Alert Patient\" label. See text_vs_chart_mismatches for differences from the section text, especially the NO branch versus §3.2.1."
+}
