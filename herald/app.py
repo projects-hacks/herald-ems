@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import contract, extract_llm, extract_rules, llm, netem, pipeline, stt, trace, vision
+from . import contract, county, extract_llm, extract_rules, llm, netem, pipeline, stt, trace, vision
 from .guard import instruction_shaped
 from .telemetry import TELEMETRY
 from .relay import Relay
@@ -83,13 +83,15 @@ class TranscriptIn(BaseModel):
     use_llm: bool = True
 
 
-def _ingest_batch(facts_in) -> list:
+def _ingest_batch(facts_in, rejected: Optional[list] = None) -> list:
+    """Ingest what validates; anything implausible or malformed is listed in `rejected` for the trace."""
     facts = []
     for f in facts_in:
         try:
             facts.append(inc().ingest(f, record=False))
-        except ValueError:
-            continue
+        except ValueError as e:
+            if rejected is not None:
+                rejected.append({"key": f.key, "value": f.value, "reason": str(e)[:120]})
     inc().commit()
     return facts
 
@@ -104,7 +106,8 @@ async def _ingest_text(text: str, captured_by: CapturedBy, role: Optional[Role],
     t0 = _t.perf_counter()
     rules_in = extract_rules.extract(text, captured_by, default_role, speaker, audio_id)
     rules_ms = round((_t.perf_counter() - t0) * 1000, 1)
-    facts = _ingest_batch(rules_in)
+    rules_rejected: list = []
+    facts = _ingest_batch(rules_in, rules_rejected)
     after = trace.summarize(inc().snapshot())
     injected = instruction_shaped(text)
     llm_on = use_llm and llm.available() and not injected
@@ -114,7 +117,8 @@ async def _ingest_text(text: str, captured_by: CapturedBy, role: Optional[Role],
              "stt": stt_info,
              "trace": {"heard": {"text": text, "speaker": speaker or captured_by.value, "audio_id": audio_id,
                                  "stt": stt_info},
-                       "rules": {"ms": rules_ms, "facts": [trace.fact_view(f) for f in facts]},
+                       "rules": {"ms": rules_ms, "facts": [trace.fact_view(f) for f in facts],
+                                 "rejected": rules_rejected},
                        "model": ({"status": "running", "name": llm.model_name()} if llm_on else
                                  {"status": "skipped", "reason": f"instruction-shaped speech (\"{injected}\"): "
                                   "model output discarded for this utterance"} if injected else {"status": "off"}),
@@ -138,15 +142,17 @@ async def _refine_with_model(entry: dict, text: str, captured_by: CapturedBy, de
         rules_by_key = {f.key: f for f in rules_in}
         agreed = sum(1 for f in llm_in if f.key in rules_by_key
                      and str(rules_by_key[f.key].value).lower() == str(f.value).lower())
-        added = _ingest_batch(pipeline.merge_llm(rules_in, llm_in))
+        model_rejected: list = []
+        added = _ingest_batch(pipeline.merge_llm(rules_in, llm_in), model_rejected)
         entry["fact_ids"] += [f.id for f in added]
         entry["extract"]["llm"] = len(added)
         entry["trace"]["model"] = {"status": "done", "name": llm.model_name(),
                                    "ms": round((_t.perf_counter() - t0) * 1000),
                                    "tokens": usage.get("completion_tokens"), "proposed": len(llm_in),
                                    "facts": [trace.fact_view(f) for f in added],
+                                   "rejected": model_rejected,
                                    "agreed_with_rules": agreed,
-                                   "overridden_by_rules": len(llm_in) - len(added) - agreed}
+                                   "overridden_by_rules": len(llm_in) - len(added) - len(model_rejected) - agreed}
         after = trace.summarize(inc().snapshot())
         eff = trace.diff(before, after)
         for k in ("readiness", "alerts_new", "scores", "gaps_closed"):
@@ -185,6 +191,23 @@ async def stack():
     ]
     return {"models": models, "services": SERVICES,
             "summary": f"{len(models)} models · {len(SERVICES)} services", "cloud_ai_calls": 0}
+
+
+@app.get("/api/county")
+async def get_county():
+    """The active county configuration (stroke scales, checklist, destinations, protocol versions)."""
+    return {"active": county.active(), "available": county.available()}
+
+
+@app.post("/api/county/{county_id}")
+async def set_county(county_id: str):
+    """Switch county live: the checklist, stroke scale and destinations change on every screen."""
+    try:
+        county.activate(county_id)
+    except KeyError:
+        raise HTTPException(404, f"no county config '{county_id}'; available: {list(county.available())}")
+    await broadcast()
+    return county.summary()
 
 
 @app.get("/api/meta")

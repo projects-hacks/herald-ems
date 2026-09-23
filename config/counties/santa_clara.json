@@ -1,0 +1,56 @@
+{
+  "id": "santa_clara",
+  "name": "Santa Clara County, CA",
+  "reviewed": {"by": "Herald team (from primary county documents)", "on": "2026-09-23",
+               "note": "Verify against the in-force manual (Eolas app) before real use; public PDFs read via web.archive.org"},
+  "stroke": {
+    "scales": ["GFAST", "RACE"],
+    "primary_scale": "GFAST",
+    "alert_window_hours": 24,
+    "checklist": [
+      ["vitals.glucose", "Glucose"],
+      ["stroke.lkw", "Last known well"],
+      ["@gfast", "Stroke screen (G.F.A.S.T.)"],
+      ["meds.anticoagulant", "Anticoagulants"],
+      ["stroke.onset_witnessed", "Onset witnessed"],
+      ["stroke.deficits", "Deficits described"]
+    ],
+    "routing": {
+      "gfast_4": "4 of 4: Comprehensive Stroke Center; closest Primary Stroke Center if transport to the closest Comprehensive Stroke Center is over 45 minutes (700-A13 §3.2, §3.2.1)",
+      "gfast_0_3": "3 or fewer: closest Stroke Center, Comprehensive or Primary (700-A13 §3.3)"
+    },
+    "protocol_notes": [
+      "Stroke Alert if the time last known well is within 24 hours (700-A13 §3.1)",
+      "Last known well must be specific; before bedtime means the bedtime, not the wake-up time (700-A13 §6.1)",
+      "Seizure during stroke symptoms: protocol 700-A02, not stroke routing (700-A13 §2.4)",
+      "Glucose below 60 mg/dL: protocol 700-A03 (700-S04 §2.9)"
+    ]
+  },
+  "destinations": {
+    "source": "Policy 602 Table B (effective 2025-04-01, reissued in AO 2025-005); check EMResource for live status",
+    "comprehensive_stroke": ["El Camino Mountain View", "Good Samaritan", "Kaiser Santa Clara",
+                             "Regional Medical Center of San Jose", "Stanford"],
+    "primary_stroke": ["El Camino Mountain View", "Good Samaritan", "Kaiser Santa Clara", "El Camino Los Gatos",
+                       "O'Connor", "Regional Medical Center of San Jose", "Saint Louise", "Kaiser San Jose",
+                       "Stanford", "Santa Clara Valley Medical Center"]
+  },
+  "pre_alert": {
+    "source": "Policy 501 §III.A, §IV.C-D; 700-A13 §2.7, §5.2-5.3",
+    "fields": ["alert type first (\"Stroke Alert\")", "unit", "ETA", "age", "sex", "chief complaint / impression",
+               "pertinent history, medications, allergies, findings", "vital signs", "treatment given",
+               "interpreter need and language", "historian callback number"]
+  },
+  "reassess_min": 10,
+  "documents": [
+    {"id": "700-A13", "title": "Stroke", "effective": "2026-01-01",
+     "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-a13.pdf",
+     "archive_url": "https://web.archive.org/web/20260111090437/https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-a13.pdf"},
+    {"id": "602", "title": "911 EMS Patient Destination (in AO 2025-005)", "effective": "2025-04-01",
+     "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-03/ao-2025-005.pdf?VersionId=hoI6kUYnjpaiCdXV5IMZfhAhGEPmUxmm",
+     "archive_url": "https://web.archive.org/web/20250714175706/https://files.santaclaracounty.gov/exjcpb1541/2025-03/ao-2025-005.pdf?VersionId=hoI6kUYnjpaiCdXV5IMZfhAhGEPmUxmm"},
+    {"id": "501", "title": "Hospital Radio Reports", "effective": "2025-01-01",
+     "url": "https://files.santaclaracounty.gov/exjcpb1541/2024-09/policy-501.pdf?VersionId=lPXZcOawuog6grDdame1RLjgdP7cNQgl"},
+    {"id": "700-S04", "title": "Routine Medical Care Adult", "effective": "2026-01-01",
+     "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-s04.pdf?VersionId=dffCKzVxvjEXaRO4jYZ6IA8vxnFL1tJp"}
+  ]
+}

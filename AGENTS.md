@@ -11,6 +11,15 @@ Read this before changing anything. Then pick a task from `TASKS.md`.
    Don't commit under someone else's identity, and never set `git config --global` on this shared machine. `~/Documents/team-last-minute/herald-ems` is Rajeev's copy and the live demo instance on port 8100. Everyone else works in `~/work/<github-username>/herald-ems`.
 3. **Verify before you report.** For any benchmark, spike, or research result, state whether it is a genuine result, noise (small sample, warm-up, run-to-run variance), or a flaw in the test itself (scoring, labels, harness). Rerun anything that decides a choice at least 3 times and report the spread. Failures get a root cause before they are called a model or approach failure.
 
+4. **Production structure: SOLID, modular packages, no hardcoded domain data.** Herald is built as a production tool, not a demo script.
+   - **Package by responsibility.** `herald/core` holds the domain model and has no I/O. The other packages are `herald/scoring`, `herald/checklists`, `herald/extraction`, `herald/models` (adapters to the local model servers), `herald/relay`, `herald/knowledge` (protocol documents and retrieval), `herald/telemetry`, `herald/config` (loading and settings), and `herald/api` (HTTP/WebSocket only). One module has one responsibility. A module growing past ~300 lines is a sign it has two.
+   - **Depend on interfaces, not implementations.** Extractors, score scales, model clients, speech-to-text, and relay transports are `typing.Protocol`s in `herald/core/ports.py`. Concrete classes are wired together in exactly one place, the composition root (`herald/api/app.py`'s factory). Deep code never reaches for module-level globals.
+   - **Open for extension, closed for modification.** A new score, checklist, county, prompt, or extractor is added by adding a data file or a registered class. It is never added by editing an `if/elif` chain inside an engine.
+   - **Clinical and product content is versioned data, never Python literals.** That covers score tables and thresholds with their sources, checklists, relay tiers, change rules, the key vocabulary, county rules and destinations, model prompts and worked examples, and cost rates. It all lives under `config/`, carries its source citation, and is reviewed like code. The Python is the engine; `config/` is the content. Tests load the same files.
+   - **Settings come from one settings object** (`herald/config/settings.py`, environment variables). No scattered `os.getenv`.
+   - **The public API is a contract.** `/api/*`, `/ws`, and the snapshot shape change only through `herald/api`, and every change is recorded in `docs/UX_PLAN.md` §5 in the same PR.
+   - Every engine and every data file has tests, and `python -m pytest -q` passes before any commit.
+
 ## Document map: read these before you start
 
 Every decision in this project was researched and written down. Before proposing a change, check the doc that owns that topic, and follow the decisions recorded there unless you have new evidence. If you change a decision, update the owning doc in the same PR.

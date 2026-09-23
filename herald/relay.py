@@ -25,7 +25,7 @@ from .schema import utcnow
 TIERS = [
     (1, "the receiving team needs this before arrival",
      ["alert.readiness", "code_status", "meds.anticoagulant", "allergies", "stroke.lkw", "complaint.chief"]),
-    (2, "deterioration / published score changed", ["score.news2", "score.race"]),
+    (2, "deterioration / published score changed", ["score.news2", "score.race", "score.gfast"]),
     (3, "latest vitals and exam", ["vitals.sbp", "vitals.dbp", "vitals.hr", "vitals.spo2", "vitals.rr",
                                    "vitals.glucose", "vitals.consciousness", "stroke.deficits"]),
     (4, "arrival logistics", ["transport.eta_min", "transport.destination"]),
@@ -84,6 +84,9 @@ class Relay:
             out["score.news2"] = f'{n["score"]} {n["band"]}'
         if r["complete"]:
             out["score.race"] = f'{r["score"]} {"positive" if r["positive"] else "negative"}'
+        g = scores.gfast(vals)
+        if g["complete"]:
+            out["score.gfast"] = f'{g["score"]}/4'
         snap = inc.snapshot()
         if snap["readiness"]:
             a = snap["readiness"][0]

@@ -82,6 +82,11 @@ SHORT_SYSTEM = ("Extract EMS facts from the paramedic's words as compact JSON {\
 FINETUNED = {m.strip() for m in os.getenv("HERALD_FINETUNED_MODELS", "ems").split(",") if m.strip()}
 
 
+def is_finetuned(model: Optional[str]) -> bool:
+    """Served labels "ems", "ems-b", ... are fine-tuned extractors (plus anything in HERALD_FINETUNED_MODELS)."""
+    return bool(model) and (model in FINETUNED or model.split("-")[0] == "ems")
+
+
 def prompt_for(model: Optional[str]) -> tuple[str, Optional[list], Optional[dict]]:
     """(system prompt, worked examples, output schema) for the served model.
 
@@ -91,7 +96,7 @@ def prompt_for(model: Optional[str]) -> tuple[str, Optional[list], Optional[dict
     [key, value, who]: the optional "?" element also sent Omni into a degenerate mode (2026-09-23 audit:
     "?" on every fact, invented normal vitals, repeated keys to the token cap) and was redundant, because
     model-only facts already arrive unconfirmed (pipeline.merge_llm)."""
-    if model in FINETUNED:
+    if is_finetuned(model):
         return SHORT_SYSTEM, None, None
     return SYSTEM.replace("{keys}", _key_list()), EXAMPLES, SCHEMA
 

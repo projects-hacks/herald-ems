@@ -13,6 +13,7 @@ from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
 from . import scores
+from . import county
 from .checklists import ALERTS, DEFAULT_UNKNOWNS, active_alerts
 from .schema import (CONTRADICTION_KEYS, KEYS, CapturedBy, Fact, FactIn, Status,
                      new_id, utcnow)
@@ -123,11 +124,13 @@ class Incident:
         """Raise ValueError if `ingest` would reject this fact (lets a batch be all-or-nothing)."""
         if fin.key not in KEYS:
             raise ValueError(f"unknown key {fin.key}")
-        _coerce(fin.key, fin.value)
+        value = _coerce(fin.key, fin.value)
+        bounds = KEYS[fin.key].get("range")
+        if bounds and value is not None and not (bounds[0] <= value <= bounds[1]):
+            raise ValueError(f"implausible {fin.key} {value!r}: outside {bounds[0]}-{bounds[1]}")
 
     def ingest(self, fin: FactIn, record: bool = True) -> Fact:
-        if fin.key not in KEYS:
-            raise ValueError(f"unknown key {fin.key}")
+        self.validate(fin)
         with self.lock:
             value = _coerce(fin.key, fin.value)
             prev = self.latest(fin.key)
@@ -210,20 +213,25 @@ class Incident:
             vals = self.values(confirmed_only=True)
             all_vals = self.values(confirmed_only=False)
             race = scores.race(vals)
+            gfast = scores.gfast(vals)
             news = scores.news2(vals)
             triage = scores.field_triage(vals)
+            cty = county.active()
             complaint = all_vals.get("complaint.chief")
-            has_race = any(k.startswith("exam.race.") for k in all_vals)
+            exam_prefix = {"@race": "exam.race.", "@gfast": "exam.gfast."}
+            scale_done = {"@race": race["complete"], "@gfast": gfast["complete"]}
+            started = {k: any(x.startswith(pre) for x in all_vals) for k, pre in exam_prefix.items()}
+            has_race = started["@race"] or started["@gfast"]
             alert_ids = active_alerts(self.dispatch, complaint, has_race)
 
             readiness = []
             for aid in alert_ids:
                 a = ALERTS[aid]
                 items = []
-                for key, label in a["items"]:
-                    if key == "@race":
-                        state = "done" if race["complete"] else (
-                            "pending" if any(k.startswith("exam.race.") for k in all_vals) else "missing")
+                checklist = cty["stroke"]["checklist"] if aid == "stroke" else a["items"]
+                for key, label in checklist:
+                    if key in exam_prefix:
+                        state = "done" if scale_done[key] else ("pending" if started[key] else "missing")
                     elif key in vals:
                         state = "done"
                     elif key in all_vals:
@@ -243,7 +251,7 @@ class Incident:
                     return
                 seen.add(key)
                 kind = KEYS.get(key, {}).get("kind", "measure") if not key.startswith("@") else "measure"
-                pending = key in all_vals or (key == "@race" and has_race)
+                pending = key in all_vals or started.get(key, False)
                 entry = {"key": key, "label": label, "pending_confirm": pending}
                 (unknown if kind == "history" else missing).append(entry)
 
@@ -293,6 +301,11 @@ class Incident:
                                    "to": b["score"], "band": b["band"]})
             if race["complete"] and race["positive"]:
                 alerts.append({"type": "race_positive", "label": "RACE", "score": race["score"]})
+            if "GFAST" in cty["stroke"]["scales"] and gfast["complete"]:
+                rule = cty["stroke"]["routing"].get("gfast_4" if gfast["positive"] else "gfast_0_3")
+                if gfast["positive"]:
+                    alerts.append({"type": "gfast_positive", "label": "G.F.A.S.T.", "score": gfast["score"],
+                                   "county_rule": rule, "county": cty["name"]})
             for f in self.facts:
                 if f.key == "code_status" and f.status == Status.unconfirmed:
                     alerts.append({"type": "confirm_required", "key": f.key, "label": KEYS[f.key]["label"],
@@ -316,8 +329,9 @@ class Incident:
                                "seconds": int((arrive - now).total_seconds())})
             vit = [f for f in self.facts if f.key.startswith("vitals.") and f.status == Status.confirmed]
             if vit:
-                due = vit[-1].ts + timedelta(minutes=REASSESS_MIN)
-                clocks.append({"id": "reassess", "label": f"Repeat vitals (every {REASSESS_MIN} min)",
+                every = int(os.getenv("HERALD_REASSESS_MIN") or cty.get("reassess_min", REASSESS_MIN))
+                due = vit[-1].ts + timedelta(minutes=every)
+                clocks.append({"id": "reassess", "label": f"Repeat vitals (every {every} min)",
                                "until": due.isoformat(), "seconds": int((due - now).total_seconds())})
 
             latest_facts = {}
@@ -333,8 +347,10 @@ class Incident:
                 "readiness": readiness,
                 "needs_attention": {"missing": missing, "unknown": unknown},
                 "changed": changed,
-                "scores": {"news2": news, "news2_history": self.news2_history, "race": race,
-                           "field_triage": triage},
+                "scores": {"news2": news, "news2_history": self.news2_history, "race": race, "gfast": gfast,
+                           "field_triage": triage,
+                           "stroke_scales": cty["stroke"]["scales"], "primary_stroke_scale": cty["stroke"]["primary_scale"]},
+                "county": {"id": cty["id"], "name": cty["name"]},
                 "alerts": alerts,
                 "clocks": clocks,
                 "facts": latest_facts,

@@ -1428,6 +1428,7 @@ Every entry in `state.transcripts[]` (the snapshot keeps the last 20) has these 
 |---|---|
 | `ms` | Rules extractor time (e.g. 0.4) |
 | `facts[]` | `F[]`, facts ingested from the rules result. Photos: `{ms: 0, facts: []}`. |
+| `rejected[]` | `{key, value, reason}` for facts the state refused: a physically impossible value ("sats 400", a temperature outside 25–45 °C) or a malformed one. Show in explain mode as "Not recorded: {label} {value} (implausible)". Usually empty. |
 
 **`trace.model`**
 
@@ -1442,6 +1443,7 @@ Every entry in `state.transcripts[]` (the snapshot keeps the last 20) has these 
 | `agreed_with_rules` | Facts the model returned with the same key and value as a rules fact (exact agreement only) |
 | `overridden_by_rules` | Facts the model returned that were dropped because the rules value wins (`pipeline.merge_llm`: vitals always keep the rules value). `proposed = len(facts) + agreed_with_rules + overridden_by_rules`. |
 | `facts[]` | `F[]` added by the model. Model-only facts are capped at confidence 0.8, so they always need a tap. |
+| `rejected[]` | Same shape as `rules.rejected[]`, for the model's facts (e.g. an unconverted Fahrenheit value) |
 | `error` | Up to 200 characters, on `error` |
 
 **`trace.guard`**
@@ -2092,14 +2094,15 @@ export interface TraceFact {
   status: FactStatus; confidence: number; extractor: string | null; relay: RelayAtCapture;
 }
 export interface SttInfo { seconds: number; chunks: { text: string; t: [number | null, number | null] }[]; ms?: number }
+export interface RejectedFact { key: string; value: FactValue; reason: string }  // implausible or malformed
 export interface Trace {
   heard: { text: string; speaker?: string | null; audio_id?: string | null; photo_id?: string;
            stt?: SttInfo | null; source?: "structured" };
-  rules: { ms: number; facts: TraceFact[] };
+  rules: { ms: number; facts: TraceFact[]; rejected?: RejectedFact[] };
   model: {
     status: "running" | "done" | "error" | "off" | "skipped"; name?: string | null; ms?: number;
     tokens?: number | null; proposed?: number; agreed_with_rules?: number; overridden_by_rules?: number;
-    facts?: TraceFact[]; error?: string; reason?: string;
+    facts?: TraceFact[]; error?: string; reason?: string; rejected?: RejectedFact[];
   };
   guard?: { instruction_shaped: string | null };          // absent on photo entries
   effects: {

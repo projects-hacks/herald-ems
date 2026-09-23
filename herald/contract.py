@@ -6,6 +6,7 @@ by scripts/export_ui_contract.py. tests/test_contract.py keeps the two in step w
 """
 from __future__ import annotations
 
+from . import county
 from .checklists import ALERTS, DEFAULT_UNKNOWNS
 from .relay import BUDGET, TIERS
 from .schema import CONTRADICTION_KEYS, KEYS, CapturedBy, Role, Status
@@ -25,7 +26,10 @@ def change_rules() -> dict:
 
 
 def checklists() -> dict:
-    return {name: {"label": a["label"], "items": [{"key": k, "label": lbl} for k, lbl in a["items"]],
+    """The alert checklists for the active county (the stroke checklist comes from the county config)."""
+    stroke = county.active()["stroke"]["checklist"]
+    return {name: {"label": a["label"],
+                   "items": [{"key": k, "label": lbl} for k, lbl in (stroke if name == "stroke" else a["items"])],
                    "unknowns": list(a["unknowns"])}
             for name, a in ALERTS.items()} | {"_default_unknowns": list(DEFAULT_UNKNOWNS)}
 
@@ -38,6 +42,8 @@ def ui_contract() -> dict:
         "change_rules": change_rules(),
         "checklists": checklists(),
         "contradiction_keys": sorted(CONTRADICTION_KEYS),
+        "county": county.summary(),
+        "counties": county.available(),
         "enums": {"role": [r.value for r in Role], "captured_by": [c.value for c in CapturedBy],
                   "status": [s.value for s in Status]},
     }

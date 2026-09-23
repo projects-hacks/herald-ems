@@ -10,7 +10,7 @@ os.environ["HERALD_WARM_STT"] = "0"
 from fastapi.testclient import TestClient  # noqa: E402
 
 from herald import app as app_mod  # noqa: E402
-from herald import contract  # noqa: E402
+from herald import contract, county  # noqa: E402
 from herald.checklists import ALERTS  # noqa: E402
 from herald.relay import TIERS  # noqa: E402
 from herald.schema import KEYS  # noqa: E402
@@ -35,7 +35,9 @@ def test_meta_endpoint_matches_modules():
     assert meta["keys"] == json.loads(json.dumps(KEYS))
     assert meta["relay_tiers"]["code_status"] == {"tier": 1, "why": TIERS[0][1]}
     assert meta["change_rules"] == CHANGE_RULE_TEXT
-    assert [i["key"] for i in meta["checklists"]["stroke"]["items"]] == [k for k, _ in ALERTS["stroke"]["items"]]
+    assert [i["key"] for i in meta["checklists"]["stroke"]["items"]] == [k for k, _ in county.active()["stroke"]["checklist"]]
+    assert [i["key"] for i in meta["checklists"]["stemi"]["items"]] == [k for k, _ in ALERTS["stemi"]["items"]]
+    assert meta["county"]["id"] == county.active()["id"] and "santa_clara" in meta["counties"]
     assert "confirmed" in meta["enums"]["status"]
 
 
@@ -44,3 +46,23 @@ def test_export_script_writes_the_same_data(tmp_path):
                    check=True, capture_output=True)
     for name, build in contract.FILES.items():
         assert json.loads((tmp_path / name).read_text()) == json.loads(json.dumps(build())), name
+
+
+def test_county_switch_is_live():
+    c = TestClient(app_mod.app)
+    before = county.active()["id"]
+    try:
+        assert c.post("/api/county/generic").json()["primary_stroke_scale"] == "RACE"
+        assert c.get("/api/meta").json()["checklists"]["stroke"]["items"][2]["key"] == "@race"
+        assert c.post("/api/county/santa_clara").json()["primary_stroke_scale"] == "GFAST"
+        assert c.get("/api/state").json()["county"]["id"] == "santa_clara"
+        assert c.post("/api/county/nowhere").status_code == 404
+    finally:
+        county.activate(before)
+
+
+def test_every_county_config_is_valid():
+    for cid in county.available():
+        cfg = county.load(cid)
+        for key, _ in cfg["stroke"]["checklist"]:
+            assert key in KEYS or key in county.SCALES.values(), (cid, key)

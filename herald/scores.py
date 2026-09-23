@@ -15,6 +15,9 @@ NEWS2_EVIDENCE = ("Pooled across 30 studies / 185,835 patients: AUC 0.88 for 2-d
 RACE_SOURCE = "Pérez de la Ossa et al., Stroke 2014 (RACE scale)"
 RACE_EVIDENCE = "RACE >= 5: sensitivity 0.85, specificity 0.68 for large-vessel occlusion"
 TRIAGE_SOURCE = "National Guideline for the Field Triage of Injured Patients (2021)"
+GFAST_SOURCE = "Santa Clara County EMS Protocol 700-A13 Stroke (effective 2026-01-01), sections 2.3 and 3.2-3.3"
+GFAST_EVIDENCE = ("Santa Clara County Stroke Critical Care System Plan (2019): with all four G.F.A.S.T. findings the "
+                  "median NIHSS is 14 (range 8-22); with one to three findings the median NIHSS is 3")
 
 
 def _band(value: float, bands: list[tuple[float, int]], top: int) -> int:
@@ -119,6 +122,37 @@ def race(values: dict[str, Any]) -> dict:
         "name": "RACE", "score": total, "complete": complete, "positive": positive,
         "parts": parts, "missing": missing, "thresholds": ">= 5 = large-vessel occlusion screen positive",
         "source": RACE_SOURCE, "evidence": RACE_EVIDENCE,
+    }
+
+
+GFAST_ITEMS = [          # labels exactly as Protocol 700-A13 §2.3; T (time last known well) carries no points
+    ("exam.gfast.gaze", "G Gaze abnormalities"),
+    ("exam.gfast.facial", "F Facial asymmetry"),
+    ("exam.gfast.arm_leg", "A Arm or leg weakness/drift"),
+    ("exam.gfast.speech", "S Speech difficulties"),
+]
+
+
+def gfast(values: dict[str, Any]) -> dict:
+    """Santa Clara County G.F.A.S.T. stroke screen: four 0/1 items. 4 points routes to a Comprehensive Stroke
+    Center under the county's destination policy; the rule is quoted, not decided here."""
+    parts, missing = {}, []
+    for key, label in GFAST_ITEMS:
+        v = values.get(key)
+        if v is None:
+            missing.append(label)
+        else:
+            v = 1 if int(v) >= 1 else 0
+            parts[label] = {"value": v, "points": v, "max": 1}
+    total = sum(p["points"] for p in parts.values())
+    complete = not missing
+    return {
+        "name": "G.F.A.S.T.", "score": total, "complete": complete,
+        "positive": (total == 4) if complete else None,
+        "parts": parts, "missing": missing,
+        "thresholds": "4 of 4 = Comprehensive Stroke Center (closest stroke center if > 45 min transport); "
+                      "3 or fewer = closest stroke center (Policy 602)",
+        "source": GFAST_SOURCE, "evidence": GFAST_EVIDENCE,
     }
 
 

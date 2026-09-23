@@ -76,3 +76,13 @@ def test_model_error_is_recorded_not_fatal(monkeypatch):
         tr = _wait_model(c)
         assert tr["model"]["status"] == "error" and "model down" in tr["model"]["error"]
         assert any(f["key"] == "vitals.glucose" for f in tr["rules"]["facts"])
+
+
+def test_implausible_rules_fact_is_listed_as_rejected(monkeypatch):
+    c = _client(monkeypatch)
+    c.post("/api/incident", json={"dispatch": "possible stroke"})
+    c.post("/api/transcript", json={"text": "sats 400, heart rate 92", "use_llm": False})
+    e = c.get("/api/state").json()["transcripts"][-1]
+    assert [f["key"] for f in e["trace"]["rules"]["facts"]] == ["vitals.hr"]
+    assert e["trace"]["rules"]["rejected"][0]["key"] == "vitals.spo2"
+    assert "implausible" in e["trace"]["rules"]["rejected"][0]["reason"]
