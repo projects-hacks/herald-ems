@@ -48,7 +48,10 @@ Status: ✅ done · 🔄 in progress · ⏳ todo · ⛔ blocked. Update this fil
 - Update the status here in the same PR as the work.
 
 **Ground rules:**
-- **Frontend lanes build against the API contract, never against Python internals.** That means `GET /api/meta`, `/ws`, the snapshot shape in `docs/UX_PLAN.md` §4–5, and the fixtures in `ui/public/fixtures/`. If you need a backend change, add a row under "Requests to backend" in your lane and tell Rajeev. Don't edit `herald/`.
+- **Lanes are feature slices, not frontend vs backend** (team lead, Wed 2026-09-23). Each owner builds the backend, the UI, and the tests for their features. Handed-off backend work has a complete spec in [`docs/TASK_SPECS.md`](docs/TASK_SPECS.md) (S1–S8): goal, files, design, steps, tests, acceptance, pitfalls.
+- **Backend work follows AGENTS.md hard rule 4:** the right package, interfaces in `herald/core/ports.py`, wiring in `herald/api/context.py`, content in `config/`, tests with `tests/fakes.py`.
+- **Anything touching `herald/` is a PR reviewed by Rajeev.** Never restart the shared models (`omni`, `ems-b`), and never let pip replace torch in the `zgx` env (TASK_SPECS rule 6).
+- **UI work builds against the API contract:** `GET /api/meta`, `/ws`, the snapshot shape in `docs/UX_PLAN.md` §4–5, and the fixtures in `ui/public/fixtures/`.
 - **Everything is built; nothing is cut.** If a lane runs late, others join it (build order: UX_PLAN §7.1).
 - **Feature freeze: Fri 11:00. Submission target: Fri 18:00** (hard deadline 20:00).
 - **If there are only three collaborators,** Collaborator 3 takes Collaborator 4's lane from phase C, as UX_PLAN §7.2 plans.
@@ -72,15 +75,15 @@ Docs: `docs/MODEL_PLAN.md`, `docs/LABELING_GUIDE.md`, `eval/`.
 | B1 | Final held-out numbers on gold v2 for every extractor (rules, Omni p3, fine-tuned run B; alone and with rules), 3 runs, contamination check | 🔄 Rajeev: run 1 done (rules 0.444 · Omni 0.644 · rules + Omni 0.696 · **run B 0.860** · rules + run B 0.854); runs 2–3 running; contamination: 3/100 items share ≥30% 4-grams with training text | table in MODEL_PLAN §5; the deck uses only these |
 | B2 | Modular restructure (AGENTS rule 4): packages by responsibility, interfaces, all clinical content in `config/` | ✅ Rajeev: merged to `main`, 90 tests pass, smoke-tested live | merged; live app on 8100 runs it |
 | B3 | Grounded extraction: each model fact carries its transcript quote + assertion (present/absent/uncertain) + subject; the deterministic quote check drops ungrounded facts (research: Abridge/Nabla/Corti pattern) | ⏳ Rajeev (next after B1) | precision up on gold v2 with no recall loss beyond the spread |
-| B4 | Medication normalization with RxNorm (prescribable subset, local index, fuzzy + phonetic match) replacing word lists | ⏳ Rajeev | brand names and ASR misspellings map to generics on gold v2 |
+| B4 | Medication normalization with RxNorm | ➡️ moved to Collaborator 3 (C3.7, spec S6) | brand names and ASR misspellings map to generics on gold v2 |
 | B5 | G.F.A.S.T. extraction: labeling-guide rules, annotated training data, run C fine-tune, gold G.F.A.S.T. labels (two annotators) | 🔄 Rajeev: county config + G.F.A.S.T. scoring live ✅; extraction data next | G.F.A.S.T. items extracted from speech; measured |
 | B6 | Latency: fine-tuned model p95 ≤ 2 s (FP8 serving or the 1.7B run B) | ⏳ Rajeev: run B p95 is 3.1–4.0 s | p50/p95 measured 3× |
 | B7 | P9 protocol lookup + online sync (document-parser bake-off on the county PDFs, local index, cited sections, version on screen, review flag on update) | 🔄 Rajeev: parser research running; waiting on the county PDFs (Rajeev downloads) | "open the stroke protocol" shows 700-A13 §3.2 with its effective date |
-| B8 | Robustness eval: unscripted recordings from ≥5 people, TTS + ambulance noise through Whisper, EMSDialog slice | ⏳ Rajeev | per-key precision/recall with confidence intervals |
-| B9 | UI fixtures (U2 step 4): record `stroke_demo`, `rules_only`, `model_error`, `photo`, `offline` into `ui/public/fixtures/` | ⏳ Rajeev | the frontend can build every state without the Nano |
-| B10 | P11 mass-casualty mode, P8 interpreter, M8 diarization, M5 soak test, I2 `setup.sh` | ⏳ Rajeev | see the rows below |
+| B8 | Field robustness eval (real people, own words, noise) | ➡️ moved to Collaborator 4 (C4.9, spec S8) | per-key precision/recall with confidence intervals |
+| B9 | UI fixtures | ➡️ moved to Collaborator 1 (C1.5, spec S1) | the frontend can build every state without the Nano |
+| B10 | P11, P8, M8, M5, I2 | ➡️ moved: P8 + M8 → Collaborator 2 (S3, S4); P11 + M5 → Collaborator 3 (S5, S7); I2 → Collaborator 1 (S2). Rajeev reviews their `herald/` PRs | see the rows below |
 
-### Collaborator 1: frontend lead (UX_PLAN lane FE-1)
+### Collaborator 1: NOW screen, trace, fixtures, clean-clone setup
 Docs: `docs/UX_PLAN.md` §1–2 (principles, tokens), §3.1 (NOW screen), §4 (trace), §5.7–5.8 (store, fixtures), §5.10 (build and serving).
 
 | # | Task | Hours | Needs | Done when |
@@ -88,9 +91,11 @@ Docs: `docs/UX_PLAN.md` §1–2 (principles, tokens), §3.1 (NOW screen), §4 (t
 | C1.1 | **U1:** toolchain (React + TS + Vite + Tailwind + shadcn/ui) and design tokens | 2 | — | `npm run build` produces `ui/dist`, served at `/` (UX_PLAN U1 checklist) |
 | C1.2 | **U2 frontend:** WebSocket store with heartbeat and stale detection, and a fixture player (`?fixture=…&speed=…`) with the REPLAY banner | 1.5 | C1.1 | stale scrim within 3 s of stopping the server; fixtures replay |
 | C1.3 | **U3:** NOW screen layout and states S0–S10, including **G.F.A.S.T. and RACE side by side** (primary scale first, the county name shown, `county_rule` on the `gfast_positive` alert) | 5 | C1.2 | a non-team viewer says "a checklist filling up"; U3 checklist |
+| C1.5 | **UI fixtures (B9)**: record `stroke_demo`, `rules_only`, `model_error`, `photo`, `offline` → `ui/public/fixtures/`. **Spec S1** | 1 | — | all five replay in the fixture player |
+| C1.6 | **Clean-clone setup (I2)**: `scripts/setup.sh` + README section; the Nano is wiped after the event. **Spec S2** | 2 | — | clean clone → tests pass → server runs |
 | C1.4 | **U6:** "Herald thinking" trace panel: every card state a–j, effects, the explain-mode stage line, and `rejected[]` as "Not recorded: … (implausible)" | 4 | C1.3 | T1–T10 in UX_PLAN §4.12 pass |
 
-### Collaborator 2: frontend, capture and trust (UX_PLAN lane FE-2)
+### Collaborator 2: capture, trust, interpreter, diarization
 Docs: `docs/UX_PLAN.md` §3.1.11 (capture bar), §3.1.13 (hotkeys), §3.2–3.3, §4.9 (audio/photo evidence), U4/U10/U13/U14.
 
 | # | Task | Hours | Needs | Done when |
@@ -98,9 +103,11 @@ Docs: `docs/UX_PLAN.md` §3.1.11 (capture bar), §3.1.13 (hotkeys), §3.2–3.3,
 | C2.1 | **U4:** push-to-talk (Space = medic, F = other speaker), typed input, and the monitor-panel fallback (`POST /api/facts`) | 2 | C1.1, C1.2 | a clip round-trips; the monitor entry shows in the trace |
 | C2.2 | **U13:** confirm/reject and the contradiction card, with both sources and ▶ audio | 2 | C1.3 | one tap per confirm; the contradiction clears on confirm |
 | C2.3 | **U10:** link UX and reconciliation on both screens: queued / sent / "reconciled · 0 duplicates · 0 lost" (P3.2) | 2 | C1.3, C3.2 | the counter appears on both screens after restore |
+| C2.5 | **Interpreter (P8)**: Spanish ↔ English end to end: translator + language detection + Kokoro TTS + endpoints + interpreter panel + 20-utterance eval. **Spec S3** (needs Rajeev: `sudo apt install espeak-ng`) | 5 | C2.1 | a Spanish sentence becomes unconfirmed English facts with the original kept; English is spoken back in Spanish |
+| C2.6 | **Speaker diarization evaluation (M8)**: pyannote community-1 on 10 two-speaker clips; DER + word attribution; go/no-go. **Spec S4** (needs Rajeev: accept the model's terms on Hugging Face) | 2 | — | numbers in MODEL_PLAN §3 |
 | C2.4 | **U14 UI:** the judge beat (daughter on the F mic; "Mom's allergic to aspirin" becomes a contradiction) | 1 | C2.1, C2.2 | rehearsed with a stranger (with Collaborator 4) |
 
-### Collaborator 3: frontend, ED screen, presenter, phone (UX_PLAN lane FE-3)
+### Collaborator 3: ED screen, presenter, multi-patient mode, medication coding, soak test
 Docs: `docs/UX_PLAN.md` §3.4 (ED screen), §3.5 (presenter), §3.6 (phone capture), §5.9 (telemetry contract), U8/U9/U12/U15.
 
 | # | Task | Hours | Needs | Done when |
@@ -110,8 +117,11 @@ Docs: `docs/UX_PLAN.md` §3.4 (ED screen), §3.5 (presenter), §3.6 (phone captu
 | C3.3 | **U12:** phone capture page restyle (`ui/public/capture.html`) | 1 | C1.1 | photo → facts on the NOW screen; the failed-photo state shown |
 | C3.4 | **U15 strip:** telemetry strip (tokens/s, GPU W, Wh, $ vs cloud with the stated rates and sources, cloud AI calls 0) | 1.5 | C1.3 | the UX_PLAN §5.9 contract rendered; honest labels |
 | C3.5 | **P4.3:** show field-triage criteria only on trauma or fall dispatches | 0.5 | C1.3 | hidden on stroke |
+| C3.6 | **Mass-casualty mode (P11)**: patient roster, `triage.category`, relay across patients by triage rank, patient strip + ED list. **Spec S5** | 5 | C3.2 | two patients on a weak link: the immediate one's update goes first |
+| C3.7 | **Medication normalization with RxNorm (B4)**: local RxNorm index, exact/fuzzy/phonetic match, RxCUI on facts, replaces the anticoagulant word list. **Spec S6** | 3.5 | — | med/allergy recall up on gold v2 with no precision loss beyond the spread |
+| C3.8 | **30-minute soak test + pre-demo runbook (M5)**: `scripts/soak.py`, MARLIN check, `docs/RUNBOOK.md`. **Spec S7** | 1 | — | 30 min, 0 errors, no drift; runbook rehearsed |
 
-### Collaborator 4: pitch, demo, and deliverables (UX_PLAN lane Pitch)
+### Collaborator 4: pitch, field evaluation, and deliverables
 Docs: the product spec on the Nano (`/home/hp18/Documents/team-last-minute/.agent/ideas/herald-ems-copilot.md` §10–§14), `.agent/context.md` (judging criteria), `docs/UX_PLAN.md` U11/U14/U16/U17.
 
 | # | Task | Hours | Needs | Done when |
@@ -123,6 +133,7 @@ Docs: the product spec on the Nano (`/home/hp18/Documents/team-last-minute/.agen
 | C4.5 | **Rehearsals:** link hotkeys ×5 (P2.4), the judge beat with a stranger (P6.2, U14 script), the mic test on a real laptop (P1.5) | 2 | C2.4, C3.1 | no stumble in 3 full runs |
 | C4.6 | **D4 + U16:** ask the organizers whether the overall prize depends on track (Community Impact recommended), and ask HP about registering on the ZGX console | 0.5 | — | answers recorded in `.agent/context.md` |
 | C4.7 | **D1:** interactive deck: problem → solution → architecture → held-out benchmarks (B1 numbers only) → impact | 3 | B1 | reviewed by Rajeev |
+| C4.9 | **Field robustness eval (B8)**: 30 fact cards, ≥5 people in their own words, quiet + road noise, ≥100 clips; scored with confidence intervals. **Spec S8** | 3 | — | numbers in MODEL_PLAN §5 and a slide |
 | C4.8 | **U17 / D2:** 2-minute video (`scripts/replay.py` for the screen capture) and **D3:** socials tagging sponsors | 3 | all | uploaded, linked in the README |
 
 **Requests to backend** (any lane adds rows; Rajeev triages):
@@ -180,9 +191,9 @@ Docs: the product spec on the Nano (`/home/hp18/Documents/team-last-minute/.agen
 | ID | Task | Owner | Status | Notes |
 |---|---|---|---|---|
 | P7 | Simulated monitor panel | frontend | ✅ | fallback for P5 |
-| P8 | Interpreter (Spanish ↔ English: Whisper + LLM + Kokoro TTS), statements land in the timeline with the original kept | Rajeev | ⏳ | a Spanish answer shows up translated in the chart; round-trip latency measured |
+| P8 | Interpreter (Spanish ↔ English: Whisper + LLM + Kokoro TTS), statements land in the timeline with the original kept | Collaborator 2 (S3) | ⏳ | a Spanish answer shows up translated in the chart; round-trip latency measured |
 | P9 | Protocol lookup: county policy PDFs → local search, read-only, cited section shown | Rajeev | 🔄 (= B7) | "open the stroke protocol" shows the right county section |
-| P11 | Multi-patient mass-casualty mode: several patient pictures on one rig; the relay prioritizes across patients by triage color | Rajeev | ⏳ | two patients, the critical one's update goes first on a weak link |
+| P11 | Multi-patient mass-casualty mode: several patient pictures on one rig; the relay prioritizes across patients by triage color | Collaborator 3 (S5) | ⏳ | two patients, the critical one's update goes first on a weak link |
 | P12 | County configuration file (stroke scale, checklist items, destinations, reassessment interval); switch counties live | Rajeev (backend) + Collaborator 3 (switch UI, C3.1) | ✅ backend: `config/counties/*.json`, `POST /api/county/{id}`; UI in C3.1 | switching county changes the checklist and scale on screen |
 | P10.0 | Synthetic data (`scripts/compose_synth.py`, template composition; teacher generation piloted and rejected, MODEL_PLAN §4): 3,000 rows, 2,448 / 274 / 278 | Rajeev | ✅ | labels correct by construction |
 | P10.1 | Go/no-go checklist (MODEL_PLAN §4) | Rajeev | ✅ 1–4 · 🔄 5 (latency) | failures get a root cause and a fix path the same morning |
@@ -196,11 +207,11 @@ Docs: the product spec on the Nano (`/home/hp18/Documents/team-last-minute/.agen
 | M1 | Serve Nemotron-3-Nano-Omni NVFP4 with the fixes in AGENTS.md | Rajeev | ✅ | `omni` serving on :8080 |
 | M2 | Bake-off (MODEL_PLAN §5). gold v1 dev: rules 0.571, Omni p3 0.710, rules + Omni 0.764, run B 0.903. **gold v2 held-out (run 1): rules 0.444, Omni 0.644, rules + Omni 0.696, run B 0.860, rules + run B 0.854.** Always 3 runs; report the spread | Rajeev | 🔄 runs 2–3 on v2 | table in MODEL_PLAN |
 | M3 | Lock: best F1 with p95 ≤ 2 s; on a tie, prefer the model that also reads photos | Rajeev | ⏳ run B leads on accuracy; blocked on B6 latency (p95 ≤ 2 s) | decision logged |
-| M5 | 30-min soak test of the chosen model (NVFP4 instability reports); confirm MARLIN in the log; warm-up before the demo | Rajeev | ⏳ | no errors |
+| M5 | 30-min soak test of the chosen model (NVFP4 instability reports); confirm MARLIN in the log; warm-up before the demo | Collaborator 3 (S7) | ⏳ | no errors |
 | M6 | `python3.12-dev` installed | lead | ✅ | — |
 | M7 | 30-item gold v0 → **independent held-out gold v1 (100 items)**: labeler A writes and labels per `docs/LABELING_GUIDE.md`, labeler B labels blind, agreement measured, disagreements adjudicated | Rajeev | ✅ F1 0.993; bench 3× done | agreement ≥ 0.9 F1 between labelers; bench rerun 3× on v1 |
 | M7b | **Gold v2 (100 items), the held-out set from now on**: same protocol, stricter phrasing variety; quotas for onset phrasing, non-anticoagulant brand names, misspelled drug names, EMS-given drugs | Rajeev | ✅ 100 items, 320 facts, agreement F1 0.976 before adjudication; 15 disagreements settled into LABELING_GUIDE §4c | agreement ≥ 0.9; adjudicated `eval/gold_v2.jsonl`; every extractor 3× |
-| M8 | Speaker diarization (`pyannote/speaker-diarization-community-1`, the model HP's Audio2Text and Doctor NoteAI use): check it installs on aarch64 with torch 2.14 (gated on HF: accept terms with the team token), then measure whether it labels medic vs family correctly on multi-speaker clips | Rajeev | ⏳ | works on 10 two-speaker clips, or a documented reason it can't |
+| M8 | Speaker diarization (`pyannote/speaker-diarization-community-1`, the model HP's Audio2Text and Doctor NoteAI use): check it installs on aarch64 with torch 2.14 (gated on HF: accept terms with the team token), then measure whether it labels medic vs family correctly on multi-speaker clips | Collaborator 2 (S4) | ⏳ | works on 10 two-speaker clips, or a documented reason it can't |
 | M9 | Adversarial speech eval + prompt-injection containment (`herald/extraction/guard.py`, `eval/adversarial_v1.jsonl`, `eval/adversarial_bench.py`) | Rajeev | ✅ 25/25 rules and 25/25 ×3 pipeline (was 21 and 18–19) | see MODEL_PLAN §0b |
 | M9b | Fresh adversarial set (≥30) written by someone who hasn't read `guard.py`; measure guard false positives on gold v1 | Rajeev | ✅ `eval/adversarial_v2.jsonl` (40, unseen): rules 22/40, Omni 15–17, rules + Omni 18–19; guard false positives 0/200 on gold v1+v2. Improvement via training data (B3/B5) | pass rate on unseen attacks; 0 legitimate facts blocked on gold v1 |
 | M10 | Measure warm restart time of `omni` (the kernel cache is populated now) and whole-stack cold start; write the pre-demo warm-up procedure | Rajeev | ✅ measured: stop 4 s, warm restart to ready 7.6 min (cold first start was 23 min), first request 1.6 s, then 0.9 s. Warm-up checklist: in the demo runbook (C4.5) | numbers in MODEL_PLAN; checklist in the demo runbook |
@@ -218,7 +229,7 @@ Docs: the product spec on the Nano (`/home/hp18/Documents/team-last-minute/.agen
 | ID | Task | Owner | Status |
 |---|---|---|---|
 | I1 | GitHub repo live, collaborators added ✅; **make it public before submission** | Rajeev | 🔄 |
-| I2 | `setup.sh` / Docker Compose that rebuilds everything from a clean clone (the node is wiped after the event) | Rajeev | ⏳ (B10)
+| I2 | `setup.sh` / Docker Compose that rebuilds everything from a clean clone (the node is wiped after the event) | Collaborator 1 (S2) | ⏳ (B10)
 | I3 | README: evidence, architecture diagram, metrics table, how local/hybrid inference works | integration | 🔄 |
 | D1 | Interactive deck: problem → solution → architecture → benchmarks → impact | pitch | ⏳ |
 | D2 | 2-minute video (use `scripts/replay.py` for the screen capture) | pitch | ⏳ |
