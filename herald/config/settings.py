@@ -19,7 +19,8 @@ _LOCAL = re.compile(r"^https?://(127\.0\.0\.1|localhost|\[::1\])(:\d+)?(/|$)")
 class Settings(BaseModel):
     # local model servers (inference never leaves this box: AGENTS.md invariant 1)
     llm_url: str = "http://127.0.0.1:8080/v1"
-    llm_model: Optional[str] = None               # served label; None = first model the server lists
+    llm_model: Optional[str] = None               # extraction model label; None = first model the server lists
+    vision_model: Optional[str] = "omni"          # photo reading needs a vision model (the fine-tune is text-only)
     metrics_url: str = "http://127.0.0.1:8080/metrics"
     finetuned_models: tuple[str, ...] = ("ems",)  # labels that take the fine-tuned prompt (plus any "ems-*")
     stt_model: str = "openai/whisper-large-v3-turbo"
@@ -69,6 +70,7 @@ class Settings(BaseModel):
         fields = dict(
             llm_url=e.get("HERALD_LLM_URL", cls.model_fields["llm_url"].default),
             llm_model=opt("HERALD_LLM_MODEL"),
+            vision_model=e.get("HERALD_VISION_MODEL", "omni") or None,
             metrics_url=e.get("HERALD_ZRT_METRICS", cls.model_fields["metrics_url"].default),
             finetuned_models=tuple(m.strip() for m in e.get("HERALD_FINETUNED_MODELS", "ems").split(",") if m.strip()),
             stt_model=e.get("HERALD_STT_MODEL", cls.model_fields["stt_model"].default),

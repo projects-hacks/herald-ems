@@ -118,7 +118,7 @@ class CaptureService:
         except Exception as e:
             # The photo is kept and the failure recorded, so the NOW screen shows it (UX_PLAN §4.3 g).
             entry["trace"] = {"heard": heard, "rules": {"ms": 0, "facts": []},
-                              "model": {"status": "error", "name": ctx.text_model.model_name(), "error": str(e)[:200],
+                              "model": {"status": "error", "name": ctx.vision_model.model_name(), "error": str(e)[:200],
                                         "ms": round((time.perf_counter() - t0) * 1000)},
                               "effects": tracer.diff(before, before)}
             self.inc.transcripts.append(entry)
@@ -130,7 +130,7 @@ class CaptureService:
         entry["fact_ids"] = [f.id for f in facts]
         entry["extract"] = {"rules": 0, "llm": len(facts), "ms": ms}
         entry["trace"] = {"heard": heard, "rules": {"ms": 0, "facts": []},
-                          "model": {"status": "done", "name": ctx.text_model.model_name(), "ms": ms,
+                          "model": {"status": "done", "name": ctx.vision_model.model_name(), "ms": ms,
                                     "facts": [tracer.fact_view(f) for f in facts], "rejected": rejected},
                           "effects": tracer.diff(before, self._summary())}
         self.inc.transcripts.append(entry)

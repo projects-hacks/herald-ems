@@ -86,6 +86,8 @@ PY=~/miniforge3/envs/zgx/bin/python                       # torch 2.14 + CUDA 13
 scripts/link.sh start 127.0.0.1:8200                       # Toxiproxy: :9000 -> ED receiver
 $PY -m uvicorn ed_receiver.app:app --host 0.0.0.0 --port 8200 &
 HERALD_ED_URL=http://127.0.0.1:9000 PORT=8101 scripts/run_dev.sh   # your own port: 8101..8104; 8100 = demo
+# models: HERALD_LLM_MODEL = extraction (ems-b, the fine-tuned extractor; omni also works), HERALD_VISION_MODEL = photos (omni)
+# every setting: herald/config/settings.py; content (scores, checklists, prompts, county rules): config/
 $PY scripts/replay.py scenarios/stroke_demo.json --url http://localhost:8101 --no-llm
 $PY eval/bench_extract.py --extractor rules                # or: --extractor llm --model omni
 $PY -m pytest -q

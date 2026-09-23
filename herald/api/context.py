@@ -40,7 +40,8 @@ class AppContext:
     trends: TrendRules
     guard: InstructionGuard
     telemetry: Telemetry
-    text_model: TextModel
+    text_model: TextModel          # extraction
+    vision_model: TextModel        # photo reading
     stt: SpeechToText
     vision: PhotoReader
     rules: RulesExtractor
@@ -66,8 +67,8 @@ class AppContext:
 
 
 def build_context(settings: Optional[Settings] = None, *, text_model: Optional[TextModel] = None,
-                  stt: Optional[SpeechToText] = None, vision: Optional[PhotoReader] = None,
-                  telemetry: Optional[Telemetry] = None) -> AppContext:
+                  vision_model: Optional[TextModel] = None, stt: Optional[SpeechToText] = None,
+                  vision: Optional[PhotoReader] = None, telemetry: Optional[Telemetry] = None) -> AppContext:
     s = settings or get_settings()
     vocab, scales, tiers, guard = default_vocabulary(), default_scales(), default_tiers(), default_guard()
     counties = CountyRegistry(s.county)
@@ -76,12 +77,14 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
     projector = Projector(vocab, scales, checklists, counties, trends, ZoneInfo(s.timezone), s.reassess_min)
     tel = telemetry or Telemetry(s.metrics_url, s.price_overrides)
     model = text_model or LocalLLMClient(s.llm_url, s.llm_model, usage=tel)
+    seeing = vision_model or (text_model if text_model is not None else LocalLLMClient(s.llm_url, s.vision_model, usage=tel))
     rules = RulesExtractor(guard)
     model_extractor = ModelExtractor(model, vocabulary=vocab, finetuned_labels=s.finetuned_models)
     ctx = AppContext(
         settings=s, vocab=vocab, scales=scales, counties=counties, checklists=checklists, projector=projector,
         policy=ConfirmationPolicy(vocab, s.auto_confirm), tiers=tiers, trends=trends, guard=guard, telemetry=tel,
-        text_model=model, stt=stt or WhisperSTT(s.stt_model, usage=tel), vision=vision or VisionReader(model),
+        text_model=model, vision_model=seeing, stt=stt or WhisperSTT(s.stt_model, usage=tel),
+        vision=vision or VisionReader(seeing),
         rules=rules, model_extractor=model_extractor,
         pipeline=ExtractionPipeline(rules, model_extractor, guard, model_available=model.available),
         tracer=TraceRecorder(vocab, tiers), contract=UIContract(vocab, tiers, trends, checklists, counties),

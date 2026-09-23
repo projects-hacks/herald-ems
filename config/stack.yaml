@@ -1,8 +1,10 @@
-# The AI stack in HP's ZGX console terms (GET /api/stack). Status is computed live.
+# The AI stack in HP's ZGX console terms (GET /api/stack). Status is computed live per component.
 models:
   - {id: openai/whisper-large-v3-turbo, component: stt, role: speech-to-text}
-  - {id: nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-NVFP4, served_as: omni, component: text_model,
-     role: speech-to-facts extraction and photo reading}
+  - {id: rajeev-chaurasia/herald-extractor-lora-merged-b (Qwen3-4B-Instruct-2507 + LoRA), served_as: ems-b,
+     component: text_model, role: speech-to-facts extraction (fine-tuned on this box)}
+  - {id: nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-NVFP4, served_as: omni, component: vision_model,
+     role: photo reading (monitors, pill bottles, forms)}
 services:
   - {name: Deterministic scoring engine, detail: "NEWS2, RACE, G.F.A.S.T., 2021 field triage; published tables as reviewed data, unit-tested"}
   - {name: Gap-first alert checklists, detail: "stroke / STEMI pre-alert readiness from county configuration"}

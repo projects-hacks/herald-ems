@@ -12,7 +12,8 @@ router = APIRouter(prefix="/api")
 
 @router.get("/health")
 async def health(c=Depends(get_ctx)):
-    return {"llm_model": c.text_model.model_name(), "stt_model": c.stt.model, "stt_loaded": c.stt.ready(),
+    return {"llm_model": c.text_model.model_name(), "vision_model": c.vision_model.model_name(),
+            "stt_model": c.stt.model, "stt_loaded": c.stt.ready(),
             "incident": c.incident.id, "county": c.counties.active["id"], "cloud_ai_calls": 0}
 
 
@@ -26,14 +27,15 @@ async def telemetry(c=Depends(get_ctx)):
 async def stack(c=Depends(get_ctx)):
     """The AI stack in HP's console terms: models (with live readiness) and intelligence services."""
     cfg = load_yaml("stack.yaml")
-    served = c.text_model.model_name()
+    served = {"text_model": c.text_model.model_name(), "vision_model": c.vision_model.model_name()}
     models = []
     for m in cfg["models"]:
         if m["component"] == "stt":
             status = "ready" if c.stt.ready() else "loading"
         else:
-            status = ("ready" if served == m.get("served_as") else
-                      "not served" if served is None else f"not served (serving {served})")
+            now = served.get(m["component"])
+            status = ("ready" if now == m.get("served_as") else
+                      "not served" if now is None else f"not served (serving {now})")
         models.append({k: v for k, v in m.items() if k != "component"} | {"status": status})
     return {"models": models, "services": cfg["services"],
             "summary": f"{len(models)} models · {len(cfg['services'])} services", "cloud_ai_calls": 0}

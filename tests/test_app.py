@@ -75,3 +75,13 @@ def test_ed_receiver_heartbeat_and_last_contact():
         ws.receive_json()
         ws.send_text("ping")
         assert ws.receive_json()["type"] == "pong"
+
+
+def test_extraction_and_photo_reading_use_their_own_models(tmp_path):
+    from fakes import FakeModel
+    c, ctx = make_client(FakeModel(name="ems-b"), vision=FakeVision(facts=[]), vision_model=FakeModel(name="omni"),
+                         data_dir=tmp_path)
+    assert c.get("/api/health").json()["llm_model"] == "ems-b"
+    assert c.get("/api/health").json()["vision_model"] == "omni"
+    c.post("/api/photo", files={"file": ("x.jpg", b"\xff\xd8fake", "image/jpeg")}, data={"mode": "monitor"})
+    assert c.get("/api/state").json()["transcripts"][-1]["trace"]["model"]["name"] == "omni"

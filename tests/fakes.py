@@ -58,7 +58,8 @@ def test_settings(**overrides) -> Settings:
     return base.model_copy(update={"warm_stt": False, **overrides})
 
 
-def make_client(model: Optional[FakeModel] = None, vision: Optional[FakeVision] = None, **settings):
+def make_client(model: Optional[FakeModel] = None, vision: Optional[FakeVision] = None,
+                vision_model: Optional[FakeModel] = None, **settings):
     ctx = build_context(test_settings(**settings), text_model=model or FakeModel(name=None),
-                        stt=FakeSTT(), vision=vision or FakeVision())
+                        vision_model=vision_model, stt=FakeSTT(), vision=vision or FakeVision())
     return TestClient(create_app(ctx)), ctx
