@@ -39,6 +39,98 @@ Status: ✅ done · 🔄 in progress · ⏳ todo · ⛔ blocked. Update this fil
 - One gold utterance (g01) makes Omni run to the token cap (~4 s) every time. Now bounded at 160 tokens; root cause not yet known.
 - UI/UX plan: research running → `docs/UX_PLAN.md`, then U-tasks below.
 
+## Who does what: per-person lanes (assigned Wed 2026-09-23)
+
+**How to claim a lane:**
+- Replace "Collaborator N" below with your GitHub handle, and add yourself to `CONTRIBUTING.md` §5.
+- Work in your own clone, `~/work/<handle>/herald-ems`, on a branch `feat/<lane>-<topic>`. Run `scripts/dev_git_setup.sh` first: your agent must check your git identity (AGENTS.md hard rule 2).
+- Read `AGENTS.md` first (all hard rules, including rule 4: modular, no hardcoded content), then the docs listed for your lane.
+- Update the status here in the same PR as the work.
+
+**Ground rules:**
+- **Frontend lanes build against the API contract, never against Python internals.** That means `GET /api/meta`, `/ws`, the snapshot shape in `docs/UX_PLAN.md` §4–5, and the fixtures in `ui/public/fixtures/`. If you need a backend change, add a row under "Requests to backend" in your lane and tell Rajeev. Don't edit `herald/`.
+- **Everything is built; nothing is cut.** If a lane runs late, others join it (build order: UX_PLAN §7.1).
+- **Feature freeze: Fri 11:00. Submission target: Fri 18:00** (hard deadline 20:00).
+- **If there are only three collaborators,** Collaborator 3 takes Collaborator 4's lane from phase C, as UX_PLAN §7.2 plans.
+
+**New in the contract since UX_PLAN was written** (all live on port 8100, all tested):
+- **G.F.A.S.T. and RACE side by side:**
+  - `scores.gfast` and `scores.race`, plus `scores.stroke_scales` and `scores.primary_stroke_scale`.
+  - A `gfast_positive` alert carries `county_rule`, the county's routing text quoted from Protocol 700-A13.
+  - The stroke checklist item for the scale is `@gfast` in Santa Clara and `@race` elsewhere.
+- **County:**
+  - `snapshot.county` holds `{id, name}`.
+  - `GET /api/county` returns the full config; `POST /api/county/{id}` switches live (`santa_clara`, `generic`).
+- **Rejected facts:** `trace.rules.rejected[]` and `trace.model.rejected[]` list facts refused as physically impossible, e.g. "sats 400".
+- **Also already live:** WebSocket ping → pong, `GET /api/meta`, `trace.heard.stt.ms`, the failed-photo and monitor-panel trace entries, ED `last_contact_at`, and `/classic/`.
+
+### Rajeev (lead) + backend, models, eval, infra
+Docs: `docs/MODEL_PLAN.md`, `docs/LABELING_GUIDE.md`, `eval/`.
+
+| # | Task | Status | Done when |
+|---|---|---|---|
+| B1 | Final held-out numbers on gold v2 for every extractor (rules, Omni p3, fine-tuned run B; alone and with rules), 3 runs, contamination check | 🔄 running | table in MODEL_PLAN §5; the deck uses only these |
+| B2 | Modular restructure (AGENTS rule 4): packages by responsibility, interfaces, all clinical content in `config/` | 🔄 branch `refactor/modular`, 89 tests pass | merged; live app on 8100 runs it |
+| B3 | Grounded extraction: each model fact carries its transcript quote + assertion (present/absent/uncertain) + subject; the deterministic quote check drops ungrounded facts (research: Abridge/Nabla/Corti pattern) | ⏳ | precision up on gold v2 with no recall loss beyond the spread |
+| B4 | Medication normalization with RxNorm (prescribable subset, local index, fuzzy + phonetic match) replacing word lists | ⏳ | brand names and ASR misspellings map to generics on gold v2 |
+| B5 | G.F.A.S.T. extraction: labeling-guide rules, annotated training data, run C fine-tune, gold G.F.A.S.T. labels (two annotators) | ⏳ | G.F.A.S.T. items extracted from speech; measured |
+| B6 | Latency: fine-tuned model p95 ≤ 2 s (FP8 serving or the 1.7B run B) | ⏳ | p50/p95 measured 3× |
+| B7 | P9 protocol lookup + online sync (document-parser bake-off on the county PDFs, local index, cited sections, version on screen, review flag on update) | ⏳ | "open the stroke protocol" shows 700-A13 §3.2 with its effective date |
+| B8 | Robustness eval: unscripted recordings from ≥5 people, TTS + ambulance noise through Whisper, EMSDialog slice | ⏳ | per-key precision/recall with confidence intervals |
+| B9 | UI fixtures (U2 step 4): record `stroke_demo`, `rules_only`, `model_error`, `photo`, `offline` into `ui/public/fixtures/` | ⏳ | the frontend can build every state without the Nano |
+| B10 | P11 mass-casualty mode, P8 interpreter, M8 diarization, M5 soak test, I2 `setup.sh` | ⏳ | see the rows below |
+
+### Collaborator 1: frontend lead (UX_PLAN lane FE-1)
+Docs: `docs/UX_PLAN.md` §1–2 (principles, tokens), §3.1 (NOW screen), §4 (trace), §5.7–5.8 (store, fixtures), §5.10 (build and serving).
+
+| # | Task | Hours | Needs | Done when |
+|---|---|---|---|---|
+| C1.1 | **U1:** toolchain (React + TS + Vite + Tailwind + shadcn/ui) and design tokens | 2 | — | `npm run build` produces `ui/dist`, served at `/` (UX_PLAN U1 checklist) |
+| C1.2 | **U2 frontend:** WebSocket store with heartbeat and stale detection, and a fixture player (`?fixture=…&speed=…`) with the REPLAY banner | 1.5 | C1.1 | stale scrim within 3 s of stopping the server; fixtures replay |
+| C1.3 | **U3:** NOW screen layout and states S0–S10, including **G.F.A.S.T. and RACE side by side** (primary scale first, the county name shown, `county_rule` on the `gfast_positive` alert) | 5 | C1.2 | a non-team viewer says "a checklist filling up"; U3 checklist |
+| C1.4 | **U6:** "Herald thinking" trace panel: every card state a–j, effects, the explain-mode stage line, and `rejected[]` as "Not recorded: … (implausible)" | 4 | C1.3 | T1–T10 in UX_PLAN §4.12 pass |
+
+### Collaborator 2: frontend, capture and trust (UX_PLAN lane FE-2)
+Docs: `docs/UX_PLAN.md` §3.1.11 (capture bar), §3.1.13 (hotkeys), §3.2–3.3, §4.9 (audio/photo evidence), U4/U10/U13/U14.
+
+| # | Task | Hours | Needs | Done when |
+|---|---|---|---|---|
+| C2.1 | **U4:** push-to-talk (Space = medic, F = other speaker), typed input, and the monitor-panel fallback (`POST /api/facts`) | 2 | C1.1, C1.2 | a clip round-trips; the monitor entry shows in the trace |
+| C2.2 | **U13:** confirm/reject and the contradiction card, with both sources and ▶ audio | 2 | C1.3 | one tap per confirm; the contradiction clears on confirm |
+| C2.3 | **U10:** link UX and reconciliation on both screens: queued / sent / "reconciled · 0 duplicates · 0 lost" (P3.2) | 2 | C1.3, C3.2 | the counter appears on both screens after restore |
+| C2.4 | **U14 UI:** the judge beat (daughter on the F mic; "Mom's allergic to aspirin" becomes a contradiction) | 1 | C2.1, C2.2 | rehearsed with a stranger (with Collaborator 4) |
+
+### Collaborator 3: frontend, ED screen, presenter, phone (UX_PLAN lane FE-3)
+Docs: `docs/UX_PLAN.md` §3.4 (ED screen), §3.5 (presenter), §3.6 (phone capture), §5.9 (telemetry contract), U8/U9/U12/U15.
+
+| # | Task | Hours | Needs | Done when |
+|---|---|---|---|---|
+| C3.1 | **U8:** presenter controls: link Good / Weak / Down (`/api/netem/{mode}`), new incident, **county switch** (`POST /api/county/{id}`, P12: the checklist and stroke scale change on screen) | 1.5 | C1.3 | Shift+G/W/D and the county switch work live |
+| C3.2 | **U9:** ED screen (`ed.html` → `ed_receiver/web/`): "INCOMING STROKE ALERT", LKW clock, anticoagulant in red, bytes per packet, `last_contact_at` (P2.5) | 3 | C1.1, C1.2 | readable from 3 m |
+| C3.3 | **U12:** phone capture page restyle (`ui/public/capture.html`) | 1 | C1.1 | photo → facts on the NOW screen; the failed-photo state shown |
+| C3.4 | **U15 strip:** telemetry strip (tokens/s, GPU W, Wh, $ vs cloud with the stated rates and sources, cloud AI calls 0) | 1.5 | C1.3 | the UX_PLAN §5.9 contract rendered; honest labels |
+| C3.5 | **P4.3:** show field-triage criteria only on trauma or fall dispatches | 0.5 | C1.3 | hidden on stroke |
+
+### Collaborator 4: pitch, demo, and deliverables (UX_PLAN lane Pitch)
+Docs: the product spec on the Nano (`/home/hp18/Documents/team-last-minute/.agent/ideas/herald-ems-copilot.md` §10–§14), `.agent/context.md` (judging criteria), `docs/UX_PLAN.md` U11/U14/U16/U17.
+
+| # | Task | Hours | Needs | Done when |
+|---|---|---|---|---|
+| C4.1 | **Props (P5.3):** fingertip pulse oximeter; empty pill bottle with a printed "WARFARIN 5 MG" label; a printed CA POLST | 1 | — | bought or printed |
+| C4.2 | **Real photo test set (P5.4):** ~50 phone photos of the props (angles, glare, low light), with the value in each photo written down (backend scores them) | 1.5 | C4.1 | the photo-reading accuracy number for the deck |
+| C4.3 | **Second machine (P2.3):** run `ed_receiver` on a teammate laptop on a hotspot; Nano → Toxiproxy :9000 → laptop:8200 | 1 | — | two screens, two networks |
+| C4.4 | **U11:** two-screen stage and the 3 m test on the real displays; OBS scene | 2 | C3.2 | readable from 3 m |
+| C4.5 | **Rehearsals:** link hotkeys ×5 (P2.4), the judge beat with a stranger (P6.2, U14 script), the mic test on a real laptop (P1.5) | 2 | C2.4, C3.1 | no stumble in 3 full runs |
+| C4.6 | **D4 + U16:** ask the organizers whether the overall prize depends on track (Community Impact recommended), and ask HP about registering on the ZGX console | 0.5 | — | answers recorded in `.agent/context.md` |
+| C4.7 | **D1:** interactive deck: problem → solution → architecture → held-out benchmarks (B1 numbers only) → impact | 3 | B1 | reviewed by Rajeev |
+| C4.8 | **U17 / D2:** 2-minute video (`scripts/replay.py` for the screen capture) and **D3:** socials tagging sponsors | 3 | all | uploaded, linked in the README |
+
+**Requests to backend** (any lane adds rows; Rajeev triages):
+
+| From | Request | Status |
+|---|---|---|
+| — | — | — |
+
 ## P1: Speech → patient picture → NOW screen, gap-first
 | ID | Task | Owner | Status | Done when |
 |---|---|---|---|---|
