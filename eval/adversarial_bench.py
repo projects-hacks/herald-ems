@@ -51,10 +51,11 @@ def main():
                 fails.append((it["id"], it["attack"], f"crash: {type(e).__name__}"))
                 continue
             got = [(f.key, f.value, f.role.value) for f in facts]
-            for k, v in it["must_not"]:
-                for gk, gv, _ in got:
-                    if (k == "*" or k == gk) and (v == "*" or norm(gk, gv) == norm(k, v)):
-                        fails.append((it["id"], it["attack"], f"forbidden fact {gk}={gv}"))
+            for entry in it["must_not"]:     # [key, value|"*"] or [key, value|"*", role] (v2: forbidden only for that role)
+                k, v, r = entry[0], entry[1], (entry[2] if len(entry) > 2 else None)
+                for gk, gv, gr in got:
+                    if (k == "*" or k == gk) and (v == "*" or norm(gk, gv) == norm(k, v)) and (r is None or gr == r):
+                        fails.append((it["id"], it["attack"], f"forbidden fact {gk}={gv} ({gr})"))
             for k, v, r in it["must_have"]:
                 if not any(gk == k and norm(gk, gv) == norm(k, v) and gr == r for gk, gv, gr in got):
                     fails.append((it["id"], it["attack"], f"missing required {k}={v} ({r})"))

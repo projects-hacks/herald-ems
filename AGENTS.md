@@ -91,6 +91,7 @@ Presenter link hotkeys on the NOW screen: Shift+G good, Shift+W weak, Shift+D do
 - **Always cap vLLM memory**: `--gpu-memory-fraction 0.35` or lower. Whisper and the app share the same 121 GiB.
 - **One GPU-heavy job at a time.** Fine-tuning and model swaps get announced to the team.
 - **Never `pkill -f uvicorn…`**: it matches your own shell. Kill by anchored `pgrep -f "^/home/hp18/miniforge3/envs/zgx/bin/python -m uvicorn herald.app"`.
+- **The same self-match breaks wait loops and cleanup.** `until ! pgrep -f "bench_extract … ems"` never ends, because the loop's own command line contains the pattern, and `kill $(pgrep -f "<pattern>")` can kill the shell running it. Anchor the pattern to the interpreter path (`^/home/hp18/miniforge3/envs/zgx/bin/python eval/…`), wait on an output file instead, or kill by the PID you recorded.
 - **Browser mic needs a secure context**: open the NOW screen via `http://localhost:<port>` (port forward), not the LAN IP. The phone camera page works over plain HTTP.
 - **Nemotron-Omni is a reasoning model**: send `chat_template_kwargs: {"enable_thinking": false}` and strip `<think>` (already in `llm.py`).
 - **Omni's first start takes ~23 min** (kernel compile, cached in `~/.cache/flashinfer`, `~/.cache/vllm`). Don't restart it casually. Check `zrt status` before touching it; it serves everyone.

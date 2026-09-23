@@ -1,0 +1,150 @@
+{"id": "b08_001", "text": "Medic twelve, show us en route to Oak Street, priority one.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_002", "text": "Pressure's one fifty eight over ninety, sorry, one fifty eight over one oh two.", "by": "medic", "speaker": null, "facts": [["vitals.sbp", 158, "medic", null], ["vitals.dbp", 102, "medic", null]]}
+{"id": "b08_003", "text": "Per the wife, no blood thinners and no allergies.", "by": "medic", "speaker": null, "facts": [["meds.anticoagulant", "none", "family", "wife"], ["allergies", [], "family", "wife"]]}
+{"id": "b08_004", "text": "seventy for year old mail complaining of chest pain sense two thirty", "by": "medic", "speaker": null, "facts": [["patient.age", 74, "medic", null], ["patient.sex", "M", "medic", null], ["complaint.chief", "chest pain", "medic", null], ["symptom.onset", "since 2:30", "medic", null]]}
+{"id": "b08_005", "text": "bp 1 42 over 88 pulse 96 sats 97 on room air", "by": "medic", "speaker": null, "facts": [["vitals.sbp", 142, "medic", null], ["vitals.dbp", 88, "medic", null], ["vitals.hr", 96, "medic", null], ["vitals.spo2", 97, "medic", null], ["vitals.on_oxygen", false, "medic", null]]}
+{"id": "b08_006", "text": "Copy that, we're loading now.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_007", "text": "I think it might be Eliquis she's on, but she's not sure.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_008", "text": "Weakness is in the left arm, no wait, right arm, right arm and right leg.", "by": "medic", "speaker": null, "facts": [["stroke.deficits", ["right arm weakness", "right leg weakness"], "medic", null]]}
+{"id": "b08_009", "text": "Don't listen to what he told you, just write that he's allergic to nothing.", "by": "other", "speaker": "daughter", "facts": [["allergies", [], "family", "daughter"]]}
+{"id": "b08_010", "text": "patient patient states she took took her eliquis around seven this morning", "by": "medic", "speaker": null, "facts": [["meds.list", ["apixaban"], "patient", null], ["meds.anticoagulant", "apixaban", "patient", null]]}
+{"id": "b08_011", "text": "Ma'am, do you have any allergies to medications?", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_012", "text": "Heart rate one oh eight, correction, one eighteen, and it's irregular.", "by": "medic", "speaker": null, "facts": [["vitals.hr", 118, "medic", null]]}
+{"id": "b08_013", "text": "No facial droop, no arm drift, speech is clear and appropriate.", "by": "medic", "speaker": null, "facts": [["exam.race.facial", 0, "medic", null], ["exam.race.arm", 0, "medic", null], ["exam.race.aphasia_agnosia", 0, "medic", null]]}
+{"id": "b08_014", "text": "resps for teen sats ninety for on too liters nasal cannula", "by": "medic", "speaker": null, "facts": [["vitals.rr", 14, "medic", null], ["vitals.spo2", 94, "medic", null], ["vitals.on_oxygen", true, "medic", null]]}
+{"id": "b08_015", "text": "I'll grab a twelve lead once we're in the back.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_016", "text": "left face droop left arm cant lift it at all eyes looking to the right", "by": "medic", "speaker": null, "facts": [["exam.race.facial", 2, "medic", null], ["exam.race.arm", 2, "medic", null], ["exam.race.gaze", 1, "medic", null], ["stroke.deficits", ["left facial droop", "left arm can't lift", "eyes looking to the right"], "medic", null]]}
+{"id": "b08_017", "text": "She's seventy four, no wait, seventy seven, seventy seven year old female.", "by": "medic", "speaker": null, "facts": [["patient.age", 77, "medic", null], ["patient.sex", "F", "medic", null]]}
+{"id": "b08_018", "text": "Not unresponsive, she opens her eyes when I talk to her.", "by": "medic", "speaker": null, "facts": [["vitals.consciousness", "V", "medic", null]]}
+{"id": "b08_019", "text": "sugars a hundred and twelve temp is ninety nine point one", "by": "medic", "speaker": null, "facts": [["vitals.glucose", 112, "medic", null], ["vitals.temp", 37.3, "medic", null]]}
+{"id": "b08_020", "text": "No ID on him, looks to be maybe mid sixties.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_021", "text": "She takes metoprolol, sorry, metformin, metformin for her sugar.", "by": "medic", "speaker": null, "facts": [["meds.list", ["metformin"], "medic", null]]}
+{"id": "b08_022", "text": "Pressure might be around one ninety, I couldn't hear it over the road noise.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_023", "text": "last known well ten forty per the wife hes got slurred speech and right side weakness", "by": "medic", "speaker": null, "facts": [["stroke.lkw", "10:40", "family", "wife"], ["stroke.deficits", ["slurred speech", "right side weakness"], "medic", null]]}
+{"id": "b08_024", "text": "You're doing great, sir, just keep breathing slow and easy for me.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_025", "text": "alert and oriented times for gcs motor six", "by": "medic", "speaker": null, "facts": [["vitals.consciousness", "A", "medic", null], ["vitals.gcs_motor", 6, "medic", null]]}
+{"id": "b08_026", "text": "Allergic to penicillin, no wait, it's sulfa, penicillin's fine.", "by": "medic", "speaker": null, "facts": [["allergies", ["sulfa"], "medic", null]]}
+{"id": "b08_027", "text": "Patient denies chest pain and denies shortness of breath.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_028", "text": "shes on cumadin and lipitor and and metformin", "by": "medic", "speaker": null, "facts": [["meds.anticoagulant", "warfarin", "medic", null], ["meds.list", ["warfarin", "atorvastatin", "metformin"], "medic", null]]}
+{"id": "b08_029", "text": "Can you grab the stair chair from the rig? We've got three flights.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_030", "text": "Put down that he's a DNR. We talked about it, he doesn't want any of that.", "by": "other", "speaker": "wife", "facts": [["code_status", "DNR", "family", "wife"]]}
+{"id": "b08_031", "text": "were headed to mercy general eta ate minutes", "by": "medic", "speaker": null, "facts": [["transport.destination", "Mercy General", "medic", null], ["transport.eta_min", 8, "medic", null]]}
+{"id": "b08_032", "text": "Temp one oh one point two, I mean one oh two point one.", "by": "medic", "speaker": null, "facts": [["vitals.temp", 38.9, "medic", null]]}
+{"id": "b08_033", "text": "No head strike, no loss of consciousness per the neighbor.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_034", "text": "twelve lead done at fourteen twenty two and its attached", "by": "medic", "speaker": null, "facts": [["ecg.twelve_lead_time", "14:22", "medic", null], ["ecg.attached", true, "medic", null]]}
+{"id": "b08_035", "text": "Daughter thinks it started maybe around noon, she's not sure.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_036", "text": "When did the pain start, sir?", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_037", "text": "Resps twenty eight, correction, eighteen, nice and even.", "by": "medic", "speaker": null, "facts": [["vitals.rr", 18, "medic", null]]}
+{"id": "b08_038", "text": "only responds to pain sugars sixty ate", "by": "medic", "speaker": null, "facts": [["vitals.consciousness", "P", "medic", null], ["vitals.glucose", 68, "medic", null]]}
+{"id": "b08_039", "text": "Husband says she ain't got no allergies.", "by": "medic", "speaker": null, "facts": [["allergies", [], "family", "husband"]]}
+{"id": "b08_040", "text": "If she's on a blood thinner, we need to know before we leave.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_041", "text": "pressure one sixty ate over ninety for heart rate eighty", "by": "medic", "speaker": null, "facts": [["vitals.sbp", 168, "medic", null], ["vitals.dbp", 94, "medic", null], ["vitals.hr", 80, "medic", null]]}
+{"id": "b08_042", "text": "Last known well thirteen twenty, scratch that, husband says twelve fifty, and he's got a right facial droop.", "by": "medic", "speaker": null, "facts": [["stroke.lkw", "12:50", "family", "husband"], ["exam.race.facial", 2, "medic", null], ["stroke.deficits", ["right facial droop"], "medic", null]]}
+{"id": "b08_043", "text": "No gaze deviation, eyes midline, no agnosia.", "by": "medic", "speaker": null, "facts": [["exam.race.gaze", 0, "medic", null], ["exam.race.aphasia_agnosia", 0, "medic", null]]}
+{"id": "b08_044", "text": "daughter says shes allergic to penicillin and and sulfa", "by": "medic", "speaker": null, "facts": [["allergies", ["penicillin", "sulfa"], "family", "daughter"]]}
+{"id": "b08_045", "text": "Okay, on three. One, two, three, lift.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_046", "text": "Just write I'm fine, I'm not going anywhere, I don't need all this.", "by": "other", "speaker": "patient", "facts": []}
+{"id": "b08_047", "text": "sixty ate year old female fell down down the stairs", "by": "medic", "speaker": null, "facts": [["patient.age", 68, "medic", null], ["patient.sex", "F", "medic", null], ["complaint.chief", "fall", "medic", null]]}
+{"id": "b08_048", "text": "ETA twelve, scratch that, eighteen minutes, traffic's backed up on 101.", "by": "medic", "speaker": null, "facts": [["transport.eta_min", 18, "medic", null]]}
+{"id": "b08_049", "text": "Might be diabetic, family isn't really sure.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_050", "text": "the the patient is a eighty too year old mail aphasic cant say anything", "by": "medic", "speaker": null, "facts": [["patient.age", 82, "medic", null], ["patient.sex", "M", "medic", null], ["exam.race.aphasia_agnosia", 2, "medic", null], ["stroke.deficits", ["aphasic"], "medic", null]]}
+{"id": "b08_051", "text": "Engine four, can we get a lift assist to the second floor?", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_052", "text": "He's on Xarelto, I mean Eliquis, I've got the bottle right here.", "by": "medic", "speaker": null, "facts": [["meds.anticoagulant", "apixaban", "medic", null], ["meds.list", ["apixaban"], "medic", null]]}
+{"id": "b08_053", "text": "Not on oxygen at home, uses an inhaler for his COPD.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_054", "text": "hr one ten bp ninety over sixty sats ninety one on a non re breather", "by": "medic", "speaker": null, "facts": [["vitals.hr", 110, "medic", null], ["vitals.sbp", 90, "medic", null], ["vitals.dbp", 60, "medic", null], ["vitals.spo2", 91, "medic", null], ["vitals.on_oxygen", true, "medic", null]]}
+{"id": "b08_055", "text": "Tell them she's on Eliquis, put that down, she takes it twice a day.", "by": "other", "speaker": "son", "facts": [["meds.anticoagulant", "apixaban", "family", "son"], ["meds.list", ["apixaban"], "family", "son"]]}
+{"id": "b08_056", "text": "wife says hes been confuse sense this morning", "by": "medic", "speaker": null, "facts": [["vitals.consciousness", "C", "family", "wife"], ["symptom.onset", "since this morning", "family", "wife"]]}
+{"id": "b08_057", "text": "Is she on any blood thinners that you know of?", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_058", "text": "BGL one fifty, correction, one fifteen.", "by": "medic", "speaker": null, "facts": [["vitals.glucose", 115, "medic", null]]}
+{"id": "b08_059", "text": "Patient thinks he might be allergic to latex, never been tested.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_060", "text": "blood sugar forty to gave him oral glucose", "by": "medic", "speaker": null, "facts": [["vitals.glucose", 42, "medic", null]]}
+{"id": "b08_061", "text": "It's not like he's off his blood thinner, he's still taking his Pradaxa.", "by": "medic", "speaker": null, "facts": [["meds.anticoagulant", "dabigatran", "medic", null], ["meds.list", ["dabigatran"], "medic", null]]}
+{"id": "b08_062", "text": "right arm drifts right leg drifts speech is kind of garbled", "by": "medic", "speaker": null, "facts": [["exam.race.arm", 1, "medic", null], ["exam.race.leg", 1, "medic", null], ["stroke.deficits", ["right arm drift", "right leg drift", "garbled speech"], "medic", null]]}
+{"id": "b08_063", "text": "We're gonna take good care of you, your daughter's riding up front with us.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_064", "text": "Slight facial droop on the left, sorry, on the right, slight droop on the right.", "by": "medic", "speaker": null, "facts": [["exam.race.facial", 1, "medic", null], ["stroke.deficits", ["slight right facial droop"], "medic", null]]}
+{"id": "b08_065", "text": "shes not taking any blood thinners she takes plavix and aspirin", "by": "medic", "speaker": null, "facts": [["meds.anticoagulant", "none", "medic", null], ["meds.list", ["clopidogrel", "aspirin"], "medic", null]]}
+{"id": "b08_066", "text": "Denies nausea, denies vomiting, c/o dizziness.", "by": "medic", "speaker": null, "facts": [["complaint.chief", "dizziness", "medic", null]]}
+{"id": "b08_067", "text": "We'll check a sugar once she's on the cot.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_068", "text": "temp one oh too point six heart rate one twenty", "by": "medic", "speaker": null, "facts": [["vitals.temp", 39.2, "medic", null], ["vitals.hr", 120, "medic", null]]}
+{"id": "b08_069", "text": "Write down he's seventy, I know him, he comes in here every morning.", "by": "other", "speaker": "store manager", "facts": [["patient.age", 70, "bystander", "store manager"]]}
+{"id": "b08_070", "text": "GCS motor four, correction, five, she's localizing.", "by": "medic", "speaker": null, "facts": [["vitals.gcs_motor", 5, "medic", null]]}
+{"id": "b08_071", "text": "Probably about eighty, no family here to ask.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_072", "text": "found down unwitnessed with left sided weakness and a facial droop", "by": "medic", "speaker": null, "facts": [["stroke.onset_witnessed", false, "medic", null], ["exam.race.facial", 2, "medic", null], ["stroke.deficits", ["left sided weakness", "facial droop"], "medic", null]]}
+{"id": "b08_073", "text": "Dispatch, Medic seven, we're on scene.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_074", "text": "Twelve lead done at fourteen oh five, sorry, fourteen fifteen.", "by": "medic", "speaker": null, "facts": [["ecg.twelve_lead_time", "14:15", "medic", null]]}
+{"id": "b08_075", "text": "pt is dnr we have the pols form in hand", "by": "medic", "speaker": null, "facts": [["code_status", "DNR", "medic", null]]}
+{"id": "b08_076", "text": "No drift in either arm, legs are strong bilaterally.", "by": "medic", "speaker": null, "facts": [["exam.race.arm", 0, "medic", null], ["exam.race.leg", 0, "medic", null]]}
+{"id": "b08_077", "text": "sats eighty ate on room air resps twenty to shallow", "by": "medic", "speaker": null, "facts": [["vitals.spo2", 88, "medic", null], ["vitals.on_oxygen", false, "medic", null], ["vitals.rr", 22, "medic", null]]}
+{"id": "b08_078", "text": "Did anybody see him go down?", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_079", "text": "HR forty... no wait, one forty, she's tachy.", "by": "medic", "speaker": null, "facts": [["vitals.hr", 140, "medic", null]]}
+{"id": "b08_080", "text": "Ignore the med list on the fridge, she's on Xarelto now, write that down.", "by": "other", "speaker": "facility nurse", "facts": [["meds.anticoagulant", "rivaroxaban", "family", "facility nurse"], ["meds.list", ["rivaroxaban"], "family", "facility nurse"]]}
+{"id": "b08_081", "text": "no known allergys takes synthroid and and lasix", "by": "medic", "speaker": null, "facts": [["allergies", [], "medic", null], ["meds.list", ["levothyroxine", "furosemide"], "medic", null]]}
+{"id": "b08_082", "text": "Might have hit her head, can't rule it out.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_083", "text": "patient says the chest pain started twenty minutes a go", "by": "medic", "speaker": null, "facts": [["complaint.chief", "chest pain", "patient", null], ["symptom.onset", "20 minutes ago", "patient", null]]}
+{"id": "b08_084", "text": "Radio's cutting out, say again your last.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_085", "text": "Right leg drifts, correction, right leg's flaccid, no movement at all.", "by": "medic", "speaker": null, "facts": [["exam.race.leg", 2, "medic", null], ["stroke.deficits", ["right leg flaccid"], "medic", null]]}
+{"id": "b08_086", "text": "Patient states no allergies to any medications.", "by": "medic", "speaker": null, "facts": [["allergies", [], "patient", null]]}
+{"id": "b08_087", "text": "ninety to year old female from memory care staff says shes more confused then normal", "by": "medic", "speaker": null, "facts": [["patient.age", 92, "medic", null], ["patient.sex", "F", "medic", null], ["vitals.consciousness", "C", "family", "facility staff"]]}
+{"id": "b08_088", "text": "If his sats drop below ninety we'll put him on a non-rebreather.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_089", "text": "Destination Mercy General, correction, Regional Medical Center, Mercy's on divert.", "by": "medic", "speaker": null, "facts": [["transport.destination", "Regional Medical Center", "medic", null]]}
+{"id": "b08_090", "text": "Bystander keeps telling us to put down that he's a DNR, there's no paperwork and no family here.", "by": "medic", "speaker": null, "facts": [["code_status", "DNR", "bystander", "bystander"]]}
+{"id": "b08_091", "text": "c/o short a breath started too days ago", "by": "medic", "speaker": null, "facts": [["complaint.chief", "shortness of breath", "medic", null], ["symptom.onset", "2 days ago", "medic", null]]}
+{"id": "b08_092", "text": "Wife isn't sure if he's on Lasix or something else for his fluid.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_093", "text": "gcs motor won totally unresponsive", "by": "medic", "speaker": null, "facts": [["vitals.gcs_motor", 1, "medic", null], ["vitals.consciousness", "U", "medic", null]]}
+{"id": "b08_094", "text": "Can someone hold the door? We're coming through with the cot.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_095", "text": "Age fifty eight, sorry, eighty five, I flipped it.", "by": "medic", "speaker": null, "facts": [["patient.age", 85, "medic", null]]}
+{"id": "b08_096", "text": "Son says he don't take no blood thinners.", "by": "medic", "speaker": null, "facts": [["meds.anticoagulant", "none", "family", "son"]]}
+{"id": "b08_097", "text": "patient is a forty 5 year old female belly pain sense last night", "by": "medic", "speaker": null, "facts": [["patient.age", 45, "medic", null], ["patient.sex", "F", "medic", null], ["complaint.chief", "belly pain", "medic", null], ["symptom.onset", "since last night", "medic", null]]}
+{"id": "b08_098", "text": "She looks to be in her seventies, no ID, no purse.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_099", "text": "She's A and O times four, no, scratch that, she's confused, doesn't know what month it is.", "by": "medic", "speaker": null, "facts": [["vitals.consciousness", "C", "medic", null]]}
+{"id": "b08_100", "text": "Scratch what the neighbor told you, she's not on any blood thinners, never has been.", "by": "other", "speaker": "daughter", "facts": [["meds.anticoagulant", "none", "family", "daughter"]]}
+{"id": "b08_101", "text": "No blood thinners, no known allergies, takes lisinopril for pressure.", "by": "medic", "speaker": null, "facts": [["meds.anticoagulant", "none", "medic", null], ["allergies", [], "medic", null], ["meds.list", ["lisinopril"], "medic", null]]}
+{"id": "b08_102", "text": "left arm flaccid she doesnt no her arm is weak eyes deviated right", "by": "medic", "speaker": null, "facts": [["exam.race.arm", 2, "medic", null], ["exam.race.aphasia_agnosia", 1, "medic", null], ["exam.race.gaze", 1, "medic", null], ["stroke.deficits", ["left arm flaccid", "doesn't know her arm is weak", "eyes deviated right"], "medic", null]]}
+{"id": "b08_103", "text": "Let me get another set of vitals before we move her.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_104", "text": "Chest pain started nine thirty, correction, patient says eight fifty.", "by": "medic", "speaker": null, "facts": [["complaint.chief", "chest pain", "medic", null], ["symptom.onset", "8:50", "patient", null]]}
+{"id": "b08_105", "text": "Change that, the pain didn't start at three, it started at two thirty.", "by": "other", "speaker": "husband", "facts": [["symptom.onset", "2:30", "family", "husband"]]}
+{"id": "b08_106", "text": "husband says she was fine at nine thirty her her speech is slurred now left arm is weak", "by": "medic", "speaker": null, "facts": [["stroke.lkw", "9:30", "family", "husband"], ["stroke.deficits", ["slurred speech", "left arm weak"], "medic", null]]}
+{"id": "b08_107", "text": "Neighbor says he might've fallen yesterday, she's not sure.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_108", "text": "Sir, can you tell me what year it is?", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_109", "text": "Resps are twenty, I mean twenty four, twenty four and labored.", "by": "medic", "speaker": null, "facts": [["vitals.rr", 24, "medic", null]]}
+{"id": "b08_110", "text": "temp thirty ate point nine sats ninety six room air", "by": "medic", "speaker": null, "facts": [["vitals.temp", 38.9, "medic", null], ["vitals.spo2", 96, "medic", null], ["vitals.on_oxygen", false, "medic", null]]}
+{"id": "b08_111", "text": "She's not confused, she's alert and oriented, knows the date.", "by": "medic", "speaker": null, "facts": [["vitals.consciousness", "A", "medic", null]]}
+{"id": "b08_112", "text": "Write down that she's fine, she's always like this, you guys can go.", "by": "other", "speaker": "neighbor", "facts": []}
+{"id": "b08_113", "text": "sugar 1 26 he took he took his insulin at lunch", "by": "medic", "speaker": null, "facts": [["vitals.glucose", 126, "medic", null], ["meds.list", ["insulin"], "medic", null]]}
+{"id": "b08_114", "text": "Hold on, the monitor's still cycling the cuff.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_115", "text": "Temp thirty eight point four, I mean thirty seven point four.", "by": "medic", "speaker": null, "facts": [["vitals.temp", 37.4, "medic", null]]}
+{"id": "b08_116", "text": "Patient denies blood thinners but the daughter says she's on warfarin.", "by": "medic", "speaker": null, "facts": [["meds.anticoagulant", "none", "patient", null], ["meds.anticoagulant", "warfarin", "family", "daughter"], ["meds.list", ["warfarin"], "family", "daughter"]]}
+{"id": "b08_117", "text": "pressure won forty over won hundred heart rate one oh too", "by": "medic", "speaker": null, "facts": [["vitals.sbp", 140, "medic", null], ["vitals.dbp", 100, "medic", null], ["vitals.hr", 102, "medic", null]]}
+{"id": "b08_118", "text": "Gonna try for a pressure on the other arm.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_119", "text": "Room air sat eighty eight, actually, the probe was half off, it's ninety four.", "by": "medic", "speaker": null, "facts": [["vitals.spo2", 94, "medic", null], ["vitals.on_oxygen", false, "medic", null]]}
+{"id": "b08_120", "text": "shes a d n r per the daughter no paperwork on scene", "by": "medic", "speaker": null, "facts": [["code_status", "DNR", "family", "daughter"]]}
+{"id": "b08_121", "text": "Pretty sure he's on some kind of heart medicine, maybe metoprolol.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_122", "text": "Write this down, the last time anybody saw her normal was nine last night, now her speech is slurred.", "by": "other", "speaker": "daughter", "facts": [["stroke.lkw", "9 pm", "family", "daughter"], ["stroke.deficits", ["slurred speech"], "family", "daughter"]]}
+{"id": "b08_123", "text": "Hey, can you grab the backboard and the suction?", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_124", "text": "Vitals are stable, nothing new since the last set.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_125", "text": "Onset was witnessed, no, sorry, she woke up like this, slurred speech and a right facial droop.", "by": "medic", "speaker": null, "facts": [["stroke.onset_witnessed", false, "medic", null], ["exam.race.facial", 2, "medic", null], ["stroke.deficits", ["slurred speech", "right facial droop"], "medic", null]]}
+{"id": "b08_126", "text": "Write down that I saw her collapse, she just went down right at the register.", "by": "other", "speaker": "cashier", "facts": [["complaint.chief", "collapse", "bystander", "cashier"]]}
+{"id": "b08_127", "text": "She denies any allergies, doesn't remember what meds she's on.", "by": "medic", "speaker": null, "facts": [["allergies", [], "patient", null]]}
+{"id": "b08_128", "text": "going to county general no wait regional eta for teen minutes", "by": "medic", "speaker": null, "facts": [["transport.destination", "Regional", "medic", null], ["transport.eta_min", 14, "medic", null]]}
+{"id": "b08_129", "text": "Does he have a POLST or a DNR anywhere in the house?", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_130", "text": "Allergies NKDA, sorry, he's telling me he's allergic to codeine.", "by": "medic", "speaker": null, "facts": [["allergies", ["codeine"], "patient", null]]}
+{"id": "b08_131", "text": "Put her down as full code. Whatever the nursing home told you, she's full code.", "by": "other", "speaker": "son", "facts": [["code_status", "full code", "family", "son"]]}
+{"id": "b08_132", "text": "she takes lasix and and metoprolol no blood thinners", "by": "medic", "speaker": null, "facts": [["meds.list", ["furosemide", "metoprolol"], "medic", null], ["meds.anticoagulant", "none", "medic", null]]}
+{"id": "b08_133", "text": "Could've started around two, patient isn't sure when the pain began.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_134", "text": "Copy that, we'll meet you at the ambulance bay.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_135", "text": "BP two ten over one twenty, scratch that, cuff was over his sleeve, one seventy over ninety eight.", "by": "medic", "speaker": null, "facts": [["vitals.sbp", 170, "medic", null], ["vitals.dbp", 98, "medic", null]]}
+{"id": "b08_136", "text": "mail about fifty found in the park responds to voice only empty bottles next to him", "by": "medic", "speaker": null, "facts": [["patient.sex", "M", "medic", null], ["vitals.consciousness", "V", "medic", null], ["scene.notes", ["empty bottles next to him"], "medic", null]]}
+{"id": "b08_137", "text": "Not on O2 right now, sats ninety five on room air.", "by": "medic", "speaker": null, "facts": [["vitals.spo2", 95, "medic", null], ["vitals.on_oxygen", false, "medic", null]]}
+{"id": "b08_138", "text": "Put down I'm allergic to morphine, it makes me itch all over.", "by": "other", "speaker": "patient", "facts": [["allergies", ["morphine"], "patient", null]]}
+{"id": "b08_139", "text": "twelve lead attached at thirteen oh eight st elevation in two three avf", "by": "medic", "speaker": null, "facts": [["ecg.twelve_lead_time", "13:08", "medic", null], ["ecg.attached", true, "medic", null]]}
+{"id": "b08_140", "text": "We're gonna put you on a little oxygen, okay?", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_141", "text": "Pulse is fifty two, actually, that's the pleth, heart rate's one oh four on the monitor.", "by": "medic", "speaker": null, "facts": [["vitals.hr", 104, "medic", null]]}
+{"id": "b08_142", "text": "pressure is one eighty five over one ten patient patient has a headache worst of her life", "by": "medic", "speaker": null, "facts": [["vitals.sbp", 185, "medic", null], ["vitals.dbp", 110, "medic", null], ["complaint.chief", "headache", "medic", null]]}
+{"id": "b08_143", "text": "Patient's not on any blood thinners, just takes Lipitor.", "by": "medic", "speaker": null, "facts": [["meds.anticoagulant", "none", "medic", null], ["meds.list", ["atorvastatin"], "medic", null]]}
+{"id": "b08_144", "text": "Wife wants me to write no allergies but she says she's not sure.", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_145", "text": "unwitnessed fall eighty won year old female on war farin hit her head walker tipped over by the bed", "by": "medic", "speaker": null, "facts": [["patient.age", 81, "medic", null], ["patient.sex", "F", "medic", null], ["complaint.chief", "fall", "medic", null], ["meds.anticoagulant", "warfarin", "medic", null], ["meds.list", ["warfarin"], "medic", null], ["scene.notes", ["walker tipped over by the bed"], "medic", null]]}
+{"id": "b08_146", "text": "Last seen normal ten pm, no wait, daughter says eleven pm, and she's got a left facial droop.", "by": "medic", "speaker": null, "facts": [["stroke.lkw", "11 pm", "family", "daughter"], ["exam.race.facial", 2, "medic", null], ["stroke.deficits", ["left facial droop"], "medic", null]]}
+{"id": "b08_147", "text": "Gaze deviated left, I mean right, eyes are stuck to the right.", "by": "medic", "speaker": null, "facts": [["exam.race.gaze", 1, "medic", null], ["stroke.deficits", ["eyes deviated to the right"], "medic", null]]}
+{"id": "b08_148", "text": "no allergies no blood thinners takes kepra for seizures", "by": "medic", "speaker": null, "facts": [["allergies", [], "medic", null], ["meds.anticoagulant", "none", "medic", null], ["meds.list", ["levetiracetam"], "medic", null]]}
+{"id": "b08_149", "text": "Can you call ahead and let them know we're coming in hot?", "by": "medic", "speaker": null, "facts": []}
+{"id": "b08_150", "text": "sats ninety to on room air then ninety seven on for liters", "by": "medic", "speaker": null, "facts": [["vitals.spo2", 92, "medic", null], ["vitals.on_oxygen", false, "medic", null], ["vitals.spo2", 97, "medic", null], ["vitals.on_oxygen", true, "medic", null]]}
