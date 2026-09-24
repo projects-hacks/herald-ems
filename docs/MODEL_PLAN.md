@@ -361,6 +361,12 @@ Drug and allergen names are coded to RxNorm, replacing the hand-typed anticoagul
   - Omni gains most, because it says brand names.
   - The fine-tuned models gain 1–3 of about 49 drug atoms, deterministically.
 - **Auto-confirm unchanged:** the saved run D calibration facts replayed through the coder give dev 169 auto-confirmed / 1 wrong and held-out 162 / 5, as before. No run D fact is held (`config/confirmation.yaml`).
+- **Live test (2026-09-24, port 8104, `ems-d-fp8` + `qwen3vl-fp8`):**
+  - "She's on Zarelto and metformin" → rivaroxaban and metformin, coded; the model itself wrote the generic, so nothing needed a hold.
+  - "allergic to Tylenol 3 and sulfa" → sulfa coded Z88.2.
+  - Pill-bottle photos (Eliquis, warfarin) → coded, and the anticoagulant is derived by the coder now that the word list is gone.
+  - `scenarios/stroke_demo.json` gives the same result with coding on and off (stroke alert 3/6, G.F.A.S.T. 4, contradiction, NEWS2 rise).
+- **Found by the live test, a model limitation the coder can't fix:** run D and run E both write a numbered product as its plain generic ("Tylenol 3" → "acetaminophen", losing codeine; "Humalog 75/25" → "insulin lispro", one insulin of a mix). The coder only sees the model's clean generic. The fix is training data: numbered products keep every ingredient, now a labeling-guide rule (§4). It needs examples in the next training run; team lead's call.
 - **Label vs standard:** RxNorm links Pradaxa to "dabigatran etexilate" (1037042) and also has "dabigatran" (1546356). Gold and the fine-tuned models write "dabigatran", an exact match. Only a model that says "Pradaxa" (Omni) gets the other name. Both are valid RxNorm ingredients, so this is documented, not patched.
 
 ## 1. Text model (live extraction)
