@@ -52,7 +52,7 @@ class RxNormNormalizer:
 
     def __init__(self, ingredients: dict[str, str], names: dict[str, list[str]], short: Iterable[str],
                  multi: Optional[dict[str, str]] = None, *, heads: Optional[dict[str, str]] = None,
-                 supplement: Optional[dict[str, str]] = None, supplement_fuzzy: bool = True, release: str = "",
+                 supplement: Optional[dict[str, str]] = None, supplement_fuzzy: Iterable[str] = (), release: str = "",
                  min_length: int = 5, fuzzy_min_ratio: float = 90, phonetic_min_similarity: float = 0.6,
                  strength_units: Iterable[str] = ("mg", "mcg", "g", "ml", "unt", "units", "%"),
                  combination_separators: Iterable[str] = ("-", "/", "+", "&", " and ", " with "),
@@ -67,7 +67,7 @@ class RxNormNormalizer:
         self._split = re.compile("|".join(rf"\s+{re.escape(sep.strip())}\s+" if sep != sep.strip() else re.escape(sep)
                                           for sep in combination_separators if sep.strip()))
         self.contained_keys = set(contained_keys)
-        short = set(short) | (set(supplement) if supplement_fuzzy else set())
+        short = set(short) | (set(supplement_fuzzy) & set(supplement))   # supplement names allowed to fuzzy-match
         self._short = sorted(n for n in short if len(n) >= min_length)
         # Words that occur in RxNorm names ("insulin", "nitro", "penicillin"): said on their own they are real,
         # less specific terms, not misspellings, so they are never fuzzy- or sound-matched to another drug.
@@ -78,6 +78,13 @@ class RxNormNormalizer:
             if len(ks) == 1:
                 for w in set(_WORD.findall(n)):
                     self._word_keys[w].add(ks[0])
+        # word -> keys of ingredient, precise-ingredient and brand names with it: a "contained" word must name the
+        # drug itself ("nitro" in Nitro-Dur), not only appear in some product's description ("dialysis formulation")
+        self._short_word_keys: dict[str, set[str]] = defaultdict(set)
+        for n in short:
+            if len(self.names.get(n, ())) == 1:
+                for w in _WORD.findall(n):
+                    self._short_word_keys[w].add(self.names[n][0])
         self._sounds: dict[str, list[str]] = defaultdict(list)
         for n in self._short:
             self._sounds[jellyfish.metaphone(n)].append(n)
@@ -87,8 +94,9 @@ class RxNormNormalizer:
         d = json.loads(Path(path).read_text(encoding="utf-8"))
         cfg = load_yaml("terminology.yaml")
         m = cfg["match"]
+        fuzzy = {"all": d.get("supplement", {}), "active": d.get("supplement_active", []), "none": []}[cfg["rxnav"]["fuzzy"]]
         return cls(d["ingredients"], d["names"], d["short"], d["multi"], heads=d.get("heads"),
-                   supplement=d.get("supplement"), supplement_fuzzy=cfg["rxnav"]["fuzzy"], release=d["release"],
+                   supplement=d.get("supplement"), supplement_fuzzy=fuzzy, release=d["release"],
                    min_length=m["min_length"], fuzzy_min_ratio=m["fuzzy_min_ratio"],
                    phonetic_min_similarity=m["phonetic_min_similarity"], strength_units=m["strength_units"],
                    combination_separators=m["combination_separators"], contained_keys=cfg["keys"]["contained"])
@@ -139,7 +147,9 @@ class RxNormNormalizer:
         keys = set.intersection(*(self._word_keys.get(w, set()) for w in words))
         single = {k for k in keys if "+" not in k}
         pick = single or keys
-        return self._result(said, sorted(pick), "contained", 100.0) if len(pick) == 1 else None
+        if len(pick) != 1 or not any(k in self._short_word_keys.get(w, ()) for k in pick for w in words):
+            return None
+        return self._result(said, sorted(pick), "contained", 100.0)
 
     def _fuzzy(self, said: str, base: str) -> Optional[NormalizedValue]:
         hits = [(n, s) for n, s, _ in process.extract(base, self._short, scorer=fuzz.ratio,

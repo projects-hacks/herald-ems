@@ -17,7 +17,10 @@ source:
 rxnav:
   base: https://rxnav.nlm.nih.gov/REST
   requests_per_second: 15      # NLM's limit is 20 per second per IP
-  fuzzy: true                  # supplement brand names may be fuzzy/sound matched (decided on dev, MODEL_PLAN §0j)
+  # Which supplement names may be matched by spelling or sound: all | active | none. Decided on dev (MODEL_PLAN §0j):
+  # retired brands made non-drugs into drugs ("latex" -> Lidex -> fluocinonide, "sulfa" -> sulfacetamide), while
+  # "cumadin" needs the active brand Coumadin. Every supplement name always matches exactly.
+  fuzzy: active
 
 # The keys whose values are drug or allergen names. Adding a drug key is a change here, not in code.
 keys:

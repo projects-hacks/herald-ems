@@ -202,8 +202,9 @@ class RxNav:
         return sorted({i["ingredientRxcui"] for i in (hist.get("derivedConcepts") or {}).get("ingredientConcept") or []})
 
 
-def supplement(index: dict, cfg: dict, cache_path: Path, refresh: bool) -> tuple[dict, str]:
-    """Brand names missing from the index -> their ingredient-set key; the RxNav version they came from."""
+def supplement(index: dict, cfg: dict, cache_path: Path, refresh: bool) -> tuple[dict, list[str], str]:
+    """Brand names missing from the index -> their ingredient-set key; the ones that are active RxNorm brands (the
+    rest are retired); the RxNav version they came from."""
     cache = json.loads(cache_path.read_text()) if cache_path.exists() and not refresh else {}
     api = RxNav(cfg["base"], cfg["requests_per_second"])
     if not cache.get("brands"):
@@ -216,13 +217,15 @@ def supplement(index: dict, cfg: dict, cache_path: Path, refresh: bool) -> tuple
             for b, ing in zip(todo, pool.map(api.ingredients, todo)):
                 cache["brands"][b["rxcui"]] = {"name": b["name"], "status": b["status"], "ingredients": ing}
         cache_path.write_text(json.dumps(cache, separators=(",", ":")))
-    added = {}
+    added, active = {}, set()
     for b in cache["brands"].values():
         n = _norm(b["name"])
         if n in index["names"] or not b["ingredients"] or not all(i in index["ingredients"] for i in b["ingredients"]):
             continue
         added[n] = "+".join(sorted(b["ingredients"], key=int))
-    return dict(sorted(added.items())), cache["version"]
+        if b["status"] == "active":
+            active.add(n)
+    return dict(sorted(added.items())), sorted(active), cache["version"]
 
 
 # ---------- checks ----------
@@ -266,7 +269,7 @@ def main() -> None:
     if release != cfg["source"]["release"]:
         raise SystemExit(f"release {release} differs from config/terminology.yaml ({cfg['source']['release']})")
     index = build(conso, rel, cfg["match"]["strength_units"])
-    index["supplement"], rxnav_version = supplement(index, cfg["rxnav"], a.out.parent / "rxnav_brands.json",
+    index["supplement"], index["supplement_active"], rxnav_version = supplement(index, cfg["rxnav"], a.out.parent / "rxnav_brands.json",
                                                     a.refresh_rxnav)
     classes = [load_yaml(f) for f in cfg["classes"]]
     absent = check(index, {i for c in classes for g in c["groups"].values() for i in g["ingredients"]})
