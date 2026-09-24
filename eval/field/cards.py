@@ -25,7 +25,7 @@ class Card:
     by: CapturedBy
     speaker: Optional[str]
     say: tuple[str, ...]
-    facts: tuple[tuple, ...]          # (key, value, role), in the labeling guide's normalized form
+    facts: tuple[tuple, ...]          # (key, value, role), value coerced by the vocabulary (normalized form)
     note: str = ""
 
     def view(self) -> dict:
@@ -58,7 +58,7 @@ def parse_card(d: dict, vocab: Vocabulary) -> Card:
             raise ValueError(f"{cid}: a fact is [key, value, role], got {f}")
         key, value, role = f
         try:
-            vocab.validate(key, value)
+            value = vocab.validate(key, value)          # the normalized form, as the model's facts are
         except ValueError as e:
             raise ValueError(f"{cid}: {e}")
         if role not in ROLES:
@@ -84,14 +84,16 @@ def load_cards(path: Path, vocab: Optional[Vocabulary] = None) -> dict[str, Card
     return cards
 
 
-def assign(card_ids: list[str], speaker_index: int, per_speaker: int) -> list[str]:
-    """The cards speaker number `speaker_index` (0-based) says: consecutive blocks that wrap around, so every card
-    is said before any card is said twice."""
+def assign(card_ids: list[str], slot: int, per_speaker: int) -> list[str]:
+    """The cards the speaker in `slot` (0, 1, 2, ...) says: consecutive blocks that wrap around, so every card is
+    said before any card is said twice."""
     n = len(card_ids)
-    return [card_ids[(speaker_index * per_speaker + i) % n] for i in range(min(per_speaker, n))]
+    return [card_ids[(slot * per_speaker + i) % n] for i in range(min(per_speaker, n))]
 
 
-def condition_order(conditions: list[str], speaker_index: int) -> list[str]:
-    """Counterbalanced: odd-numbered speakers start with the second condition, so practice doesn't favor one."""
-    k = speaker_index % len(conditions)
+def condition_order(conditions: list[str], slot: int) -> list[str]:
+    """Counterbalanced, so practice doesn't favor one condition: slots 0, 2, 4, ... (the first, third, fifth
+    speaker) start with the first condition (quiet); slots 1, 3, 5, ... start with the second (noise). With 3 card
+    blocks and 2 orders, every 6 speakers say every block in both orders."""
+    k = slot % len(conditions)
     return conditions[k:] + conditions[:k]

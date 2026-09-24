@@ -1,8 +1,9 @@
-"""Precision/recall/F1 from counts, and bootstrap 95% confidence intervals.
+"""Bootstrap 95% confidence intervals for micro-F1 (summed counts, as the benchmark reports).
 
-Every interval resamples whole units and recomputes F1 from the summed counts (micro-F1, as the benchmark reports):
-clips for the clip-level interval, speakers for the cluster interval (clips from one person are not independent, so
-this is the honest one when there are few speakers), and (quiet, noise) clip pairs for the condition difference."""
+Every interval resamples whole units and recomputes F1 from the summed counts: clips for the clip-level interval,
+and speakers for the cluster intervals, because clips from one person are not independent. With 5-6 people the
+speaker intervals are the honest ones, and the quiet-minus-noise difference is always resampled by speaker. The
+F1 here is unrounded; reported numbers use eval/visionbench/common.py's `prf`."""
 from __future__ import annotations
 
 import random
@@ -11,17 +12,11 @@ from typing import Iterable, Sequence
 Counts = tuple[int, int, int]           # tp, fp, fn
 
 
-def prf(tp: int, fp: int, fn: int) -> tuple[float, float, float]:
-    p = tp / (tp + fp) if tp + fp else 0.0
-    r = tp / (tp + fn) if tp + fn else 0.0
-    return p, r, (2 * p * r / (p + r) if p + r else 0.0)
-
-
 def f1(counts: Iterable[Counts]) -> float:
     tp = fp = fn = 0
     for a, b, c in counts:
         tp, fp, fn = tp + a, fp + b, fn + c
-    return prf(tp, fp, fn)[2]
+    return 2 * tp / (2 * tp + fp + fn) if tp else 0.0
 
 
 def _interval(values: list[float]) -> tuple[float, float]:
@@ -50,18 +45,21 @@ def cluster_bootstrap_f1(groups: dict[str, Sequence[Counts]], n: int = 2000, see
     return _interval([f1(c for _ in range(k) for c in groups[names[rng.randrange(k)]]) for _ in range(n)])
 
 
-def paired_difference(pairs: Sequence[tuple[Counts, Counts]], n: int = 2000,
+def paired_difference(groups: dict[str, Sequence[tuple[Counts, Counts]]], n: int = 2000,
                       seed: int = 0) -> tuple[float, float, float]:
     """F1(first) - F1(second) over matched pairs (the same speaker and card in two conditions), with a 95% interval
-    from resampling the pairs."""
-    if not pairs:
+    that resamples speakers and keeps all of each speaker's pairs: one or two people with a large noise effect
+    widen the interval instead of making the difference look significant."""
+    names = sorted(g for g in groups if groups[g])
+    if not names:
         return 0.0, 0.0, 0.0
+    pairs = [p for g in names for p in groups[g]]
     point = f1(a for a, _ in pairs) - f1(b for _, b in pairs)
     rng = random.Random(seed)
-    k = len(pairs)
+    k = len(names)
     diffs = []
     for _ in range(n):
-        sample = [pairs[rng.randrange(k)] for _ in range(k)]
+        sample = [p for _ in range(k) for p in groups[names[rng.randrange(k)]]]
         diffs.append(f1(a for a, _ in sample) - f1(b for _, b in sample))
     lo, hi = _interval(diffs)
     return round(point, 3), lo, hi

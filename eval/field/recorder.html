@@ -40,7 +40,7 @@
 <body>
 <main>
   <h1>Herald field recorder</h1>
-  <div class="muted small">Field robustness evaluation: real voices, own words, quiet and road noise. Audio stays on this machine.</div>
+  <div class="muted small">Field robustness evaluation: real voices, own words, quiet and road noise. Audio stays on this machine. <span id="station"></span></div>
 
   <!-- home: speakers -->
   <section id="home">
@@ -58,6 +58,7 @@
       <p id="consent-text"></p>
       <label class="check"><input type="checkbox" id="agree"> <span>The speaker has heard this and agrees to be recorded.</span></label>
       <div class="row"><button class="primary" id="start" disabled>Start</button><button id="cancel">Cancel</button></div>
+      <div class="msg" id="consent-msg"></div>
     </div>
   </section>
 
@@ -102,9 +103,14 @@
     <div class="panel"><h2>All clips recorded. Thank you!</h2><button class="primary" id="done-home">Back to speakers</button></div>
   </section>
 </main>
+<script src="/wav.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
-let protocol = null, speaker = null, plan = [], pos = 0, lastCond = null, rec = null, clip = null, skipped = new Set();
+let protocol = null, speaker = null, plan = [], pos = 0, lastCond = null, clip = null, skipped = new Set();
+// Recording state. `gen` changes whenever the operator leaves the current clip (another speaker, the speakers list):
+// a microphone that opens, or a take that finishes, after that belongs to nobody and is discarded.
+let rec = null, starting = false, stopWanted = false, gen = 0;
+const STOP_EARLY = 0.25;          // seconds before the server's max_seconds, so a full-length take is never refused
 
 async function api(path, opts) {
   const r = await fetch(path, opts);
@@ -117,9 +123,10 @@ function msg(text, cls = "") { $("msg").textContent = text; $("msg").className =
 
 // ---- home ----
 async function home() {
+  cancelRec();
   show("home");
   const list = await api("/api/speakers");
-  $("speakers").innerHTML = list.length ? "" : "<tr><td class='muted'>No speakers yet.</td></tr>";
+  $("speakers").innerHTML = list.length ? "" : "<tr><td class='muted'>No speakers yet at this station.</td></tr>";
   for (const s of list) {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td><b>${s.speaker}</b></td><td class="muted">${s.done} of ${s.total} clips</td><td></td>`;
@@ -128,23 +135,30 @@ async function home() {
     const del = document.createElement("button"); del.className = "danger"; del.textContent = "Withdraw & delete";
     del.onclick = async () => {
       if (!confirm(`Delete every recording of ${s.speaker}? This cannot be undone.`)) return;
-      await api(`/api/speakers/${s.speaker}`, { method: "DELETE" }); home();
+      try { await api(`/api/speakers/${s.speaker}`, { method: "DELETE" }); } catch (err) { alert(err.message); }
+      home();
     };
     tr.lastChild.append(go, " ", del); $("speakers").append(tr);
   }
 }
-$("new").onclick = () => { $("agree").checked = false; $("start").disabled = true; show("consent"); };
+$("new").onclick = () => { $("agree").checked = false; $("start").disabled = true; $("consent-msg").textContent = ""; show("consent"); };
 $("agree").onchange = () => { $("start").disabled = !$("agree").checked; };
 $("cancel").onclick = home;
 $("start").onclick = async () => {
-  const s = await api("/api/speakers", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ consent: true }) });
-  start(s);
+  if ($("start").disabled) return;
+  $("start").disabled = true; $("cancel").disabled = true;         // one click, one speaker
+  try {
+    start(await api("/api/speakers", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ consent: true }) }));
+  } catch (err) {
+    $("consent-msg").textContent = err.message; $("consent-msg").className = "msg err";
+    $("start").disabled = !$("agree").checked;
+  } finally { $("cancel").disabled = false; }
 };
 async function openSpeaker(code) { start(await api(`/api/speakers/${code}/plan`)); }
 $("home-btn").onclick = home; $("done-home").onclick = home;
 
 // ---- session ----
-function start(s) { speaker = s.speaker; plan = s.plan; skipped = new Set(); lastCond = null; next(); }
+function start(s) { cancelRec(); speaker = s.speaker; plan = s.plan; skipped = new Set(); lastCond = null; next(); }
 function next() {
   const i = plan.findIndex((p, k) => !p.done && !skipped.has(k));
   const j = i >= 0 ? i : plan.findIndex((p) => !p.done);
@@ -169,78 +183,85 @@ function render() {
     : c.speaker === "patient" ? "You are the patient, telling the paramedic."
     : `You are the patient's ${c.speaker}, telling the paramedic.`;
   $("say").innerHTML = ""; for (const s of c.say) { const li = document.createElement("li"); li.textContent = s; $("say").append(li); }
+  $("rec").classList.remove("on"); $("rec").textContent = "● Record"; $("level").style.width = "0";
   $("review").hidden = true; clip = null; msg(""); $("timer").textContent = "0.0 s";
 }
 $("ready").onclick = () => { lastCond = plan[pos].condition; render(); };
-$("skip").onclick = () => { if (rec) return; skipped.add(pos); next(); };
+$("skip").onclick = () => { if (rec || starting) return; skipped.add(pos); next(); };
 
-// ---- recording: 16 kHz mono WAV, the same capture settings as Herald's push-to-talk ----
+// ---- recording: 16 kHz mono WAV with the app's capture code (wav.js) and the protocol's capture settings ----
+function teardown(r) {
+  clearInterval(r.tick); r.proc.disconnect(); r.stream.getTracks().forEach((t) => t.stop());
+  return r.ctx.close();
+}
+function cancelRec() {                        // leave the clip: stop and discard anything recording or starting
+  gen++; stopWanted = false;
+  if (rec) { const r = rec; rec = null; teardown(r); }
+  $("rec").classList.remove("on"); $("rec").textContent = "● Record"; $("level").style.width = "0";
+}
 async function startRec() {
-  if (rec || $("rec").disabled) return;
-  const cap = protocol.capture;
+  if (rec || starting || $("rec").disabled) return;
+  starting = true; stopWanted = false;
+  const my = gen, cap = protocol.capture;
+  let stream;
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: cap.echo_cancellation, noiseSuppression: cap.noise_suppression } });
-    const ctx = new AudioContext(), src = ctx.createMediaStreamSource(stream);
-    const proc = ctx.createScriptProcessor(4096, 1, 1), chunks = [];
-    proc.onaudioprocess = (e) => {
-      const d = new Float32Array(e.inputBuffer.getChannelData(0)); chunks.push(d);
-      let peak = 0; for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]));
-      $("level").style.width = `${Math.min(100, peak * 140)}%`;
-    };
-    src.connect(proc); proc.connect(ctx.destination);
-    const t0 = performance.now();
-    rec = { stream, ctx, proc, chunks, t0, tick: setInterval(() => {
-      const s = (performance.now() - t0) / 1000; $("timer").textContent = `${s.toFixed(1)} s`;
-      if (s >= protocol.max_seconds) stopRec();
-    }, 100) };
-    $("rec").classList.add("on"); $("rec").textContent = "■ Stop"; $("review").hidden = true; msg("");
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: cap.echo_cancellation, noiseSuppression: cap.noise_suppression } });
   } catch (err) {
-    msg("Microphone blocked. Open this page as http://localhost:8103 (port forward) and allow the mic.", "err");
+    starting = false;
+    msg("Microphone blocked. Open this page as http://localhost:8105 (port forward) and allow the mic.", "err");
+    return;
   }
+  starting = false;
+  if (my !== gen) { stream.getTracks().forEach((t) => t.stop()); return; }     // left the clip while the mic opened
+  const ctx = new AudioContext(), src = ctx.createMediaStreamSource(stream);
+  const proc = ctx.createScriptProcessor(4096, 1, 1), chunks = [];
+  proc.onaudioprocess = (e) => {
+    const d = new Float32Array(e.inputBuffer.getChannelData(0)); chunks.push(d);
+    let peak = 0; for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]));
+    $("level").style.width = `${Math.min(100, peak * 140)}%`;
+  };
+  src.connect(proc); proc.connect(ctx.destination);
+  const t0 = performance.now();
+  rec = { stream, ctx, proc, chunks, tick: setInterval(() => {
+    const s = (performance.now() - t0) / 1000; $("timer").textContent = `${s.toFixed(1)} s`;
+    if (s >= protocol.max_seconds - STOP_EARLY) stopRec();
+  }, 100) };
+  $("rec").classList.add("on"); $("rec").textContent = "■ Stop"; $("review").hidden = true; msg("");
+  if (stopWanted) stopRec();                  // released (Space up, second click) before the mic was ready
 }
 async function stopRec() {
-  if (!rec) return;
-  const { stream, ctx, proc, chunks, tick } = rec; rec = null; clearInterval(tick);
-  proc.disconnect(); stream.getTracks().forEach((t) => t.stop());
-  const sr = ctx.sampleRate; await ctx.close();
+  if (!rec) { if (starting) stopWanted = true; return; }
+  const r = rec, my = gen; rec = null; stopWanted = false;
+  const sr = r.ctx.sampleRate; await teardown(r);
+  if (my !== gen) return;                     // left the clip while stopping: this take belongs to nobody
   $("rec").classList.remove("on"); $("rec").textContent = "● Record"; $("level").style.width = "0";
-  clip = encodeWav(downsample(concat(chunks), sr, protocol.capture.sample_rate), protocol.capture.sample_rate);
+  const rate = protocol.capture.sample_rate, samples = downsample(concat(r.chunks), sr, rate);
+  if (samples.length < protocol.min_seconds * rate) { msg("Too short: press Record (or hold Space), then speak.", "err"); return; }
+  clip = encodeWav(samples, rate);
   $("play").src = URL.createObjectURL(new Blob([clip], { type: "audio/wav" }));
   $("review").hidden = false; msg("Listen back if you like, then keep it or record again.");
 }
-$("rec").onclick = () => (rec ? stopRec() : startRec());
+$("rec").onclick = () => (rec || starting ? stopRec() : startRec());
 document.addEventListener("keydown", (e) => { if (e.code === "Space" && !e.repeat && !$("session").hidden) { e.preventDefault(); startRec(); } });
 document.addEventListener("keyup", (e) => { if (e.code === "Space" && !$("session").hidden) { e.preventDefault(); stopRec(); } });
 $("redo").onclick = () => { $("review").hidden = true; clip = null; msg(""); };
 $("keep").onclick = async () => {
-  const p = plan[pos], fd = new FormData();
+  if (!clip) return;
+  const p = plan[pos], my = gen, fd = new FormData();
   fd.append("speaker", speaker); fd.append("card", p.card.id); fd.append("condition", p.condition);
   fd.append("file", new Blob([clip], { type: "audio/wav" }), "clip.wav");
   $("keep").disabled = true;
-  try { await api("/api/clips", { method: "POST", body: fd }); p.done = true; msg("Saved.", "ok"); setTimeout(next, 400); }
-  catch (err) { msg(err.message, "err"); }
+  try {
+    await api("/api/clips", { method: "POST", body: fd }); p.done = true;
+    if (my === gen) { msg("Saved.", "ok"); setTimeout(() => { if (my === gen) next(); }, 400); }
+  } catch (err) { if (my === gen) msg(err.message, "err"); }
   finally { $("keep").disabled = false; }
 };
-function concat(chunks) { const n = chunks.reduce((a, c) => a + c.length, 0); const o = new Float32Array(n); let i = 0; for (const c of chunks) { o.set(c, i); i += c.length; } return o; }
-function downsample(buf, from, to) {
-  if (from === to) return buf;
-  const ratio = from / to, out = new Float32Array(Math.floor(buf.length / ratio));
-  for (let i = 0; i < out.length; i++) { const s = Math.floor(i * ratio), e = Math.min(Math.floor((i + 1) * ratio), buf.length); let sum = 0; for (let j = s; j < e; j++) sum += buf[j]; out[i] = sum / Math.max(1, e - s); }
-  return out;
-}
-function encodeWav(samples, sr) {
-  const b = new ArrayBuffer(44 + samples.length * 2), v = new DataView(b);
-  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
-  w(0, "RIFF"); v.setUint32(4, 36 + samples.length * 2, true); w(8, "WAVE"); w(12, "fmt ");
-  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true);
-  v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, samples.length * 2, true);
-  for (let i = 0; i < samples.length; i++) { const x = Math.max(-1, Math.min(1, samples[i])); v.setInt16(44 + i * 2, x < 0 ? x * 0x8000 : x * 0x7fff, true); }
-  return b;
-}
 
 (async () => {
   protocol = await api("/api/protocol");
   $("consent-text").textContent = protocol.consent_text;
+  $("station").textContent = `Station: ${protocol.station}.`;
   home();
 })();
 </script>

@@ -11,7 +11,8 @@ cards_per_speaker: 10
 min_seconds: 0.5
 max_seconds: 60
 too_quiet_peak: 0.02            # a clip whose loudest sample is below this is almost certainly a mic problem
-conditions:                      # one block each; odd-numbered speakers start with the second block (counterbalanced)
+conditions:                      # one block each, counterbalanced: the 1st, 3rd, 5th ... speaker starts with quiet,
+                                 # the 2nd, 4th, 6th ... with noise. The page always shows which block is next.
   - id: quiet
     label: Quiet
     instruction: Quiet room. Nothing playing.

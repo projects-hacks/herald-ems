@@ -6,8 +6,9 @@
 - per key: counts for the per-key precision/recall table;
 - missed facts: card facts not fully recovered (list keys item by item), for the omission review.
 
-A human reviewer can mark card facts the speaker never said (`omitted`); those are removed from the gold for the
-"said" score, reported beside the "as carded" score, never instead of it."""
+A human reviewer, listening to the clip, can mark card facts the speaker never said (`omitted`); those are removed
+from the gold for the "said" score, reported beside the "as carded" score, never instead of it. The review covers
+every card fact and never shows model output, so the "said" gold is the same for every model and run."""
 from __future__ import annotations
 
 import json
@@ -16,6 +17,7 @@ from dataclasses import dataclass, field
 from typing import Iterable
 
 from eval.bench_extract import KEYS, group_atoms, score
+from herald.core.vocabulary import Vocabulary
 
 Fact = tuple                        # (key, value, role)
 
@@ -48,6 +50,23 @@ def itemize(facts: Iterable[Fact]) -> list[Fact]:
         else:
             out.append((k, v, r))
     return out
+
+
+def omission_ids(card_facts: Iterable[Fact], entries: Iterable, vocab: Vocabulary) -> tuple[set[str], list]:
+    """The reviewer's `omitted` entries for one clip as fact ids, each normalized the way the card is (72.0 -> 72).
+    Entries that match no fact on the card come back separately, so the bench warns instead of ignoring them."""
+    valid = {fact_id(k, v) for k, v, _ in itemize(card_facts)}
+    ids, unmatched = set(), []
+    for e in entries:
+        try:
+            fid = fact_id(e[0], vocab.validate(e[0], e[1]))
+        except (ValueError, IndexError, TypeError, KeyError):
+            fid = None
+        if fid in valid:
+            ids.add(fid)
+        else:
+            unmatched.append(e)
+    return ids, unmatched
 
 
 def score_clip(card_facts: Iterable[Fact], pred: list[Fact], omitted: Iterable[str] = ()) -> ClipScore:

@@ -22,5 +22,7 @@ data/train_*/
 data/protocols/_pages/
 data/protocols/demo_mirror/
 
-# field robustness evaluation (docs/TASK_SPECS.md S8): voices, their transcripts and consent log are personal data
+# field robustness evaluation (docs/TASK_SPECS.md S8): recordings, transcripts and the consent log are personal data.
+# They live outside every clone, in ~/herald-field-audio (eval/field/manifest.py); this is the safety net for a
+# station started with --audio-dir inside the clone.
 data/field_audio/
