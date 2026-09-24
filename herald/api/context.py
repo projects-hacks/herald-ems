@@ -23,6 +23,7 @@ from ..knowledge import KnowledgeService
 from ..knowledge.rerank import LLMReranker
 from ..models import LocalLLMClient, VisionReader, WhisperSTT
 from ..relay import LinkEmulator, Relay, RelayTiers, default_tiers
+from ..reporting import LINE_KINDS, HandoffBuilder, HandoffConfig, default_handoff_config
 from ..scoring import ScaleRegistry, default_scales
 from ..telemetry import Telemetry
 from ..terminology import MedicationCoder, build_coder
@@ -51,6 +52,7 @@ class AppContext:
     tracer: TraceRecorder
     contract: UIContract
     link: LinkEmulator
+    handoff: HandoffBuilder
     coder: Optional[MedicationCoder] = None      # drug names -> RxNorm; None when the index isn't built
     relay: Optional[Relay] = None
     knowledge: Optional[KnowledgeService] = None
@@ -64,11 +66,21 @@ class AppContext:
 
     def full_state(self) -> dict:
         snap = self.incident.snapshot()
+        snap["handoff"] = self.handoff.summary(self.handoff.build(self.incident, snapshot=snap))
         rs = self.relay.status()
         snap["relay"], snap["ed_sync"], snap["netem"] = rs, rs["sync"], self.netem_mode
         if self.knowledge is not None:
             snap["protocols"] = self.knowledge.status()
         return snap
+
+
+def build_handoff(config: HandoffConfig, vocab: Vocabulary, scales: ScaleRegistry, checklists: ChecklistEngine,
+                  settings: Settings) -> HandoffBuilder:
+    """The handoff report builder; refuses to start on content that doesn't match the vocabulary or scores."""
+    problems = config.problems(vocab, scales, LINE_KINDS, checklists.ids())
+    if problems:
+        raise ValueError("config/handoff.yaml: " + "; ".join(problems))
+    return HandoffBuilder(config, vocab, scales, ZoneInfo(settings.timezone), settings.unit_id)
 
 
 def build_context(settings: Optional[Settings] = None, *, text_model: Optional[TextModel] = None,
@@ -94,7 +106,8 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
         model_extractor=model_extractor,
         tracer=TraceRecorder(vocab, tiers),
         contract=UIContract(vocab, tiers, trends, checklists, counties, scales),
-        link=LinkEmulator(s.toxiproxy_url), coder=coder)
+        link=LinkEmulator(s.toxiproxy_url), coder=coder,
+        handoff=build_handoff(default_handoff_config(), vocab, scales, checklists, s))
     ctx.new_incident(s.dispatch)
     ctx.relay = Relay(lambda: ctx.incident, s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir)
     if s.knowledge:

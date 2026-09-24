@@ -228,12 +228,14 @@ keys:
     - 150
   meds.given:
     # NEMSIS eMedications: 03 medication (RxNorm), 04 route, 05 dose, 06 unit; time and who gave it (TASKS O1).
+    # before_arrival: given before this crew arrived (NEMSIS eMedications.02 "prior to EMS care"), e.g. by fire,
+    # family or the patient; the handoff reports it apart from the crew's treatment.
     label: Medication given
     type: record
     kind: event
     merge: each
     identity: drug
-    fields: {drug: str, dose: float, unit: str, route: str, time: time, by: str, count: int}
+    fields: {drug: str, dose: float, unit: str, route: str, time: time, by: str, count: int, before_arrival: bool}
     field_ranges: {dose: [0, 10000], count: [1, 20]}
     field_synonyms:                 # `by` is who gave it, as a category (the relation is in the fact's source)
       by: *people
@@ -244,12 +246,17 @@ keys:
     kind: event
     merge: each
     identity: procedure
-    fields: {procedure: str, time: time, detail: str, by: str}
+    fields: {procedure: str, time: time, detail: str, by: str, before_arrival: bool}
     field_synonyms:
       by: *people
   trauma.mechanism:
     label: Mechanism of injury
     type: str
+    kind: history
+  trauma.injury_time:
+    # ATMIST "T", time of injury (Wood et al., Emerg Med J 2015): a clock time, like stroke.lkw.
+    label: Time of injury
+    type: time
     kind: history
   trauma.injuries:
     label: Injuries found
@@ -318,6 +325,34 @@ keys:
     label: 12-lead transmitted
     type: bool
     kind: measure
+  ecg.territory:
+    # Where the 12-lead shows the injury pattern, as the medic or the monitor states it ("inferior STEMI").
+    # Herald never reads a 12-lead itself.
+    label: 12-lead territory
+    type: list
+    kind: measure
+    merge: accumulate
+    enum: [inferior, anterior, septal, lateral, posterior, right ventricular]
+  airway.status:
+    # Policy 501 §III.A.5 airway status. A device placed is also a procedures.done event.
+    label: Airway
+    type: str
+    kind: measure
+    enum: [patent, patent with adjunct, supraglottic airway, endotracheal tube, bag-valve-mask ventilation, compromised]
+  impression.primary:
+    # Policy 501 §III.A.2 / NEMSIS eSituation.11: the crew's working impression in the medic's words. It is the
+    # medic's statement, never a diagnosis made by Herald.
+    label: Primary impression
+    type: str
+    kind: history
+  triage.category:
+    # SALT category for mass-casualty mode (TASK_SPECS S5): the medic's call, spoken or tapped, never Herald's.
+    # Colors are words the model maps ("red tag" -> immediate), not synonyms coded here.
+    label: Triage category (SALT)
+    type: str
+    kind: measure
+    require_tap: true
+    enum: [immediate, delayed, minimal, expectant, dead]
   transport.destination:
     label: Destination
     type: str

@@ -35,6 +35,7 @@ class Settings(BaseModel):
     timezone: str = "America/Los_Angeles"
     county: str = "santa_clara"
     dispatch: Optional[str] = "possible stroke"
+    unit_id: Optional[str] = None                 # this vehicle's unit ID, e.g. "Medic 25" (Policy 501 §III.A.1.a)
     # relay and demo link emulation
     ed_url: Optional[str] = None
     toxiproxy_url: str = "http://127.0.0.1:8474"
@@ -106,6 +107,7 @@ class Settings(BaseModel):
             timezone=e.get("HERALD_TZ", cls.model_fields["timezone"].default),
             county=e.get("HERALD_COUNTY", cls.model_fields["county"].default),
             dispatch=e.get("HERALD_DISPATCH", "possible stroke"),
+            unit_id=opt("HERALD_UNIT_ID"),
             ed_url=opt("HERALD_ED_URL"),
             toxiproxy_url=e.get("TOXIPROXY_URL", cls.model_fields["toxiproxy_url"].default),
             ui=e.get("HERALD_UI", "new"),

@@ -59,10 +59,39 @@ for step in sc["steps"]:
             if all(t["trace"]["model"]["status"] != "running" for t in c.get("/api/state").json()["transcripts"]):
                 break
             time.sleep(0.25)
-        facts = c.get("/api/state").json()["facts"]
-        done = [k for k, f in facts.items() if k.startswith(step["confirm"]) and f["status"] == "unconfirmed"
-                and not c.post(f"/api/facts/{f['id']}/confirm").raise_for_status() is None]
+        state = c.get("/api/state").json()
+        # every held fact of the key group: the latest per key, and every event (each dose given, each procedure)
+        held = {f["id"]: f for f in [*state["facts"].values(), *[e for ev in (state.get("events") or {}).values() for e in ev]]
+                if f["key"].startswith(step["confirm"]) and f["status"] == "unconfirmed"}
+        done = [f["key"] for f in held.values() if not c.post(f"/api/facts/{f['id']}/confirm").raise_for_status() is None]
         print(f"[tap] confirmed {done}")
+    elif "photo" in step:
+        # A photo from the phone camera (stage: a real watch or bottle; replay: a test image)
+        with open(step["photo"], "rb") as fh:
+            r = c.post("/api/photo", files={"file": ("photo.jpg", fh, "image/jpeg")}, data={"mode": step.get("mode", "monitor")})
+        r.raise_for_status()
+        facts = r.json()["facts"]
+        print(f"[photo:{step.get('mode', 'monitor')}] {step['photo']}\n    -> {len(facts)} facts")
+        for f in facts:
+            print(f"       {f['key']} = {json.dumps(f['value'])} ({f['status']}, confidence {f['confidence']})")
+    elif "ask" in step:
+        # A protocol question: the county's own passage, with its citation
+        r = c.get("/api/protocols/search", params={"q": step["ask"]})
+        deadline = time.monotonic() + 600
+        while r.status_code == 503 and (r.json().get("detail") or {}).get("building") and time.monotonic() < deadline:
+            time.sleep(5)                                    # a fresh server is still building the county index
+            r = c.get("/api/protocols/search", params={"q": step["ask"]})
+        if r.status_code == 404:
+            print(f"[ask] {step['ask']}\n    -> protocol lookup is off on this server")
+        else:
+            r.raise_for_status()
+            d = r.json()
+            top = d["results"][0] if d.get("answerable") and d.get("results") else None      # picked passages come first
+            print(f"[ask] {step['ask']}\n    -> " + (f"{top['doc']} §{top['section']} (p. {top['page']}, effective "
+                  f"{top.get('effective')}): {top['text'][:160]}" if top else "not in the county's documents"))
+    elif "handoff" in step:
+        r = c.get("/api/handoff")
+        print("[handoff]\n" + (r.json().get("text", "") if r.status_code == 200 else f"    -> {r.status_code}"))
     elif "monitor" in step:
         facts = [{"key": k, "value": v, "captured_by": "device", "role": "device", "speaker": "monitor",
                   "confidence": 0.99} for k, v in step["monitor"].items()]

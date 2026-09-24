@@ -11,6 +11,10 @@ class BandedScore:
         self.county: Optional[str] = definition.get("county")
         self.parameters = definition["parameters"]
 
+    def input_keys(self) -> set[str]:
+        """Every vocabulary key the score reads."""
+        return {p["key"] for p in self.parameters}
+
     def parameter(self, key: str) -> dict:
         return next(p for p in self.parameters if p["key"] == key)
 

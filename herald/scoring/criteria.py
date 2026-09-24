@@ -106,6 +106,11 @@ class CriteriaScore:
             keys |= rule_keys(c)
         return keys
 
+    def criteria_keys(self) -> list[tuple[str, set[str]]]:
+        """(group id, the vocabulary keys the criterion reads) for every criterion, in the order of a result's
+        `criteria` rows, so a met row can be traced back to the facts that decided it."""
+        return [(g["id"], rule_keys(c)) for g in self.groups for c in self.d.get(g["id"], [])]
+
     # ---------- relay ----------
     def relay_text(self, result: dict) -> Optional[str]:
         """The line the relay sends: met criteria by group (codes) or met findings; `not met` only when complete."""

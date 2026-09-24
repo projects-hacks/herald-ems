@@ -29,6 +29,17 @@ Herald now works on trauma, sepsis and STEMI calls with the county's own criteri
 4. **Readiness items can carry `note`** (e.g. EtCO2 "not measured"), and checklists carry `source`. Item keys can be a score (`@trauma_605`), a record field (`meds.given[drug=aspirin]`) or alternatives (`vitals.consciousness|vitals.gcs_total`): look labels up in the item, never in `keys.json` (§3.1.5, §4.6).
 5. **Wording:** the county calls sepsis an "advanced notification", not an alert. The UI says "Sepsis pre-notification", never "Sepsis Alert" (P1, §5.9c).
 
+## Change note, 2026-09-24: the written handoff report (MIST / SBAR)
+
+Herald now writes the handoff the paramedic reads to the ED, by radio or at the bedside, and the ED screen can show it. The backend is in `herald/reporting/` (`handoff.py` builder, `lines.py` line kinds, `view.py` confirmed facts and wording, `text.py` plain text, `config.py` loading and checks), `config/handoff.yaml` (the formats, as reviewed content with sources), `herald/api/routes/handoff.py`, and `herald/api/context.py`. It is covered by `tests/test_handoff.py`. The full contract is §5.9e. What changes for the UI team:
+
+1. **New endpoint `GET /api/handoff`** (optional `?format=mist|medical`). It returns the report as sections of lines (each with its text, fact ids, and who said it and when) plus a plain-text rendering (`text`) for reading aloud.
+2. **The format follows the call.** When the trauma checklist is open the report is MIST (Mechanism, Injuries, Signs, Treatment); otherwise it is SBAR, with R replaced by "Treatment given", because Herald never recommends. Santa Clara Policy 501 (hospital radio reports) sets the contents and the order.
+3. **Only confirmed facts appear in a line.** A fact waiting for a tap is listed by name only, under "Not yet confirmed", without its value. A required item with no confirmed value reads "<label>: not yet known", in its place.
+4. **New snapshot field `handoff`**: a compact summary (`format`, `label`, `selected_by`, `lines`, `missing`, `unconfirmed`). The report itself is fetched from the endpoint.
+5. **The ED handoff page** (`ui/src/pages/HandoffPage.tsx`) can show the report next to the relay figures (screen note in §5.9e). The relay itself is unchanged.
+6. **Newly approved keys** are in the report: primary impression, time of injury, airway status, 12-lead territory and SALT triage category. Care given before this crew arrived now has its own section, `before_arrival`, so a `HandoffSection.id` can also be `before_arrival` (§5.9e table).
+
 ## How to read this document
 
 - `[n]` points to a source in §9. Every standard, guideline, and number has a source or is labelled as one of these:
@@ -2601,6 +2612,7 @@ export interface Snapshot {
   counters: { facts: number; cloud_ai_calls: number };
   relay: RelayStatus;
   netem: "good" | "weak" | "down" | null;
+  handoff: HandoffSummary;                                // 2026-09-24: the written report's summary (§5.9e)
 }
 export type NowMessage = { type: "state"; state: Snapshot } | { type: "pong"; t: string };
 
@@ -2986,6 +2998,133 @@ A held fact has `provenance.hold_reason`, e.g. *drug name matched by sound: 'zar
 **Health.** `GET /api/health` returns `terminology: {rxnorm_release}`, or `null` when the index isn't built; then nothing is coded. The stack view shows "Drug names not coded".
 
 **Where coding happens.** In the model extractor, the photo reader and `POST /api/facts`, so every path into the patient picture is coded the same way. The relay sends values only; `code` stays on the vehicle.
+
+### 5.9e Handoff report contract (backend, 2026-09-24)
+
+Herald writes the handoff the paramedic reads to the receiving ED, by radio or at the bedside, and that the ED screen can show. No model writes any of it. Every line is a template from `config/handoff.yaml`, filled with confirmed values and with the scores the Projector already computed. Nothing in the report is a recommendation.
+
+**Where it lives**
+
+| Part | File | Tests |
+|---|---|---|
+| Formats, lines, wording, sources (content) | `config/handoff.yaml` | `tests/test_handoff.py` (loads the real file for every county) |
+| Builder: picks the format, builds sections, gaps, unconfirmed list | `herald/reporting/handoff.py` | `tests/test_handoff.py` |
+| Line kinds `fact`, `events`, `score`, `trends` (a registry; a new kind is a new class) | `herald/reporting/lines.py` | `tests/test_handoff.py` |
+| Confirmed facts, provenance, units and value wording | `herald/reporting/view.py` | `tests/test_handoff.py` |
+| Plain-text rendering | `herald/reporting/text.py` | `tests/test_handoff.py` |
+| Content checks at startup (unknown keys, scores, checklists, template fields refuse to start) | `herald/reporting/config.py`, `herald/api/context.py` `build_handoff` | `tests/test_handoff.py` |
+| `GET /api/handoff`; snapshot `handoff` summary | `herald/api/routes/handoff.py`, `herald/api/context.py` `full_state` | `tests/test_handoff.py` |
+| Score input keys (which facts a score line came from) | `input_keys()` on every engine, `CriteriaScore.criteria_keys()` | `tests/test_handoff.py` |
+
+**Sources for the formats.**
+- **Primary: Santa Clara County EMS Policy 501, Hospital Radio Reports** (effective 2025-01-01; `data/protocols/santa_clara/archive/501_hospital-radio-reports_eff-2025-01-01.pdf`, re-read 2026-09-24).
+  - §III.A sets the standard report's contents, in this order: unit ID, ETA, age, sex; the primary impression and the chief complaint; pertinent history, medications, allergies and findings; vital signs; and the treatment provided.
+  - §IV.D: a Trauma, Stroke or STEMI report "shall start with a clear statement indicating what type of alert applies".
+  - §IV.E: a Trauma Alert report adds the mechanism of injury and the Policy 605 anatomic and physiologic criteria.
+- **MIST/ATMIST**: Wood K et al., Emerg Med J 2015;32(7):577-581 (PMID 25178977).
+- **Allergies, medications and background after MIST**, as in IMIST-AMBO: Iedema R et al., BMJ Qual Saf 2012;21(8):627-633.
+- **SBAR**: Leonard M et al., Qual Saf Health Care 2004;13(Suppl 1):i85-i90.
+
+**Formats and how one is chosen.** The first rule in `select` whose checklist is open wins. Otherwise the report uses `default`.
+
+| `format.id` | Chosen when | Sections, in order |
+|---|---|---|
+| `mist` "MIST (trauma)" | the `trauma` checklist is open (dispatch or complaint words, trauma facts, or the county's trauma criteria) | `opening` (alert statements, SALT triage category, unit, ETA, destination, age and sex, time of injury (ATMIST's T), primary impression, chief complaint), `mechanism` (M), `injuries` (I: injuries found, then each Policy 605 criterion met; `field_triage` in counties without their own), `signs` (S: airway, BP, HR, RR, SpO2 with air or oxygen, GCS or ACVPU, temperature, glucose, pain, EtCO2, 12-lead with its territory, NEWS2, trends), `treatment` (T: this crew's), `before_arrival` (care given before this crew arrived), `history` (allergies, anticoagulant, medications, code status, pregnancy), `other` (scene notes) |
+| `medical` "SBAR (medical)" | otherwise | `opening` (alert statements, SALT triage category, unit, ETA, destination, primary impression), `situation` (age and sex, chief complaint, symptom onset; last known well, onset witnessed and deficits while the stroke checklist is open; suspected infection; mechanism, time of injury or injuries if any), `background`, `assessment` (the same signs, plus the stroke scales while stroke is open and the sepsis criteria while sepsis is open), `treatment` ("T: Treatment given", which replaces SBAR's R because Herald never recommends), `before_arrival`, `other` |
+
+`?format=` overrides the choice. `selected_by` says why the format was picked: `checklist:<id>`, `default`, or `request`.
+
+**Alert statements (501 §IV.D).** The medic declares the alert. The report's opening states which county criteria or readings are met, from confirmed facts, so the medic can say it:
+- "Trauma Alert criteria (Policy 605) met" (or "Field triage (2021) met");
+- "12-lead reads STEMI, inferior (700-A08 §3.2)" (the territory when it was stated);
+- "G.F.A.S.T. 4 of 4" or "RACE n of 9" when positive;
+- "Sepsis pre-notification criteria met (700-A04 §1.4)".
+
+The report never says "Trauma Alert", "Stroke Alert" or "STEMI Alert" on its own authority.
+
+**The keys approved on 2026-09-24** (`config/vocabulary.yaml`), and where each goes in the report:
+
+| Key | Where it goes | Wording | Required |
+|---|---|---|---|
+| `impression.primary` (501 §III.A.2; NEMSIS eSituation.11; the medic's words, never Herald's diagnosis) | opening, both formats (MIST: after age, sex and time of injury; SBAR: after the ETA) | "Impression: hip fracture after fall" | yes: "Primary impression: not yet known" |
+| `trauma.injury_time` (ATMIST's T) | MIST opening, right after age and sex (ATMIST's order); SBAR situation when said | "Injured at 14:02" | MIST only: "Time of injury: not yet known" |
+| `airway.status` (501 §III.A.5) | first line of the signs (MIST S, SBAR A) | "Airway: patent with adjunct" | no |
+| `ecg.territory` | with the STEMI reading, in the opening statement and in the signs | "12-lead reads STEMI, inferior, lateral, transmitted"; alone "12-lead territory inferior" | no (it never covers the "12-lead reads STEMI" gap) |
+| `triage.category` (SALT; `require_tap`) | opening, right after the alert statements, once tapped | "Triage: immediate (SALT)" | no; until tapped it is only in `not_yet_confirmed[]` |
+| `before_arrival` on `meds.given` and `procedures.done` (NEMSIS eMedications.02, eProcedures.02) | its own `before_arrival` section, after the crew's treatment, both formats | "Before arrival: naloxone 2 mg IN, by fire; c-collar, by fire." | no; an empty section is left out of the text |
+
+**Rules the builder keeps** (AGENTS.md invariants 3-6):
+- **Confirmed only.** A line shows only confirmed values. A fact waiting for a tap (a photo reading, another speaker, low confidence, held, a contradiction, code status) is listed in `not_yet_confirmed[]` by key and label with its fact ids, **never with its value**. `differs: true` when it disagrees with the confirmed value the report shows. That list is the only place such a fact appears, so the report is safe to show on the ED screen.
+- **Missing shown as missing.** A required line with no confirmed value becomes `{status: "missing", text: "<label>: not yet known"}` in its place (e.g. "Last known well: not yet known" on a stroke call). It stays silent while a value for it waits for a tap, because it has been heard, not missed. Some lines are required only while a checklist is open: glucose and last known well for stroke, temperature and suspected infection for sepsis, anticoagulant for trauma, stroke and STEMI, symptom onset for STEMI.
+- **Checklist gaps.** Every open checklist's missing item that no line covers is listed once, in `not_yet_known[]`, with its note (e.g. "EtCO2 (not measured)").
+  - A line covers only the keys it actually shows. "12-lead transmitted" does not cover "12-lead reads STEMI".
+  - Record-field items (the time of aspirin, 700-A08 §6.3) are never listed. The treatment list is the record of what was given, and a report must never read as a prompt to give something.
+- **Scores with their source.**
+  - A complete banded or item score reads e.g. "NEWS2 7, high risk (RCP 2017)" or "G.F.A.S.T. 4 of 4 (700-A13 §2.3)".
+  - An incomplete one shows what is missing and **no partial total**: "NEWS2 incomplete: Respiratory rate, Consciousness, Temperature not yet known (RCP 2017)".
+  - A criteria score lists each met criterion in the county's words, e.g. "Policy 605 Red N.3 Age older than 65 years: Systolic BP is less than 110 mmHg (SBP 84, age 72)". It reads "no criterion met" once complete, "undecided" otherwise, and nothing while it doesn't apply.
+  - Every score line has `source`, the score definition's full citation.
+- **Treatment.** Every confirmed `meds.given` and `procedures.done` event is listed in the order recorded. The same event said twice is one line carrying both fact ids. Fields that weren't recorded are left out, never filled in, e.g. "aspirin 324 PO, by crew" when no unit was said, or "fentanyl 50 mcg IV at 14:22, by crew". A section with no treatment reads "none recorded" (`status: "empty"`).
+- **Before arrival.** A dose or procedure with `before_arrival: true` goes in the `before_arrival` section, never in the crew's treatment. One with `before_arrival` false or not stated counts as the crew's: Herald never infers timing from who gave it. The split is an `events` line option, not a special case. `where: {before_arrival: true}` keeps records whose field has that value, and `where_not` drops them; a field that wasn't recorded matches no value.
+- **Deterministic.** The same facts give the same JSON and the same text. `as_of` is the time of the last fact, not the time of the request.
+
+**Types** (add to `ui/src/lib/types.ts`):
+
+```ts
+export interface HandoffSource {                 // one fact behind a line
+  fact_id: string; key: string; role: Role; speaker: string | null; captured_by: CapturedBy;
+  time: string;                                  // local "HH:MM" when it was recorded
+  ts: string; audio_id: string | null; photo_id: string | null; extractor: string | null;
+}
+export interface HandoffLine {
+  kind: "fact" | "event" | "score" | "trend" | "missing" | "empty";
+  status: "confirmed" | "missing" | "empty";
+  text: string;                                  // as read aloud; wording and units from config
+  keys: string[];                                // vocabulary keys shown ("@<score>" for a score line)
+  fact_ids: string[];                            // link to the audio clip or photo via FactView.provenance
+  sources: HandoffSource[];
+  source?: string;                               // score lines: the score's citation
+}
+export interface HandoffSection {
+  id: string; label: string;                     // e.g. "mechanism", "M: Mechanism"; "before_arrival", "Before arrival"
+  say_label: boolean;                            // false for the opening (read without its label)
+  source: string | null;                         // which Policy 501 / MIST / SBAR item it implements
+  lines: HandoffLine[];
+}
+export interface HandoffGap { key: string; label: string; note?: string; checklists: ChecklistId[]; text: string }
+export interface HandoffWaiting { key: string; label: string; fact_ids: string[]; differs: boolean }  // no value, on purpose
+export interface HandoffReport {
+  format: { id: "mist" | "medical"; label: string; title: string; source: string };
+  formats: { id: string; label: string }[];
+  selected_by: string;                           // "checklist:trauma" | "default" | "request"
+  incident: { id: string; dispatch: string | null; started: string };
+  county: { id: string; name: string };
+  as_of: string;                                 // time of the last fact (ISO)
+  open_checklists: ChecklistId[];
+  sections: HandoffSection[];
+  not_yet_known: HandoffGap[];
+  not_yet_confirmed: HandoffWaiting[];
+  text: string;                                  // plain text: the title, then one line per section, then the two lists
+}
+export interface HandoffSummary {                // snapshot.handoff
+  format: "mist" | "medical"; label: string; selected_by: string;
+  lines: number; missing: number; unconfirmed: number;
+}
+```
+
+**Endpoint.** `GET /api/handoff` returns a `HandoffReport` for the current incident. `?format=<id>` returns HTTP 400 for an unknown format; the message names the valid ones.
+
+**Settings.** `HERALD_UNIT_ID` (e.g. "Medic 25", 501 §III.A.1.a) opens the report with "<unit> en route". Without it the line is left out.
+
+**Screen note: ED handoff page** (`ui/src/pages/HandoffPage.tsx`, frontend-owned):
+- **Placement.** Add a "Report" card next to the relay figures. The header shows `format.title` and a two-way switch, MIST / SBAR, that re-fetches with `?format=`.
+- **Sections.** Render them in order, each with its label, and one line per row. Show `status: "missing"` rows in the missing style (P2, gap-first), never as values. A row's `sources` give the chip "said 14:22 · medic", and tapping it opens the fact's audio clip or photo (`FactView.provenance`).
+- **Lists.** Show `not_yet_known[]` and `not_yet_confirmed[]` below the sections, under their own headings. A `not_yet_confirmed` item links to the fact on the NOW screen to confirm it. Never show a value there.
+- **Read-aloud.** Offer `text` in a monospace block with a copy button for the radio report.
+- **Refresh.** Re-fetch when `snapshot.handoff` changes. The summary counts are cheap enough to badge the tab, e.g. "3 not yet known".
+- **Wording.** Don't reword lines in the UI: they are the county's words and the config's templates.
+
+**What the report can't represent yet.** The five gaps listed in the first version (time of injury, before arrival, airway status, primary impression, 12-lead territory) were closed by the keys approved on 2026-09-24 (table above). They reach the report only once the extraction model emits them; until then they show as "not yet known" where required.
 
 ### 5.10 Build and serving with FastAPI
 

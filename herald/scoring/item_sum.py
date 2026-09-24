@@ -16,6 +16,14 @@ class ItemSumScale:
     def key_prefix(self) -> str:
         return self.items[0]["key"].rsplit(".", 1)[0] + "."
 
+    def input_keys(self) -> set[str]:
+        """Every vocabulary key the scale reads."""
+        return {it["key"] for it in self.items}
+
+    @property
+    def max_score(self) -> int:
+        return sum(it["max"] for it in self.items)
+
     def evaluate(self, values: dict[str, Any]) -> dict:
         parts, missing = {}, []
         for it in self.items:

@@ -15,7 +15,7 @@ from .capture import CaptureService
 from .context import AppContext, build_context
 from .hub import Hub
 from .routes import capture as capture_routes
-from .routes import incident, protocols, relay, system
+from .routes import handoff, incident, protocols, relay, system
 
 
 def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
@@ -48,7 +48,7 @@ def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
     app = FastAPI(title="Herald", version="0.2.0", lifespan=lifespan)
     app.state.ctx, app.state.hub = ctx, hub
     app.state.capture = CaptureService(ctx, hub.broadcast)
-    for module in (incident, capture_routes, relay, system, protocols):
+    for module in (incident, capture_routes, relay, system, protocols, handoff):
         app.include_router(module.router)
 
     @app.websocket("/ws")

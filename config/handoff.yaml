@@ -1,0 +1,282 @@
+# The written handoff report: what the paramedic reads to the receiving emergency department (radio or bedside) and
+# what the ED screen shows. Engine: herald/reporting/ (it assembles lines; it never writes free text and never
+# guesses). Contract: docs/UX_PLAN.md §5.9e.
+#
+# Sources
+# - Primary: Santa Clara County EMS Policy 501 Hospital Radio Reports (effective 2025-01-01; replaces 2023-02-27),
+#   data/protocols/santa_clara/archive/501_hospital-radio-reports_eff-2025-01-01.pdf, re-read 2026-09-24:
+#     §III.A  standard report, in this order: 1. demographics (a. unit ID, b. ETA, c. age, d. sex); 2. the EMS
+#             provider's primary impression and the chief complaint; 3. pertinent history, medications, allergies
+#             and significant findings; 4. vital signs ("explain and report abnormal vital signs"); 5. treatment
+#             provided ("drugs given, airway status, or procedures completed").
+#     §IV.D   a specialty report (Trauma, Stroke, STEMI) adds to §III and "shall start with a clear statement
+#             indicating what type of alert applies to the patient".
+#     §IV.E   a Trauma Alert report adds 1. the mechanism of injury and 2. the anatomic and physiologic trauma
+#             criteria, both per Policy 605.
+# - MIST (Mechanism, Injuries, Signs, Treatment) and its ATMIST form (Age, Time) as the trauma handover structure:
+#   Wood K, Crouch R, Rowland E, Pope C. Clinical handovers between prehospital and hospital staff: literature
+#   review. Emerg Med J 2015;32(7):577-581 (PMID 25178977).
+# - Allergies, Medications, Background and Other after the MIST items: IMIST-AMBO, Iedema R et al. Design and trial
+#   of a new ambulance-to-emergency department handover protocol: 'IMIST-AMBO'. BMJ Qual Saf 2012;21(8):627-633
+#   (doi 10.1136/bmjqs-2011-000766).
+# - SBAR (Situation, Background, Assessment, Recommendation) for the medical report: Leonard M, Graham S, Bonacum D.
+#   The human factor: the critical importance of effective teamwork and communication in providing safe care. Qual
+#   Saf Health Care 2004;13(Suppl 1):i85-i90. Herald replaces SBAR's R with "Treatment given" (501 §III.A.5): Herald
+#   never recommends (AGENTS.md invariant 3).
+#
+# What the engine guarantees (herald/reporting/): only confirmed facts appear in a line; a fact waiting for the
+# medic's tap is listed by name only (no value) under "not yet confirmed"; a required line with no confirmed value
+# reads "<label>: not yet known"; an open checklist's missing items that no line covers are listed under "not yet
+# known"; every line carries the ids, speaker and time of the facts it came from.
+#
+# Line kinds
+#   fact    templates (first whose placeholders all have confirmed values); `when` a criteria rule
+#           (herald/scoring/rules.py) over confirmed values; `keys` extra keys the line depends on
+#   events  every confirmed event of a record key (meds.given, procedures.done), in order; `parts` are joined and a
+#           part is kept only when every field it names is recorded; `where` / `where_not` keep or drop records by
+#           field values (a field not recorded matches nothing)
+#   score   a score from the snapshot (`score`: an id, or a list: the first one the active county has). With
+#           `only_if` (met | positive) it renders `template` only when that result field is true; otherwise the
+#           engine's own wording below (`score_text`). `cite` is the short citation read aloud
+#   trends  every listed key with two or more confirmed readings: the readings in order
+# A list inside `lines` is spliced in (the shared lists below are YAML anchors).
+# Placeholders: {key} value, {key:unit} value with the vocabulary unit, {key:label} the vocabulary label, {key:time}
+#   when it was recorded (local time); {$unit} the vehicle's unit ID (HERALD_UNIT_ID).
+# Gates on any line: `when_checklists` (listed only while one of these checklists is open); `required` (true, or a
+#   list of checklists: a missing value is shown as "not yet known"); `label` names it when missing.
+
+time_format: "%H:%M"
+words:
+  missing: not yet known
+  empty_list: none reported
+  arrow: " → "
+  list_separator: ", "
+  line_separator: "; "
+  missing_heading: Not yet known
+  unconfirmed_heading: Not yet confirmed, left out of this report
+  differs: differs from the value in this report
+  unit_no_space: ["%", "/"]
+# How a value reads in a sentence (lowercase keys; booleans are "true"/"false"). Record fields as "<key>.<field>".
+value_text:
+  patient.sex: {f: female, female: female, m: male, male: male}
+  vitals.on_oxygen: {"true": on oxygen, "false": on room air}
+  ecg.stemi_reading: {"true": reads STEMI, "false": does not read STEMI}
+  ecg.transmitted: {"true": transmitted, "false": not transmitted}
+  ecg.attached: {"true": attached, "false": not attached}
+  stroke.onset_witnessed: {"true": witnessed, "false": not witnessed}
+# Wording for a score line, by engine kind (herald/scoring/). Fields: {name} {score} {band} {max} {level}
+# {missing} {cite}; criteria hits add {group} {text}. An incomplete score shows no partial total.
+score_text:
+  banded:
+    complete: "{name} {score}, {band} risk ({cite})"
+    incomplete: "{name} incomplete: {missing} not yet known ({cite})"
+  item_sum:
+    complete: "{name} {score} of {max} ({cite})"
+    incomplete: "{name} incomplete: {missing} not yet known ({cite})"
+  criteria:
+    hit: "{cite} {group} {text}"
+    not_met: "{name}: no criterion met ({cite})"
+    undecided: "{name}: undecided, {missing} not yet known ({cite})"
+# Which format a call gets: the first rule with an open checklist (snapshot `readiness[].id`); otherwise `default`.
+# The trauma checklist opens on the dispatch or chief-complaint words, on trauma facts, or on the county's trauma
+# criteria (config/checklists.yaml, config/counties/*.json).
+select:
+- {format: mist, checklists: [trauma]}
+default: medical
+
+# ---------- lines shared by both formats (YAML anchors) ----------
+shared:
+  # 501 §IV.D: a specialty report starts with the alert type. The medic declares the alert; Herald states which
+  # county criteria or readings are met, from confirmed facts, so the medic can say it.
+  alert_statements: &alert_statements
+  - {kind: score, score: [trauma_605, field_triage], only_if: met, template: "{name} met"}
+  - kind: fact
+    templates: ["12-lead {ecg.stemi_reading}, {ecg.territory} (700-A08 §3.2)", "12-lead {ecg.stemi_reading} (700-A08 §3.2)"]
+    when: {type: present, key: ecg.stemi_reading, unless: ["false"]}
+  - {kind: score, score: gfast, only_if: positive, template: "{name} {score} of {max}"}
+  - {kind: score, score: race, only_if: positive, template: "{name} {score} of {max}"}
+  - {kind: score, score: sepsis_700a04, only_if: met, template: "Sepsis pre-notification criteria met (700-A04 §1.4)"}
+  # SALT category (mass-casualty mode): the medic's call, always tapped (require_tap), shown once confirmed
+  triage: &triage
+  - {kind: fact, templates: ["Triage: {triage.category} (SALT)"]}
+  # 501 §III.A.1.a-b
+  unit_eta: &unit_eta
+  - {kind: fact, templates: ["{$unit} en route"]}
+  - {kind: fact, templates: ["ETA {transport.eta_min} min (said at {transport.eta_min:time})"], required: true,
+     label: ETA}
+  - {kind: fact, templates: ["To {transport.destination}"]}
+  # 501 §III.A.1.c-d
+  age_sex: &age_sex
+  - kind: fact
+    templates: ["{patient.age}-year-old {patient.sex}", "{patient.age}-year-old, sex not yet known",
+                "Age not yet known, {patient.sex}"]
+    required: true
+    label: Age and sex
+  # ATMIST "T": time of injury (Wood et al. 2015), read right after the age as ATMIST orders it
+  injury_time: &injury_time
+  - {kind: fact, templates: ["Injured at {trauma.injury_time}"], required: true, label: Time of injury}
+  # 501 §III.A.2: "EMS provider's primary impression and patient's chief complaint". The impression is the crew's
+  # statement in the medic's words (NEMSIS eSituation.11), never a diagnosis made by Herald.
+  impression: &impression
+  - {kind: fact, templates: ["Impression: {impression.primary}"], required: true, label: Primary impression}
+  complaint: &complaint
+  - {kind: fact, templates: ["Chief complaint: {complaint.chief}"], required: true, label: Chief complaint}
+  # 501 §III.A.4 ("explain and report abnormal vital signs"): the latest confirmed reading of each
+  vitals: &vitals
+  - {kind: fact, templates: ["Airway: {airway.status}"]}          # 501 §III.A.5 "airway status"
+  - {kind: fact, templates: ["BP {vitals.sbp}/{vitals.dbp:unit}", "Systolic BP {vitals.sbp:unit}"], required: true,
+     label: Blood pressure}
+  - {kind: fact, templates: ["HR {vitals.hr:unit}"], required: true, label: Heart rate}
+  - {kind: fact, templates: ["RR {vitals.rr:unit}"], required: true, label: Respiratory rate}
+  - {kind: fact, templates: ["SpO2 {vitals.spo2:unit} {vitals.on_oxygen}", "SpO2 {vitals.spo2:unit}"],
+     required: true, label: SpO2}
+  - kind: fact
+    templates: ["GCS {vitals.gcs_total}, ACVPU {vitals.consciousness}", "GCS {vitals.gcs_total}",
+                "GCS motor {vitals.gcs_motor}, ACVPU {vitals.consciousness}", "GCS motor {vitals.gcs_motor}",
+                "ACVPU {vitals.consciousness}"]
+    required: true
+    label: Mental status (GCS or ACVPU)
+  - {kind: fact, templates: ["Temp {vitals.temp:unit}"], required: [sepsis], label: Temperature}
+  - {kind: fact, templates: ["Glucose {vitals.glucose:unit}"], required: [stroke], label: Glucose}
+  - {kind: fact, templates: ["Pain {vitals.pain}/10"]}
+  - {kind: fact, templates: ["EtCO2 {vitals.etco2:unit}"]}
+  - kind: fact
+    templates: ["12-lead {ecg.stemi_reading}, {ecg.territory}, {ecg.transmitted}",
+                "12-lead {ecg.stemi_reading}, {ecg.territory}", "12-lead {ecg.stemi_reading}, {ecg.transmitted}",
+                "12-lead {ecg.stemi_reading}", "12-lead territory {ecg.territory}, {ecg.transmitted}",
+                "12-lead territory {ecg.territory}", "12-lead {ecg.transmitted}"]
+  - {kind: fact, templates: ["First 12-lead at {ecg.twelve_lead_time}"]}
+  - {kind: score, score: news2, cite: RCP 2017}
+  - kind: trends
+    keys: [vitals.sbp, vitals.hr, vitals.rr, vitals.spo2, vitals.gcs_total, vitals.pain, vitals.etco2,
+           vitals.glucose, vitals.temp]
+    template: "{label} {series}"
+  # 501 §III.A.5: drugs given and procedures completed, every confirmed event in the order it was recorded. What was
+  # given before this crew arrived (`before_arrival`, NEMSIS eMedications.02 / eProcedures.02 "prior to this unit's
+  # EMS care") is its own section, never mixed into the crew's treatment.
+  med_parts: &med_parts ["{drug}", " {dose}", " {unit}", " {route}", " x{count}", " at {time}", ", by {by}"]
+  procedure_parts: &procedure_parts ["{procedure}", " {detail}", " at {time}", ", by {by}"]
+  treatment: &treatment
+  - {kind: events, key: meds.given, where_not: {before_arrival: true}, parts: *med_parts}
+  - {kind: events, key: procedures.done, where_not: {before_arrival: true}, parts: *procedure_parts}
+  before_arrival: &before_arrival
+  - {kind: events, key: meds.given, where: {before_arrival: true}, parts: *med_parts}
+  - {kind: events, key: procedures.done, where: {before_arrival: true}, parts: *procedure_parts}
+  # 501 §III.A.3; IMIST-AMBO A-M-B
+  history: &history
+  - {kind: fact, templates: ["Allergies: {allergies}"], required: true, label: Allergies}
+  - {kind: fact, templates: ["Anticoagulant: {meds.anticoagulant}"], required: [trauma, stroke, stemi],
+     label: Anticoagulant}
+  - {kind: fact, templates: ["Medications: {meds.list}"], required: true, label: Medications}
+  - {kind: fact, templates: ["Code status: {code_status}"]}
+  - {kind: fact, templates: ["Pregnant, {patient.pregnancy_weeks} weeks"]}
+  other: &other
+  - {kind: fact, templates: ["Scene: {scene.notes}"]}
+
+formats:
+  mist:
+    label: MIST (trauma)
+    title: Trauma handover (MIST)
+    source: >-
+      Santa Clara County EMS Policy 501 Hospital Radio Reports (effective 2025-01-01) §III.A, §IV.D-E; MIST/ATMIST
+      (Wood K et al., Emerg Med J 2015;32(7):577-581); allergies, medications, background and other after MIST as in
+      IMIST-AMBO (Iedema R et al., BMJ Qual Saf 2012;21(8):627-633)
+    sections:
+    - id: opening
+      label: Alert and patient
+      say_label: false
+      source: >-
+        501 §IV.D (alert type first); SALT triage category when tapped; §III.A.1 (unit, ETA, age, sex); ATMIST T
+        (time of injury); §III.A.2 (primary impression, chief complaint)
+      lines: [*alert_statements, *triage, *unit_eta, *age_sex, *injury_time, *impression, *complaint]
+    - id: mechanism
+      label: "M: Mechanism"
+      source: "501 §IV.E.1 (mechanism of injury per Policy 605); MIST"
+      lines:
+      - {kind: fact, templates: ["{trauma.mechanism}"], required: true, label: Mechanism of injury}
+      - {kind: fact, templates: ["Onset {symptom.onset}"]}
+    - id: injuries
+      label: "I: Injuries"
+      source: "501 §IV.E.2 (anatomic and physiologic criteria per Policy 605); §III.A.3; MIST"
+      lines:
+      - {kind: fact, templates: ["{trauma.injuries}"], required: true, label: Injuries found}
+      - kind: score
+        score: [trauma_605, field_triage]
+        cite: {trauma_605: Policy 605, field_triage: Field triage 2021}
+        group_names: {red: Red, yellow: Yellow, consider: Consider, burn: Burn}
+    - id: signs
+      label: "S: Signs"
+      source: "501 §III.A.4; MIST"
+      lines: [*vitals]
+    - id: treatment
+      label: "T: Treatment"
+      source: "501 §III.A.5; MIST"
+      empty: none recorded
+      lines: [*treatment]
+    - id: before_arrival
+      label: Before arrival
+      source: "501 §III.A.5 (treatment provided); NEMSIS eMedications.02, eProcedures.02 (prior to this unit's EMS care)"
+      lines: [*before_arrival]
+    - id: history
+      label: "Allergies, medications, history"
+      source: "501 §III.A.3; IMIST-AMBO (A, M, B)"
+      lines: [*history]
+    - id: other
+      label: Other
+      source: "IMIST-AMBO (O)"
+      lines: [*other]
+
+  medical:
+    label: SBAR (medical)
+    title: Medical handover (SBAR)
+    source: >-
+      Santa Clara County EMS Policy 501 Hospital Radio Reports (effective 2025-01-01) §III.A, §IV.D; SBAR (Leonard M
+      et al., Qual Saf Health Care 2004;13(Suppl 1):i85-i90), with R replaced by the treatment given (501 §III.A.5):
+      Herald never recommends
+    sections:
+    - id: opening
+      label: Alert
+      say_label: false
+      source: "501 §IV.D (alert type first); SALT triage category when tapped; §III.A.1.a-b (unit, ETA); §III.A.2 (primary impression)"
+      lines: [*alert_statements, *triage, *unit_eta, *impression]
+    - id: situation
+      label: "S: Situation"
+      source: "501 §III.A.1.c-d, §III.A.2; SBAR"
+      lines:
+      - *age_sex
+      - *complaint
+      - {kind: fact, templates: ["Onset {symptom.onset}"], required: [stemi], label: Symptom onset}
+      - {kind: fact, templates: ["Last known well {stroke.lkw}"], when_checklists: [stroke], required: true,
+         label: Last known well}
+      - {kind: fact, templates: ["Onset {stroke.onset_witnessed}"], when_checklists: [stroke]}
+      - {kind: fact, templates: ["Deficits: {stroke.deficits}"], when_checklists: [stroke]}
+      - {kind: fact, templates: ["Suspected infection: {infection.suspected}"], required: [sepsis],
+         label: Suspected infection (source)}
+      - {kind: fact, templates: ["Mechanism: {trauma.mechanism}"]}
+      - {kind: fact, templates: ["Injured at {trauma.injury_time}"]}
+      - {kind: fact, templates: ["Injuries: {trauma.injuries}"]}
+    - id: background
+      label: "B: Background"
+      source: "501 §III.A.3; SBAR"
+      lines: [*history]
+    - id: assessment
+      label: "A: Assessment"
+      source: "501 §III.A.4 (vital signs), §III.A.3 (significant findings); SBAR"
+      lines:
+      - *vitals
+      - {kind: score, score: gfast, when_checklists: [stroke], cite: 700-A13 §2.3}
+      - {kind: score, score: race, when_checklists: [stroke], cite: Pérez de la Ossa 2014}
+      - {kind: score, score: sepsis_700a04, when_checklists: [sepsis], cite: 700-A04, group_names: {notify: ""}}
+    - id: treatment
+      label: "T: Treatment given"
+      source: "501 §III.A.5 (in place of SBAR's Recommendation: Herald never recommends)"
+      empty: none recorded
+      lines: [*treatment]
+    - id: before_arrival
+      label: Before arrival
+      source: "501 §III.A.5 (treatment provided); NEMSIS eMedications.02, eProcedures.02 (prior to this unit's EMS care)"
+      lines: [*before_arrival]
+    - id: other
+      label: Other
+      source: "IMIST-AMBO (O)"
+      lines: [*other]

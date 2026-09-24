@@ -1,0 +1,31 @@
+{
+ "name": "One paramedic, one shift, two calls (the stage demo)",
+ "note": "Call 1 is the stroke story (voice only, dispatch context, county routing, the allergy contradiction). Call 2 shows the same copilot on a different call: a fall that is also a heart attack, with a photo of a wearable and of a pill bottle, medications and procedures recorded as given, the STEMI and trauma checklists open together, a protocol question, and the written handoff. On stage the photos are real items (any watch or phone health screen, any labeled bottle); in replay they are test images. Replace LKW_TIME automatically (replay.py).",
+ "steps": [
+  {"incident": "possible stroke", "pause": 3},
+  {"say": "68-year-old female, sudden left-sided weakness, husband says she was fine at LKW_TIME.", "pause": 4},
+  {"say": "Mild left facial droop, left arm and leg can't lift, eyes deviated to the right, speech is slurred, no agnosia.", "pause": 4},
+  {"confirm": "exam.gfast.", "pause": 2, "note": "the medic taps the G.F.A.S.T. items the model held"},
+  {"say": "Onset was witnessed. BP 182 over 104, pulse 92, SpO2 95 on room air, respirations 18, temp 37.1, alert.", "pause": 4},
+  {"confirm": "stroke.", "pause": 2, "note": "last known well, onset witnessed, deficits"},
+  {"say": "She takes warfarin.", "pause": 3},
+  {"say": "Glucose 142.", "pause": 4},
+  {"say": "Husband says no allergies.", "pause": 3},
+  {"say": "Mom is allergic to aspirin.", "by": "other", "speaker": "daughter", "pause": 4},
+  {"say": "Pulse 104, breathing 22, sat 94, temp 38.4.", "pause": 4},
+  {"say": "Transporting to Regional, ETA 12 minutes.", "pause": 3},
+  {"ask": "where do I take a stroke patient with a G.F.A.S.T. of 4", "pause": 3},
+
+  {"incident": "fall", "pause": 3},
+  {"say": "Sixty-four year old male, fell off a ladder about twelve feet cleaning the gutters, now complaining of crushing chest pressure.", "pause": 4},
+  {"photo": "eval/photos/pulseox_01.jpg", "mode": "monitor", "pause": 3, "note": "stage: the patient's watch or phone health screen"},
+  {"say": "Wife says he takes Eliquis and lisinopril, allergic to penicillin.", "pause": 4},
+  {"photo": "eval/photos/pill_02_eliquis_tilt.jpg", "mode": "pill_bottle", "pause": 3, "note": "stage: any labeled medication bottle"},
+  {"say": "BP 88 over 54, heart rate 112, sats 93 on room air, GCS 15, pain 9 out of 10.", "pause": 4},
+  {"say": "Twelve lead shows an inferior STEMI, transmitted to Regional.", "pause": 4},
+  {"say": "We gave 324 of aspirin chewed and fentanyl 50 mics IV at 1422, 18 gauge in the left AC.", "pause": 4},
+  {"confirm": "", "pause": 2, "note": "the medic reviews and taps everything held (a real crew would tap each)"},
+  {"ask": "where do I take a trauma alert patient", "pause": 3},
+  {"handoff": true, "pause": 2}
+ ]
+}
