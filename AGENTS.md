@@ -37,6 +37,7 @@ Every decision in this project was researched and written down. Before proposing
 | [`docs/TASK_SPECS.md`](docs/TASK_SPECS.md) | Complete specs for handed-off tasks (S1–S8: fixtures, clean-clone setup, interpreter, diarization, mass-casualty mode, RxNorm normalization, soak test, field robustness): design against the package layout, steps, tests, acceptance, pitfalls, and what needs Rajeev. | Before starting any S-task from your lane in TASKS.md. | owner of each task + Rajeev |
 | [`docs/LABELING_GUIDE.md`](docs/LABELING_GUIDE.md) | How every gold utterance is labeled: roles, keys, normalization, corrections, negations, and the rules settled during adjudication (§4b). | Before writing or labeling any gold item. | data |
 | [`scenarios/`](scenarios/) + [`scripts/replay.py`](scripts/replay.py) | The stroke demo as a replayable script (rehearsal, video, regression). | Rehearsing, recording, or checking the demo still works after a change. | pitch |
+| [`docs/RUNBOOK.md`](docs/RUNBOOK.md) + [`scripts/soak.py`](scripts/soak.py) | Pre-demo warm-up, service/link checks, rehearsal, and the 30-minute stability soak. | Before rehearsal, recording, judging, or diagnosing demo drift. | integration |
 
 ### On the team Nano only (internal; NEVER commit, never copy into the repo)
 These live outside the repo because they contain pitch strategy, judge Q&A preparation, and ideation history. Everyone SSHes into the same machine, so the absolute paths work for every teammate and every agent.
