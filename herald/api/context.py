@@ -89,7 +89,8 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
         text_model=model, vision_model=seeing, stt=stt or WhisperSTT(s.stt_model, usage=tel, offline=s.models_offline),
         vision=vision or VisionReader(seeing),
         model_extractor=model_extractor,
-        tracer=TraceRecorder(vocab, tiers), contract=UIContract(vocab, tiers, trends, checklists, counties),
+        tracer=TraceRecorder(vocab, tiers),
+        contract=UIContract(vocab, tiers, trends, checklists, counties, scales),
         link=LinkEmulator(s.toxiproxy_url))
     ctx.new_incident(s.dispatch)
     ctx.relay = Relay(lambda: ctx.incident, s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir)

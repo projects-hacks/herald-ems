@@ -70,16 +70,10 @@ class Relay:
         inc = self.get_incident()
         vals = inc.values(confirmed_only=True)
         out = {k: v for k, v in vals.items() if k in self.tiers}
-        for sid in self.scales.ids():
-            scale = self.scales[sid]
-            fmt = scale.d.get("relay_text")
-            if f"score.{sid}" not in self.tiers or not fmt:
-                continue
-            r = scale.evaluate(vals)
-            if r.get("complete"):
-                result = "positive" if r.get("positive") else "negative"
-                out[f"score.{sid}"] = fmt.format(score=r["score"], band=r.get("band"), result=result)
-        snap = inc.snapshot()
+        snap = inc.snapshot()                  # scores from confirmed facts, for the active county only
+        for sid, r in snap["scores"].items():
+            if sid in self.scales and f"score.{sid}" in self.tiers and (text := self.scales[sid].relay_text(r)):
+                out[f"score.{sid}"] = text
         if snap["readiness"]:
             a = snap["readiness"][0]
             out["alert.readiness"] = f'{a["label"]} {a["done"]}/{a["total"]}{" ready" if a["ready"] else ""}'

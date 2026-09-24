@@ -20,11 +20,15 @@ class Extractor(Protocol):
 
 @runtime_checkable
 class Scale(Protocol):
-    """A published score or screen computed from confirmed values. Never a prediction, never advice."""
+    """A published score or screen computed from confirmed values. Never a prediction, never advice.
+    `county` is None for a published score, or the county whose own criteria it encodes (shown only there)."""
     id: str
     name: str
+    county: Optional[str]
 
     def evaluate(self, values: dict[str, Any]) -> dict: ...
+
+    def relay_text(self, result: dict) -> Optional[str]: ...
 
 
 class TextModel(Protocol):

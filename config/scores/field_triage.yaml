@@ -1,5 +1,7 @@
 # 2021 National Guideline for the Field Triage of Injured Patients: the vital-sign RED criteria and the
-# anticoagulant YELLOW criterion. Each criterion type is interpreted by herald/scoring/field_triage.py.
+# anticoagulant YELLOW criterion. Each criterion `type` is a rule in herald/scoring/rules.py; the engine is
+# herald/scoring/criteria.py. `text` is shown when the criterion is met (filled with the values); `label` names the
+# criterion when it is not. Santa Clara's own trauma criteria (Policy 605) are config/scores/trauma_605.yaml.
 id: field_triage
 name: Field triage (2021)
 kind: criteria
@@ -7,16 +9,30 @@ kind: criteria
 source: >-
   Newgard CD et al. National Guideline for the Field Triage of Injured Patients: Recommendations of the
   National Expert Panel on Field Triage, 2021. J Trauma Acute Care Surg 2022;93(2):e49-e60
+thresholds_text: >-
+  Red: transport to the highest-level trauma center; Yellow: preferentially a trauma center (need not be the
+  highest level)
+groups:
+  - {id: red, label: Red criteria, met: true, priority: high}
+  - {id: yellow, label: Yellow criteria, met: true, priority: medium}
 red:
   - {type: below, key: vitals.gcs_motor, value: 6, text: "Unable to follow commands (motor GCS < 6)"}
-  - {type: outside, key: vitals.rr, low: 10, high: 29, text: "RR {value} (< 10 or > 29)"}
-  - {type: room_air_below, key: vitals.spo2, value: 90, text: "Room-air SpO2 {value}% (< 90%)"}
+  - {type: outside, key: vitals.rr, low: 10, high: 29, text: "RR {value} (< 10 or > 29)", label: "RR < 10 or > 29"}
+  - {type: room_air_below, key: vitals.spo2, oxygen_key: vitals.on_oxygen, value: 90,
+     text: "Room-air SpO2 {value}% (< 90%)", label: "Room-air SpO2 < 90%"}
   - type: sbp_by_age
+    age_key: patient.age
+    sbp_key: vitals.sbp
+    label: "SBP below the age limit"
     bands:
-      - {age_max: 9, sbp_below_base: 70, sbp_below_per_year: 2, text: "SBP {sbp} < 70 + 2×age ({limit})"}
-      - {age_min: 10, age_max: 64, sbp_below: 90, text: "SBP {sbp} < 90"}
-      - {age_min: 65, sbp_below: 110, text: "SBP {sbp} < 110 (age ≥ 65)"}
-  - {type: hr_above_sbp, min_age: 10, text: "HR {hr} > SBP {sbp}"}
+      - {age_max: 9, sbp_below_base: 70, sbp_below_per_year: 2, text: "SBP {sbp} < 70 + 2×age ({limit})",
+         label: "SBP < 70 + 2×age (age 0-9)"}
+      - {age_min: 10, age_max: 64, sbp_below: 90, text: "SBP {sbp} < 90", label: "SBP < 90 (age 10-64)"}
+      - {age_min: 65, sbp_below: 110, text: "SBP {sbp} < 110 (age ≥ 65)", label: "SBP < 110 (age ≥ 65)"}
+  - {type: hr_above_sbp, age_key: patient.age, sbp_key: vitals.sbp, hr_key: vitals.hr, min_age: 10,
+     text: "HR {hr} > SBP {sbp}", label: "HR > SBP (age ≥ 10)"}
 yellow:
-  - {type: anticoagulant, key: meds.anticoagulant, text: "Anticoagulant use ({value})"}
-required_for_display: [{key: patient.age, label: Age}, {key: vitals.sbp, label: Systolic BP}]
+  # An explicit denial ("none", LABELING_GUIDE meds.anticoagulant) is not anticoagulant use.
+  - {type: present, key: meds.anticoagulant, unless: [none, "no", "false"], text: "Anticoagulant use ({value})",
+     label: "Anticoagulant use"}
+required: [{key: patient.age, label: Age}, {key: vitals.sbp, label: Systolic BP}]

@@ -6,7 +6,9 @@ from pathlib import Path
 
 from fakes import make_client
 from herald.config import CONFIG_DIR, load_yaml
+from herald.checklists import ChecklistItem
 from herald.config.county import SCALE_ITEMS, CountyRegistry
+from herald.scoring import default_scales
 from herald.core.vocabulary import default_vocabulary
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -21,8 +23,19 @@ def test_every_trend_rule_has_text_and_every_tier_key_exists():
     for k in tier_keys:
         assert k in vocab or k.startswith(("score.", "alert.")), k
     for a in load_yaml("checklists.yaml")["alerts"].values():
-        for k, _ in a["items"]:
-            assert k in vocab or k.startswith("@"), k
+        for row in a["items"]:
+            _assert_valid_item(ChecklistItem.parse(row), vocab)
+
+
+def _assert_valid_item(item, vocab, where=""):
+    """Every checklist key names a vocabulary key, a loaded score, or a declared field of a record key."""
+    for ref in item.refs:
+        if ref.kind == "score":
+            assert ref.key in default_scales(), (where, item.key)
+        else:
+            assert ref.key in vocab, (where, item.key)
+        if ref.kind == "record":
+            assert ref.field in vocab.meta(ref.key)["fields"], (where, item.key)
 
 
 def test_meta_endpoint_matches_the_loaded_content():
@@ -32,7 +45,12 @@ def test_meta_endpoint_matches_the_loaded_content():
     assert meta["relay_tiers"]["code_status"]["tier"] == 1
     assert meta["change_rules"]["vitals.spo2"].startswith("SpO2 fell")
     assert [i["key"] for i in meta["checklists"]["stroke"]["items"]] == [k for k, _ in ctx.counties.active["stroke"]["checklist"]]
-    assert [i["key"] for i in meta["checklists"]["stemi"]["items"]] == [k for k, _ in load_yaml("checklists.yaml")["alerts"]["stemi"]["items"]]
+    # every other checklist is the active county's override over config/checklists.yaml
+    for aid in ("stemi", "trauma", "sepsis"):
+        assert [i["key"] for i in meta["checklists"][aid]["items"]] == [i.key for i in ctx.checklists.items(aid)]
+    assert meta["checklists"]["stemi"]["items"][0]["key"] == "ecg.stemi_reading"      # Santa Clara (700-A08 §3.2)
+    assert set(meta["scores"]) == set(default_scales().ids())
+    assert meta["scores"]["trauma_605"]["county"] == "santa_clara" and meta["scores"]["news2"]["county"] is None
     assert meta["county"]["id"] == ctx.counties.active["id"] and "santa_clara" in meta["counties"]
     assert "confirmed" in meta["enums"]["status"]
 
@@ -61,6 +79,13 @@ def test_every_county_config_is_valid():
         cfg = reg.load(cid)
         for key, _ in cfg["stroke"]["checklist"]:
             assert key in vocab or key in SCALE_ITEMS.values(), (cid, key)
+        for aid, a in cfg.get("alerts", {}).items():
+            for row in a.get("items", []):
+                _assert_valid_item(ChecklistItem.parse(row), vocab, f"{cid}.{aid}")
+            if "score" in a:
+                assert default_scales()[a["score"]].county == cid, (cid, aid)
+            for sid in a.get("open_on", {}).get("scores", []):
+                assert sid in default_scales(), (cid, aid, sid)
 
 
 def test_no_clinical_numbers_left_in_python():

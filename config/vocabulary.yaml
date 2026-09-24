@@ -253,7 +253,7 @@ keys:
     merge: accumulate
   trauma.criteria:
     # Injury patterns and mechanisms from the national field-triage guideline (2021), in the words the county
-    # Policy 605 uses (config/counties/*.json maps each to the county's criterion letter and citation). Vital-sign
+    # Policy 605 uses (config/scores/trauma_605.yaml maps each to the county's criterion letter and citation). Vital-sign
     # criteria (GCS motor, RR, SpO2, SBP by age, HR > SBP), anticoagulants and pregnancy are computed from other
     # facts, never extracted here.
     label: Trauma criteria described

@@ -1,13 +1,14 @@
 """Scales that sum exam items with a positive threshold (RACE, G.F.A.S.T.)."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 
 class ItemSumScale:
     def __init__(self, definition: dict):
         self.d = definition
         self.id, self.name = definition["id"], definition["name"]
+        self.county: Optional[str] = definition.get("county")
         self.items = definition["items"]
         self.alert_type = definition.get("alert_type")
 
@@ -30,3 +31,10 @@ class ItemSumScale:
                 "positive": (total >= self.d["positive_at_least"]) if complete else None,
                 "parts": parts, "missing": missing, "thresholds": self.d["thresholds_text"],
                 "source": self.d["source"], "evidence": self.d["evidence"]}
+
+    def relay_text(self, result: dict) -> Optional[str]:
+        """The line the relay sends once the scale is complete (definition `relay_text`, e.g. "{score} {result}")."""
+        fmt = self.d.get("relay_text")
+        if not fmt or not result["complete"]:
+            return None
+        return fmt.format(score=result["score"], result="positive" if result["positive"] else "negative")

@@ -1,13 +1,14 @@
 """Scores built from per-parameter point bands plus total risk bands (NEWS2)."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 
 class BandedScore:
     def __init__(self, definition: dict):
         self.d = definition
         self.id, self.name = definition["id"], definition["name"]
+        self.county: Optional[str] = definition.get("county")
         self.parameters = definition["parameters"]
 
     def parameter(self, key: str) -> dict:
@@ -46,3 +47,8 @@ class BandedScore:
         return {"name": self.name, "score": total, "complete": complete, "band": band,
                 "any_single_3": top >= 3, "parts": parts, "missing": missing,
                 "thresholds": self.d["thresholds_text"], "source": self.d["source"], "evidence": self.d["evidence"]}
+
+    def relay_text(self, result: dict) -> Optional[str]:
+        """The line the relay sends once the score is complete (definition `relay_text`, e.g. "{score} {band}")."""
+        fmt = self.d.get("relay_text")
+        return fmt.format(score=result["score"], band=result["band"]) if fmt and result["complete"] else None

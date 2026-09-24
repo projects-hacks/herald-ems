@@ -52,6 +52,251 @@
       "Glucose below 60 mg/dL: protocol 700-A03 (700-S04 §2.9)"
     ]
   },
+  "alerts": {
+    "trauma": {
+      "label": "Trauma Alert",
+      "source": "Policy 605 §II.B (in AO 2025-005, effective 2025-04-01); Policy 501 §IV.E (effective 2025-01-01); Policy 602 §VI.C (effective 2025-04-01)",
+      "score": "trauma_605",
+      "items": [
+        {
+          "key": "trauma.mechanism",
+          "label": "Mechanism of injury",
+          "source": "501 §IV.E.1 \"State the Mechanism of Injury according to Santa Clara County Prehospital Care Policy #605\"; 700-A16 §6.1"
+        },
+        {
+          "key": "@trauma_605",
+          "label": "Trauma criteria (Policy 605)",
+          "source": "501 §IV.E.2 \"State the Anatomic and Physiologic Trauma Criteria for transport to a trauma center according to Santa Clara County Prehospital Care Policy #605\"; 602 §VI.C"
+        },
+        {
+          "key": "vitals.gcs_total|vitals.gcs_motor",
+          "label": "GCS",
+          "source": "700-S04 §2.2 (GCS on every patient and every reassessment); 700-A16 §6.3; 605 §II.B J"
+        },
+        {
+          "key": "vitals.sbp",
+          "label": "Systolic BP",
+          "source": "605 §II.B N.1-N.3; 501 §III.A.4"
+        },
+        {
+          "key": "vitals.hr",
+          "label": "Heart rate",
+          "source": "605 §II.B N.4; 501 §III.A.4"
+        },
+        {
+          "key": "vitals.rr",
+          "label": "Respiratory rate",
+          "source": "605 §II.B K; 501 §III.A.4"
+        },
+        {
+          "key": "vitals.spo2",
+          "label": "SpO2",
+          "source": "605 §II.B M (room air); 501 §III.A.4"
+        },
+        {
+          "key": "meds.anticoagulant",
+          "label": "Anticoagulants",
+          "source": "605 §II.B X.1; 700-S06 §3.3"
+        },
+        {
+          "key": "patient.pregnancy_weeks",
+          "label": "Pregnancy (weeks)",
+          "source": "602 §VI.C.4 (pregnant trauma alert patients over 20 weeks: trauma center with a Level III NICU); 605 §II.B X.7. Listed unless the patient is known to be male or outside ages 10-55 (Herald display rule, config/checklists.yaml)",
+          "when": {
+            "type": "all_of",
+            "rules": [
+              {
+                "type": "one_of",
+                "key": "patient.sex",
+                "values": [
+                  "F",
+                  "female"
+                ]
+              },
+              {
+                "type": "between",
+                "key": "patient.age",
+                "low": 10,
+                "high": 55
+              }
+            ]
+          }
+        },
+        {
+          "key": "transport.destination",
+          "label": "Destination",
+          "source": "602 §VI.C.2-3, Table B"
+        },
+        {
+          "key": "transport.eta_min",
+          "label": "ETA",
+          "source": "501 §III.A.1.b"
+        }
+      ],
+      "open_on": {
+        "scores": [
+          "trauma_605"
+        ]
+      },
+      "unknowns": [
+        "meds.anticoagulant",
+        "allergies"
+      ],
+      "county_rules": [
+        {
+          "text": "Adult Trauma Alert Patients shall be transported to the closest open Adult Trauma Center, identified in Table B: Approved In-County Services, determined by distance or time of travel. (602 §VI.C.2)",
+          "when": {
+            "type": "between",
+            "key": "patient.age",
+            "low": 15
+          }
+        },
+        {
+          "text": "Pediatric Trauma Alert Patients shall be transported to the closest open Pediatric Trauma Center, identified in Table B: Approved In-County Services, determined by distance or time of travel. (602 §VI.C.3; pediatric: less than 15 years of age, 602 §VI.H)",
+          "when": {
+            "type": "below",
+            "key": "patient.age",
+            "value": 15
+          }
+        },
+        {
+          "text": "Pregnant trauma alert patients more than twenty (20) weeks gestation are to be transported to the closest trauma center with an approved Level III Neonatal ICU (Stanford Hospital or Santa Clara Valley Medical Center). (602 §VI.C.4)",
+          "when": {
+            "type": "above",
+            "key": "patient.pregnancy_weeks",
+            "value": 20
+          }
+        },
+        {
+          "text": "Burn Patients – Patients meeting major burn criteria as per Santa Clara County Prehospital Care Policy #605: Prehospital Trauma Triage shall be transported to the Burn Center at Santa Clara Valley Medical Center (VMC) via the Trauma Center. (602 §VI.D)",
+          "when": {
+            "type": "contains",
+            "key": "trauma.criteria",
+            "value": "major burn"
+          }
+        }
+      ]
+    },
+    "sepsis": {
+      "label": "Sepsis pre-notification",
+      "source": "700-A04 Sepsis §1.3-1.4 (effective 2026-01-01). An advance notification, not a named alert (Policy 501 names only Trauma, Stroke and STEMI Alerts)",
+      "score": "sepsis_700a04",
+      "items": [
+        {
+          "key": "infection.suspected",
+          "label": "Suspected infection (source)",
+          "source": "700-A04 §1.4 \"suspected sepsis patient\"; §4.1 signs of infection; §5.1"
+        },
+        {
+          "key": "vitals.temp",
+          "label": "Temperature",
+          "source": "700-A04 §1.3.1; 700-S04 §2.7"
+        },
+        {
+          "key": "vitals.hr",
+          "label": "Heart rate",
+          "source": "700-A04 §1.3.2"
+        },
+        {
+          "key": "vitals.rr",
+          "label": "Respiratory rate",
+          "source": "700-A04 §1.3.3"
+        },
+        {
+          "key": "vitals.etco2",
+          "label": "EtCO2",
+          "note": "not measured",
+          "source": "700-A04 §1.3.4; 700-S04 §3.2 (capnography required only with an airway adjunct); Policy 302 (a colorimetric device gives no number)"
+        },
+        {
+          "key": "vitals.sbp",
+          "label": "Systolic BP",
+          "source": "700-A04 §1.1; 501 §III.A.4"
+        },
+        {
+          "key": "vitals.consciousness|vitals.gcs_total",
+          "label": "Mental status (ACVPU or GCS)",
+          "source": "700-A10 §4.1 (altered mental status); 700-S04 §2.2"
+        }
+      ],
+      "unknowns": [
+        "infection.suspected",
+        "allergies"
+      ]
+    },
+    "stemi": {
+      "label": "STEMI Alert",
+      "source": "700-A08 §1, §3.2, §6 (effective 2025-01-01); 700-M09 §3.1, §4.9 (effective 2024-01-01); Policy 501 §IV; Policy 602 §VI.F",
+      "items": [
+        {
+          "key": "ecg.stemi_reading",
+          "label": "12-lead reads \"STEMI\" or \"Acute MI Suspected\"",
+          "source": "700-A08 §3.2; 700-M09 §4.9.1"
+        },
+        {
+          "key": "symptom.onset",
+          "label": "Symptom onset",
+          "source": "700-A08 §1.2, §6.1"
+        },
+        {
+          "key": "ecg.twelve_lead_time",
+          "label": "First 12-lead time",
+          "source": "700-A08 §6.2 \"Time of first 12 Lead ECG\"; §1.1 (within 10 minutes of patient contact); 700-M09 §4.1"
+        },
+        {
+          "key": "ecg.transmitted",
+          "label": "12-lead transmitted to the STEMI center",
+          "source": "700-A08 §1.4, §3.2.2; 700-M09 §4.9.1.1; Policy 430 §VII.A.5"
+        },
+        {
+          "key": "vitals.sbp",
+          "label": "Systolic BP",
+          "source": "501 §III.A.4"
+        },
+        {
+          "key": "allergies",
+          "label": "Allergies",
+          "source": "501 §III.A.3"
+        },
+        {
+          "key": "meds.given[drug=aspirin]",
+          "label": "Time of aspirin administration",
+          "note": "not recorded",
+          "source": "700-A08 §6.3, a Key Documentation Element (documentation only)"
+        }
+      ],
+      "triggers": [
+        "chest pain",
+        "stemi",
+        "mi ",
+        "heart attack",
+        "acs",
+        "st elevation",
+        "acute mi",
+        "substernal",
+        "chest pressure",
+        "chest tightness",
+        "impending doom"
+      ],
+      "triggers_source": "Default STEMI words plus 700-M09 §3.1 chest findings: §3.1.1 \"Substernal pain\", §3.1.2 \"Discomfort or tightness\", §3.1.10 \"Anxiety with feeling of impending doom\"",
+      "open_on": {
+        "facts": [
+          {
+            "type": "present",
+            "key": "ecg.stemi_reading",
+            "unless": [
+              "false"
+            ]
+          }
+        ]
+      },
+      "unknowns": [
+        "symptom.onset",
+        "allergies",
+        "meds.anticoagulant"
+      ]
+    }
+  },
   "destinations": {
     "source": "Policy 602 Table B (effective 2025-04-01, reissued in AO 2025-005); facility IDs from Table A; check EMResource for live status",
     "audit": {

@@ -1,0 +1,111 @@
+{"id": "b02_068", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "bystander", null]]}
+{"id": "b02_098", "criteria": [["trauma.criteria", ["spinal injury with new motor or sensory loss"], "medic", null]]}
+{"id": "b03_001", "criteria": [["ecg.transmitted", true, "medic", null]]}
+{"id": "b03_011", "criteria": [["ecg.transmitted", true, "medic", null]]}
+{"id": "b03_031", "criteria": [["ecg.stemi_reading", false, "medic", null], ["ecg.transmitted", true, "medic", null]]}
+{"id": "b03_051", "criteria": [["ecg.transmitted", true, "medic", null]]}
+{"id": "b03_061", "criteria": [["ecg.stemi_reading", true, "medic", null], ["ecg.transmitted", true, "medic", null]]}
+{"id": "b03_071", "criteria": [["ecg.stemi_reading", false, "medic", null]]}
+{"id": "b03_074", "criteria": [["ecg.transmitted", true, "medic", null]]}
+{"id": "b03_089", "criteria": [["ecg.stemi_reading", false, "medic", null]]}
+{"id": "b03_099", "criteria": [["ecg.transmitted", true, "medic", null]]}
+{"id": "b03_111", "criteria": [["ecg.stemi_reading", false, "medic", null], ["ecg.transmitted", true, "medic", null]]}
+{"id": "b03_116", "criteria": [["ecg.transmitted", false, "medic", null]]}
+{"id": "b03_126", "criteria": [["ecg.transmitted", true, "medic", null]]}
+{"id": "b03_149", "criteria": [["ecg.transmitted", true, "medic", null]]}
+{"id": "b04_001", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "medic", null]]}
+{"id": "b04_002", "criteria": [["trauma.criteria", ["fall over 10 feet", "spinal injury with new motor or sensory loss"], "medic", null]]}
+{"id": "b04_003", "criteria": [["trauma.criteria", ["pedestrian or cyclist thrown or run over"], "medic", null]]}
+{"id": "b04_006", "criteria": [["trauma.criteria", ["intrusion or extrication"], "medic", null]]}
+{"id": "b04_008", "criteria": [["trauma.criteria", ["penetrating injury head neck torso or proximal extremity"], "medic", null]]}
+{"id": "b04_013", "criteria": [["trauma.criteria", ["pedestrian or cyclist thrown or run over"], "medic", null]]}
+{"id": "b04_018", "criteria": [["trauma.criteria", ["major burn"], "medic", null]]}
+{"id": "b04_020", "criteria": [["trauma.criteria", ["fall over 10 feet"], "medic", null]]}
+{"id": "b04_022", "criteria": [["trauma.criteria", ["rollover unrestrained", "ejection"], "medic", null]]}
+{"id": "b04_026", "criteria": [["trauma.criteria", ["rider separated with significant impact"], "medic", null]]}
+{"id": "b04_031", "criteria": [["trauma.criteria", ["penetrating injury head neck torso or proximal extremity"], "medic", null]]}
+{"id": "b04_033", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "medic", null]]}
+{"id": "b04_034", "criteria": [["trauma.criteria", ["bleeding requiring tourniquet or wound packing"], "medic", null]]}
+{"id": "b04_039", "criteria": [["trauma.criteria", ["fall over 10 feet"], "bystander", null]]}
+{"id": "b04_048", "criteria": [["trauma.criteria", ["major burn"], "medic", null]]}
+{"id": "b04_056", "criteria": [["trauma.criteria", ["rider separated with significant impact"], "medic", null]]}
+{"id": "b04_058", "criteria": [["trauma.criteria", ["pedestrian or cyclist thrown or run over"], "bystander", null]]}
+{"id": "b04_064", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "medic", null]]}
+{"id": "b04_065", "criteria": [["trauma.criteria", ["intrusion or extrication"], "medic", null]]}
+{"id": "b04_068", "criteria": [["trauma.criteria", ["penetrating injury head neck torso or proximal extremity"], "medic", null]]}
+{"id": "b04_069", "criteria": [["trauma.criteria", ["fall over 10 feet"], "medic", null]]}
+{"id": "b04_076", "criteria": [["trauma.criteria", ["penetrating injury head neck torso or proximal extremity"], "medic", null]]}
+{"id": "b04_079", "criteria": [["trauma.criteria", ["major burn"], "medic", null]]}
+{"id": "b04_083", "criteria": [["trauma.criteria", ["penetrating injury head neck torso or proximal extremity"], "medic", null]]}
+{"id": "b04_088", "criteria": [["trauma.criteria", ["spinal injury with new motor or sensory loss"], "medic", null]]}
+{"id": "b04_089", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "medic", null]]}
+{"id": "b04_096", "criteria": [["trauma.criteria", ["major burn"], "medic", null]]}
+{"id": "b04_098", "criteria": [["trauma.criteria", ["rider separated with significant impact"], "medic", null]]}
+{"id": "b04_101", "criteria": [["trauma.criteria", ["time sensitive extremity injury", "pelvic fracture"], "medic", null]]}
+{"id": "b04_105", "criteria": [["trauma.criteria", ["major burn"], "medic", null]]}
+{"id": "b04_106", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "medic", null]]}
+{"id": "b04_121", "criteria": [["trauma.criteria", ["penetrating injury head neck torso or proximal extremity"], "medic", null]]}
+{"id": "b04_133", "criteria": [["trauma.criteria", ["penetrating injury head neck torso or proximal extremity"], "medic", null]]}
+{"id": "b04_137", "criteria": [["trauma.criteria", ["rider separated with significant impact"], "medic", null]]}
+{"id": "b04_138", "criteria": [["trauma.criteria", ["major burn"], "medic", null]]}
+{"id": "b04_141", "criteria": [["trauma.criteria", ["penetrating injury head neck torso or proximal extremity"], "medic", null]]}
+{"id": "b05_054", "criteria": [["ecg.stemi_reading", false, "medic", null]]}
+{"id": "b06_069", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "bystander", null]]}
+{"id": "b07_147", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "medic", null]]}
+{"id": "b08_145", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "medic", null]]}
+{"id": "b09_055", "criteria": [["trauma.criteria", ["fall over 10 feet", "spinal injury with new motor or sensory loss"], "medic", null]]}
+{"id": "b10_109", "criteria": [["trauma.criteria", ["spinal injury with new motor or sensory loss"], "medic", null]]}
+{"id": "b11_066", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "medic", null]]}
+{"id": "b13_089", "criteria": [["ecg.transmitted", true, "medic", null]]}
+{"id": "b14_053", "criteria": [["trauma.criteria", ["fall over 10 feet"], "family", "wife"]]}
+{"id": "b15_007", "criteria": [["trauma.criteria", ["spinal injury with new motor or sensory loss"], "medic", null]]}
+{"id": "b15_022", "criteria": [["trauma.criteria", ["fall over 10 feet"], "medic", null], ["trauma.criteria", ["spinal injury with new motor or sensory loss"], "patient", null]]}
+{"id": "b15_029", "criteria": [["ecg.stemi_reading", true, "medic", null]]}
+{"id": "b15_032", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "medic", null]]}
+{"id": "b15_045", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "medic", null]]}
+{"id": "b18_005", "criteria": [["ecg.transmitted", true, "medic", null]]}
+{"id": "b18_117", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "medic", null]]}
+{"id": "b19_002", "criteria": [["trauma.criteria", ["ejection"], "medic", null]]}
+{"id": "b19_012", "criteria": [["trauma.criteria", ["intrusion or extrication"], "bystander", null]]}
+{"id": "b19_016", "criteria": [["trauma.criteria", ["child unrestrained"], "medic", null]]}
+{"id": "b19_020", "criteria": [["trauma.criteria", ["intrusion or extrication"], "medic", null]]}
+{"id": "b19_029", "criteria": [["trauma.criteria", ["fall over 10 feet"], "medic", null]]}
+{"id": "b19_037", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "medic", null]]}
+{"id": "b19_041", "criteria": [["trauma.criteria", ["fall over 10 feet"], "medic", null]]}
+{"id": "b19_045", "criteria": [["trauma.criteria", ["spinal injury with new motor or sensory loss"], "medic", null]]}
+{"id": "b19_049", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "medic", null]]}
+{"id": "b19_066", "criteria": [["trauma.criteria", ["penetrating injury head neck torso or proximal extremity"], "medic", null]]}
+{"id": "b19_067", "criteria": [["trauma.criteria", ["bleeding requiring tourniquet or wound packing"], "medic", null]]}
+{"id": "b19_079", "criteria": [["trauma.criteria", ["penetrating injury head neck torso or proximal extremity"], "medic", null]]}
+{"id": "b19_084", "criteria": [["trauma.criteria", ["penetrating injury head neck torso or proximal extremity"], "medic", null]]}
+{"id": "b19_086", "criteria": [["trauma.criteria", ["pedestrian or cyclist thrown or run over"], "medic", null]]}
+{"id": "b19_088", "criteria": [["trauma.criteria", ["time sensitive extremity injury"], "medic", null]]}
+{"id": "b19_092", "criteria": [["trauma.criteria", ["chest wall instability"], "medic", null]]}
+{"id": "b19_098", "criteria": [["trauma.criteria", ["rider separated with significant impact"], "medic", null]]}
+{"id": "b19_124", "criteria": [["trauma.criteria", ["crushed degloved mangled or pulseless extremity", "bleeding requiring tourniquet or wound packing"], "medic", null]]}
+{"id": "b19_125", "criteria": [["trauma.criteria", ["fall over 10 feet"], "medic", null]]}
+{"id": "b19_128", "criteria": [["trauma.criteria", ["major burn"], "medic", null]]}
+{"id": "b19_132", "criteria": [["trauma.criteria", ["bleeding requiring tourniquet or wound packing"], "medic", null]]}
+{"id": "b19_136", "criteria": [["trauma.criteria", ["pedestrian or cyclist thrown or run over"], "medic", null]]}
+{"id": "b19_149", "criteria": [["trauma.criteria", ["rollover unrestrained", "ejection", "skull deformity"], "medic", null]]}
+{"id": "b20_007", "criteria": [["trauma.criteria", ["ejection", "time sensitive extremity injury", "pelvic fracture"], "medic", null]]}
+{"id": "b20_021", "criteria": [["trauma.criteria", ["pedestrian or cyclist thrown or run over"], "medic", null]]}
+{"id": "b20_025", "criteria": [["ecg.stemi_reading", false, "medic", null]]}
+{"id": "b20_031", "criteria": [["trauma.criteria", ["penetrating injury head neck torso or proximal extremity"], "medic", null]]}
+{"id": "b20_037", "criteria": [["ecg.transmitted", true, "medic", null]]}
+{"id": "b20_050", "criteria": [["trauma.criteria", ["rider separated with significant impact", "chest wall instability", "time sensitive extremity injury", "bleeding requiring tourniquet or wound packing"], "medic", null]]}
+{"id": "b20_055", "criteria": [["trauma.criteria", ["major burn"], "medic", null]]}
+{"id": "b20_068", "criteria": [["trauma.criteria", ["fall over 10 feet", "time sensitive extremity injury"], "medic", null]]}
+{"id": "b20_080", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "medic", null]]}
+{"id": "b20_082", "criteria": [["ecg.transmitted", true, "medic", null]]}
+{"id": "b20_096", "criteria": [["trauma.criteria", ["crushed degloved mangled or pulseless extremity"], "medic", null]]}
+{"id": "b20_104", "criteria": [["trauma.criteria", ["time sensitive extremity injury", "bleeding requiring tourniquet or wound packing"], "medic", null]]}
+{"id": "b20_105", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "medic", null]]}
+{"id": "b20_106", "criteria": [["trauma.criteria", ["pedestrian or cyclist thrown or run over"], "medic", null]]}
+{"id": "b20_113", "criteria": [["ecg.stemi_reading", true, "medic", null]]}
+{"id": "b20_124", "criteria": [["trauma.criteria", ["penetrating injury head neck torso or proximal extremity", "bleeding requiring tourniquet or wound packing"], "medic", null]]}
+{"id": "b20_133", "criteria": [["ecg.stemi_reading", false, "medic", null]]}
+{"id": "b20_135", "criteria": [["trauma.criteria", ["low level fall with significant head impact"], "medic", null]]}
+{"id": "b20_139", "criteria": [["trauma.criteria", ["fall over 10 feet", "pelvic fracture", "time sensitive extremity injury"], "medic", null]]}
+{"id": "b20_147", "criteria": [["trauma.criteria", ["penetrating injury head neck torso or proximal extremity"], "medic", null]]}
+{"id": "b19_093", "criteria": [["trauma.criteria", ["pelvic fracture"], "medic", null]]}

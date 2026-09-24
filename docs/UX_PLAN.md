@@ -19,6 +19,16 @@ The team lead decided on 2026-09-24: "If the model is down, whole app is down, w
 10. **`GET /api/health` fields:** `llm_model`, `llm_available`, `vision_model`, `vision_available`, `stt_model`, `stt_loaded`, `incident`, `county`, `cloud_ai_calls` (§5.6).
 11. **Fixtures must be re-recorded.** Every fixture recorded before this change has the old entry shape (a rules phase and the removed merge counts). `rules_only` is gone. The new fixture list is in §5.8; the recordings are pending (U2 backend step 4).
 
+## Change note, 2026-09-24: county alert checklists and criteria scores (trauma, sepsis, STEMI)
+
+Herald now works on trauma, sepsis and STEMI calls with the county's own criteria, not only strokes. The backend is in `herald/scoring/rules.py` and `herald/scoring/criteria.py` (criteria engine), `config/scores/trauma_605.yaml` and `config/scores/sepsis_700a04.yaml` (Santa Clara's criteria), `herald/checklists/` (county overrides for any alert, record-field items), `config/checklists.yaml` (defaults), `config/counties/santa_clara.json` (`alerts`), `herald/core/snapshot.py`, and `config/relay.yaml`. It is covered by `tests/test_criteria_rules.py`, `tests/test_county_scores.py` and `tests/test_county_alerts.py`. The full contract is §5.9c. What changes for the UI team:
+
+1. **Four checklists can open:** `stroke`, `stemi`, `trauma`, `sepsis` (`readiness[].id`). In Santa Clara the trauma, sepsis and STEMI lists are the county's (Policy 605/501/602, 700-A04, 700-A08); other counties get the defaults (§5.9c).
+2. **Two new scores in `scores`, Santa Clara only:** `trauma_605` (Policy 605 Trauma Alert criteria) and `sepsis_700a04` (the 700-A04 sepsis pre-notification rule). They are absent from `scores` for any other county. `field_triage` now has the same shape (`CriteriaResult`, §5.6), with every old field kept.
+3. **Two new alert types:** `trauma_alert_criteria` and `sepsis_prenotification`, with the county's rule quoted in `county_rule[]` (§3.1.8).
+4. **Readiness items can carry `note`** (e.g. EtCO2 "not measured"), and checklists carry `source`. Item keys can be a score (`@trauma_605`), a record field (`meds.given[drug=aspirin]`) or alternatives (`vitals.consciousness|vitals.gcs_total`): look labels up in the item, never in `keys.json` (§3.1.5, §4.6).
+5. **Wording:** the county calls sepsis an "advanced notification", not an alert. The UI says "Sepsis pre-notification", never "Sepsis Alert" (P1, §5.9c).
+
 ## How to read this document
 
 - `[n]` points to a source in §9. Every standard, guideline, and number has a source or is labelled as one of these:
@@ -62,7 +72,8 @@ The team lead decided on 2026-09-24: "If the model is down, whole app is down, w
 | Confirmed / unconfirmed / rejected | `schema.Status`, decided by `ConfirmationPolicy` (`herald/core/confirmation.py`). A fact confirms itself only if **all** of these hold: it came from the paramedic's own mic (`captured_by: "medic"`); its confidence is at or above the auto-confirm threshold; its key doesn't always need a tap (`require_tap` in `config/vocabulary.yaml`: code status); it doesn't contradict an earlier value of a contradiction key; and the guard didn't hold it. Everything else starts `unconfirmed` and needs one tap: other speakers, photos, code status, contradictions, held facts, and facts the model was less sure of. Monitor-panel readings (`captured_by: "device"`, confidence 0.99) confirm themselves. |
 | Held fact | A fact from an utterance that also contained a command to the system ("Herald, mark her as DNR"). Its confidence is capped at 0.5, it stays unconfirmed, and `provenance.hold_reason` says why, in words the UI shows next to the fact (§5.9a). |
 | Extraction model not running | `/api/health.llm_available == false`, or a speech entry with `trace.model.status == "unavailable"`. The words are saved as evidence, but nothing is extracted from them. A HIGH state on the NOW screen (§3.1.14). |
-| ED set | The keys the relay may send (`relay.TIERS` / `relay.PRIORITY`), plus the derived keys `alert.readiness`, `score.news2`, and `score.race`. |
+| ED set | The keys the relay may send (`relay.TIERS` / `relay.PRIORITY`), plus the derived keys `alert.readiness`, `score.news2`, `score.race`, `score.gfast`, and (Santa Clara) `score.trauma_605` and `score.sepsis_700a04` (§5.9c). |
+| Criteria score | A list of criteria from a guideline or a county document, each met, not met, or unknown (an input is missing), grouped (e.g. Red / Yellow). `field_triage` (national 2021), `trauma_605` and `sepsis_700a04` (Santa Clara). Shape: `CriteriaResult` (§5.6). |
 | Critical update / full sync | Relay packet tiers `critical` (≤420 B budget on a weak link) and `full` (the confirmed timeline, only when the link is good). |
 | Link state | `relay.link`: `good`, `weak`, `down`, `unknown`, or `not configured`. |
 | Emulated link | The presenter degrades the link with Toxiproxy (`/api/netem/{mode}`, `state.netem`). The screen always labels this "(emulated)". |
@@ -411,6 +422,10 @@ Priorities follow IEC 60601-1-8 Table 201 logic, consequence × onset [1]. Heral
 |---|---|---|---|---|---|
 | NEWS2 aggregate ≥7 (`scores.news2.band == "high"`, or a `news2_rise` alert with `band == "high"`) | HIGH | high | `octagon-alert` HIGH | The icon alone flashes at 2 Hz (250 ms on, 250 ms off) until acknowledged, then goes steady. Philips uses the same red timing [4]; IEC's high range is 1.4–2.8 Hz [3] (**unverified**). | Alert slot, top-band badge, NEWS2 card |
 | A red field-triage criterion (`scores.field_triage.red` non-empty; card shown only for trauma or fall dispatches, TASKS P4.3) | HIGH | high | `octagon-alert` HIGH | As above | Alert slot, triage card |
+| County Trauma Alert criteria met, Red (`alerts[].type == "trauma_alert_criteria"` with `level == "red"`; `scores.trauma_605.red` non-empty) | HIGH | high | `octagon-alert` HIGH | As above | Alert slot, trauma card |
+| County Trauma Alert criteria met, Yellow only (`level == "yellow"`). In Santa Clara a Yellow hit is still a Trauma Alert (Policy 602 §VI.C) | MEDIUM | medium | `triangle-alert` CHECK | Three pulses | Alert slot, trauma card |
+| Sepsis pre-notification criteria met (`alerts[].type == "sepsis_prenotification"`) | MEDIUM | medium | `triangle-alert` CHECK | Three pulses | Alert slot, sepsis card |
+| Policy 605 special consideration or major burn criterion (`scores.trauma_605.consider` or `.burn` non-empty) with no Red or Yellow hit | LOW | low | `info` | Steady | Trauma card only (no alert) |
 | Safety-field contradiction (`alerts[].type == "contradiction"`, key in `CONTRADICTION_KEYS`) | MEDIUM | medium | `git-compare-arrows` CHECK | Three pulses at 0.5 Hz when it arrives, then steady. Philips yellow is 1 s on / 1 s off [4]; IEC medium is 0.4–0.8 Hz [3] (**unverified**). Stopping after three pulses is our own design choice: continuous flashing makes a text-heavy screen hard to read. | Alert slot, top-band badge, ER row "held" |
 | Code status needs a tap (`alerts[].type == "confirm_required"`) | MEDIUM | medium | `triangle-alert` CHECK | Three pulses | Alert slot |
 | NEWS2 medium band 5–6 (`band == "medium"`), or any single parameter scoring 3 (`band == "low-medium"`), as in the RCP bands in `config/scores/news2.yaml`, tested in `tests/test_scores.py` [28] | MEDIUM | medium | `triangle-alert` CHECK | Three pulses when the band is first reached | NEWS2 card; alert slot when `news2_rise` fires |
@@ -917,7 +932,10 @@ When `netem` is set, " (emulated)" is appended to every state. Clicking the pill
   - done → `circle-check`;
   - pending → `circle-question-mark` plus "· needs tap";
   - missing → `circle-dashed`.
-- **Second checklist** (e.g. STEMI as well as stroke): a compact chip "+ STEMI 2 of 6" at the end of row 1 opens a popover with that checklist.
+- **Second checklist** (e.g. STEMI as well as stroke): a compact chip "+ STEMI 2 of 6" at the end of row 1 opens a popover with that checklist. Any of the four checklists (`stroke`, `stemi`, `trauma`, `sepsis`) can be first or second; the order is the backend's (`readiness[]` order), never re-sorted.
+- **Item notes:** an item not done may carry `note` (e.g. EtCO2 "not measured", aspirin time "not recorded"). Show it after the label in meta size: "EtCO2 · not measured". A `note` never means the criterion was checked and not met (§5.9c).
+- **Item keys are not always vocabulary keys:** `@<score>`, `meds.given[drug=aspirin]`, or `a|b` alternatives. Use the item's own `label`; never look the key up in `keys.json`.
+- **Checklist source:** `readiness[].source` (may be null) is the checklist's citation, e.g. "Policy 605 §II.B …". Show it in the popover and the expanded card, never in row 1.
 - **No checklist active:** row 1 reads "No pre-alert checklist active · dispatch: {dispatch or 'unknown'}". Row 2 stays as an empty 40 px space so nothing moves when a checklist appears.
 
 **Due chip**
@@ -994,8 +1012,26 @@ The interval comes from `HERALD_REASSESS_MIN` (default 10) and appears in the `r
 - Until then the sheet says: "County policy text isn't loaded on this vehicle." It never paraphrases the policy.
 
 **Field-triage card.**
-- Shown only when the dispatch or chief complaint mentions trauma or a fall (TASKS P4.3).
+- Shown only when the dispatch or chief complaint mentions trauma or a fall (TASKS P4.3), or, equivalently now, while the `trauma` checklist is open. When the county has its own trauma score (`scores.trauma_605` present), show the county card instead and keep the national one behind "National guideline (2021) ▸".
 - Rows: `red[]` criteria (HIGH), `yellow[]` criteria (MEDIUM), `missing[]` (missing style), and `source`.
+
+**County criteria cards (`trauma_605`, `sepsis_700a04`; Santa Clara only, new 2026-09-24).**
+- Render any `CriteriaResult` the same way (§5.6); a card is shown while its checklist is open (`trauma`, `sepsis`) or while its alert is active.
+- **Compact row:**
+
+| State | Trauma copy | Sepsis copy |
+|---|---|---|
+| `applies == false` | "Policy 605 — waiting for the mechanism or injuries" (muted) | (not used) |
+| `met`, `level == "red"` | "Trauma Alert criteria met · Red N.3 · Yellow O, U (Policy 605)" (HIGH) | — |
+| `met`, `level == "yellow"` | "Trauma Alert criteria met · Yellow O (Policy 605)" (MEDIUM) | — |
+| `met` (sepsis) | — | "Sepsis pre-notification criteria met · 3 of 4 SIRS · EtCO2 not measured" (MEDIUM) |
+| not met, `complete` | "No Policy 605 criterion met" (neutral) | "Pre-notification criteria not met" (neutral) |
+| not met, not complete | "Policy 605 — incomplete · missing: {missing joined}" (muted) | "700-A04 — incomplete · missing: {missing joined}" (muted) |
+
+  The codes come from `criteria[]` rows with `state == "met"` in that `group`. The sepsis "n of 4" comes from the nested row with `code == "1.3"` (its `finding`, e.g. "3 of 4 met").
+- **Expanded:** one row per `criteria[]` entry (nested `parts[]` indented): the code, the `label` (the county's own words, verbatim), and the state: met → the `finding` (e.g. "SBP 84, age 70"); `not_met` → "not met" plus the `finding` when present; `unknown` → "not described" for an injury pattern or mechanism, or the `needs` text for a vital sign ("EtCO2 (not measured)"). Then `consider[]` under "Special considerations (EMS judgement)", `burn[]` under "Major burn criteria (§III)", `missing[]`, `thresholds`, and `source`. Footer: "Computed from confirmed facts only."
+- **Never** turn an `unknown` into "no": a pelvic fracture not described is not a pelvic fracture ruled out (AGENTS invariant 6).
+- **Wording (P1):** Herald says the county's criteria are met and quotes them; it never says "call a Trauma Alert", "notify", or "transport to". The decision and the radio report are the medic's.
 
 #### 3.1.8 Alert slot (`AlertSlot`)
 
@@ -1013,6 +1049,8 @@ The interval comes from `HERALD_REASSESS_MIN` (default 10) and appears in the `r
 | `news2_rise` (medium/high) | CHECK or HIGH "NEWS2 {from} → {to} ({band} band)" | The contributing parameters: every `scores.news2.parts` entry with points > 0, e.g. "RR 22 (+2) · HR 104 (+1) · SpO2 94 (+1)". "Published threshold: {thresholds}." If `any_single_3` is false, add "No single parameter scored 3." | `[ Seen ]` (UI state only) |
 | `news2_rise` (low) | (i) "NEWS2 {from} → {to}" | As above | `[ Seen ]` |
 | `race_positive` | CHECK "RACE {score}: large-vessel screen positive (≥5)" | "Published sensitivity 0.85, specificity 0.68 (Pérez de la Ossa 2014)." "County destination policy ▸" | `[ Seen ]` |
+| `trauma_alert_criteria` (new 2026-09-24) | HIGH (`level == "red"`) or CHECK (`"yellow"`) "Trauma Alert criteria met ({level}, Policy 605)" | Each `criteria[]` line verbatim (the county's words with the letter, e.g. "N.3 Age older than 65 years: Systolic BP is less than 110 mmHg (SBP 84, age 70)"). Then "{county}:" and each `county_rule[]` line verbatim in quotation style (Policy 602 destinations, e.g. the closest open Adult Trauma Center). Never paraphrase; never name a hospital that the rule doesn't name. | `[ Seen ]` |
+| `sepsis_prenotification` (new 2026-09-24) | CHECK "Sepsis pre-notification criteria met (700-A04 §1.4)" | The `criteria[]` line verbatim, then the met SIRS findings from `scores.sepsis_700a04` (e.g. "T 38.6 °C · HR 112 · RR 24"), then "EtCO2 not measured" when it is in `missing[]`. Never "Sepsis Alert". | `[ Seen ]` |
 | `significant_change` | CHECK "{label} changed: {series joined with →} ({signed delta})" | "Change rule: {rule text}". Rule text for each key: SBP ±20 mmHg or dropping to ≤90; HR ±20/min; SpO2 down ≥3 points or dropping below 92%; RR ±6/min; glucose ±50 mg/dL. These mirror `state.CHANGE_RULES`. | `[ Seen ]` |
 | (none) | (v) "No alerts" | — | — |
 
@@ -1998,7 +2036,7 @@ The code follows these facts about the backend (verified by reading the code):
 
 **The CHECKED section** renders `effects` in this order:
 1. **Readiness:** "{label} {from} → {to} of {total}", plus " · READY" when `ready` and `to == total`.
-2. **Closed gaps:** "closed: {labels joined with ', '}". `@race` reads "Stroke scale (RACE)"; other keys use `keys.json` labels.
+2. **Closed gaps:** "closed: {labels joined with ', '}". `@race` reads "Stroke scale (RACE)"; other keys use `keys.json` labels. A key that isn't in `keys.json` (any `@<score>`, a record field such as `meds.given[drug=aspirin]`, or alternatives such as `vitals.gcs_total|vitals.gcs_motor`; §5.9c) takes its label from the matching item in `checklists.json`.
 3. **Scores:**
    - NEWS2: "NEWS2 {from} → {to} ({detail})". When `from` is null: "NEWS2 now complete: {to} ({detail})".
    - RACE: "RACE {from} → {to} · screen positive (≥5)" or "· screen negative (<5)". When `from` is null: "RACE complete: {to} · …".
@@ -2007,6 +2045,8 @@ The code follows these facts about the backend (verified by reading the code):
    - `confirm_required` → "(?) {label} needs your tap"
    - `news2_rise` → "NEWS2 rose (see the alert)"
    - `race_positive` → "RACE ≥5: large-vessel screen positive"
+   - `trauma_alert_criteria` → "Trauma Alert criteria met (Policy 605)"
+   - `sepsis_prenotification` → "Sepsis pre-notification criteria met (700-A04)"
    - `significant_change` → "{label} changed significantly"
    - When `label` is a canonical key, it maps through `keys.json`.
 5. **None of the above:** "No change to the checklist, scores or alerts."
@@ -2018,10 +2058,12 @@ The code follows these facts about the backend (verified by reading the code):
 - A photo fact counts toward the checklist only after it is confirmed, so photo cards usually show "no change until confirmed" (§4.3 f).
 
 **Labels for keys.** Keys that closed are no longer in the snapshot, so the UI needs a copy of the vocabulary.
-- **The export (U2, backend):** a script `scripts/export_ui_contract.py` writes three files into `ui/public/contract/`:
+- **The export (U2, backend):** a script `scripts/export_ui_contract.py` writes these files into `ui/public/contract/` (`checklists.json` and `scores.json` since 2026-09-23 and 2026-09-24; §5.9c):
   - `keys.json`: `schema.KEYS`, with each key's label, type, unit, and kind;
   - `relay_tiers.json`: `relay.TIERS`, as key → {tier, why};
-  - `change_rules.json`: the human-readable text of `state.CHANGE_RULES`.
+  - `change_rules.json`: the human-readable text of `state.CHANGE_RULES`;
+  - `checklists.json`: the default county's checklists, `{id: {label, source, items[{key, label, note?, source?, conditional?}], unknowns[]}}`;
+  - `scores.json`: every score, `{id: {name, kind, county, source, thresholds, relay_key, groups?, criteria?[{group, code, label, parent}]}}` (§5.9c).
 - **When it runs:** as part of `npm run build` (`prebuild`). The capture page and the ED screen load the same files.
 - **A test** compares the export with the live modules, so the UI and engine can't drift.
 
@@ -2318,7 +2360,7 @@ scripts/                                (repo root)
 
 ### 5.6 TypeScript contract (`ui/src/lib/types.ts`)
 
-These types are derived from `herald/core/snapshot.py` (`Projector.snapshot()`), `herald/relay/relay.py` `status()`, `herald/api/trace.py`, `herald/api/capture.py`, and `ed_receiver/app.py`, as read on 2026-09-23 (after the modular restructure; shapes unchanged), and updated on 2026-09-24 for model-only extraction (also read from `herald/api/routes/capture.py`, `herald/api/routes/system.py`, and `herald/core/schema.py`). When the backend changes a field, change it here in the same PR.
+These types are derived from `herald/core/snapshot.py` (`Projector.snapshot()`), `herald/relay/relay.py` `status()`, `herald/api/trace.py`, `herald/api/capture.py`, and `ed_receiver/app.py`, as read on 2026-09-23 (after the modular restructure; shapes unchanged), and updated on 2026-09-24 for model-only extraction (also read from `herald/api/routes/capture.py`, `herald/api/routes/system.py`, and `herald/core/schema.py`) and for the county alert checklists and criteria scores (`herald/scoring/criteria.py`, `herald/checklists/`, `herald/api/contract.py`; §5.9c). When the backend changes a field, change it here in the same PR.
 
 ```ts
 // ---------- enums (schema.py) ----------
@@ -2341,9 +2383,18 @@ export interface FactView {                    // state._fact_view(): Fact.model
 }
 
 // ---------- checklists, gaps, trends ----------
-export interface ReadinessItem { key: string; label: string; state: "done" | "pending" | "missing" }
-export interface Readiness { id: "stroke" | "stemi"; label: string; done: number; total: number; ready: boolean; items: ReadinessItem[] }
-export interface NeedItem { key: string; label: string; pending_confirm: boolean }
+// key: a vocabulary key, "@<score id>" (that score complete or met), "<record key>[<field>=<value>]"
+// (e.g. "meds.given[drug=aspirin]"), or alternatives joined by "|". Always show `label`, never look `key` up.
+export interface ReadinessItem {
+  key: string; label: string; state: "done" | "pending" | "missing";
+  note?: string;                               // 2026-09-24: shown while not done, e.g. "not measured" (EtCO2)
+}
+export type ChecklistId = "stroke" | "stemi" | "trauma" | "sepsis";   // trauma and sepsis new 2026-09-24
+export interface Readiness {
+  id: ChecklistId; label: string; source: string | null;   // source: the checklist's citation (2026-09-24)
+  done: number; total: number; ready: boolean; items: ReadinessItem[];
+}
+export interface NeedItem { key: string; label: string; pending_confirm: boolean; note?: string }
 export interface Changed {
   key: string; label: string; series: number[]; times: string[]; delta: number;
   direction: "up" | "down" | "flat"; significant: boolean;
@@ -2362,7 +2413,34 @@ export interface Race {
   parts: Record<string, { value: number; points: number; max: number }>; missing: string[];
   thresholds: string; source: string; evidence: string;
 }
-export interface FieldTriage { name: string; red: string[]; yellow: string[]; missing: string[]; source: string }
+export type GFast = Omit<Race, "name"> & { name: "G.F.A.S.T." };
+// Criteria scores (herald/scoring/criteria.py): field_triage (national 2021), and for Santa Clara only
+// trauma_605 (Policy 605) and sepsis_700a04 (700-A04). Group ids are the definition's own:
+// field_triage: red, yellow · trauma_605: red, yellow, consider, burn · sepsis_700a04: notify.
+export type CriterionState = "met" | "not_met" | "unknown";      // unknown = an input is missing, never "no"
+export interface CriterionRow {
+  code: string | null;          // the source's own number or letter: "N.3", "O", "X.1", "1.3.2"
+  label: string;                // the source's own words, verbatim
+  state: CriterionState;
+  group?: string;               // top-level rows only
+  finding?: string;             // the values that decided it, e.g. "SBP 84, age 70", "HR 112", "3 of 4 met"
+  needs?: string[];             // unknown vital-sign rows: what is missing, e.g. ["EtCO2 (not measured)"]
+  parts?: CriterionRow[];       // nested rules (Policy 605 I, L, R, X.7; 700-A04 1.4 -> 4.1 + 1.3 -> 1.3.1-1.3.4)
+}
+export interface CriteriaResult {
+  name: string; kind: "criteria"; county: string | null;   // null = a published (national) score
+  applies: boolean;             // false: the precondition isn't met (Policy 605: no mechanism or injury yet)
+  met: boolean;                 // a hit in a group that counts (red/yellow; sepsis notify)
+  level: string | null;         // the first counting group with a hit: "red" | "yellow" | "notify" | null
+  flagged: boolean;             // any hit in any group, including consider/burn
+  complete: boolean;            // every required input present (a score can be met and still incomplete)
+  missing: string[];            // labels, e.g. ["SpO2 on room air"], ["EtCO2 (not measured)"]
+  criteria: CriterionRow[];
+  source: string; thresholds: string | null;
+  // one string[] per group id: the met criteria's texts, e.g. red: ["N.3 Age older than 65 years: ... (SBP 84, age 70)"]
+  red?: string[]; yellow?: string[]; consider?: string[]; burn?: string[]; notify?: string[];
+}
+export type FieldTriage = CriteriaResult;       // red[], yellow[], missing[], source kept as before
 
 // ---------- alerts ----------
 export type Alert =
@@ -2370,7 +2448,14 @@ export type Alert =
   | { type: "confirm_required"; key: string; label: string; confirm_fact_id: string; facts: FactView[] }
   | { type: "significant_change"; key: string; label: string; series: number[] }
   | { type: "news2_rise"; label: "NEWS2"; from: number; to: number; band: News2Band }
-  | { type: "race_positive"; label: "RACE"; score: number };
+  | { type: "race_positive"; label: "RACE"; score: number; county_rule?: string; county?: string }
+  | { type: "gfast_positive"; label: "G.F.A.S.T."; score: number; county_rule?: string; county?: string }
+  // 2026-09-24: a county's criteria met. criteria[]: the met texts of the counting groups, verbatim;
+  // county_rule[]: the county's own rules quoted verbatim (Policy 602 destinations), each with its section.
+  | { type: "trauma_alert_criteria"; score: "trauma_605"; label: string; level: "red" | "yellow";
+      criteria: string[]; county_rule?: string[]; county?: string }
+  | { type: "sepsis_prenotification"; score: "sepsis_700a04"; label: string; level: "notify";
+      criteria: string[]; county_rule?: string[]; county?: string };
 export type AlertType = Alert["type"];
 
 // ---------- clocks ----------
@@ -2450,7 +2535,12 @@ export interface Snapshot {
   readiness: Readiness[];
   needs_attention: { missing: NeedItem[]; unknown: NeedItem[] };
   changed: Changed[];
-  scores: { news2: News2; news2_history: News2Point[]; race: Race; field_triage: FieldTriage };
+  scores: {
+    news2: News2; news2_history: News2Point[]; race: Race; gfast: GFast; field_triage: FieldTriage;
+    trauma_605?: CriteriaResult; sepsis_700a04?: CriteriaResult;   // Santa Clara only (a score's `county`)
+    stroke_scales: ("GFAST" | "RACE")[]; primary_stroke_scale: "GFAST" | "RACE";
+  };
+  county: { id: string; name: string };
   alerts: Alert[];
   clocks: Clock[];
   facts: Record<string, FactView>;                        // latest non-rejected fact per key
@@ -2462,6 +2552,18 @@ export interface Snapshot {
   netem: "good" | "weak" | "down" | null;
 }
 export type NowMessage = { type: "state"; state: Snapshot } | { type: "pong"; t: string };
+
+// ---------- UI contract files (GET /api/meta; ui/public/contract/*.json) ----------
+export interface ChecklistDef {
+  label: string; source: string | null; unknowns: string[];
+  items: { key: string; label: string; note?: string; source?: string; conditional?: true }[];
+}   // checklists.json: Record<ChecklistId, ChecklistDef> & { _default_unknowns: string[] }
+export interface ScoreDef {
+  name: string; kind: "banded" | "item_sum" | "criteria"; county: string | null; source: string;
+  thresholds: string | null; relay_key: string;          // "score.<id>" (sent only if it is in relay_tiers)
+  groups?: { id: string; label: string; short: string; met: boolean; priority: "high" | "medium" | "low" }[];
+  criteria?: { group: string; code: string | null; label: string; parent: string | null }[];
+}   // scores.json: Record<string, ScoreDef>
 
 // ---------- REST ----------
 export interface Health {
@@ -2691,6 +2793,102 @@ GET /api/telemetry  →  200
 - `GET /api/protocols/{doc}/page/{n}` → PNG of the printed page.
 - `POST /api/protocols/sync` → `{checked, updated[], errors[], at}`. `POST /api/protocols/{doc}/reviewed` clears the review flag after a person checks the county config.
 - The snapshot's `protocols` block is the same shape as `GET /api/protocols` without the audit detail. Show "Protocol updated: review county settings" while `review_required` is non-empty.
+
+### 5.9c County alert checklists and criteria scores (backend, 2026-09-24)
+
+Herald keeps a checklist and the county's own criteria for trauma, sepsis and STEMI calls, the same way it does for strokes. Every criterion and checklist item quotes its source; the research behind them is `docs/research/county_protocols_2026-09.md` (§5 trauma, §6 sepsis, §7 STEMI, §9 proposed checklists), and every county quote was re-read from the archived PDFs on 2026-09-24. Herald shows criteria and what is missing. It never recommends a treatment or a destination; the only destination text it shows is the county's own rule, quoted with its section.
+
+**Where it lives**
+
+| Part | File | Tests |
+|---|---|---|
+| Rule types (one small function each) | `herald/scoring/rules.py` | `tests/test_criteria_rules.py` |
+| Criteria engine (`kind: criteria`) | `herald/scoring/criteria.py` | `tests/test_criteria_rules.py` |
+| Santa Clara Policy 605 Trauma Alert criteria | `config/scores/trauma_605.yaml` | `tests/test_county_scores.py` |
+| Santa Clara 700-A04 sepsis pre-notification | `config/scores/sepsis_700a04.yaml` | `tests/test_county_scores.py` |
+| National 2021 field triage (same engine, shape unchanged) | `config/scores/field_triage.yaml` | `tests/test_scores.py` |
+| Checklist items (record fields, alternatives, scores, conditions) | `herald/checklists/items.py` | `tests/test_criteria_rules.py` |
+| County overrides for any alert, triggers | `herald/checklists/engine.py` | `tests/test_county_alerts.py` |
+| Default checklists (counties without their own) | `config/checklists.yaml` | `tests/test_contract.py`, `tests/test_county_alerts.py` |
+| Santa Clara checklists and quoted rules | `config/counties/santa_clara.json` → `alerts` | `tests/test_contract.py`, `tests/test_county_alerts.py` |
+| Relay tiers for the new scores | `config/relay.yaml` | `tests/test_county_alerts.py` |
+| UI contract (`scores.json`, `checklists.json`) | `herald/api/contract.py` | `tests/test_contract.py` |
+
+**Rule types.** A rule reads confirmed values and is **met**, **not met**, or **unknown** (an input is missing, never guessed). A list value that wasn't described (a pelvic fracture nobody mentioned) is unknown, never "no".
+
+| Type | Met when | Used for |
+|---|---|---|
+| `below`, `above` | value < or > the threshold | 605 J (motor GCS), 605 X.7 weeks, 700-A04 HR, RR, EtCO2 |
+| `outside` | value < low or > high | 605 K (RR < 10 or > 29), 700-A04 temperature |
+| `between` | low ≤ value ≤ high (either bound optional) | 605 R age 0-9, 602 adult age, the pregnancy-item display rule |
+| `room_air_below` | SpO2 below the threshold on room air; unknown on oxygen | 605 M |
+| `sbp_by_age` | SBP below the age band's limit (each band has its own code and text) | 605 N.1-N.3 |
+| `hr_above_sbp` | HR > SBP from a minimum age | 605 N.4 |
+| `motor_gcs_below` | motor GCS below the threshold; without a motor score, a GCS total settles it only by arithmetic (15 means motor 6; 7 or less means motor 5 or less; 8-14 stays unknown) | 605 J |
+| `present` | the key has a value that isn't one of the listed negative words ("none") | 605 X.1 (anticoagulant), 700-A04 suspected infection, 605 applicability |
+| `present_prefix` | any key with the prefix has a value | the stroke checklist opens once a stroke exam starts |
+| `contains` | a list key holds the value (the text names it) | 605 A-I, L, O-W, X.2, X.6, major burn |
+| `one_of` | a single value is one of the listed values | the pregnancy-item display rule (sex) |
+| `record_has` | a record key holds a record whose field is one of the values | 605 I (tourniquet, wound packing), L (BVM, CPAP, supraglottic airway, intubation), X.7 (CPR or defibrillation) |
+| `count_at_least`, `all_of`, `any_of` | at least n, all, or any of the nested rules; decided as soon as the answer can't change | 700-A04 §1.4 (infection and 2 of 4 SIRS), 605 I, L, R, X.7 |
+
+**A criteria result** (`CriteriaResult`, §5.6):
+- `met`: a hit in a group that counts (`red` or `yellow`; sepsis `notify`). A met criterion counts even while other inputs are missing.
+- `complete`: every required input is present. Policy 605's required criteria are J, K, M, N.1-N.3 and N.4 (the vital signs); 700-A04's is §1.4 with every input under it, so a sepsis result can be met and still incomplete ("EtCO2 (not measured)").
+- `level`: the first counting group with a hit; `flagged`: a hit in any group, including `consider` and `burn`.
+- `applies`: false while the precondition isn't met. Policy 605 §II.B applies to "injured patients", so until a mechanism, an injury or a trauma criterion is described the trauma score says so and flags nothing: a hypotensive medical patient is never a Trauma Alert.
+- `criteria[]`: every criterion with its state, the county's words (`label`), the values that decided it (`finding`), and for an unknown vital sign what is missing (`needs`). Nested rules are in `parts[]`.
+
+**Policy 605 (`trauma_605`, Santa Clara, effective 2025-04-01, AO 2025-005 PDF pages 25-27).**
+
+| Group (`groups[].id`) | Counts as a Trauma Alert | Criteria | From which facts |
+|---|---|---|---|
+| `red` (HIGH) | yes | A-I High Risk Injury Pattern | `trauma.criteria` values; I also from `procedures.done` tourniquet or wound packing |
+| `red` | yes | J-N Mental Status and Vital Signs | J `vitals.gcs_motor` (or the total, by arithmetic), K `vitals.rr`, L `trauma.criteria` or respiratory support in `procedures.done`, M `vitals.spo2` + `vitals.on_oxygen`, N.1-N.3 `vitals.sbp` + `patient.age`, N.4 `vitals.hr` > `vitals.sbp` from age 10 |
+| `yellow` (MEDIUM) | **yes**: Policy 602 §VI.C makes a Yellow hit a Trauma Alert in Santa Clara | O, P, Q, R (with age 0-9), T, U, V, W | `trauma.criteria` values |
+| `consider` (LOW) | no: "should be considered", EMS judgement | X.1 (anticoagulant), X.2, X.6, X.7 (pregnant beyond 20 weeks with CPR or defibrillation recorded) | `meds.anticoagulant`, `trauma.criteria`, `patient.pregnancy_weeks`, `procedures.done` |
+| `burn` (MEDIUM) | no: §III major burn criteria send the patient to a burn center, not a §II.B criterion | III.A | `trauma.criteria` "major burn" |
+
+Age banding: read literally, N.2 "Age 10-64 years" and N.3 "Age older than 65 years" leave age 65 in no band. 605 §II.A says the county's criteria are the ACS national guideline, which uses "age ≥ 65", so Herald puts 65 in N.3. Suspected findings count: the county words several patterns as "suspected" (B, C, D, E, F).
+
+**700-A04 (`sepsis_700a04`, Santa Clara, effective 2026-01-01).** §1.4: "Advanced notification to hospital of suspected sepsis patient if two or more SIRS criteria are met". Herald evaluates it as a suspected infection (`infection.suspected`) **and** at least 2 of: temperature below 96 °F (35.56 °C) or above 100.4 °F (38.0 °C), HR > 90, RR > 20, EtCO2 < 25 mmHg. `vitals.temp` is Celsius to 0.1 °C, so 35.5 °C counts and 35.6 °C (96.1 °F) doesn't. EtCO2 is often not measured (capnography is required only with an airway adjunct, 700-S04 §3.2, and a colorimetric device gives no number, Policy 302): it then shows as "not measured", never as "not met". **Wording:** the county says "advanced notification", and Policy 501 names only Trauma, Stroke and STEMI Alerts, so every screen says "Sepsis pre-notification", never "Sepsis Alert".
+
+**Checklists.** Defaults are in `config/checklists.yaml`; the active county's `alerts` section overrides any alert field by field (label, source, items, triggers, `open_on`, unknowns, quoted rules), and the county's `stroke.checklist` still replaces the stroke items. A checklist opens on dispatch or chief-complaint words (`triggers`), on facts (`open_on.facts`, rules over every value including ones waiting for a tap), or on a score with any criterion hit (`open_on.scores`).
+
+| Checklist | Santa Clara (county override) | Other counties (default) | Opens on |
+|---|---|---|---|
+| `trauma` "Trauma Alert" | Mechanism of injury (501 §IV.E.1; 700-A16 §6.1) · Trauma criteria (Policy 605) `@trauma_605` (501 §IV.E.2; 602 §VI.C) · GCS `vitals.gcs_total\|vitals.gcs_motor` (700-S04 §2.2; 700-A16 §6.3) · Systolic BP (605 N.1-N.3) · Heart rate (605 N.4) · Respiratory rate (605 K) · SpO2 (605 M) · Anticoagulants (605 X.1; 700-S06 §3.3) · Pregnancy (weeks), when relevant (602 §VI.C.4; 605 X.7) · Destination (602 §VI.C.2-3, Table B) · ETA (501 §III.A.1.b) | the same shape with `@field_triage` (national 2021) instead of `@trauma_605` | words (fall, MVC, crash, GSW, stabbing, assault, pedestrian, struck, ejected, rollover, burn, trauma, injury); Santa Clara: the trauma score has any criterion hit; default: any `trauma.*` fact |
+| `sepsis` "Sepsis pre-notification" (default "Suspected sepsis") | Suspected infection (700-A04 §1.4, §4.1) · Temperature (§1.3.1) · Heart rate (§1.3.2) · Respiratory rate (§1.3.3) · EtCO2, note "not measured" (§1.3.4) · Systolic BP (§1.1) · Mental status `vitals.consciousness\|vitals.gcs_total` (700-A10 §4.1) | the same without EtCO2, plus `@news2` (Surviving Sepsis Campaign 2026: use a standard screening tool en route) | words (fever, sepsis, septic, infection, pneumonia, UTI, cellulitis); `infection.suspected` present |
+| `stemi` "STEMI Alert" | 12-lead reads "STEMI" or "Acute MI Suspected" (700-A08 §3.2; 700-M09 §4.9.1) · Symptom onset (§1.2, §6.1) · First 12-lead time (§6.2) · 12-lead transmitted to the STEMI center (§1.4, §3.2.2; 700-M09 §4.9.1.1) · Systolic BP (501 §III.A.4) · Allergies (501 §III.A.3) · Time of aspirin administration `meds.given[drug=aspirin]`, note "not recorded" (700-A08 §6.3, a documentation element) | unchanged (symptom onset, 12-lead time, 12-lead attached, allergies, anticoagulants, blood pressure) | words (chest pain, STEMI, heart attack, ACS, ST elevation; Santa Clara adds substernal, chest pressure or tightness, impending doom from 700-M09 §3.1); Santa Clara: `ecg.stemi_reading` true |
+| `stroke` | unchanged: the county's `stroke.checklist` (G.F.A.S.T.) | unchanged (RACE) | words; a stroke exam has started |
+
+- **Record-field items:** `meds.given[drug=aspirin]` is done when any confirmed `meds.given` record has drug "aspirin" (the labeling guide's generic name), pending when one waits for a tap, missing otherwise. The label is the county's documentation element, "Time of aspirin administration": a record of what was given, never a prompt to give it.
+- **Alternatives:** `vitals.consciousness|vitals.gcs_total` is done when either is confirmed.
+- **Score items:** `@trauma_605` is done when the score is complete or met (once a criterion is met the Trauma Alert answer is known); pending when a fact waiting for a tap would complete it.
+- **Conditional items:** the pregnancy item is listed unless the patient is known to be male or outside ages 10-55. This is Herald's own display rule (design decision, stated in `config/checklists.yaml`), wider on purpose than the CDC reproductive-age band of 15-44, so a patient who could be pregnant is never skipped. In the contract it has `conditional: true`.
+- **Moved:** in Santa Clara, "Anticoagulants" left the STEMI item list for its "not yet asked" list, because no county STEMI document asks for it (research §7.2).
+
+**Snapshot.**
+- `scores` holds every published score plus the active county's own criteria: `trauma_605` and `sepsis_700a04` exist only while Santa Clara is active.
+- `readiness[]` entries carry `source`; items may carry `note`. `needs_attention` entries may carry `note`.
+- `alerts[]` gains `trauma_alert_criteria` and `sepsis_prenotification` when the score is met: `{type, score, label, level, criteria[], county_rule?[], county?}`. For a Trauma Alert, `county_rule[]` quotes Policy 602: §VI.C.2 (adult, age 15 and over) or §VI.C.3 (pediatric, under 15 per §VI.H), §VI.C.4 (pregnant beyond 20 weeks: "the closest trauma center with an approved Level III Neonatal ICU (Stanford Hospital or Santa Clara Valley Medical Center)"), and §VI.D when a major burn is described.
+
+**Relay.** `score.trauma_605` and `score.sepsis_700a04` are tier 1 ("the receiving team needs this before arrival"; Policy 501 §IV.E.2 requires a Trauma Alert report to state the Policy 605 criteria). What is sent:
+- trauma: the met codes by group, e.g. `RED N.3; YELLOW O, U` (about 20 bytes); `no Policy 605 criterion met` once complete with no hit; nothing while undecided or not applicable;
+- sepsis: `met (infection: urinary; T 38.6 °C; HR 112; RR 24)`; `not met` once complete; nothing while undecided.
+Like every relayed key, a line the ED already acknowledged stays on the ED screen if the result later becomes undecided (for example a rejected blood pressure). A later complete result replaces it.
+
+**What the county documents say that Herald can't represent faithfully** (no fact in `config/vocabulary.yaml`; a vocabulary change is the owner's decision):
+- **605 S** "Vehicle telemetry data consistent with severe injury": no `trauma.criteria` value.
+- **605 X.1, second half** "or with bleeding disorders": no key for a bleeding disorder, so only anticoagulants are computed.
+- **605 X.3** "EMS provider judgment to transport patient to a trauma center": the medic's judgement, not a fact Herald derives.
+- **605 X.4** hanging or mechanical asphyxiation in cardiac arrest with suspected head or neck injury, and **X.5** unwitnessed drowning with suspected head or neck injury: no values.
+- **605 X.7** "uterine fundus palpated at or above the umbilicus" and "does not meet obvious death criteria": Herald reads the weeks as said and "in cardiac arrest" from CPR or defibrillation in `procedures.done`.
+- **605 N**: the county text leaves age 65 in no band (above).
+- **700-S06 §1.11** (a fall more than 72 hours ago with no Red criterion is not a Trauma Alert): needs a time of injury; the research recommends reusing `symptom.onset`, which is not decided yet, so it is not applied.
+- **700-A08 §6.4** "Time of STEMI Alert notification to hospital" and **§1.1** "within 10 minutes of patient contact": a relay send time and a patient-contact time, not spoken facts; not checklist items.
+- **Policy 501 §II.B vs §II.C** (which channel a sepsis notification uses) is an inference from Policy 501 and flagged for review; Herald shows no channel.
+- **AO 2025-006 and AO 2025-007** amend Policy 602 and are not archived; the destination rules quoted above are from the 2025-04-01 text.
 
 ### 5.10 Build and serving with FastAPI
 

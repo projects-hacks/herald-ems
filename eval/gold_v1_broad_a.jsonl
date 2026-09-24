@@ -30,7 +30,7 @@
 {"id": "v1_030", "facts": []}
 {"id": "v1_031", "facts": []}
 {"id": "v1_032", "facts": []}
-{"id": "v1_033", "facts": [["trauma.mechanism", "tripped on the curb and fell, hit her head on the sidewalk", "bystander", "bystander"]]}
+{"id": "v1_033", "facts": [["trauma.mechanism", "tripped on the curb and fell, hit her head on the sidewalk", "bystander", "bystander"], ["trauma.criteria", ["low level fall with significant head impact"], "bystander", "bystander"]]}
 {"id": "v1_034", "facts": []}
 {"id": "v1_035", "facts": []}
 {"id": "v1_036", "facts": [["meds.given", {"drug": "dextrose", "by": "crew"}, "medic", null]]}

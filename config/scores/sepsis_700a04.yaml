@@ -1,0 +1,49 @@
+# Santa Clara County EMS Protocol 700-A04 Sepsis, §1.3-1.4: the county's own criteria for an advance notification
+# of a suspected sepsis patient. Text verified against
+# data/protocols/santa_clara/archive/700-A04_sepsis_eff-2026-01-01.pdf (one page) on 2026-09-24 (research:
+# docs/research/county_protocols_2026-09.md §6.1). Rule types: herald/scoring/rules.py.
+#
+# Wording: the county calls this an "Advanced notification to hospital", not a named alert. Policy 501 names only
+# Trauma, Stroke and STEMI Alerts as specialty-center reports, so Herald says "sepsis pre-notification", never
+# "Sepsis Alert".
+# Temperature: vitals.temp is Celsius (config/vocabulary.yaml). 96 °F = 35.56 °C and 100.4 °F = 38.0 °C; readings are
+# stored to 0.1 °C, so "less than 96 °F" is below 35.56 (35.5 °C = 95.9 °F counts, 35.6 °C = 96.1 °F doesn't).
+# EtCO2: 700-S04 §3.2 requires capnography only with an airway adjunct and Policy 302 allows a colorimetric device,
+# so EtCO2 is often not measured. It then shows as not measured, never as "not met" (AGENTS invariant 6).
+# The trigger is a *suspected sepsis patient*: tachycardia and tachypnea without a suspected infection are not it.
+id: sepsis_700a04
+name: Sepsis pre-notification (700-A04)
+kind: criteria
+county: santa_clara
+source: >-
+  Santa Clara County EMS Protocol 700-A04 Sepsis (effective 2026-01-01; replaces 2025-01-01), §1.3-1.4, page 1 of 1
+thresholds_text: >-
+  700-A04 §1.4: "Advanced notification to hospital of suspected sepsis patient if two or more SIRS criteria are met"
+groups:
+  - {id: notify, label: "Sepsis pre-notification criteria met (700-A04 §1.4)", short: met, met: true, priority: medium}
+notify:
+  - code: "1.4"
+    type: all_of
+    required: true
+    text: "1.4. Advanced notification to hospital of suspected sepsis patient if two or more SIRS criteria are met"
+    rules:
+      - {code: "4.1", type: present, key: infection.suspected, label: "Suspected infection (700-A04 §1.4, §4.1)",
+         finding: "infection: {value}", needs: "Suspected infection (source)"}
+      - code: "1.3"
+        type: count_at_least
+        n: 2
+        label: "1.3. Identification of Systemic Inflammatory Response Syndrome (SIRS) Criteria (two or more, §1.4)"
+        finding: "{count} of {total} met"
+        rules:
+          - {code: "1.3.1", type: outside, key: vitals.temp, low: 35.56, high: 38.0,
+             label: "1.3.1. Temperature less than 96 °F or greater than 100.4 °F", finding: "T {value} °C",
+             needs: Temperature}
+          - {code: "1.3.2", type: above, key: vitals.hr, value: 90, label: "1.3.2. Heart rate greater than 90 bpm",
+             finding: "HR {value}", needs: Heart rate}
+          - {code: "1.3.3", type: above, key: vitals.rr, value: 20,
+             label: "1.3.3. Respiratory rate greater than 20 bpm", finding: "RR {value}", needs: Respiratory rate}
+          - {code: "1.3.4", type: below, key: vitals.etco2, value: 25, label: "1.3.4. ETCO2 less than 25 mmHg",
+             finding: "EtCO2 {value}", needs: "EtCO2 (not measured)"}
+relay_text: "met ({leaves})"
+relay_text_not_met: "not met"
+alert_type: sepsis_prenotification
