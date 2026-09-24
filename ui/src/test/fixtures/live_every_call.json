@@ -1,0 +1,2323 @@
+{
+"incident": {
+"id": "inc_542356ac5a",
+"dispatch": "fall, chest pain",
+"started": "2026-09-24T18:08:54.495973+00:00"
+},
+"summary": "72 M \u00b7 fell off a ladder, crushing chest pain",
+"readiness": [
+{
+"id": "stemi",
+"label": "STEMI Alert",
+"source": "700-A08 \u00a71, \u00a73.2, \u00a76 (effective 2025-01-01); 700-M09 \u00a73.1, \u00a74.9 (effective 2024-01-01); Policy 501 \u00a7IV; Policy 602 \u00a7VI.F",
+"done": 1,
+"total": 7,
+"ready": false,
+"items": [
+{
+"key": "ecg.stemi_reading",
+"label": "12-lead reads \"STEMI\" or \"Acute MI Suspected\"",
+"state": "pending"
+},
+{
+"key": "symptom.onset",
+"label": "Symptom onset",
+"state": "missing"
+},
+{
+"key": "ecg.twelve_lead_time",
+"label": "First 12-lead time",
+"state": "missing"
+},
+{
+"key": "ecg.transmitted",
+"label": "12-lead transmitted to the STEMI center",
+"state": "pending"
+},
+{
+"key": "vitals.sbp",
+"label": "Systolic BP",
+"state": "done"
+},
+{
+"key": "allergies",
+"label": "Allergies",
+"state": "missing"
+},
+{
+"key": "meds.given[drug=aspirin]",
+"label": "Time of aspirin administration",
+"state": "pending",
+"note": "not recorded"
+}
+]
+},
+{
+"id": "trauma",
+"label": "Trauma Alert",
+"source": "Policy 605 \u00a7II.B (in AO 2025-005, effective 2025-04-01); Policy 501 \u00a7IV.E (effective 2025-01-01); Policy 602 \u00a7VI.C (effective 2025-04-01)",
+"done": 5,
+"total": 10,
+"ready": false,
+"items": [
+{
+"key": "trauma.mechanism",
+"label": "Mechanism of injury",
+"state": "pending"
+},
+{
+"key": "@trauma_605",
+"label": "Trauma criteria (Policy 605)",
+"state": "pending"
+},
+{
+"key": "vitals.gcs_total|vitals.gcs_motor",
+"label": "GCS",
+"state": "done"
+},
+{
+"key": "vitals.sbp",
+"label": "Systolic BP",
+"state": "done"
+},
+{
+"key": "vitals.hr",
+"label": "Heart rate",
+"state": "done"
+},
+{
+"key": "vitals.rr",
+"label": "Respiratory rate",
+"state": "missing"
+},
+{
+"key": "vitals.spo2",
+"label": "SpO2",
+"state": "done"
+},
+{
+"key": "meds.anticoagulant",
+"label": "Anticoagulants",
+"state": "done"
+},
+{
+"key": "transport.destination",
+"label": "Destination",
+"state": "missing"
+},
+{
+"key": "transport.eta_min",
+"label": "ETA",
+"state": "missing"
+}
+]
+}
+],
+"needs_attention": {
+"missing": [
+{
+"key": "ecg.stemi_reading",
+"label": "12-lead reads \"STEMI\" or \"Acute MI Suspected\"",
+"pending_confirm": true
+},
+{
+"key": "ecg.twelve_lead_time",
+"label": "First 12-lead time",
+"pending_confirm": false
+},
+{
+"key": "ecg.transmitted",
+"label": "12-lead transmitted to the STEMI center",
+"pending_confirm": true
+},
+{
+"key": "meds.given[drug=aspirin]",
+"label": "Time of aspirin administration",
+"pending_confirm": true,
+"note": "not recorded"
+},
+{
+"key": "@trauma_605",
+"label": "Trauma criteria (Policy 605)",
+"pending_confirm": true
+},
+{
+"key": "vitals.rr",
+"label": "Respiratory rate",
+"pending_confirm": false
+},
+{
+"key": "vitals.consciousness",
+"label": "Consciousness (ACVPU) (for NEWS2)",
+"pending_confirm": false
+},
+{
+"key": "vitals.temp",
+"label": "Temperature (for NEWS2)",
+"pending_confirm": false
+}
+],
+"unknown": [
+{
+"key": "symptom.onset",
+"label": "Symptom onset",
+"pending_confirm": false
+},
+{
+"key": "allergies",
+"label": "Allergies",
+"pending_confirm": false
+},
+{
+"key": "trauma.mechanism",
+"label": "Mechanism of injury",
+"pending_confirm": true
+},
+{
+"key": "transport.destination",
+"label": "Destination",
+"pending_confirm": false
+},
+{
+"key": "transport.eta_min",
+"label": "ETA",
+"pending_confirm": false
+}
+]
+},
+"changed": [],
+"scores": {
+"field_triage": {
+"name": "Field triage (2021)",
+"kind": "criteria",
+"county": null,
+"applies": true,
+"red": [
+"SBP 84 < 110 (age \u2265 65)",
+"HR 118 > SBP 84"
+],
+"yellow": [
+"Anticoagulant use (apixaban)"
+],
+"met": true,
+"level": "red",
+"flagged": true,
+"complete": true,
+"missing": [],
+"criteria": [
+{
+"code": null,
+"label": "Unable to follow commands (motor GCS < 6)",
+"state": "unknown",
+"group": "red"
+},
+{
+"code": null,
+"label": "RR < 10 or > 29",
+"state": "unknown",
+"group": "red"
+},
+{
+"code": null,
+"label": "Room-air SpO2 < 90%",
+"state": "not_met",
+"group": "red"
+},
+{
+"code": null,
+"label": "SBP < 110 (age \u2265 65)",
+"state": "met",
+"group": "red",
+"finding": "SBP 84 < 110 (age \u2265 65)"
+},
+{
+"code": null,
+"label": "HR > SBP (age \u2265 10)",
+"state": "met",
+"group": "red",
+"finding": "HR 118 > SBP 84"
+},
+{
+"code": null,
+"label": "Anticoagulant use",
+"state": "met",
+"group": "yellow",
+"finding": "Anticoagulant use (apixaban)"
+}
+],
+"source": "Newgard CD et al. National Guideline for the Field Triage of Injured Patients: Recommendations of the National Expert Panel on Field Triage, 2021. J Trauma Acute Care Surg 2022;93(2):e49-e60",
+"thresholds": "Red: transport to the highest-level trauma center; Yellow: preferentially a trauma center (need not be the highest level)"
+},
+"gfast": {
+"name": "G.F.A.S.T.",
+"score": 0,
+"complete": false,
+"positive": null,
+"parts": {},
+"missing": [
+"G Gaze abnormalities",
+"F Facial asymmetry",
+"A Arm or leg weakness/drift",
+"S Speech difficulties"
+],
+"thresholds": "4 of 4 = Comprehensive Stroke Center (closest stroke center if > 45 min transport); 3 or fewer = closest stroke center (Policy 602)",
+"source": "Santa Clara County EMS Protocol 700-A13 Stroke (effective 2026-01-01), sections 2.3 and 3.2-3.3",
+"evidence": "Santa Clara County Stroke Critical Care System Plan (2019): with all four G.F.A.S.T. findings the median NIHSS is 14 (range 8-22); with one to three, 3. Published G-FAST (same four items) at >= 3 for large-vessel occlusion, pooled across 13 studies and 12,414 patients: sensitivity 0.73, specificity 0.74, AUC 0.80 (Wang JJ et al., Emerg Med J 2026); the county routes on 4 of 4"
+},
+"news2": {
+"name": "NEWS2",
+"score": 8,
+"complete": false,
+"band": "incomplete",
+"any_single_3": true,
+"parts": {
+"SpO2 (scale 1)": {
+"value": 91,
+"points": 3
+},
+"Air or oxygen": {
+"value": false,
+"points": 0
+},
+"Systolic BP": {
+"value": 84,
+"points": 3
+},
+"Pulse": {
+"value": 118,
+"points": 2
+}
+},
+"missing": [
+"Respiratory rate",
+"Consciousness",
+"Temperature"
+],
+"thresholds": "single parameter 3 = low-medium; 5-6 = medium; >=7 = high",
+"source": "Royal College of Physicians. National Early Warning Score (NEWS) 2: Standardising the assessment of acute-illness severity in the NHS. London: RCP; December 2017",
+"evidence": "Wei S et al., Ann Transl Med 2023;11(2):95 (30 studies, 185,835 patients, prehospital and ED combined): 2-day mortality AUC 0.88, sensitivity 0.81, specificity 0.81"
+},
+"race": {
+"name": "RACE",
+"score": 0,
+"complete": false,
+"positive": null,
+"parts": {},
+"missing": [
+"Facial palsy",
+"Arm motor",
+"Leg motor",
+"Head and gaze deviation",
+"Aphasia or agnosia"
+],
+"thresholds": ">= 5 = large-vessel occlusion screen positive",
+"source": "P\u00e9rez de la Ossa N et al., Stroke 2014;45:87-91 (RACE scale)",
+"evidence": "RACE >= 5 for large-vessel occlusion, pooled across 9 studies: sensitivity 0.75, specificity 0.76 (Suzuki H et al., J Am Heart Assoc 2026;15:e048588)"
+},
+"sepsis_700a04": {
+"name": "Sepsis pre-notification (700-A04)",
+"kind": "criteria",
+"county": "santa_clara",
+"applies": true,
+"notify": [],
+"met": false,
+"level": null,
+"flagged": false,
+"complete": false,
+"missing": [
+"Suspected infection (source)",
+"Temperature",
+"Respiratory rate",
+"EtCO2 (not measured)"
+],
+"criteria": [
+{
+"code": "1.4",
+"label": "1.4. Advanced notification to hospital of suspected sepsis patient if two or more SIRS criteria are met",
+"state": "unknown",
+"group": "notify",
+"parts": [
+{
+"code": "4.1",
+"label": "Suspected infection (700-A04 \u00a71.4, \u00a74.1)",
+"state": "unknown",
+"needs": [
+"Suspected infection (source)"
+]
+},
+{
+"code": "1.3",
+"label": "1.3. Identification of Systemic Inflammatory Response Syndrome (SIRS) Criteria (two or more, \u00a71.4)",
+"state": "unknown",
+"parts": [
+{
+"code": "1.3.1",
+"label": "1.3.1. Temperature less than 96 \u00b0F or greater than 100.4 \u00b0F",
+"state": "unknown",
+"needs": [
+"Temperature"
+]
+},
+{
+"code": "1.3.2",
+"label": "1.3.2. Heart rate greater than 90 bpm",
+"state": "met",
+"finding": "HR 118"
+},
+{
+"code": "1.3.3",
+"label": "1.3.3. Respiratory rate greater than 20 bpm",
+"state": "unknown",
+"needs": [
+"Respiratory rate"
+]
+},
+{
+"code": "1.3.4",
+"label": "1.3.4. ETCO2 less than 25 mmHg",
+"state": "unknown",
+"needs": [
+"EtCO2 (not measured)"
+]
+}
+]
+}
+]
+}
+],
+"source": "Santa Clara County EMS Protocol 700-A04 Sepsis (effective 2026-01-01; replaces 2025-01-01), \u00a71.3-1.4, page 1 of 1",
+"thresholds": "700-A04 \u00a71.4: \"Advanced notification to hospital of suspected sepsis patient if two or more SIRS criteria are met\""
+},
+"trauma_605": {
+"name": "Trauma Alert criteria (Policy 605)",
+"kind": "criteria",
+"county": "santa_clara",
+"applies": false,
+"red": [],
+"yellow": [],
+"consider": [],
+"burn": [],
+"met": false,
+"level": null,
+"flagged": false,
+"complete": false,
+"missing": [
+"Mechanism of injury or injuries found (Policy 605 \u00a7II.B applies to injured patients)"
+],
+"criteria": [],
+"source": "Santa Clara County EMS Policy 605 Prehospital Trauma Triage (effective 2025-04-01, in AO 2025-005), \u00a7II.B criteria A-X (policy pp. 1-3) and \u00a7III.A (p. 3); PDF pages 25-27 of AO 2025-005",
+"thresholds": "605 \u00a7II.B: \"Injured patients are to be identified as a Trauma Alert Patient if one or more of the criteria below are met\" (Red or Yellow; Policy 602 \u00a7VI.C). Special considerations X are EMS judgement. Major burn criteria (\u00a7III) are shown separately."
+},
+"news2_history": [
+{
+"ts": "2026-09-24T18:08:55.312083+00:00",
+"score": 0,
+"complete": false,
+"band": "incomplete"
+},
+{
+"ts": "2026-09-24T18:08:56.196230+00:00",
+"score": 8,
+"complete": false,
+"band": "incomplete"
+}
+],
+"stroke_scales": [
+"GFAST",
+"RACE"
+],
+"primary_stroke_scale": "GFAST"
+},
+"county": {
+"id": "santa_clara",
+"name": "Santa Clara County, CA"
+},
+"alerts": [],
+"clocks": [
+{
+"id": "scene",
+"label": "Scene time",
+"since": "2026-09-24T18:08:54.495973+00:00",
+"seconds": 2
+},
+{
+"id": "reassess",
+"label": "Repeat vitals (every 10 min)",
+"until": "2026-09-24T18:18:56.196101+00:00",
+"seconds": 599
+}
+],
+"facts": {
+"meds.given": {
+"key": "meds.given",
+"value": {
+"drug": "fentanyl",
+"dose": 50.0,
+"unit": "mcg",
+"route": "IV",
+"time": "1422",
+"by": "crew"
+},
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.8722,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "Twelve lead shows an inferior STEMI, transmitted to Regional. We gave 324 of aspirin chewed and fentanyl 50 mics IV at 1422, IV access 18 gauge left AC.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_28d100f626",
+"ts": "2026-09-24T18:08:57.114565Z",
+"status": "confirmed",
+"previous_value": {
+"drug": "aspirin",
+"dose": 324.0,
+"route": "PO",
+"by": "crew"
+},
+"previous_ts": "2026-09-24T18:08:57.114545Z",
+"label": "Medication given"
+},
+"vitals.sbp": {
+"key": "vitals.sbp",
+"value": 84,
+"unit": "mmHg",
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.8771,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "BP 84 over 50, heart rate 118, sats 91 on room air, GCS 14, pain 8 out of 10.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_70a5025ef9",
+"ts": "2026-09-24T18:08:56.195969Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Systolic BP"
+},
+"vitals.dbp": {
+"key": "vitals.dbp",
+"value": 50,
+"unit": "mmHg",
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.9899,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "BP 84 over 50, heart rate 118, sats 91 on room air, GCS 14, pain 8 out of 10.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_170f41117e",
+"ts": "2026-09-24T18:08:56.196033Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Diastolic BP"
+},
+"vitals.hr": {
+"key": "vitals.hr",
+"value": 118,
+"unit": "/min",
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.9989,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "BP 84 over 50, heart rate 118, sats 91 on room air, GCS 14, pain 8 out of 10.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_9324351482",
+"ts": "2026-09-24T18:08:56.196048Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Heart rate"
+},
+"vitals.spo2": {
+"key": "vitals.spo2",
+"value": 91,
+"unit": "%",
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.9965,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "BP 84 over 50, heart rate 118, sats 91 on room air, GCS 14, pain 8 out of 10.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_3f8a29d49c",
+"ts": "2026-09-24T18:08:56.196059Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "SpO2"
+},
+"vitals.on_oxygen": {
+"key": "vitals.on_oxygen",
+"value": false,
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.9937,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "BP 84 over 50, heart rate 118, sats 91 on room air, GCS 14, pain 8 out of 10.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_8c21564ee1",
+"ts": "2026-09-24T18:08:56.196080Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Supplemental oxygen"
+},
+"vitals.gcs_total": {
+"key": "vitals.gcs_total",
+"value": 14,
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.994,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "BP 84 over 50, heart rate 118, sats 91 on room air, GCS 14, pain 8 out of 10.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_e9aae93161",
+"ts": "2026-09-24T18:08:56.196091Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "GCS total"
+},
+"vitals.pain": {
+"key": "vitals.pain",
+"value": 8,
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.9894,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "BP 84 over 50, heart rate 118, sats 91 on room air, GCS 14, pain 8 out of 10.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_ad50dda3d9",
+"ts": "2026-09-24T18:08:56.196101Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Pain score (0-10)"
+},
+"patient.age": {
+"key": "patient.age",
+"value": 72,
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.9972,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "72 year old male, fell off a ladder about fifteen feet, now complaining of crushing chest pain, on Eliquis.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_b32a9ec3bb",
+"ts": "2026-09-24T18:08:56.488964Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Age"
+},
+"patient.sex": {
+"key": "patient.sex",
+"value": "M",
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.9953,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "72 year old male, fell off a ladder about fifteen feet, now complaining of crushing chest pain, on Eliquis.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_1af4eeeab6",
+"ts": "2026-09-24T18:08:56.489034Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Sex"
+},
+"complaint.chief": {
+"key": "complaint.chief",
+"value": "fell off a ladder, crushing chest pain",
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.2055,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "72 year old male, fell off a ladder about fifteen feet, now complaining of crushing chest pain, on Eliquis.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_285c098a41",
+"ts": "2026-09-24T18:08:56.489050Z",
+"status": "unconfirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Chief complaint"
+},
+"trauma.mechanism": {
+"key": "trauma.mechanism",
+"value": "fell off a ladder 15 feet",
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.4926,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "72 year old male, fell off a ladder about fifteen feet, now complaining of crushing chest pain, on Eliquis.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_cf104c5375",
+"ts": "2026-09-24T18:08:56.489067Z",
+"status": "unconfirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Mechanism of injury"
+},
+"trauma.criteria": {
+"key": "trauma.criteria",
+"value": [
+"low level fall with significant head impact"
+],
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.328,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "72 year old male, fell off a ladder about fifteen feet, now complaining of crushing chest pain, on Eliquis.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_6581b849ec",
+"ts": "2026-09-24T18:08:56.489105Z",
+"status": "unconfirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Trauma criteria described"
+},
+"meds.list": {
+"key": "meds.list",
+"value": [
+"apixaban"
+],
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.8131,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "72 year old male, fell off a ladder about fifteen feet, now complaining of crushing chest pain, on Eliquis.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_7d09ae721d",
+"ts": "2026-09-24T18:08:56.489117Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Medications"
+},
+"meds.anticoagulant": {
+"key": "meds.anticoagulant",
+"value": "apixaban",
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.9268,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "72 year old male, fell off a ladder about fifteen feet, now complaining of crushing chest pain, on Eliquis.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_14d4124fa9",
+"ts": "2026-09-24T18:08:56.489130Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Anticoagulant"
+},
+"ecg.transmitted": {
+"key": "ecg.transmitted",
+"value": true,
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.3655,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "Twelve lead shows an inferior STEMI, transmitted to Regional. We gave 324 of aspirin chewed and fentanyl 50 mics IV at 1422, IV access 18 gauge left AC.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_4e2d053c53",
+"ts": "2026-09-24T18:08:57.114402Z",
+"status": "unconfirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "12-lead transmitted"
+},
+"ecg.stemi_reading": {
+"key": "ecg.stemi_reading",
+"value": true,
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.3794,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "Twelve lead shows an inferior STEMI, transmitted to Regional. We gave 324 of aspirin chewed and fentanyl 50 mics IV at 1422, IV access 18 gauge left AC.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_5d4d13186b",
+"ts": "2026-09-24T18:08:57.114476Z",
+"status": "unconfirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "12-lead reads STEMI"
+},
+"procedures.done": {
+"key": "procedures.done",
+"value": {
+"procedure": "iv access",
+"detail": "18 gauge left AC",
+"by": "crew"
+},
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.8967,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "Twelve lead shows an inferior STEMI, transmitted to Regional. We gave 324 of aspirin chewed and fentanyl 50 mics IV at 1422, IV access 18 gauge left AC.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_db69787b2a",
+"ts": "2026-09-24T18:08:57.114588Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Procedure done"
+}
+},
+"events": {
+"meds.given": [
+{
+"key": "meds.given",
+"value": {
+"drug": "naloxone",
+"dose": 2.0,
+"route": "IN",
+"by": "fire"
+},
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.8944,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "Fire gave two of narcan intranasal before we got here.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_d9ef112550",
+"ts": "2026-09-24T18:08:55.311884Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Medication given"
+},
+{
+"key": "meds.given",
+"value": {
+"drug": "aspirin",
+"dose": 324.0,
+"route": "PO",
+"by": "crew"
+},
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.5759,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "Twelve lead shows an inferior STEMI, transmitted to Regional. We gave 324 of aspirin chewed and fentanyl 50 mics IV at 1422, IV access 18 gauge left AC.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_de657b2dd5",
+"ts": "2026-09-24T18:08:57.114545Z",
+"status": "unconfirmed",
+"previous_value": {
+"drug": "naloxone",
+"dose": 2.0,
+"route": "IN",
+"by": "fire"
+},
+"previous_ts": "2026-09-24T18:08:55.311884Z",
+"label": "Medication given"
+},
+{
+"key": "meds.given",
+"value": {
+"drug": "fentanyl",
+"dose": 50.0,
+"unit": "mcg",
+"route": "IV",
+"time": "1422",
+"by": "crew"
+},
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.8722,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "Twelve lead shows an inferior STEMI, transmitted to Regional. We gave 324 of aspirin chewed and fentanyl 50 mics IV at 1422, IV access 18 gauge left AC.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_28d100f626",
+"ts": "2026-09-24T18:08:57.114565Z",
+"status": "confirmed",
+"previous_value": {
+"drug": "aspirin",
+"dose": 324.0,
+"route": "PO",
+"by": "crew"
+},
+"previous_ts": "2026-09-24T18:08:57.114545Z",
+"label": "Medication given"
+}
+],
+"procedures.done": [
+{
+"key": "procedures.done",
+"value": {
+"procedure": "iv access",
+"detail": "18 gauge left AC",
+"by": "crew"
+},
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.8967,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "Twelve lead shows an inferior STEMI, transmitted to Regional. We gave 324 of aspirin chewed and fentanyl 50 mics IV at 1422, IV access 18 gauge left AC.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_db69787b2a",
+"ts": "2026-09-24T18:08:57.114588Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Procedure done"
+}
+]
+},
+"timeline": [
+{
+"key": "meds.given",
+"value": {
+"drug": "naloxone",
+"dose": 2.0,
+"route": "IN",
+"by": "fire"
+},
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.8944,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "Fire gave two of narcan intranasal before we got here.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_d9ef112550",
+"ts": "2026-09-24T18:08:55.311884Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Medication given"
+},
+{
+"key": "vitals.sbp",
+"value": 84,
+"unit": "mmHg",
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.8771,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "BP 84 over 50, heart rate 118, sats 91 on room air, GCS 14, pain 8 out of 10.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_70a5025ef9",
+"ts": "2026-09-24T18:08:56.195969Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Systolic BP"
+},
+{
+"key": "vitals.dbp",
+"value": 50,
+"unit": "mmHg",
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.9899,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "BP 84 over 50, heart rate 118, sats 91 on room air, GCS 14, pain 8 out of 10.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_170f41117e",
+"ts": "2026-09-24T18:08:56.196033Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Diastolic BP"
+},
+{
+"key": "vitals.hr",
+"value": 118,
+"unit": "/min",
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.9989,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "BP 84 over 50, heart rate 118, sats 91 on room air, GCS 14, pain 8 out of 10.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_9324351482",
+"ts": "2026-09-24T18:08:56.196048Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Heart rate"
+},
+{
+"key": "vitals.spo2",
+"value": 91,
+"unit": "%",
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.9965,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "BP 84 over 50, heart rate 118, sats 91 on room air, GCS 14, pain 8 out of 10.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_3f8a29d49c",
+"ts": "2026-09-24T18:08:56.196059Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "SpO2"
+},
+{
+"key": "vitals.on_oxygen",
+"value": false,
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.9937,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "BP 84 over 50, heart rate 118, sats 91 on room air, GCS 14, pain 8 out of 10.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_8c21564ee1",
+"ts": "2026-09-24T18:08:56.196080Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Supplemental oxygen"
+},
+{
+"key": "vitals.gcs_total",
+"value": 14,
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.994,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "BP 84 over 50, heart rate 118, sats 91 on room air, GCS 14, pain 8 out of 10.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_e9aae93161",
+"ts": "2026-09-24T18:08:56.196091Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "GCS total"
+},
+{
+"key": "vitals.pain",
+"value": 8,
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.9894,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "BP 84 over 50, heart rate 118, sats 91 on room air, GCS 14, pain 8 out of 10.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_ad50dda3d9",
+"ts": "2026-09-24T18:08:56.196101Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Pain score (0-10)"
+},
+{
+"key": "patient.age",
+"value": 72,
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.9972,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "72 year old male, fell off a ladder about fifteen feet, now complaining of crushing chest pain, on Eliquis.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_b32a9ec3bb",
+"ts": "2026-09-24T18:08:56.488964Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Age"
+},
+{
+"key": "patient.sex",
+"value": "M",
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.9953,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "72 year old male, fell off a ladder about fifteen feet, now complaining of crushing chest pain, on Eliquis.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_1af4eeeab6",
+"ts": "2026-09-24T18:08:56.489034Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Sex"
+},
+{
+"key": "complaint.chief",
+"value": "fell off a ladder, crushing chest pain",
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.2055,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "72 year old male, fell off a ladder about fifteen feet, now complaining of crushing chest pain, on Eliquis.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_285c098a41",
+"ts": "2026-09-24T18:08:56.489050Z",
+"status": "unconfirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Chief complaint"
+},
+{
+"key": "trauma.mechanism",
+"value": "fell off a ladder 15 feet",
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.4926,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "72 year old male, fell off a ladder about fifteen feet, now complaining of crushing chest pain, on Eliquis.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_cf104c5375",
+"ts": "2026-09-24T18:08:56.489067Z",
+"status": "unconfirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Mechanism of injury"
+},
+{
+"key": "trauma.criteria",
+"value": [
+"low level fall with significant head impact"
+],
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.328,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "72 year old male, fell off a ladder about fifteen feet, now complaining of crushing chest pain, on Eliquis.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_6581b849ec",
+"ts": "2026-09-24T18:08:56.489105Z",
+"status": "unconfirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Trauma criteria described"
+},
+{
+"key": "meds.list",
+"value": [
+"apixaban"
+],
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.8131,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "72 year old male, fell off a ladder about fifteen feet, now complaining of crushing chest pain, on Eliquis.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_7d09ae721d",
+"ts": "2026-09-24T18:08:56.489117Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Medications"
+},
+{
+"key": "meds.anticoagulant",
+"value": "apixaban",
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.9268,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "72 year old male, fell off a ladder about fifteen feet, now complaining of crushing chest pain, on Eliquis.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_14d4124fa9",
+"ts": "2026-09-24T18:08:56.489130Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Anticoagulant"
+},
+{
+"key": "ecg.transmitted",
+"value": true,
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.3655,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "Twelve lead shows an inferior STEMI, transmitted to Regional. We gave 324 of aspirin chewed and fentanyl 50 mics IV at 1422, IV access 18 gauge left AC.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_4e2d053c53",
+"ts": "2026-09-24T18:08:57.114402Z",
+"status": "unconfirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "12-lead transmitted"
+},
+{
+"key": "ecg.stemi_reading",
+"value": true,
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.3794,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "Twelve lead shows an inferior STEMI, transmitted to Regional. We gave 324 of aspirin chewed and fentanyl 50 mics IV at 1422, IV access 18 gauge left AC.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_5d4d13186b",
+"ts": "2026-09-24T18:08:57.114476Z",
+"status": "unconfirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "12-lead reads STEMI"
+},
+{
+"key": "meds.given",
+"value": {
+"drug": "aspirin",
+"dose": 324.0,
+"route": "PO",
+"by": "crew"
+},
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.5759,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "Twelve lead shows an inferior STEMI, transmitted to Regional. We gave 324 of aspirin chewed and fentanyl 50 mics IV at 1422, IV access 18 gauge left AC.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_de657b2dd5",
+"ts": "2026-09-24T18:08:57.114545Z",
+"status": "unconfirmed",
+"previous_value": {
+"drug": "naloxone",
+"dose": 2.0,
+"route": "IN",
+"by": "fire"
+},
+"previous_ts": "2026-09-24T18:08:55.311884Z",
+"label": "Medication given"
+},
+{
+"key": "meds.given",
+"value": {
+"drug": "fentanyl",
+"dose": 50.0,
+"unit": "mcg",
+"route": "IV",
+"time": "1422",
+"by": "crew"
+},
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.8722,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "Twelve lead shows an inferior STEMI, transmitted to Regional. We gave 324 of aspirin chewed and fentanyl 50 mics IV at 1422, IV access 18 gauge left AC.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_28d100f626",
+"ts": "2026-09-24T18:08:57.114565Z",
+"status": "confirmed",
+"previous_value": {
+"drug": "aspirin",
+"dose": 324.0,
+"route": "PO",
+"by": "crew"
+},
+"previous_ts": "2026-09-24T18:08:57.114545Z",
+"label": "Medication given"
+},
+{
+"key": "procedures.done",
+"value": {
+"procedure": "iv access",
+"detail": "18 gauge left AC",
+"by": "crew"
+},
+"unit": null,
+"role": "medic",
+"speaker": null,
+"captured_by": "medic",
+"confidence": 0.8967,
+"provenance": {
+"audio_id": null,
+"t_start": null,
+"t_end": null,
+"text": "Twelve lead shows an inferior STEMI, transmitted to Regional. We gave 324 of aspirin chewed and fentanyl 50 mics IV at 1422, IV access 18 gauge left AC.",
+"photo_id": null,
+"crop": null,
+"extractor": "llm:ems-e-v2-fp8",
+"hold_reason": null,
+"normalized": null
+},
+"code": null,
+"id": "f_db69787b2a",
+"ts": "2026-09-24T18:08:57.114588Z",
+"status": "confirmed",
+"previous_value": null,
+"previous_ts": null,
+"label": "Procedure done"
+}
+],
+"transcripts": [
+{
+"id": "t_5fb42386b6",
+"ts": "2026-09-24T18:08:54.500801+00:00",
+"text": "72 year old male, fell off a ladder about fifteen feet, now complaining of crushing chest pain, on Eliquis.",
+"captured_by": "medic",
+"speaker": null,
+"audio_id": null,
+"fact_ids": [
+"f_b32a9ec3bb",
+"f_1af4eeeab6",
+"f_285c098a41",
+"f_cf104c5375",
+"f_6581b849ec",
+"f_7d09ae721d",
+"f_14d4124fa9"
+],
+"extract": {
+"rules": 0,
+"llm": 7,
+"ms": 0
+},
+"stt": null,
+"trace": {
+"heard": {
+"text": "72 year old male, fell off a ladder about fifteen feet, now complaining of crushing chest pain, on Eliquis.",
+"speaker": "medic",
+"audio_id": null,
+"stt": null
+},
+"rules": {
+"ms": 0,
+"facts": [],
+"rejected": []
+},
+"model": {
+"status": "done",
+"name": "ems-e-v2-fp8",
+"ms": 1988,
+"tokens": 93,
+"proposed": 7,
+"facts": [
+{
+"id": "f_b32a9ec3bb",
+"key": "patient.age",
+"label": "Age",
+"value": 72,
+"role": "medic",
+"speaker": null,
+"status": "confirmed",
+"confidence": 1.0,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "eligible: demographics and context",
+"hold_reason": null
+},
+{
+"id": "f_1af4eeeab6",
+"key": "patient.sex",
+"label": "Sex",
+"value": "M",
+"role": "medic",
+"speaker": null,
+"status": "confirmed",
+"confidence": 1.0,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "eligible: demographics and context",
+"hold_reason": null
+},
+{
+"id": "f_285c098a41",
+"key": "complaint.chief",
+"label": "Chief complaint",
+"value": "fell off a ladder, crushing chest pain",
+"role": "medic",
+"speaker": null,
+"status": "unconfirmed",
+"confidence": 0.21,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "held: unconfirmed facts never leave the vehicle",
+"hold_reason": null
+},
+{
+"id": "f_cf104c5375",
+"key": "trauma.mechanism",
+"label": "Mechanism of injury",
+"value": "fell off a ladder 15 feet",
+"role": "medic",
+"speaker": null,
+"status": "unconfirmed",
+"confidence": 0.49,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "held: unconfirmed facts never leave the vehicle",
+"hold_reason": null
+},
+{
+"id": "f_6581b849ec",
+"key": "trauma.criteria",
+"label": "Trauma criteria described",
+"value": [
+"low level fall with significant head impact"
+],
+"role": "medic",
+"speaker": null,
+"status": "unconfirmed",
+"confidence": 0.33,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "held: unconfirmed facts never leave the vehicle",
+"hold_reason": null
+},
+{
+"id": "f_7d09ae721d",
+"key": "meds.list",
+"label": "Medications",
+"value": [
+"apixaban"
+],
+"role": "medic",
+"speaker": null,
+"status": "confirmed",
+"confidence": 0.81,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "eligible: demographics and context",
+"hold_reason": null
+},
+{
+"id": "f_14d4124fa9",
+"key": "meds.anticoagulant",
+"label": "Anticoagulant",
+"value": "apixaban",
+"role": "medic",
+"speaker": null,
+"status": "confirmed",
+"confidence": 0.93,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "eligible: the receiving team needs this before arrival",
+"hold_reason": null
+}
+],
+"rejected": [],
+"auto_confirm_threshold": 0.8
+},
+"guard": {
+"instruction_shaped": null
+},
+"effects": {
+"readiness": [
+{
+"label": "STEMI Alert",
+"from": 0,
+"to": 1,
+"total": 7,
+"ready": false
+},
+{
+"label": "Trauma Alert",
+"from": 0,
+"to": 5,
+"total": 10,
+"ready": false
+}
+],
+"alerts_new": [],
+"scores": [],
+"gaps_closed": [
+"meds.anticoagulant",
+"meds.list",
+"patient.pregnancy_weeks",
+"vitals.gcs_total|vitals.gcs_motor",
+"vitals.hr",
+"vitals.on_oxygen",
+"vitals.sbp",
+"vitals.spo2"
+]
+}
+}
+},
+{
+"id": "t_be2920c443",
+"ts": "2026-09-24T18:08:54.506080+00:00",
+"text": "BP 84 over 50, heart rate 118, sats 91 on room air, GCS 14, pain 8 out of 10.",
+"captured_by": "medic",
+"speaker": null,
+"audio_id": null,
+"fact_ids": [
+"f_70a5025ef9",
+"f_170f41117e",
+"f_9324351482",
+"f_3f8a29d49c",
+"f_8c21564ee1",
+"f_e9aae93161",
+"f_ad50dda3d9"
+],
+"extract": {
+"rules": 0,
+"llm": 7,
+"ms": 0
+},
+"stt": null,
+"trace": {
+"heard": {
+"text": "BP 84 over 50, heart rate 118, sats 91 on room air, GCS 14, pain 8 out of 10.",
+"speaker": "medic",
+"audio_id": null,
+"stt": null
+},
+"rules": {
+"ms": 0,
+"facts": [],
+"rejected": []
+},
+"model": {
+"status": "done",
+"name": "ems-e-v2-fp8",
+"ms": 1687,
+"tokens": 77,
+"proposed": 7,
+"facts": [
+{
+"id": "f_70a5025ef9",
+"key": "vitals.sbp",
+"label": "Systolic BP",
+"value": 84,
+"role": "medic",
+"speaker": null,
+"status": "confirmed",
+"confidence": 0.88,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "eligible: latest vitals and exam",
+"hold_reason": null
+},
+{
+"id": "f_170f41117e",
+"key": "vitals.dbp",
+"label": "Diastolic BP",
+"value": 50,
+"role": "medic",
+"speaker": null,
+"status": "confirmed",
+"confidence": 0.99,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "eligible: latest vitals and exam",
+"hold_reason": null
+},
+{
+"id": "f_9324351482",
+"key": "vitals.hr",
+"label": "Heart rate",
+"value": 118,
+"role": "medic",
+"speaker": null,
+"status": "confirmed",
+"confidence": 1.0,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "eligible: latest vitals and exam",
+"hold_reason": null
+},
+{
+"id": "f_3f8a29d49c",
+"key": "vitals.spo2",
+"label": "SpO2",
+"value": 91,
+"role": "medic",
+"speaker": null,
+"status": "confirmed",
+"confidence": 1.0,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "eligible: latest vitals and exam",
+"hold_reason": null
+},
+{
+"id": "f_8c21564ee1",
+"key": "vitals.on_oxygen",
+"label": "Supplemental oxygen",
+"value": false,
+"role": "medic",
+"speaker": null,
+"status": "confirmed",
+"confidence": 0.99,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "eligible: demographics and context",
+"hold_reason": null
+},
+{
+"id": "f_e9aae93161",
+"key": "vitals.gcs_total",
+"label": "GCS total",
+"value": 14,
+"role": "medic",
+"speaker": null,
+"status": "confirmed",
+"confidence": 0.99,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "eligible: latest vitals and exam",
+"hold_reason": null
+},
+{
+"id": "f_ad50dda3d9",
+"key": "vitals.pain",
+"label": "Pain score (0-10)",
+"value": 8,
+"role": "medic",
+"speaker": null,
+"status": "confirmed",
+"confidence": 0.99,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "eligible: latest vitals and exam",
+"hold_reason": null
+}
+],
+"rejected": [],
+"auto_confirm_threshold": 0.8
+},
+"guard": {
+"instruction_shaped": null
+},
+"effects": {
+"readiness": [
+{
+"label": "STEMI Alert",
+"from": 0,
+"to": 1,
+"total": 7,
+"ready": false
+},
+{
+"label": "Trauma Alert",
+"from": 0,
+"to": 4,
+"total": 11,
+"ready": false
+}
+],
+"alerts_new": [],
+"scores": [],
+"gaps_closed": [
+"vitals.gcs_total|vitals.gcs_motor",
+"vitals.hr",
+"vitals.on_oxygen",
+"vitals.sbp",
+"vitals.spo2"
+]
+}
+}
+},
+{
+"id": "t_5381cbf931",
+"ts": "2026-09-24T18:08:54.513001+00:00",
+"text": "Twelve lead shows an inferior STEMI, transmitted to Regional. We gave 324 of aspirin chewed and fentanyl 50 mics IV at 1422, IV access 18 gauge left AC.",
+"captured_by": "medic",
+"speaker": null,
+"audio_id": null,
+"fact_ids": [
+"f_4e2d053c53",
+"f_5d4d13186b",
+"f_de657b2dd5",
+"f_28d100f626",
+"f_db69787b2a"
+],
+"extract": {
+"rules": 0,
+"llm": 5,
+"ms": 0
+},
+"stt": null,
+"trace": {
+"heard": {
+"text": "Twelve lead shows an inferior STEMI, transmitted to Regional. We gave 324 of aspirin chewed and fentanyl 50 mics IV at 1422, IV access 18 gauge left AC.",
+"speaker": "medic",
+"audio_id": null,
+"stt": null
+},
+"rules": {
+"ms": 0,
+"facts": [],
+"rejected": []
+},
+"model": {
+"status": "done",
+"name": "ems-e-v2-fp8",
+"ms": 2601,
+"tokens": 121,
+"proposed": 5,
+"facts": [
+{
+"id": "f_4e2d053c53",
+"key": "ecg.transmitted",
+"label": "12-lead transmitted",
+"value": true,
+"role": "medic",
+"speaker": null,
+"status": "unconfirmed",
+"confidence": 0.37,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "held: unconfirmed facts never leave the vehicle",
+"hold_reason": null
+},
+{
+"id": "f_5d4d13186b",
+"key": "ecg.stemi_reading",
+"label": "12-lead reads STEMI",
+"value": true,
+"role": "medic",
+"speaker": null,
+"status": "unconfirmed",
+"confidence": 0.38,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "held: unconfirmed facts never leave the vehicle",
+"hold_reason": null
+},
+{
+"id": "f_de657b2dd5",
+"key": "meds.given",
+"label": "Medication given",
+"value": {
+"drug": "aspirin",
+"dose": 324.0,
+"route": "PO",
+"by": "crew"
+},
+"role": "medic",
+"speaker": null,
+"status": "unconfirmed",
+"confidence": 0.58,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "held: unconfirmed facts never leave the vehicle",
+"hold_reason": null
+},
+{
+"id": "f_28d100f626",
+"key": "meds.given",
+"label": "Medication given",
+"value": {
+"drug": "fentanyl",
+"dose": 50.0,
+"unit": "mcg",
+"route": "IV",
+"time": "1422",
+"by": "crew"
+},
+"role": "medic",
+"speaker": null,
+"status": "confirmed",
+"confidence": 0.87,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "eligible: the receiving team needs this before arrival",
+"hold_reason": null
+},
+{
+"id": "f_db69787b2a",
+"key": "procedures.done",
+"label": "Procedure done",
+"value": {
+"procedure": "iv access",
+"detail": "18 gauge left AC",
+"by": "crew"
+},
+"role": "medic",
+"speaker": null,
+"status": "confirmed",
+"confidence": 0.9,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "eligible: latest vitals and exam",
+"hold_reason": null
+}
+],
+"rejected": [],
+"auto_confirm_threshold": 0.8
+},
+"guard": {
+"instruction_shaped": null
+},
+"effects": {
+"readiness": [
+{
+"label": "STEMI Alert",
+"from": 0,
+"to": 1,
+"total": 7,
+"ready": false
+},
+{
+"label": "Trauma Alert",
+"from": 0,
+"to": 5,
+"total": 10,
+"ready": false
+}
+],
+"alerts_new": [],
+"scores": [],
+"gaps_closed": [
+"meds.anticoagulant",
+"meds.list",
+"patient.pregnancy_weeks",
+"vitals.gcs_total|vitals.gcs_motor",
+"vitals.hr",
+"vitals.on_oxygen",
+"vitals.sbp",
+"vitals.spo2"
+]
+}
+}
+},
+{
+"id": "t_6a962fb0a9",
+"ts": "2026-09-24T18:08:54.521105+00:00",
+"text": "Fire gave two of narcan intranasal before we got here.",
+"captured_by": "medic",
+"speaker": null,
+"audio_id": null,
+"fact_ids": [
+"f_d9ef112550"
+],
+"extract": {
+"rules": 0,
+"llm": 1,
+"ms": 0
+},
+"stt": null,
+"trace": {
+"heard": {
+"text": "Fire gave two of narcan intranasal before we got here.",
+"speaker": "medic",
+"audio_id": null,
+"stt": null
+},
+"rules": {
+"ms": 0,
+"facts": [],
+"rejected": []
+},
+"model": {
+"status": "done",
+"name": "ems-e-v2-fp8",
+"ms": 790,
+"tokens": 35,
+"proposed": 1,
+"facts": [
+{
+"id": "f_d9ef112550",
+"key": "meds.given",
+"label": "Medication given",
+"value": {
+"drug": "naloxone",
+"dose": 2.0,
+"route": "IN",
+"by": "fire"
+},
+"role": "medic",
+"speaker": null,
+"status": "confirmed",
+"confidence": 0.89,
+"extractor": "llm:ems-e-v2-fp8",
+"code": null,
+"relay": "eligible: the receiving team needs this before arrival",
+"hold_reason": null
+}
+],
+"rejected": [],
+"auto_confirm_threshold": 0.8
+},
+"guard": {
+"instruction_shaped": null
+},
+"effects": {
+"readiness": [],
+"alerts_new": [],
+"scores": [],
+"gaps_closed": []
+}
+}
+}
+],
+"ed_sync": {
+"patient.age": "queued",
+"patient.sex": "queued",
+"vitals.sbp": "queued",
+"vitals.dbp": "queued",
+"vitals.hr": "queued",
+"vitals.spo2": "queued",
+"vitals.on_oxygen": "queued",
+"vitals.gcs_total": "queued",
+"vitals.pain": "queued",
+"meds.given": "queued",
+"procedures.done": "queued",
+"meds.list": "queued",
+"meds.anticoagulant": "queued",
+"alert.readiness": "queued"
+},
+"counters": {
+"facts": 20,
+"cloud_ai_calls": 0
+},
+"relay": {
+"configured": false,
+"ed_url": null,
+"authorized": null,
+"link": "not configured",
+"pending": [],
+"sync": {
+"patient.age": "queued",
+"patient.sex": "queued",
+"vitals.sbp": "queued",
+"vitals.dbp": "queued",
+"vitals.hr": "queued",
+"vitals.spo2": "queued",
+"vitals.on_oxygen": "queued",
+"vitals.gcs_total": "queued",
+"vitals.pain": "queued",
+"meds.given": "queued",
+"procedures.done": "queued",
+"meds.list": "queued",
+"meds.anticoagulant": "queued",
+"alert.readiness": "queued"
+},
+"bytes_sent": 0,
+"local_bytes": 10906,
+"kept_local_pct": 100.0,
+"packets_acked": 0,
+"retries": 0,
+"last_ack_at": null,
+"log": []
+},
+"netem": null
+}

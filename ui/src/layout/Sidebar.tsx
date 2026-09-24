@@ -80,8 +80,11 @@ function VehicleStatus({ rail }: { rail: boolean }) {
   const replay = source === "fixture";
   const model = replay ? lastModel?.name ?? null : health?.llm_model ?? null;
   const [speechTone, speech]: [Tone, string] = replay ? ["neutral", "replay"] : health?.stt_loaded ? ["ok", "ready"] : ["low", "loading…"];
-  const [modelTone, modelText]: [Tone, string] = lastModel?.status === "error" ? ["low", "error · rules only"]
-    : model ? ["ok", model] : replay ? ["neutral", "replay"] : ["low", health ? "off · rules only" : "—"];
+  // There is no rules fallback: if the extraction model isn't served, nothing is extracted (UX_PLAN §3.1.14).
+  const down = !replay && health !== null && health !== undefined && health.llm_available === false;
+  const [modelTone, modelText]: [Tone, string] = down ? ["high", `${model ?? "model"} not running`]
+    : lastModel?.status === "error" ? ["low", "last extraction failed"]
+    : model ? ["ok", model] : replay ? ["neutral", "replay"] : ["low", health ? "not configured" : "—"];
   const [linkTone, linkText] = s ? linkStatus(s.relay.link, s.relay.configured, !!s.netem) : (["neutral", "—"] as [Tone, string]);
   const cloud = s?.counters.cloud_ai_calls;
   return (

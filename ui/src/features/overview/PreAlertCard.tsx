@@ -1,6 +1,7 @@
 // The pre-alert card of the overview: the active checklist (how many items are captured, each item's state) and,
 // below it, whether the receiving ED has it (sent / queued / held, reconciled), with a way into the full ED handoff.
 // Gap-first (P2): missing items are listed with the rest, dashed and bold, so what to ask next is visible at a glance.
+import { useState } from "react";
 import { ArrowRight, CircleCheck, CircleDashed, CircleQuestionMark, Send } from "lucide-react";
 import { useHerald } from "@/lib/store";
 import type { ReadinessItem, Snapshot } from "@/lib/types";
@@ -40,8 +41,10 @@ function EdSummary({ s }: { s: Snapshot }) {
 
 export function PreAlertCard({ className }: { className?: string }) {
   const s = useHerald((st) => st.snapshot);
+  const [pick, setPick] = useState<string | null>(null);
   if (!s) return <Card className={cn("p-5", className)}><p className="text-critical text-text-muted">—</p></Card>;
-  const r = s.readiness[0];
+  // A call can open several checklists (stroke and trauma after a fall, STEMI and sepsis): one card, a switcher.
+  const r = s.readiness.find((x) => x.id === pick) ?? s.readiness[0];
   const relay = s.relay;
   return (
     <Card id="prealert" tabIndex={-1} aria-labelledby="pa-h" className={cn("outline-none", className)}>
@@ -50,6 +53,16 @@ export function PreAlertCard({ className }: { className?: string }) {
         badge={r && (r.ready ? <Badge tone="ok" icon={CircleCheck}>Ready</Badge> : <Badge tone="medium">{r.total - r.done} to go</Badge>)}
         actions={r && <span className="num text-value font-semibold">{r.done}<span className="text-body font-medium text-text-muted">/{r.total}</span></span>} />
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pb-4">
+        {s.readiness.length > 1 && (
+          <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Open checklists">
+            {s.readiness.map((x) => (
+              <Button key={x.id} size="sm" role="tab" aria-selected={x.id === r?.id}
+                variant={x.id === r?.id ? "primary" : "secondary"} onClick={() => setPick(x.id)}>
+                {x.label} <span className="num">{x.done}/{x.total}</span>
+              </Button>
+            ))}
+          </div>
+        )}
         {r ? (
           <div className="@container flex flex-col gap-2.5">
             <SegmentBar states={r.items.map((i) => i.state)} />

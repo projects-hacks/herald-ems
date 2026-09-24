@@ -7,19 +7,25 @@
 export type Role = "medic" | "patient" | "family" | "bystander" | "device" | "photo";
 export type CapturedBy = "medic" | "other" | "device" | "camera";
 export type FactStatus = "unconfirmed" | "confirmed" | "rejected";
-export type FactValue = string | number | boolean | string[] | null;
+/** A record is one event (a medication given, a procedure): only the fields said are present (config/vocabulary.yaml). */
+export type FactRecord = Record<string, string | number | boolean>;
+export type FactValue = string | number | boolean | string[] | FactRecord | null;
+/** A code from a terminology (RxNorm, or ICD-10-CM for a class allergy); a list per item for list keys (UX_PLAN §5.9d). */
+export interface Coding { system: string; code: string }
 
 // ---------- facts ----------
 export interface Provenance {
   audio_id: string | null; t_start: number | null; t_end: number | null; text: string | null;
   photo_id: string | null; crop: [number, number, number, number] | null; extractor: string | null;
   hold_reason: string | null;       // why this fact waits for the medic's tap (UX_PLAN §5.9a)
+  normalized?: { said: string; coded: string; method: string }[];   // drug names as said → coded (§5.9d)
 }
 export interface FactView {
   id: string; key: string; value: FactValue; unit: string | null; label: string;
   role: Role; speaker: string | null; captured_by: CapturedBy; confidence: number;
   provenance: Provenance; ts: string; status: FactStatus;
   previous_value: FactValue; previous_ts: string | null;
+  code?: Coding | (Coding | null)[] | null;
 }
 
 // ---------- checklists, gaps, trends ----------
@@ -73,6 +79,7 @@ export interface Clock {
 export interface TraceFact {
   id: string; key: string; label: string; value: FactValue; role: Role; speaker: string | null;
   status: FactStatus; confidence: number; extractor: string | null; relay: string; hold_reason: string | null;
+  code?: Coding | (Coding | null)[] | null;
 }
 export interface SttInfo { seconds: number; chunks: { text: string; t: [number | null, number | null] }[]; ms?: number }
 export interface RejectedFact { key: string; value: FactValue; reason: string }
@@ -81,11 +88,12 @@ export interface Trace {
            stt?: SttInfo | null; source?: "structured" };
   rules: { ms: number; facts: TraceFact[]; rejected?: RejectedFact[] };
   model: {
-    status: "running" | "done" | "error" | "off" | "skipped"; name?: string | null; ms?: number;
-    tokens?: number | null; proposed?: number; agreed_with_rules?: number; overridden_by_rules?: number;
+    // "unavailable": the extraction model isn't served, nothing was extracted, the words are kept (the POST got 503)
+    status: "running" | "done" | "error" | "off" | "skipped" | "unavailable"; name?: string | null; ms?: number;
+    tokens?: number | null; proposed?: number; auto_confirm_threshold?: number;
     facts?: TraceFact[]; error?: string; reason?: string; rejected?: RejectedFact[];
   };
-  guard?: { instruction_shaped: string | null };
+  guard?: { instruction_shaped: string | null; policy?: string };
   effects: {
     readiness: { label: string; from: number; to: number; total: number; ready: boolean }[];
     alerts_new: { type: AlertType; label: string }[];
@@ -134,6 +142,7 @@ export interface Snapshot {
   alerts: Alert[];
   clocks: Clock[];
   facts: Record<string, FactView>;       // latest non-rejected fact per key
+  events?: Record<string, FactView[]>;   // event keys (meds.given, procedures.done): every event, in order
   timeline: FactView[];                  // last 60 facts, all statuses
   transcripts: TranscriptEntry[];        // last 20
   ed_sync: Record<string, "sent" | "queued">;
@@ -146,8 +155,10 @@ export type NowMessage = { type: "state"; state: Snapshot } | { type: "pong"; t:
 
 // ---------- REST ----------
 export interface Health {
-  llm_model: string | null; vision_model?: string | null; stt_model: string; stt_loaded: boolean;
-  incident: string; county?: string; cloud_ai_calls: number;
+  // *_available: the model server is actually serving that label now; llm_model names it even when it isn't
+  llm_model: string | null; llm_available?: boolean; vision_model?: string | null; vision_available?: boolean;
+  stt_model: string; stt_loaded: boolean; incident: string; county?: string; cloud_ai_calls: number;
+  terminology?: { rxnorm_release: string };
 }
 
 // ---------- fixtures (scripts/record_ws.py) ----------

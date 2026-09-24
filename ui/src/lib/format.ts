@@ -1,5 +1,5 @@
 // Clocks are HH:MM:SS everywhere (Pulsara's convention, UX_PLAN §3.0); numbers never tween.
-import type { FactValue, FactView } from "./types";
+import type { FactRecord, FactValue, FactView } from "./types";
 
 const pad = (n: number) => String(Math.floor(n)).padStart(2, "0");
 
@@ -25,7 +25,17 @@ export function formatValue(v: FactValue, unit?: string | null): string {
   if (v === null || v === undefined) return "—";
   if (Array.isArray(v)) return v.length ? v.join(", ") : "none";
   if (typeof v === "boolean") return v ? "yes" : "no";
+  if (typeof v === "object") return formatRecord(v);
   return unit ? `${v} ${unit}` : String(v);
+}
+
+/** One event, as a paramedic would say it: "aspirin 324 mg PO at 14:05 · by fire · ×3"; "iv access · 18 gauge left AC". */
+export function formatRecord(r: FactRecord): string {
+  const what = String(r.drug ?? r.procedure ?? "");
+  const dose = r.dose !== undefined ? `${r.dose}${r.unit ? ` ${r.unit}` : ""}` : "";
+  const main = [what, dose, r.route, r.time !== undefined ? `at ${r.time}` : ""].filter(Boolean).join(" ");
+  const extra = [r.detail, r.by && r.by !== "crew" ? `by ${r.by}` : "", Number(r.count) > 1 ? `×${r.count}` : ""].filter(Boolean);
+  return [main, ...extra].join(" · ") || "—";
 }
 export function factValue(f: Pick<FactView, "value" | "unit">): string {
   return formatValue(f.value, f.unit);

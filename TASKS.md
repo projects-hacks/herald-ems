@@ -200,6 +200,7 @@ Docs: `docs/MODEL_PLAN.md`, `docs/LABELING_GUIDE.md`, `eval/`.
 | B10 | P11, P8, M8, M5, I2 | ➡️ moved: P8 + M8 → Collaborator 2 (S3, S4); P11 + M5 → Collaborator 3 (S5, S7); I2 → Collaborator 1 (S2). Rajeev reviews their `herald/` PRs | see the rows below |
 
 ### Tushar Singh (@tushar-fs): NOW screen, trace, fixtures, clean-clone setup (claimed; was Collaborator 1)
+**Merged to `main` on 2026-09-24** (Tushar's work as his commit; contract updates by Rajeev on top: records such as medications given read as text, the model chip uses `llm_available` with no "rules only", the trace shows the model step or monitor readings, and the pre-alert card switches between open checklists; 25 vitest tests incl. a live every-call snapshot). **Still to do in this lane:** show `events` (every dose and procedure) as a timeline, tiles for `scores.trauma_605` / `scores.sepsis_700a04`, the model-not-running state (UX_PLAN §3.1.14), and the fixtures C1.5 lists.
 Docs: `docs/UX_PLAN.md` §1–2 (principles, tokens), §3.1 (NOW screen), §4 (trace), §5.7–5.8 (store, fixtures), §5.10 (build and serving).
 
 | # | Task | Hours | Needs | Done when |
