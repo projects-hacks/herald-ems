@@ -20,7 +20,7 @@ from typing import Iterable, Optional
 from eval.bench_extract import FREE_TEXT, KEYS, norm
 from eval.visionbench.common import prf
 
-# VisionReader adds meds.anticoagulant itself whenever meds.list names one (herald/models/vision.py).
+# VisionReader's coder adds meds.anticoagulant whenever meds.list names one (herald/terminology/coding.py).
 DERIVED_KEYS = {"meds.list": ("meds.anticoagulant",)}
 
 Atom = tuple[str, object]

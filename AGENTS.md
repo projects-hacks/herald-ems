@@ -69,9 +69,9 @@ An offline AI copilot for the back of the ambulance, running entirely on an HP Z
 | `herald/core/` | domain model, no I/O | `schema.py` (`FactIn`/`Fact`), `vocabulary.py`, `incident.py` (fact store), `confirmation.py`, `snapshot.py` (`Projector`: the single source for every screen), `trends.py`, `clock.py`, `ports.py` (interfaces) |
 | `herald/scoring/` | published scores and county criteria | data-driven engines (`banded`, `item_sum`, `criteria`) + `registry`; criterion rule types in `rules.py`; a new score is a new YAML file |
 | `herald/checklists/` | alert-ready checklists | engine over `config/checklists.yaml` + the active county's overrides for any alert (`alerts`) and its stroke checklist; `items.py` (record-field, score and alternative items) |
-| `herald/extraction/` | speech → facts | `rules.py` (fallback only; not extended), `model.py` (local model extractor), `grounding.py`, `guard.py` (injection containment), `pipeline.py` |
+| `herald/extraction/` | speech → facts | `model.py` (the only speech extractor), `confidence.py` (per-fact token confidence), `grounding.py` + `numbers.py` (said-value checks), `guard.py` (injection containment), `profiles.py`. The old rules extractor and rules+model merge are evaluation baselines in `eval/baselines/` (with their own frozen word lists) |
 | `herald/models/` | adapters to local model servers | `llm_client.py` (ZRT/vLLM, localhost only), `stt.py` (Whisper), `vision.py` (photo reading) |
-| `herald/terminology/` | drug and allergen names → RxNorm | `rxnorm.py` (`RxNormNormalizer`: exact → fuzzy → phonetic, never guesses), `coding.py` (`MedicationCoder`: codes facts, anticoagulant class); index built by `scripts/build_rxnorm_index.py` into `data/terminology/` (not in git) |
+| `herald/terminology/` | drug and allergen names → RxNorm; drug-class allergies → ICD-10-CM | `rxnorm.py` (`RxNormNormalizer`: exact → product name → combination → contained / fuzzy → phonetic; never guesses), `allergy.py` (NEMSIS eHistory.06 classes), `coding.py` (`MedicationCoder`: codes the keys in `config/terminology.yaml`, drug classes, holds non-exact matches for a tap), `factory.py` (`build_coder`, shared by the app and the benchmarks). The index is built by `scripts/build_rxnorm_index.py` into `data/terminology/` (not in git): pinned NLM release + RxNav brand supplement |
 | `herald/relay/` | weak-link relay | `relay.py`, `tiers.py`, `netem.py` (Toxiproxy link emulation, demo only) |
 | `herald/telemetry/` | tokens, power, cost | `collector.py`, `prometheus.py` |
 | `herald/api/` | HTTP + WebSocket only | `app.py` (factory), `context.py` (**composition root**), `capture.py`, `trace.py`, `contract.py`, `hub.py`, `routes/` |
@@ -92,7 +92,7 @@ HERALD_ED_URL=http://127.0.0.1:9000 PORT=8101 scripts/run_dev.sh   # your own po
 # every setting: herald/config/settings.py; content (scores, checklists, prompts, county rules): config/
 $PY scripts/replay.py scenarios/stroke_demo.json --url http://localhost:8101 --no-llm
 $PY eval/bench_extract.py --extractor rules                # or: --extractor llm --model omni
-$PY scripts/build_rxnorm_index.py                          # once per clone: RxNorm index -> data/terminology/
+$PY scripts/build_rxnorm_index.py                          # once per clone: RxNorm index -> data/terminology/ (~10 min first time: RxNav)
 $PY -m pytest -q
 ```
 Presenter link hotkeys on the NOW screen: Shift+G good, Shift+W weak, Shift+D down.

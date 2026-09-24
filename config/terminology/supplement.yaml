@@ -1,9 +1,0 @@
-# Names people still say that are ACTIVE RxNorm concepts but are missing from the Current Prescribable Content
-# subset, because the product has left the U.S. market. Each entry was checked against NLM RxNav (public, no
-# login). The build adds these to the index and fails if an entry's ingredient is not in it.
-names:
-  - name: Coumadin
-    rxcui: "202421"
-    tty: BN
-    ingredients: ["11289"]          # warfarin
-    source: "https://rxnav.nlm.nih.gov/REST/rxcui/202421/historystatus.json (status Active, BN, ingredient warfarin 11289; checked 2026-09-24)"

@@ -1,0 +1,21 @@
+# Allergies to a class of drugs, as NEMSIS codes them: eHistory.06 Medication Allergies allows RxNorm for a named
+# drug and this defined list of 10 ICD-10-CM codes for classes ("I am allergic to sulfa drugs").
+# Source: NEMSIS TAC whitepaper "eHistory.06 - Medication Allergies", ICD-10-CM grouping of 10 generic options
+# (Suggested Label, code, ICD-10-CM description), https://nemsis.org/media/nemsis_v3/master/SuggestedLists/MedicationAllergy/MedicationAllergyWhitepaper.pdf
+# ICD-10-CM is public (CMS/NCHS); no licence needed.
+# Matching (herald/terminology/allergy.py), only for allergens RxNorm leaves unresolved: the label or the substance
+# in the description, exactly or as its leading word(s) ("sulfa" -> "Sulfa Drugs"), or by spelling (held for a tap).
+# `exact_only` classes are catch-alls that speech must name exactly.
+classes:
+  - {code: Z88.0, label: Penicillin, description: Allergy status to penicillin}
+  - {code: Z88.1, label: Antibiotic, description: Allergy status to other antibiotic agents status}
+  - {code: Z88.2, label: Sulfa Drugs, description: Allergy status to sulfonamides status}
+  - {code: Z88.3, label: Anti-Infective, description: Allergy status to other anti-infective agents status}
+  - {code: Z88.4, label: Anesthetic, description: Allergy status to anesthetic agent status}
+  - {code: Z88.5, label: Narcotic, description: Allergy status to narcotic agent status}
+  - {code: Z88.6, label: Analgesic, description: Allergy status to analgesic agent status}
+  - {code: Z88.7, label: Serum or Vaccine, description: Allergy status to serum and vaccine status}
+  - {code: Z88.8, label: Other medication or biological substance, exact_only: true,
+     description: "Allergy status to other drugs, medicaments and biological substances status"}
+  - {code: Z88.9, label: "Medication, unspecified", exact_only: true,
+     description: "Allergy status to unspecified drugs, medicaments and biological substances status"}

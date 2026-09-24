@@ -58,6 +58,18 @@ class Status(str, Enum):
     rejected = "rejected"
 
 
+class Coding(BaseModel):
+    """A code in a code system, as FHIR writes it: system is the system's URI (config/terminology.yaml systems)."""
+    system: str
+    code: str
+
+
+def join_reasons(*reasons: Optional[str]) -> Optional[str]:
+    """Several reasons a fact waits for a tap (`Provenance.hold_reason`), each once, in order."""
+    out = list(dict.fromkeys(x for r in reasons if r for x in r.split("; ")))
+    return "; ".join(out) or None
+
+
 class Provenance(BaseModel):
     audio_id: Optional[str] = None      # data/audio/<audio_id>.wav
     t_start: Optional[float] = None     # seconds into the clip
@@ -67,7 +79,7 @@ class Provenance(BaseModel):
     crop: Optional[list[float]] = None  # [x0, y0, x1, y1] normalized
     extractor: Optional[str] = None     # "rules", "llm:<model>", "vision:<model>", "manual"
     hold_reason: Optional[str] = None   # why this fact waits for the medic's tap (shown on screen), e.g. the guard
-    normalized: Optional[list[dict]] = None   # drug names: [{said, value, code, method, score}] per item
+    normalized: Optional[list[dict]] = None   # drug names: [{said, value, system, code, method, score}] per item
 
 
 class FactIn(BaseModel):
@@ -80,22 +92,25 @@ class FactIn(BaseModel):
     captured_by: CapturedBy = CapturedBy.medic
     confidence: float = 0.9
     provenance: Provenance = Field(default_factory=Provenance)
-    # RxNorm RxCUI of a drug value; for list keys, one entry per item in order. None (or a None entry) = unresolved.
-    code: Optional[Union[str, list[Optional[str]]]] = None
+    # The code of a drug or allergen value (RxNorm, or ICD-10-CM for a drug-class allergy); for list keys one entry
+    # per item, in order. None (or a None entry) = not coded.
+    code: Optional[Union[Coding, list[Optional[Coding]]]] = None
 
 
 @dataclass(frozen=True)
 class NormalizedValue:
     """A drug or allergen name mapped to its standard generic name, or kept as said when nothing matched."""
     value: str                          # ingredient name(s), lowercase; the spoken text when unresolved
-    code: Optional[str]                 # RxCUI of the ingredient (or of the multi-ingredient concept)
-    score: float                        # 100 for exact; the similarity for fuzzy and phonetic matches
-    method: str                         # exact | fuzzy | phonetic | unresolved | ambiguous
+    code: Optional[str]                 # RxCUI of the ingredient (or of the multi-ingredient concept); ICD-10-CM for a class
+    score: float                        # 100 for exact; the similarity for the other methods
+    method: str                         # exact | combination | contained | fuzzy | phonetic | class | class_fuzzy
+                                        # | unresolved | ambiguous
     ingredients: tuple[str, ...] = ()
+    system: str = "rxnorm"              # key of config/terminology.yaml `systems`
 
     @property
     def resolved(self) -> bool:
-        return self.method in ("exact", "fuzzy", "phonetic")
+        return self.method not in ("unresolved", "ambiguous")
 
 
 class Fact(FactIn):

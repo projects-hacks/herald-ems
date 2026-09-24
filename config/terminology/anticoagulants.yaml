@@ -4,7 +4,10 @@
 # https://atcddd.fhi.no/atc_ddd_index/?code=B01A
 # Antiplatelets (B01AC: aspirin, clopidogrel, prasugrel, ticagrelor, dipyridamole, cilostazol) are NOT
 # anticoagulants. The build script lists any ingredient here that the RxNorm index does not contain.
-classes:
+name: anticoagulant
+key: meds.anticoagulant        # the key this class sets; its drugs are also listed under keys.meds
+source: https://atcddd.fhi.no/atc_ddd_index/?code=B01A
+groups:
   B01AA:
     name: vitamin K antagonists
     ingredients: {warfarin: B01AA03}

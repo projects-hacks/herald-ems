@@ -216,11 +216,15 @@ Everything runs locally.
 
 **Acceptance:** the unit tests pass; med and allergy recall on gold v2 improves with no precision loss beyond the run-to-run spread; the word list is gone.
 
-**As built (2026-09-24; results in MODEL_PLAN §0g):**
+**As built (2026-09-24; results in MODEL_PLAN §0j, contract in UX_PLAN §5.9d):**
 - `jellyfish` has no Double Metaphone, so the phonetic step uses Metaphone plus a Levenshtein spelling floor.
-- Coding runs inside each extractor rather than only in `ExtractionPipeline`, because the live capture path calls the rules and model extractors directly.
-- `FactIn.code` is a list for list keys (one RxCUI per item).
-- `config/terminology/supplement.yaml` adds Coumadin, which is missing from the prescribable subset.
+- Coding runs inside the model extractor and the photo reader (injected from the composition root through `herald/terminology/factory.py`), and on `POST /api/facts`. There is no rules path in the product any more.
+- Drug keys are content: `config/terminology.yaml` `keys` lists the list keys, record fields (`meds.given.drug`) and class files. Adding a key or a class is a config change.
+- `FactIn.code` is a FHIR-style `Coding {system, code}`, a list for list keys (one per item). Class allergies ("sulfa", "penicillin") get NEMSIS eHistory.06's ICD-10-CM Z88 codes.
+- A trailing strength is dropped only with a unit; numbered products match RxNorm product names ("Tylenol 3" → acetaminophen / codeine) or stay unresolved.
+- Combinations ("ipratropium-albuterol") and words RxNorm uses only in product names ("nitro spray") resolve too (team lead, 2026-09-24). Every non-exact match waits for the medic's tap with the reason (`provenance.hold_reason`).
+- The release is pinned (dated URL + sha256). Brands missing from the prescribable subset (Coumadin, and retired ones like Zofran and Vicodin) come from NLM's public RxNav API at build time, cached; the hand supplement is gone.
+- The labeling guide now names drugs by RxNorm ingredient; two gold labels were renamed to match (§0j).
 - The anticoagulant class also lists fondaparinux (B01AX05), pending review.
 
 ---

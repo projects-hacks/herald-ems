@@ -8,7 +8,7 @@ from typing import Optional
 from herald.config import load_yaml
 from herald.models import VisionReader
 
-from .common import ROOT, RecordingModel, is_json_error, latency, token_stats
+from .common import ROOT, RecordingModel, is_json_error, latency, photo_reader, token_stats
 from .photo_scoring import aggregate, score_item, strength_ok
 
 GOLD = ROOT / "eval/photos/gold.jsonl"
@@ -42,7 +42,7 @@ def read_one(reader: VisionReader, model: RecordingModel, line: dict) -> dict:
 
 def run(model: RecordingModel, rows: list[dict]) -> tuple[dict, list[dict]]:
     """Returns (summary, per-image records)."""
-    reader = VisionReader(model)
+    reader = photo_reader(model)
     prompts = load_yaml("prompts/vision.yaml")["modes"]
     items = []
     for line in rows:

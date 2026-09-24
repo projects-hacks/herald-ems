@@ -65,7 +65,7 @@ Herald now works on trauma, sepsis and STEMI calls with the county's own criteri
 | ED screen | The emergency-department screen, served by `ed_receiver` on a second machine. |
 | Capture page | The phone camera page, `capture.html`. |
 | Fact | One typed, timestamped piece of patient information with provenance (`schema.Fact`). In the snapshot it is a `FactView`, which adds `label` and `unit`. |
-| F | The compact fact inside a trace card: `{id,key,label,value,role,speaker,status,confidence,extractor,relay,hold_reason}` (`TraceRecorder.fact_view` in `herald/api/trace.py`). |
+| F | The compact fact inside a trace card: `{id,key,label,value,role,speaker,status,confidence,extractor,code,relay,hold_reason}` (`TraceRecorder.fact_view` in `herald/api/trace.py`). |
 | Extraction model | The fine-tuned model that turns speech into facts, served by ZRT on this box under the label `ems-d-fp8` (`HERALD_LLM_MODEL`). It is the **only** speech extractor: there is no rules extractor in the product (change note, 2026-09-24). Photos are read by a separate vision model (`omni`, `HERALD_VISION_MODEL`). |
 | Confidence | For a model fact: the model's own probability for that fact, from 0 to 1, taken from the model server's token probabilities (`herald/extraction/confidence.py`). It says how sure the model was of what it wrote down, not whether the information is clinically true. For a photo fact: the vision model's own estimate. The exact measure is being re-calibrated, so the UI treats it only as "a number from 0 to 1 compared with the threshold". |
 | Auto-confirm threshold | The calibrated confidence at or above which a fact from the paramedic's own mic confirms itself. The value lives in `config/confirmation.yaml` (the team lead chose it; recalibrated whenever the extraction model changes) and is echoed on every finished speech entry as `trace.model.auto_confirm_threshold`. `HERALD_AUTO_CONFIRM` overrides it for testing. The UI never hard-codes it. |
@@ -1616,7 +1616,7 @@ Every entry in `state.transcripts[]` (the snapshot keeps the last 20) has these 
 | `scores[]` | `{name: "NEWS2" or "RACE", from, to, detail}`. `detail` is the band string for NEWS2 and the `positive` boolean for RACE. `from` is null the first time a score becomes complete. |
 | `gaps_closed[]` | Keys that left `needs_attention` (missing or unknown), e.g. `vitals.glucose` or `@race` |
 
-**F**, the compact fact: `{id, key, label, value, role, speaker, status, confidence, extractor, relay, hold_reason}`.
+**F**, the compact fact: `{id, key, label, value, role, speaker, status, confidence, extractor, code, relay, hold_reason}` (`code`: §5.9d).
 - `confidence` is rounded to two decimals in F. The full value is on the snapshot's `FactView`.
 - `hold_reason` is null unless the guard held the fact (§5.9a).
 - On someone else's mic (`captured_by: "other"`): with a named speaker, that speaker is the source. `speaker` is the label the medic picked (e.g. "daughter"), and `role` is the channel's role: the `role` posted to `/api/transcript` if any, else the role itself when the label is a role name ("patient", "bystander"), else family. The model's own guess of who is talking is not used. With no named speaker, `speaker` is null and the model's patient-vs-family call is kept (§4.4).
@@ -2367,12 +2367,16 @@ These types are derived from `herald/core/snapshot.py` (`Projector.snapshot()`),
 export type Role = "medic" | "patient" | "family" | "bystander" | "device" | "photo";
 export type CapturedBy = "medic" | "other" | "device" | "camera";
 export type FactStatus = "unconfirmed" | "confirmed" | "rejected";
-export type FactValue = string | number | boolean | string[] | null;
+export type FactValue = string | number | boolean | string[] | FactRecord | null;
+export type FactRecord = { [field: string]: string | number };   // record keys (meds.given, procedures.done): §5.9c
 
 // ---------- facts ----------
-export interface Normalized {                  // one drug or allergen name, as said and as coded (§5.9c)
-  said: string; value: string; code: string | null;
-  method: "exact" | "fuzzy" | "phonetic" | "unresolved" | "ambiguous"; score: number;
+export interface Coding { system: string; code: string }   // FHIR Coding; system: the RxNorm or ICD-10-CM URI (§5.9d)
+export interface Normalized {                  // one drug or allergen name, as said and as coded (§5.9d)
+  said: string; value: string; system: string | null; code: string | null;
+  method: "exact" | "combination" | "contained" | "fuzzy" | "phonetic" | "class" | "class_fuzzy"
+        | "unresolved" | "ambiguous";
+  score: number;
 }
 export interface Provenance {
   audio_id: string | null; t_start: number | null; t_end: number | null; text: string | null;
@@ -2380,12 +2384,12 @@ export interface Provenance {
   hold_reason: string | null;                  // 2026-09-24: set when the guard held the fact (§5.9a); shown verbatim
   normalized: Normalized[] | null;             // drug keys only: one entry per name said
 }
-export type RxCode = string | (string | null)[] | null;   // RxCUI; list keys: one per item, null = unresolved
+export type FactCode = Coding | (Coding | null)[] | null;   // drug keys only; list keys: one per item, null = not coded
 export interface FactView {                    // state._fact_view(): Fact.model_dump + label + unit
   id: string; key: string; value: FactValue; unit: string | null; label: string;
   role: Role; speaker: string | null; captured_by: CapturedBy; confidence: number;
   provenance: Provenance; ts: string; status: FactStatus;
-  previous_value: FactValue; previous_ts: string | null; code: RxCode;
+  previous_value: FactValue; previous_ts: string | null; code: FactCode;
 }
 
 // ---------- checklists, gaps, trends ----------
@@ -2477,7 +2481,7 @@ export type RelayAtCapture =
   | "stays on the vehicle (not in the ED set)";
 export interface TraceFact {
   id: string; key: string; label: string; value: FactValue; role: Role; speaker: string | null;
-  status: FactStatus; confidence: number; extractor: string | null; code: RxCode; relay: RelayAtCapture;
+  status: FactStatus; confidence: number; extractor: string | null; code: FactCode; relay: RelayAtCapture;
   hold_reason: string | null;                  // 2026-09-24; same as provenance.hold_reason
 }
 // extractor: "llm:<name>" (every speech fact now), "vision:<name>", "manual" (monitor panel).
@@ -2789,6 +2793,7 @@ GET /api/telemetry  →  200
   - the reason in words, shown verbatim next to the fact wherever the fact appears: Needs attention (where held facts sort first), the Patient picture, the trace fact row, the `confirm_required` card for code status, and the photo sheet (§3.1.6, §3.1.8, §4.4, §4.4a);
   - on confirm, the reason repeated in the confirmation affordance: the button reads `[ Confirm · said with a command ]`, and its accessible name includes the full `hold_reason`. It is still one tap (U13).
 - A held fact never counts toward scores and never leaves the vehicle until confirmed, like every unconfirmed fact.
+- **Drug names are the other source of holds** (§5.9d): a drug name matched only by spelling, sound, as a combination or from product names gets its own reason, e.g. *drug name matched by sound: 'zarelto' → rivaroxaban: check before confirming*. When both apply, `hold_reason` holds both, separated by "; " (the guard's first). Show it the same way.
 - **The previous behavior is still a setting:** `guard_policy = skip_model`. The model isn't run for a flagged utterance, `trace.model.status = "skipped"`, nothing is extracted, and `trace.guard` has no `policy` (§4.3 m).
 
 ### 5.9b Protocol lookup contract (backend, 2026-09-24)
@@ -2897,13 +2902,49 @@ Like every relayed key, a line the ED already acknowledged stays on the ED scree
 - **Policy 501 §II.B vs §II.C** (which channel a sepsis notification uses) is an inference from Policy 501 and flagged for review; Herald shows no channel.
 - **AO 2025-006 and AO 2025-007** amend Policy 602 and are not archived; the destination rules quoted above are from the 2025-04-01 text.
 
-### 5.9d Medication and allergy coding contract (backend, S6, 2026-09-24)
-- Values of `meds.list`, `meds.anticoagulant` and `allergies` are RxNorm ingredient names, lowercase ("Eliquis" → "apixaban"; a multi-ingredient brand → "acetaminophen / oxycodone"). A name that matched nothing keeps the spoken text.
-- `code` on every fact (`FactView`, `TraceFact`): the RxCUI. For list keys, one entry per item in the same order. `null` (or a `null` entry) means unresolved. Non-drug keys always have `null`.
-- `provenance.normalized[]`: what was said, the coded value, the method and the score, per name.
-- Fact details show, e.g., "Eliquis → apixaban · RxNorm 1364430". An unresolved name shows as said, with "not found in RxNorm". Never show a fuzzy or phonetic match as more certain than the fact's status.
-- An anticoagulant also appears in `meds.list`. A drug outside the anticoagulant class (e.g. clopidogrel) is never `meds.anticoagulant`.
-- `GET /api/health` → `terminology: {rxnorm_release}`, or `null` when the index isn't built. In that case, show "Drug names not coded" in the stack view.
+### 5.9d Medication and allergy coding contract (backend, S6, 2026-09-24; MODEL_PLAN §0j)
+**What gets coded.** The keys are listed in `config/terminology.yaml` `keys`: the items of `meds.list` and `allergies`, the `drug` of every `meds.given` record, and `meds.anticoagulant`. Nothing else ever has a `code`.
+
+**Values.**
+- A drug name that matched RxNorm becomes RxNorm's ingredient name, lowercase ("Eliquis" → "apixaban"). A combination uses RxNorm's name, ingredients in alphabetical order joined by " / " ("Percocet" → "acetaminophen / oxycodone", "Tylenol 3" → "acetaminophen / codeine").
+- A name that matched nothing keeps the spoken text.
+- An allergy to a class of drugs ("sulfa", "penicillin") keeps its words; only its `code` says the class (below).
+
+**`code`** on `FactView` and `TraceFact` (`FactCode`):
+- a FHIR-style `Coding` `{system, code}`:
+  - RxNorm: system `http://www.nlm.nih.gov/research/umls/rxnorm`, code the RxCUI;
+  - a class allergy: system `http://hl7.org/fhir/sid/icd-10-cm`, code one of NEMSIS eHistory.06's ten Z88 codes (Z88.0 penicillin, Z88.2 sulfonamides, …).
+- For list keys, `code` is a list with one entry per item, in the same order. `null` (or a `null` entry) means not coded.
+- `meds.given` and `meds.anticoagulant` carry a single `Coding` or `null`.
+
+**`provenance.normalized[]`** records, per name: `said`, `value`, `system`, `code`, `method` and `score`.
+
+**Methods, and which ones hold the fact for a tap:**
+
+| `method` | Meaning | Held |
+|---|---|---|
+| `exact` | the name, or a product name with its number ("Tylenol 3") | no |
+| `class` | a class allergy named by its NEMSIS label or ICD-10-CM substance ("sulfa") | no |
+| `combination` | parts joined into an RxNorm combination ("ipratropium-albuterol") | yes |
+| `contained` | a word RxNorm uses only inside product names ("nitro spray" → nitroglycerin) | yes |
+| `fuzzy` | matched by spelling | yes |
+| `phonetic` | matched by sound | yes |
+| `class_fuzzy` | a class allergy matched by spelling ("penicillins") | yes |
+| `unresolved` | no match; the text is kept | — |
+| `ambiguous` | no match; the text is kept | — |
+
+A held fact has `provenance.hold_reason`, e.g. *drug name matched by sound: 'zarelto' → rivaroxaban: check before confirming* (§5.9a). It stays unconfirmed whatever its confidence.
+
+**UI**
+- Fact details show, e.g., "Eliquis → apixaban · RxNorm 1364430", or "sulfa · ICD-10-CM Z88.2 (sulfonamides)".
+- A name that isn't coded shows as said, with "not found in RxNorm".
+- A held drug fact shows its reason like any held fact (§5.9a). Never show a non-exact match as more certain than the fact's status.
+
+**Classes.** A class drug appears under both keys: an anticoagulant is also in `meds.list`. A drug outside the class (e.g. clopidogrel) is never `meds.anticoagulant`. Classes are config files (`config/terminology/anticoagulants.yaml`).
+
+**Health.** `GET /api/health` returns `terminology: {rxnorm_release}`, or `null` when the index isn't built; then nothing is coded. The stack view shows "Drug names not coded".
+
+**Where coding happens.** In the model extractor, the photo reader and `POST /api/facts`, so every path into the patient picture is coded the same way. The relay sends values only; `code` stays on the vehicle.
 
 ### 5.10 Build and serving with FastAPI
 

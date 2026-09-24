@@ -76,7 +76,7 @@ monitor panel       ─┘           trends · clocks · NEWS2 · RACE · G.F.A.
 | `herald/extraction/` | Speech → facts: the model extractor, per-fact confidence, grounding and injection guards |
 | `herald/models/` | Adapters to the local model servers (localhost only), Whisper, photo reading, embeddings |
 | `herald/knowledge/` | Protocol lookup: sections, tables, figures, hybrid search, sync with review flags |
-| `herald/terminology/` | Drug and allergen names → RxNorm (brands, misspellings, generics), with the RxCUI on each fact |
+| `herald/terminology/` | Drug and allergen names → RxNorm (brands, retired brands, misspellings, combinations), class allergies → ICD-10-CM; the code on each fact; anything not matched exactly waits for a tap |
 | `herald/relay/` | Weak-link relay to the emergency department |
 | `herald/telemetry/` | Tokens, GPU power, energy, cost vs a cloud equivalent |
 | `herald/api/` | FastAPI app, WebSocket hub, composition root |

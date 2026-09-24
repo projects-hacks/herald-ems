@@ -33,10 +33,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from herald.config import Settings  # noqa: E402
-from herald.models import LocalLLMClient, VisionReader  # noqa: E402
+from herald.models import LocalLLMClient  # noqa: E402
 
 from eval.visionbench import flowchart, photos, rerank  # noqa: E402
-from eval.visionbench.common import RecordingModel, fingerprint, write_jsonl  # noqa: E402
+from eval.visionbench.common import RecordingModel, fingerprint, photo_reader, write_jsonl  # noqa: E402
 
 TASKS = ("photos", "flowchart", "rerank")
 # run-level numbers whose spread over runs is reported (per task)
@@ -72,7 +72,7 @@ def parse_args() -> argparse.Namespace:
 
 def warm_up(client: LocalLLMClient, rows: list[dict], n: int) -> None:
     """Unscored calls so that the first scored call doesn't carry cold-start cost."""
-    reader = VisionReader(client)
+    reader = photo_reader(client)
     for line in rows[:n]:
         try:
             reader.read((photos.GOLD.parent / line["file"]).read_bytes(), line["mode"])

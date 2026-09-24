@@ -2,7 +2,7 @@
 wired together once, in herald/api/app.py."""
 from __future__ import annotations
 
-from typing import Any, Awaitable, Iterable, Optional, Protocol, runtime_checkable
+from typing import Any, Awaitable, Optional, Protocol, runtime_checkable
 
 import numpy as np
 
@@ -52,10 +52,9 @@ class PhotoReader(Protocol):
 
 
 class Normalizer(Protocol):
-    """One drug or allergen name -> its standard generic name and code. Never guesses: no match is unresolved."""
+    """One drug or allergen name -> its standard name and code. Never guesses: no match is unresolved."""
     release: str
     def normalize(self, key: str, value: str) -> NormalizedValue: ...
-    def names_for(self, ingredients: Iterable[str]) -> dict[str, str]: ...
 
 
 class FactCoder(Protocol):

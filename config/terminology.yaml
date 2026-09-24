@@ -1,23 +1,72 @@
-# Medication and allergy normalization against RxNorm (herald/terminology/, docs/TASK_SPECS.md S6).
+# Medication and allergy coding (herald/terminology/, docs/TASK_SPECS.md S6, MODEL_PLAN §0j, UX_PLAN §5.9d).
 # RxNorm is published by the U.S. National Library of Medicine. The Current Prescribable Content subset is public
-# domain and needs no UMLS licence or login. It is also the drug coding NEMSIS uses for medications and allergies.
+# domain and needs no UMLS licence or login. It is the drug coding NEMSIS uses for medications given (eMedications.03),
+# current medications and medication allergies (eHistory.06).
 source:
   name: RxNorm Current Prescribable Content
-  url: https://download.nlm.nih.gov/rxnorm/RxNorm_full_prescribe_current.zip
+  # Pinned to one dated release so every clone builds the same index; the build checks the sha256.
+  url: https://download.nlm.nih.gov/rxnorm/RxNorm_full_prescribe_09082026.zip
+  sha256: 82cc1679aff08005c6715d68aaf4f6f00a12a14516e6be1c0c2c5950d586fbb4
+  release: "2026-09-08"        # the date in the release's Readme
   docs: https://www.nlm.nih.gov/research/umls/rxnorm/docs/prescribe.html
-  release: "2026-09-08"        # the release the index on the Nano was built from (its Readme's date)
   rebuild: ~/miniforge3/envs/zgx/bin/python scripts/build_rxnorm_index.py   # writes data/terminology/ (not in git)
 
-# The keys whose values are drug or allergen names.
-keys:
-  list: [meds.list, allergies]
-  anticoagulant: meds.anticoagulant
+# Brand names the prescribable subset leaves out: active brands of products not currently prescribable (Coumadin)
+# and retired brands people still say (Zofran, Vicodin). Taken from NLM's public RxNav REST API at build time, each
+# with its ingredients; a name already in the index is never overridden. Terms: https://lhncbc.nlm.nih.gov/RxNav/TermsofService.html
+rxnav:
+  base: https://rxnav.nlm.nih.gov/REST
+  requests_per_second: 15      # NLM's limit is 20 per second per IP
+  fuzzy: true                  # supplement brand names may be fuzzy/sound matched (decided on dev, MODEL_PLAN §0j)
 
-# Matching, in order, stopping at the first hit: exact (casefold) -> fuzzy -> phonetic. No match keeps the spoken
-# text, unresolved. Thresholds were tuned on gold v1 (dev) only.
+# The keys whose values are drug or allergen names. Adding a drug key is a change here, not in code.
+keys:
+  lists: [meds.list, allergies]          # every item coded
+  records: {meds.given: drug}            # record key -> the field that names the drug
+  meds: meds.list                        # the medication list; a drug named under a class key is also listed here
+  not_a_drug: ["", "none", "no", "false"]   # denials under a class key ("no blood thinners"): kept, never coded
+  # Where a word RxNorm only uses inside product names may resolve to the one ingredient those products share
+  # ("nitro spray" -> nitroglycerin). Not for allergies: "peanut" or "bee" must never become a drug product.
+  contained: [meds.list, meds.given, meds.anticoagulant]
+  allergy_classes: [allergies]           # unresolved allergens are matched against the NEMSIS drug-class list
+
+# Drug classes that set their own key. A class file lists its ingredients by RxNorm name with the source code.
+classes:
+  - terminology/anticoagulants.yaml
+
+# Allergies to a class of drugs ("sulfa", "penicillin"): NEMSIS eHistory.06's defined ICD-10-CM list.
+allergy_classes: terminology/allergy_classes.yaml
+
+# Code systems, as FHIR names them (Coding.system).
+systems:
+  rxnorm: http://www.nlm.nih.gov/research/umls/rxnorm
+  icd10cm: http://hl7.org/fhir/sid/icd-10-cm
+
+# Matching, in order, stopping at the first hit (herald/terminology/rxnorm.py):
+#   exact name -> exact product name ("tylenol 3", built from RxNorm product names) -> [a number left: stop]
+#   -> combination ("ipratropium-albuterol": every part exact, the set is an RxNorm multi-ingredient)
+#   -> words RxNorm uses: contained (see keys.contained), else fuzzy -> phonetic.
+# No match keeps the spoken text, unresolved. Thresholds were tuned on gold v1 (dev) and the name lists only.
 match:
   min_length: 5            # fuzzy and phonetic matching only for names at least this long
   fuzzy_min_ratio: 90      # rapidfuzz ratio (0-100) against ingredient, precise-ingredient and brand names
   # A Metaphone match must also be the only candidate and this similar in spelling (normalized Levenshtein, 0-1).
   # Misspellings sit at 0.57-0.86 ("xeralto" 0.71, "plavicks" 0.63); "peanuts" -> Pentasa (mesalamine) is 0.43.
   phonetic_min_similarity: 0.6
+  # A trailing strength is dropped before matching only when it has a unit ("warfarin 5 mg"). A number without a
+  # unit may be part of the product's name ("Tylenol 3" is acetaminophen with codeine), so it is kept.
+  # RxNorm's strength units (SCD naming) and their spoken forms.
+  strength_units: [mg, mcg, µg, g, gm, kg, ml, l, meq, mmol, unt, unit, units, iu, "%", actuat, hr,
+                   milligram, milligrams, microgram, micrograms, gram, grams, milliliter, milliliters, cc,
+                   milliequivalent, milliequivalents, percent]
+  # Splits a name into the drugs of a combination ("ipratropium-albuterol", "albuterol and ipratropium").
+  combination_separators: ["-", "/", "+", "&", " and ", " with "]
+
+# Which methods wait for the medic's tap, and the reason shown (provenance.hold_reason, UX_PLAN §5.9a).
+# Exact names and exact product names are coded without a hold.
+hold:
+  fuzzy: "drug name matched by spelling: '{said}' → {value}: check before confirming"
+  phonetic: "drug name matched by sound: '{said}' → {value}: check before confirming"
+  combination: "drug names read as one combination: '{said}' → {value}: check before confirming"
+  contained: "drug name read from product names: '{said}' → {value}: check before confirming"
+  class_fuzzy: "allergy matched to a drug class by spelling: '{said}' → {value}: check before confirming"
