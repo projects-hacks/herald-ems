@@ -9,13 +9,15 @@ import numpy as np
 
 from ..config import load_text
 from ..core.ports import UsageRecorder
+from .weights import local_weights
 
 
 class WhisperSTT:
     """The `SpeechToText` interface. The model loads on first use (or `warm()`)."""
 
-    def __init__(self, model: str, usage: Optional[UsageRecorder] = None, device: str = "cuda:0"):
+    def __init__(self, model: str, usage: Optional[UsageRecorder] = None, device: str = "cuda:0", offline: bool = True):
         self.model = model
+        self.offline = offline
         self.usage = usage
         self.device = device
         self.prompt = load_text("prompts/stt_prompt.txt")
@@ -30,7 +32,7 @@ class WhisperSTT:
             if self._pipe is None:
                 import torch
                 from transformers import pipeline
-                self._pipe = pipeline("automatic-speech-recognition", model=self.model,
+                self._pipe = pipeline("automatic-speech-recognition", model=local_weights(self.model, self.offline),
                                       dtype=torch.bfloat16, device=self.device)
         return self._pipe
 

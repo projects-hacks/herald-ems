@@ -4,7 +4,7 @@ import asyncio
 import json
 import random
 
-from herald.extraction.rules import extract
+from eval.baselines.rules_extractor import extract  # test input generator only
 from herald.relay import Relay
 from herald.core.schema import CapturedBy, Role
 from herald.core.incident import Incident

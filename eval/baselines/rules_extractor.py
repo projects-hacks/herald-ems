@@ -1,7 +1,7 @@
-"""Deterministic fallback extractor: transcript text -> FactIn list.
+"""Regex rules extractor: transcript text -> FactIn list. EVALUATION BASELINE ONLY.
 
-Role (team decision 2026-09-23, docs/MODEL_PLAN.md): a fallback when no model is served, and an instant first
-pass. It is NOT extended with new phrase patterns: extraction quality comes from the model. Its word lists are
+Removed from the product (team lead, 2026-09-24: "there is nothing like an app without AI"); kept here so the
+benchmark's "rules" row stays reproducible. Never extended. Its word lists are
 content (config/lexicons.yaml). Every fact carries the clause it came from and a confidence; ambiguous
 mappings get low confidence so the medic confirms them.
 """
@@ -10,9 +10,9 @@ from __future__ import annotations
 import re
 from typing import Optional
 
-from ..config import load_yaml
-from ..core.schema import CapturedBy, FactIn, Provenance, Role
-from .guard import InstructionGuard, default_guard
+from herald.config import load_yaml
+from herald.core.schema import CapturedBy, FactIn, Provenance, Role
+from herald.extraction.guard import InstructionGuard, default_guard
 
 _LEX = load_yaml("lexicons.yaml")
 ROLE_WORDS: dict[str, str] = _LEX["attribution_words"]

@@ -12,8 +12,9 @@ from herald.config import Settings
 class FakeModel:
     """A TextModel that returns canned rows (or fails), with the usage a real server would report."""
 
-    def __init__(self, name: Optional[str] = "test-model", rows: Optional[list] = None, fail: bool = False):
-        self.name, self.rows, self.fail = name, rows or [], fail
+    def __init__(self, name: Optional[str] = "test-model", rows: Optional[list] = None, fail: bool = False,
+                 conf: float = 0.999):
+        self.name, self.rows, self.fail, self.conf = name, rows or [], fail, conf
         self.calls = 0
 
     def available(self) -> bool:
@@ -22,13 +23,20 @@ class FakeModel:
     def model_name(self) -> Optional[str]:
         return self.name
 
-    def chat_json(self, system, user, *, image_b64=None, max_tokens=256, schema=None, usage=None, examples=None):
+    def chat_json(self, system, user, *, image_b64=None, max_tokens=256, schema=None, usage=None, examples=None,
+                  logprobs=False, top_logprobs=0):
         self.calls += 1
         if self.fail:
             raise RuntimeError("model down")
         if usage is not None:
             usage.update({"completion_tokens": 42, "prompt_tokens": 100})
-        return {"f": self.rows}
+        out = {"f": self.rows}
+        if logprobs:        # one token spanning the output: every row gets confidence `conf`
+            import json
+            import math
+            content = json.dumps(out, separators=(",", ":"))
+            out = {**out, "_content": content, "_tokens": [(content, math.log(self.conf))]}
+        return out
 
 
 class FakeSTT:

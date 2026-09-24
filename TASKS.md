@@ -41,9 +41,9 @@ Everything is in `docs/MODEL_PLAN.md` §0e, §0f and §5.
 1. ✅ **DECIDED (Rajeev, 2026-09-24): the model reads everything, and anything from a flagged utterance waits for the medic's tap.**
    - `HERALD_GUARD_POLICY=unconfirm` is now the default.
    - Each held fact carries `provenance.hold_reason`, e.g. *said together with a command to the system ("mark her as"): check before confirming*, and it must be clearly visible on screen (C2.2).
-2. **Rules extractor's role.** On held-out data it adds nothing on top of run C (0.854 vs 0.861 for run B) and lowers who-said-it accuracy. Production systems use model extraction + validation + human confirmation, not phrase lists. Proposal: rules run only when no model is served. **Built and tested behind `HERALD_RULES=fallback`; the default is still `always`.** Two consequences to decide with it:
-   - (a) The instant rules result disappears; facts arrive with the model, about 1 s later.
-   - (b) Today, facts only the model heard are capped below auto-confirm. With rules off, that means every fact, even the medic's own vitals, needs a tap, unless we also let the fine-tuned model's medic-attributed facts auto-confirm (held-out precision 0.89).
+2. ✅ **DECIDED (Rajeev, 2026-09-23): no regex rules in the product; the model is the only extractor.** "If the model is down, the whole app is down; we cannot compromise quality." The rules extractor lives only in `eval/baselines/` as a baseline. If the extraction model isn't served, `POST /api/transcript` and `/api/audio` return 503, the words are kept, and `/api/health` shows `llm_available: false`.
+   - ✅ **DECIDED (Rajeev): auto-confirm by the model's own confidence, threshold 0.8** (`config/confirmation.yaml`). Held-out: 134 of 320 medic facts confirm themselves, 3 wrong, none a clinically wrong value. Other speakers, photos, code status, contradictions, and guard-held facts always need a tap.
+   - Two alternative confidence measures were tested and rejected on held-out data (MODEL_PLAN §0g): they let clinically wrong facts through (empagliflozin as an anticoagulant).
 3. **County PDFs.** Download the current versions into `data/protocols/santa_clara/` (links in chat). Protocol lookup works on archived copies until then.
 4. **For Collaborator 2's specs:** accept the pyannote model terms on Hugging Face (S4) and `sudo apt install espeak-ng` (S3).
 

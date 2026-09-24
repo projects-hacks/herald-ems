@@ -17,7 +17,7 @@ from ..core.ports import PhotoReader, SpeechToText, TextModel
 from ..core.snapshot import Projector
 from ..core.trends import TrendRules
 from ..core.vocabulary import Vocabulary, default_vocabulary
-from ..extraction import ExtractionPipeline, ModelExtractor, RulesExtractor
+from ..extraction import ModelExtractor
 from ..extraction.guard import InstructionGuard, default_guard
 from ..knowledge import KnowledgeService
 from ..knowledge.rerank import LLMReranker
@@ -46,9 +46,7 @@ class AppContext:
     vision_model: TextModel        # photo reading
     stt: SpeechToText
     vision: PhotoReader
-    rules: RulesExtractor
     model_extractor: ModelExtractor
-    pipeline: ExtractionPipeline
     tracer: TraceRecorder
     contract: UIContract
     link: LinkEmulator
@@ -84,15 +82,13 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
     tel = telemetry or Telemetry(s.metrics_url, s.price_overrides)
     model = text_model or LocalLLMClient(s.llm_url, s.llm_model, usage=tel)
     seeing = vision_model or (text_model if text_model is not None else LocalLLMClient(s.llm_url, s.vision_model, usage=tel))
-    rules = RulesExtractor(guard)
     model_extractor = ModelExtractor(model, vocabulary=vocab, finetuned_labels=s.finetuned_models)
     ctx = AppContext(
         settings=s, vocab=vocab, scales=scales, counties=counties, checklists=checklists, projector=projector,
         policy=ConfirmationPolicy(vocab, s.auto_confirm), tiers=tiers, trends=trends, guard=guard, telemetry=tel,
-        text_model=model, vision_model=seeing, stt=stt or WhisperSTT(s.stt_model, usage=tel),
+        text_model=model, vision_model=seeing, stt=stt or WhisperSTT(s.stt_model, usage=tel, offline=s.models_offline),
         vision=vision or VisionReader(seeing),
-        rules=rules, model_extractor=model_extractor,
-        pipeline=ExtractionPipeline(rules, model_extractor, guard, model_available=model.available),
+        model_extractor=model_extractor,
         tracer=TraceRecorder(vocab, tiers), contract=UIContract(vocab, tiers, trends, checklists, counties),
         link=LinkEmulator(s.toxiproxy_url))
     ctx.new_incident(s.dispatch)
@@ -102,7 +98,7 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
             from ..config import load_yaml
             from ..models.embedder import HFEmbedder
             e = load_yaml("knowledge.yaml")["embedding"]
-            embedder = HFEmbedder(e["model"], e["query_prefix"], e["device"])
+            embedder = HFEmbedder(e["model"], e["query_prefix"], e["device"], offline=s.models_offline)
         ctx.knowledge = KnowledgeService(lambda: counties.active, s.protocols_dir, ctx.relay.link_state,
                                          embedder=embedder or None, reranker=LLMReranker(seeing), vision=seeing,
                                          fetch=protocol_fetch, mirror=s.protocol_mirror)

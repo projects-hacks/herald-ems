@@ -1,0 +1,25 @@
+# When a fact from the paramedic's own mic confirms itself (no tap). Everything below the bar shows "needs tap".
+# Regardless of confidence, these always wait for a tap: other speakers and photos, code status (require_tap),
+# contradictions, and anything said together with a command to the system (the guard).
+auto_confirm_threshold: 0.8        # team lead's decision, 2026-09-24
+confidence:
+  measure: joint                   # joint | value | order_free (herald/extraction/confidence.py); a threshold only
+                                   # means something for the measure it was calibrated with
+  top_logprobs: 5                  # alternatives per token (order_free needs them)
+calibration:
+  model: ems-c-fp8                 # recalibrate when the extraction model changes (eval/calibrate_confidence.py)
+  confidence: joint probability of the tokens that wrote the fact (herald/extraction/confidence.py)
+  dev_gold_v1: {auroc: 0.848, at_0_8: {auto_confirmed: 126, wrong: 1, coverage: 0.442}}
+  heldout_gold_v2: {auroc: 0.809, at_0_8: {auto_confirmed: 134, wrong: 3, coverage: 0.419,
+                    note: "none a clinically wrong value: 1 attribution (patient's denial credited to the medic), 1 plural spelling, 1 case the two annotators disagreed on"}}
+  rechecked: {when: 2026-09-23 evening PDT, after: 'grounding v3 (numbers must be said) and channel-based roles',
+             dev_gold_v1: {facts: 282, auroc: 0.834, at_0_8: {auto_confirmed: 125, wrong: 1}},
+             heldout_gold_v2: {facts: 317, auroc: 0.812, at_0_8: {auto_confirmed: 134, wrong: 3}}}
+  measures_compared:   # MODEL_PLAN §0g; same model outputs for every measure (deterministic decoding)
+    value:       # value and who only, key tokens left out (they also carry which fact comes next)
+      dev_gold_v1: {auroc: 0.848, max_auto_at_1_wrong: 162, vs_joint: 126}
+      heldout_gold_v2: {auroc: 0.810, at_0_99: {auto_confirmed: 169, wrong: 7},
+                        rejected: "confident clinically wrong facts the key tokens had caught, e.g. empagliflozin recorded as an anticoagulant (joint 0.34, value 0.994), consciousness P (joint 0.16, value 0.997)"}
+    order_free:  # key tokens kept, alternatives the model writes later counted as agreement
+      dev_gold_v1: {auroc: 0.850, max_auto_at_1_wrong: 113, vs_joint: 126, rejected: "fewer auto-confirmed than joint at the chosen strictness"}
+    conclusion: keep joint; remove the order noise at its source (consistent row order in the training targets, run D)

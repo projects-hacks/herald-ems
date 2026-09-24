@@ -17,9 +17,11 @@ from __future__ import annotations
 from typing import Optional
 
 from ..config import load_jsonl, load_text
+from ..core.confirmation import confidence_measure
 from ..core.ports import TextModel
 from ..core.schema import CapturedBy, FactIn, Provenance, Role
 from ..core.vocabulary import Vocabulary, default_vocabulary
+from .confidence import row_confidences
 from .grounding import Grounding, default_grounding
 
 ROLE = {"m": Role.medic, "p": Role.patient, "f": Role.family, "b": Role.bystander}
@@ -60,7 +62,7 @@ class ModelExtractor:
 
     def __init__(self, model: TextModel, *, vocabulary: Optional[Vocabulary] = None,
                  grounding: Optional[Grounding] = None, prompts: Optional[Prompts] = None,
-                 finetuned_labels: tuple[str, ...] = ("ems",)):
+                 finetuned_labels: tuple[str, ...] = ("ems",), confidence_mode: Optional[str] = None):
         self.model = model
         self.vocab = vocabulary or default_vocabulary()
         self.grounding = grounding or default_grounding()
@@ -68,6 +70,8 @@ class ModelExtractor:
         self.finetuned_labels = set(finetuned_labels)
         self.schema = output_schema(self.vocab)
         self.last_usage: dict = {}
+        measure, self.top_logprobs = confidence_measure()
+        self.confidence_mode = confidence_mode or measure      # the calibrated measure (config/confirmation.yaml)
 
     @property
     def name(self) -> str:
@@ -87,10 +91,17 @@ class ModelExtractor:
         usage: dict = {}
         label = self.model.model_name()
         system, examples, schema = self.request_for(label)
-        data = self.model.chat_json(system, text, schema=schema, max_tokens=MAX_TOKENS, usage=usage, examples=examples)
+        data = self.model.chat_json(system, text, schema=schema, max_tokens=MAX_TOKENS, usage=usage, examples=examples,
+                                    logprobs=True,
+                                    top_logprobs=self.top_logprobs if self.confidence_mode == "order_free" else 0)
         self.last_usage = usage
+        rows = data.get("f", [])
+        confs = (row_confidences(data.get("_content", ""), data.get("_tokens", []), self.confidence_mode)
+                 if data.get("_tokens") else [])
+        if len(confs) != len(rows):          # can't align (e.g. salvaged output): no auto-confirm for this utterance
+            confs = [0.0] * len(rows)
         out: list[FactIn] = []
-        for row in data.get("f", []):
+        for row, conf in zip(rows, confs):
             if (not isinstance(row, list) or len(row) < 3 or not isinstance(row[0], str)
                     or row[0] not in self.vocab or row[1] is None):
                 continue
@@ -101,10 +112,18 @@ class ModelExtractor:
                 value = SEX.get(value.strip().lower(), value)
             code, _, relation = who.partition(":")
             role = ROLE.get(code[:1].lower(), default_role)
-            if role == Role.medic and default_role != Role.medic:
-                role = default_role          # e.g. the daughter speaking into the mic
-            speaker = relation or (default_speaker if role == default_role else None)
+            if captured_by != CapturedBy.medic:
+                # Someone else's mic: the words are that person's own. The model reads every utterance as the medic's,
+                # so its `who` there can name the subject ("Mom is allergic…" -> "mother"; live test 2026-09-23).
+                # A known speaker is the source; with none, the model's patient-vs-family call is kept
+                # ("I don't take any blood thinners" -> patient).
+                if default_speaker:
+                    role, speaker = default_role, default_speaker
+                else:
+                    role, speaker = (Role.patient if role == Role.patient else default_role), None
+            else:
+                speaker = relation or (default_speaker if role == default_role else None)
             out.append(FactIn(key=key, value=value, role=role, speaker=speaker, captured_by=captured_by,
-                              confidence=0.9, provenance=Provenance(audio_id=audio_id, text=text,
-                                                                    extractor=f"llm:{label}")))
+                              confidence=round(min(conf, 0.999), 4),
+                              provenance=Provenance(audio_id=audio_id, text=text, extractor=f"llm:{label}")))
         return out

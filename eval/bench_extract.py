@@ -32,9 +32,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from herald.config import Settings  # noqa: E402
-from herald.core.schema import CapturedBy, Role  # noqa: E402
+from herald.core.schema import CapturedBy, Role, source_role  # noqa: E402
 from herald.core.vocabulary import default_vocabulary  # noqa: E402
-from herald.extraction import ExtractionPipeline, ModelExtractor, RulesExtractor  # noqa: E402
+from herald.extraction import ModelExtractor  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from eval.baselines.rules_extractor import RulesExtractor  # noqa: E402  (baseline rows only)
+from eval.baselines.rules_plus_model import ExtractionPipeline  # noqa: E402  (baseline rows only)
 from herald.models import LocalLLMClient  # noqa: E402
 
 KEYS = default_vocabulary().keys
@@ -135,7 +139,7 @@ def predict(a, rows):
     ext, model_x, _ = build_extractor(a.extractor, a.model)
     for r in rows:
         by = CapturedBy(r.get("by", "medic"))
-        role = Role.family if by == CapturedBy.other else Role.medic
+        role = source_role(by, r.get("speaker"))              # as the app does (herald/api/capture.py)
         model_x.last_usage = {}
         t0 = time.perf_counter()
         err = None

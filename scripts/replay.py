@@ -2,6 +2,7 @@
 """Replay a scenario against a running Herald server (rehearsal, video, regression).
 
   python scripts/replay.py scenarios/stroke_demo.json --url http://localhost:8100 [--fast] [--no-llm]
+  (--no-llm: words only, nothing extracted; there is no rules extractor in the product)
 """
 import argparse
 import json
@@ -14,13 +15,25 @@ ap = argparse.ArgumentParser()
 ap.add_argument("scenario")
 ap.add_argument("--url", default="http://localhost:8100")
 ap.add_argument("--fast", action="store_true", help="no pauses")
-ap.add_argument("--no-llm", action="store_true", help="rules extractor only")
+ap.add_argument("--no-llm", action="store_true", help="send the words without extraction (model status off)")
 ap.add_argument("--lkw-minutes-ago", type=int, default=64)
 a = ap.parse_args()
 
 sc = json.load(open(a.scenario))
 lkw = (datetime.now() - timedelta(minutes=a.lkw_minutes_ago)).strftime("%-I:%M")
 c = httpx.Client(base_url=a.url, timeout=120)
+
+
+def wait_model(entry_id: str, timeout: float = 30.0) -> dict:
+    """The transcript entry once its model phase is no longer running."""
+    t0 = time.perf_counter()
+    while True:
+        e = next(t for t in c.get("/api/state").json()["transcripts"] if t["id"] == entry_id)
+        if e["trace"]["model"]["status"] != "running" or time.perf_counter() - t0 > timeout:
+            return e
+        time.sleep(0.1)
+
+
 for step in sc["steps"]:
     if "incident" in step:
         c.post("/api/incident", json={"dispatch": step["incident"]}).raise_for_status()
@@ -32,9 +45,14 @@ for step in sc["steps"]:
         t0 = time.perf_counter()
         r = c.post("/api/transcript", json=body)
         r.raise_for_status()
-        d = r.json()
-        print(f"[{step.get('speaker') or step.get('by', 'medic')}] {text}\n    -> {len(d['facts'])} facts, "
-              f"{d['transcript']['extract']} in {time.perf_counter() - t0:.2f}s")
+        e = wait_model(r.json()["transcript"]["id"])            # words first; the model's facts follow on the entry
+        m = e["trace"]["model"]
+        print(f"[{step.get('speaker') or step.get('by', 'medic')}] {text}\n    -> model {m['status']}, "
+              f"{len(m.get('facts', []))} facts in {time.perf_counter() - t0:.2f}s")
+        for f in m.get("facts", []):
+            held = f"  held: {f['hold_reason']}" if f.get("hold_reason") else ""
+            print(f"       {f['key']} = {json.dumps(f['value'])} ({f['role']}, {f['status']}, "
+                  f"confidence {f.get('confidence')}){held}")
     elif "confirm" in step:
         # The medic's taps: wait for model phases to finish, then confirm this key group's unconfirmed facts.
         for _ in range(120):

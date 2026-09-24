@@ -51,3 +51,21 @@ def test_gfast_keys_are_scored_separately_not_as_false_positives():
     gold = [("vitals.sbp", 150, "medic")]
     pred = [("vitals.sbp", 150, "medic"), ("exam.gfast.facial", 1, "medic")]
     assert bench.score(gold, pred)[:3] == (1, 0, 0)
+
+
+def test_spoken_vitals_are_grounded_even_when_other_digits_appear():
+    from herald.extraction.grounding import default_grounding
+    g = default_grounding()
+    text = "72 year old male, BP one sixty over ninety"
+    assert g.supported("vitals.sbp", 160, text) and g.supported("vitals.dbp", 90, text)
+    assert not g.supported("vitals.hr", 88, "72 year old male, BP 160 over 90")   # an invented vital is still dropped
+
+
+def test_row_confidence_follows_token_probabilities():
+    import math
+    from herald.extraction.confidence import row_confidences
+    content = '{"f":[["vitals.hr",98,"m"],["vitals.consciousness","C","m"]]}'
+    toks = [('{"f":[', 0.0), ('["vitals.hr",98,"m"]', math.log(0.99)), (",", 0.0),
+            ('["vitals.consciousness","C","m"]', math.log(0.6)), ("]}", 0.0)]
+    a, b = row_confidences(content, toks)
+    assert round(a, 2) == 0.99 and round(b, 2) == 0.60

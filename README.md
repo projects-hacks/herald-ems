@@ -18,7 +18,7 @@ Every model runs on one HP ZGX Nano (NVIDIA GB10). **No cloud AI.**
 | | |
 |---|---|
 | **Speech → facts** | Whisper large-v3-turbo on the GPU (a 10 s clip transcribes in about 0.3 s). Then a **fine-tuned Qwen3-4B extractor, trained on this box**, turns the words into typed facts: vitals, medications, allergies, last known well, stroke-exam items, code status. It is served in FP8, at about 1 s per utterance. |
-| **Who said it** | Every fact records who it came from ("his wife says…" → family) and links back to the audio or photo. Facts from other speakers, photos, or the model alone start **unconfirmed**; one tap confirms. |
+| **Who said it, and how sure** | Every fact records who it came from ("his wife says…" → family) and links back to the audio or photo. A fact confirms itself only when the paramedic said it and the model was sure of it (its own token probability, with the bar calibrated on a labeled dev set). Facts from other speakers, photos, codes such as DNR, and anything the model was less sure of start **unconfirmed**; one tap confirms. |
 | **Photos** | The local vision model (Nemotron-3-Nano-Omni) reads monitors, pill bottles, and POLST forms, with physical-plausibility checks. |
 | **Gap-first screen** | The pre-alert checklist (the county's own) starts at 0 of 6, and the gaps close as the medic talks. |
 | **Published scores** | NEWS2, RACE, **G.F.A.S.T.** (Santa Clara County's stroke screen), and the 2021 national field-triage criteria. Plain code computes them from confirmed facts only, showing every input, what's missing, and the source. |
@@ -37,9 +37,11 @@ The extraction gold set (gold v2) is 100 utterances and 320 facts, written and l
 |---|---|---|---|---|---|---|
 | hand-written rules | 0.444 | 0.80 | 0.31 | 0.83 | — | <1 ms |
 | Nemotron-3-Nano-Omni 30B-A3B (prompted) | 0.661 | 0.69 | 0.63 | 0.84 | — | 0.95 / 1.9 s |
-| **fine-tuned Qwen3-4B, FP8 (live)** | **0.871** | **0.89** | **0.86** | **0.97** | **0.79** | 1.0 / 2.2 s |
+| **fine-tuned Qwen3-4B, FP8 (live)** | **0.885** | **0.90** | **0.88** | **0.96** | **0.79** | 1.0 / 2.3 s |
 
-- **Adversarial speech:** 40 unseen attacks (instruction injection, role spoofing, advice stuffing, garbage input). The fine-tuned extractor passes 25/40, and no other extractor tested passes more.
+- **Adversarial speech:** 40 unseen attacks (instruction injection, role spoofing, advice stuffing, garbage input). The fine-tuned extractor passes 25/40, and no other extractor tested passes more. Facts said together with a command to the system are held for the medic's tap, with the reason shown.
+- **Confidence:** a fact confirms itself only at the model's own probability ≥ 0.8. On held-out data that is 134 of 317 medic facts, 3 of them wrong, none a clinically wrong value; the rest wait for one tap.
+- **Local only:** every model runs on the box and loads from local folders; a running server makes no outbound connections (checked). The only network use is the county protocol sync and the ED relay, when a link exists.
 - **Protocol lookup** (the county's 5 documents; 22 answerable questions + 3 out of scope):
   - all 338 numbered sections recovered;
   - Table B's 168 cells read exactly;
@@ -59,7 +61,7 @@ push-to-talk speech ─┐           append-only facts with provenance         N
 phone photos        ─┼─► facts ─► checklists · gaps · contradictions ────► protocol lookup (cited)
 monitor panel       ─┘           trends · clocks · NEWS2 · RACE · G.F.A.S.T. relay → ED screen
         │                        (content: config/, reviewed and cited)
-  Whisper → fine-tuned extractor (+ rules fallback) · vision model for photos
+  Whisper → fine-tuned extractor (the only extractor) · vision model for photos
 ```
 
 **The model never decides.** Language models only turn speech, photos, and document images into facts or passages. Checklists, scores, contradictions, clocks, and what gets sent are plain, tested code. Every clinical table and citation lives in `config/` as reviewed data.
@@ -70,13 +72,13 @@ monitor panel       ─┘           trends · clocks · NEWS2 · RACE · G.F.A.
 | `herald/core/` | Fact model, vocabulary, incident store, confirmation policy, and the projection to the patient picture |
 | `herald/scoring/` | NEWS2, RACE, G.F.A.S.T., field triage: data-driven engines, tested at every band boundary |
 | `herald/checklists/` | Alert-ready checklists (stroke from the county config, STEMI) |
-| `herald/extraction/` | Speech → facts: the model extractor, grounding and injection guards, the rules fallback |
+| `herald/extraction/` | Speech → facts: the model extractor, per-fact confidence, grounding and injection guards |
 | `herald/models/` | Adapters to the local model servers (localhost only), Whisper, photo reading, embeddings |
 | `herald/knowledge/` | Protocol lookup: sections, tables, figures, hybrid search, sync with review flags |
 | `herald/relay/` | Weak-link relay to the emergency department |
 | `herald/telemetry/` | Tokens, GPU power, energy, cost vs a cloud equivalent |
 | `herald/api/` | FastAPI app, WebSocket hub, composition root |
-| `eval/` | Gold sets, benchmarks, adversarial sets, protocol answer keys, saved predictions |
+| `eval/` | Gold sets, benchmarks, adversarial sets, protocol answer keys, saved predictions; the hand-written rules extractor survives only here, as a baseline |
 
 ## Run it
 

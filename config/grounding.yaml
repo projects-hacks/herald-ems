@@ -1,3 +1,26 @@
+# A number the model writes for these keys must be a number that was said: as digits, or in words
+# ("one sixty over ninety" -> 160, 90; herald/extraction/numbers.py). The check runs whether or not the utterance
+# contains digits: "sugar reads HI on the meter, breathing deep and rapid" gave glucose 200 and RR 20 before
+# (dev gold v1_088), and "any number word anywhere" was too loose ("vomiting for two days").
+numbers_must_be_said:
+- vitals.sbp
+- vitals.dbp
+- vitals.hr
+- vitals.rr
+- vitals.spo2
+- vitals.glucose
+- transport.eta_min
+# not listed: vitals.temp (converted from Fahrenheit), vitals.gcs_motor ("obeys commands" = 6), exam item scores
+# (derived from the findings described), patient.age ("in her seventies" is kept as the model reads it)
+spoken_numbers:
+  units: {zero: 0, oh: 0, o: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9}
+  teens: {ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
+          eighteen: 18, nineteen: 19}
+  tens: {twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90}
+  hundred: [hundred]
+  point: [point]
+  joiners: [and]
+  one: [a, an]                     # "a hundred and ten"
 # Grounding validator for model-extracted facts: a fact must be supported by words that were said.
 # (Live test 2026-09-23: from 'sudden left-sided weakness' the model invented four RACE item scores.)
 # key_requires_words: case-insensitive regex that must match the utterance for that key.
@@ -12,6 +35,9 @@ filler_values:
 - none stated
 - 'null'
 vitals_digits_must_appear: true
+# A vital whose digits are not in the text is still grounded when the numbers were spoken as words
+# ("pressure one sixty over ninety" in an utterance that also says "72 year old").
+spoken_number_words: '\b(zero|oh|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)\b'
 vitals_digits_exempt:
 - vitals.temp
 key_requires_words:

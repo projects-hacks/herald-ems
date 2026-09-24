@@ -25,12 +25,12 @@ class Settings(BaseModel):
     finetuned_models: tuple[str, ...] = ("ems",)  # labels that take the fine-tuned prompt (plus any "ems-*")
     stt_model: str = "openai/whisper-large-v3-turbo"
     warm_stt: bool = True
+    models_offline: bool = True                   # load local models from their folders; never contact a model hub
     # patient state
-    auto_confirm: float = 0.85
+    auto_confirm: Optional[float] = None        # None = config/confirmation.yaml (calibrated per model)
     # speech extraction policy (MODEL_PLAN §0f; defaults keep the reviewed behavior until the team lead decides)
     guard_policy: str = "unconfirm"             # unconfirm (team lead, 2026-09-24): the model reads flagged speech,
                                                 # every fact from it waits for a tap | skip_model (previous)
-    rules_mode: str = "always"                  # always | fallback (rules only when the model is unavailable/fails)
     reassess_min: Optional[int] = None            # None = the county's interval
     timezone: str = "America/Los_Angeles"
     county: str = "santa_clara"
@@ -53,13 +53,6 @@ class Settings(BaseModel):
     def _guard(cls, v: str) -> str:
         if v not in ("skip_model", "unconfirm"):
             raise ValueError("HERALD_GUARD_POLICY must be skip_model or unconfirm")
-        return v
-
-    @field_validator("rules_mode")
-    @classmethod
-    def _rules(cls, v: str) -> str:
-        if v not in ("always", "fallback"):
-            raise ValueError("HERALD_RULES must be always or fallback")
         return v
 
     @field_validator("llm_url")
@@ -100,9 +93,9 @@ class Settings(BaseModel):
             finetuned_models=tuple(m.strip() for m in e.get("HERALD_FINETUNED_MODELS", "ems").split(",") if m.strip()),
             stt_model=e.get("HERALD_STT_MODEL", cls.model_fields["stt_model"].default),
             warm_stt=e.get("HERALD_WARM_STT", "1") == "1",
-            auto_confirm=float(e.get("HERALD_AUTO_CONFIRM", 0.85)),
+            models_offline=e.get("HERALD_MODELS_OFFLINE", "1") == "1",
+            auto_confirm=float(e["HERALD_AUTO_CONFIRM"]) if e.get("HERALD_AUTO_CONFIRM") else None,
             guard_policy=e.get("HERALD_GUARD_POLICY", "unconfirm"),
-            rules_mode=e.get("HERALD_RULES", "always"),
             reassess_min=int(e["HERALD_REASSESS_MIN"]) if e.get("HERALD_REASSESS_MIN") else None,
             timezone=e.get("HERALD_TZ", cls.model_fields["timezone"].default),
             county=e.get("HERALD_COUNTY", cls.model_fields["county"].default),
