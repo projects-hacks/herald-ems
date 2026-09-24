@@ -2,7 +2,9 @@
 only drugs in the reviewed anticoagulant class become `meds.anticoagulant`."""
 import pytest
 
-from fakes import FakeModel, make_client, rules_extractor, tiny_coder, tiny_normalizer
+import time
+
+from fakes import FakeModel, make_client, tiny_coder, tiny_normalizer
 from herald.config import get_settings, load_yaml
 from herald.core.schema import FactIn, Role
 from herald.models import VisionReader
@@ -93,14 +95,6 @@ def test_allergies_are_coded_but_never_become_medications():
     assert tiny_coder().code([_fact("allergies", [])])[0].value == []
 
 
-def test_rules_take_anticoagulant_names_from_rxnorm():
-    rules = rules_extractor()
-    facts = {f.key: f for f in rules.extract("She's on Xarelto.")}
-    assert facts["meds.anticoagulant"].value == "rivaroxaban" and facts["meds.list"].value == ["rivaroxaban"]
-    assert facts["meds.list"].code == ["1114195"]
-    assert not any(f.key == "meds.anticoagulant" for f in rules.extract("She takes Plavix."))
-
-
 class _PillBottle:
     def available(self):
         return True
@@ -118,14 +112,24 @@ def test_photo_label_is_normalized_and_gives_the_anticoagulant():
     assert all(f.role == Role.photo for f in out)
 
 
+def _wait_model(c, timeout=5):
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        tr = c.get("/api/state").json()["transcripts"][-1]["trace"]
+        if tr["model"]["status"] != "running":
+            return tr
+        time.sleep(0.05)
+    raise AssertionError("model phase did not finish")
+
+
 def test_codes_reach_the_snapshot_trace_and_health():
-    c, _ = make_client(FakeModel(rows=[["meds.list", ["Lipitor"], "m"]]))
+    c, _ = make_client(FakeModel(rows=[["meds.list", ["Eliquis"], "m"]], conf=0.99), normalizer=tiny_normalizer())
     with c:
         c.post("/api/incident", json={"dispatch": "possible stroke"})
-        tr = c.post("/api/transcript", json={"text": "She takes Eliquis.", "use_llm": False}).json()
-        rules = {f["key"]: f for f in tr["transcript"]["trace"]["rules"]["facts"]}
-        assert rules["meds.list"]["value"] == ["apixaban"] and rules["meds.list"]["code"] == ["1364430"]
-        assert rules["meds.anticoagulant"]["code"] == "1364430"
+        c.post("/api/transcript", json={"text": "She takes Eliquis."})
+        facts = {f["key"]: f for f in _wait_model(c)["model"]["facts"]}
+        assert facts["meds.list"]["value"] == ["apixaban"] and facts["meds.list"]["code"] == ["1364430"]
+        assert facts["meds.anticoagulant"]["code"] == "1364430"
         anti = c.get("/api/state").json()["facts"]["meds.anticoagulant"]       # latest fact per key
         assert (anti["value"], anti["code"]) == ("apixaban", "1364430")
         assert anti["provenance"]["normalized"][0]["said"] == "Eliquis"

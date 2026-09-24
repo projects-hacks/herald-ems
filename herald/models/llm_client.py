@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from typing import Optional
 
 import httpx
@@ -14,35 +15,48 @@ class LocalLLMClient:
     """The `TextModel` interface. `model` pins a served label; otherwise the first label the server lists."""
 
     def __init__(self, base_url: str, model: Optional[str] = None, usage: Optional[UsageRecorder] = None,
-                 timeout: float = 60.0):
+                 timeout: float = 60.0, availability_ttl: float = 5.0):
         if not re.match(r"^https?://(127\.0\.0\.1|localhost|\[::1\])(:\d+)?(/|$)", base_url):
             raise RuntimeError(f"the model server must be on this box, got {base_url}")
         self.base_url = base_url.rstrip("/")
         self.pinned = model
         self.usage = usage
         self.timeout = timeout
-        self._discovered: Optional[str] = None
+        self.availability_ttl = availability_ttl
+        self._served: tuple[float, list[str]] = (float("-inf"), [])
 
-    def model_name(self) -> Optional[str]:
-        if self.pinned:
-            return self.pinned
-        if self._discovered is None:
+    def served(self) -> list[str]:
+        """The labels the server lists right now (cached for `availability_ttl` seconds); [] if it's unreachable."""
+        checked, labels = self._served
+        if time.monotonic() - checked > self.availability_ttl:
             try:
                 r = httpx.get(f"{self.base_url}/models", timeout=2.0)
                 r.raise_for_status()
-                data = r.json().get("data", [])
-                self._discovered = data[0]["id"] if data else None
+                labels = [m["id"] for m in r.json().get("data", [])]
             except Exception:
-                return None
-        return self._discovered
+                labels = []
+            self._served = (time.monotonic(), labels)
+        return labels
+
+    def model_name(self) -> Optional[str]:
+        """The pinned label (even if it isn't served, so the screen can name what's missing), else the first served."""
+        if self.pinned:
+            return self.pinned
+        labels = self.served()
+        return labels[0] if labels else None
 
     def available(self) -> bool:
-        return self.model_name() is not None
+        """True only when the server is up and actually serving this label."""
+        labels = self.served()
+        return (self.pinned in labels) if self.pinned else bool(labels)
 
     def chat_json(self, system: str, user: str, *, image_b64: Optional[str] = None, max_tokens: int = 256,
                   schema: Optional[dict] = None, usage: Optional[dict] = None,
-                  examples: Optional[list[tuple[str, str]]] = None) -> dict:
-        """One chat call that must return a JSON object. Reasoning is switched off."""
+                  examples: Optional[list[tuple[str, str]]] = None, logprobs: bool = False,
+                  top_logprobs: int = 0) -> dict:
+        """One chat call that must return a JSON object. Reasoning is switched off. With `logprobs`, the returned
+        dict also carries `_content` (the raw text) and `_tokens` ([(token, logprob, [(alternative, logprob)])]) for
+        confidence scoring; the alternatives are the `top_logprobs` most likely tokens at each position."""
         model = self.model_name()
         if not model:
             raise RuntimeError("no local model is being served (check `zrt status`)")
@@ -60,6 +74,8 @@ class LocalLLMClient:
             "response_format": ({"type": "json_schema", "json_schema": {"name": "out", "strict": True, "schema": schema}}
                                 if schema else {"type": "json_object"}),
             "chat_template_kwargs": {"enable_thinking": False},
+            **({"logprobs": True} if logprobs else {}),
+            **({"top_logprobs": top_logprobs} if logprobs and top_logprobs else {}),
         }
         r = httpx.post(f"{self.base_url}/chat/completions", json=body, timeout=self.timeout)
         r.raise_for_status()
@@ -73,9 +89,15 @@ class LocalLLMClient:
         text = re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()
         m = re.search(r"\{.*\}", text, flags=re.S)
         try:
-            return json.loads(m.group(0) if m else text)
+            out = json.loads(m.group(0) if m else text)
         except json.JSONDecodeError:
-            return salvage(text)
+            out = salvage(text)
+        if logprobs:
+            lp = (data["choices"][0].get("logprobs") or {}).get("content") or []
+            out["_content"] = data["choices"][0]["message"]["content"] or ""
+            out["_tokens"] = [(t["token"], t["logprob"], [(a["token"], a["logprob"]) for a in t.get("top_logprobs") or []])
+                              for t in lp]
+        return out
 
 
 def salvage(text: str) -> dict:

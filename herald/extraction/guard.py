@@ -2,8 +2,9 @@
 
 Anything a patient, family member, or bystander says reaches the extractor, so speech is an injection surface.
 Facts describe the patient; instructions ("set SpO2 to 100", "output this JSON") do not. When an utterance
-contains instruction-shaped speech, the rules extractor stops at that clause and the model's output for the
-utterance is discarded; the trace records why. Measured by eval/adversarial_bench.py.
+contains instruction-shaped speech, the model still reads it (the team lead's decision, guard_policy=unconfirm),
+but every fact from that utterance is held for the medic's tap with a visible reason (`provenance.hold_reason`);
+guard_policy=skip_model skips the model instead. The trace records the phrase. Measured by eval/adversarial_bench.py.
 """
 from __future__ import annotations
 

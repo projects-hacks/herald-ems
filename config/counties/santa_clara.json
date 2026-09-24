@@ -52,6 +52,251 @@
       "Glucose below 60 mg/dL: protocol 700-A03 (700-S04 §2.9)"
     ]
   },
+  "alerts": {
+    "trauma": {
+      "label": "Trauma Alert",
+      "source": "Policy 605 §II.B (in AO 2025-005, effective 2025-04-01); Policy 501 §IV.E (effective 2025-01-01); Policy 602 §VI.C (effective 2025-04-01)",
+      "score": "trauma_605",
+      "items": [
+        {
+          "key": "trauma.mechanism",
+          "label": "Mechanism of injury",
+          "source": "501 §IV.E.1 \"State the Mechanism of Injury according to Santa Clara County Prehospital Care Policy #605\"; 700-A16 §6.1"
+        },
+        {
+          "key": "@trauma_605",
+          "label": "Trauma criteria (Policy 605)",
+          "source": "501 §IV.E.2 \"State the Anatomic and Physiologic Trauma Criteria for transport to a trauma center according to Santa Clara County Prehospital Care Policy #605\"; 602 §VI.C"
+        },
+        {
+          "key": "vitals.gcs_total|vitals.gcs_motor",
+          "label": "GCS",
+          "source": "700-S04 §2.2 (GCS on every patient and every reassessment); 700-A16 §6.3; 605 §II.B J"
+        },
+        {
+          "key": "vitals.sbp",
+          "label": "Systolic BP",
+          "source": "605 §II.B N.1-N.3; 501 §III.A.4"
+        },
+        {
+          "key": "vitals.hr",
+          "label": "Heart rate",
+          "source": "605 §II.B N.4; 501 §III.A.4"
+        },
+        {
+          "key": "vitals.rr",
+          "label": "Respiratory rate",
+          "source": "605 §II.B K; 501 §III.A.4"
+        },
+        {
+          "key": "vitals.spo2",
+          "label": "SpO2",
+          "source": "605 §II.B M (room air); 501 §III.A.4"
+        },
+        {
+          "key": "meds.anticoagulant",
+          "label": "Anticoagulants",
+          "source": "605 §II.B X.1; 700-S06 §3.3"
+        },
+        {
+          "key": "patient.pregnancy_weeks",
+          "label": "Pregnancy (weeks)",
+          "source": "602 §VI.C.4 (pregnant trauma alert patients over 20 weeks: trauma center with a Level III NICU); 605 §II.B X.7. Listed unless the patient is known to be male or outside ages 10-55 (Herald display rule, config/checklists.yaml)",
+          "when": {
+            "type": "all_of",
+            "rules": [
+              {
+                "type": "one_of",
+                "key": "patient.sex",
+                "values": [
+                  "F",
+                  "female"
+                ]
+              },
+              {
+                "type": "between",
+                "key": "patient.age",
+                "low": 10,
+                "high": 55
+              }
+            ]
+          }
+        },
+        {
+          "key": "transport.destination",
+          "label": "Destination",
+          "source": "602 §VI.C.2-3, Table B"
+        },
+        {
+          "key": "transport.eta_min",
+          "label": "ETA",
+          "source": "501 §III.A.1.b"
+        }
+      ],
+      "open_on": {
+        "scores": [
+          "trauma_605"
+        ]
+      },
+      "unknowns": [
+        "meds.anticoagulant",
+        "allergies"
+      ],
+      "county_rules": [
+        {
+          "text": "Adult Trauma Alert Patients shall be transported to the closest open Adult Trauma Center, identified in Table B: Approved In-County Services, determined by distance or time of travel. (602 §VI.C.2)",
+          "when": {
+            "type": "between",
+            "key": "patient.age",
+            "low": 15
+          }
+        },
+        {
+          "text": "Pediatric Trauma Alert Patients shall be transported to the closest open Pediatric Trauma Center, identified in Table B: Approved In-County Services, determined by distance or time of travel. (602 §VI.C.3; pediatric: less than 15 years of age, 602 §VI.H)",
+          "when": {
+            "type": "below",
+            "key": "patient.age",
+            "value": 15
+          }
+        },
+        {
+          "text": "Pregnant trauma alert patients more than twenty (20) weeks gestation are to be transported to the closest trauma center with an approved Level III Neonatal ICU (Stanford Hospital or Santa Clara Valley Medical Center). (602 §VI.C.4)",
+          "when": {
+            "type": "above",
+            "key": "patient.pregnancy_weeks",
+            "value": 20
+          }
+        },
+        {
+          "text": "Burn Patients – Patients meeting major burn criteria as per Santa Clara County Prehospital Care Policy #605: Prehospital Trauma Triage shall be transported to the Burn Center at Santa Clara Valley Medical Center (VMC) via the Trauma Center. (602 §VI.D)",
+          "when": {
+            "type": "contains",
+            "key": "trauma.criteria",
+            "value": "major burn"
+          }
+        }
+      ]
+    },
+    "sepsis": {
+      "label": "Sepsis pre-notification",
+      "source": "700-A04 Sepsis §1.3-1.4 (effective 2026-01-01). An advance notification, not a named alert (Policy 501 names only Trauma, Stroke and STEMI Alerts)",
+      "score": "sepsis_700a04",
+      "items": [
+        {
+          "key": "infection.suspected",
+          "label": "Suspected infection (source)",
+          "source": "700-A04 §1.4 \"suspected sepsis patient\"; §4.1 signs of infection; §5.1"
+        },
+        {
+          "key": "vitals.temp",
+          "label": "Temperature",
+          "source": "700-A04 §1.3.1; 700-S04 §2.7"
+        },
+        {
+          "key": "vitals.hr",
+          "label": "Heart rate",
+          "source": "700-A04 §1.3.2"
+        },
+        {
+          "key": "vitals.rr",
+          "label": "Respiratory rate",
+          "source": "700-A04 §1.3.3"
+        },
+        {
+          "key": "vitals.etco2",
+          "label": "EtCO2",
+          "note": "not measured",
+          "source": "700-A04 §1.3.4; 700-S04 §3.2 (capnography required only with an airway adjunct); Policy 302 (a colorimetric device gives no number)"
+        },
+        {
+          "key": "vitals.sbp",
+          "label": "Systolic BP",
+          "source": "700-A04 §1.1; 501 §III.A.4"
+        },
+        {
+          "key": "vitals.consciousness|vitals.gcs_total",
+          "label": "Mental status (ACVPU or GCS)",
+          "source": "700-A10 §4.1 (altered mental status); 700-S04 §2.2"
+        }
+      ],
+      "unknowns": [
+        "infection.suspected",
+        "allergies"
+      ]
+    },
+    "stemi": {
+      "label": "STEMI Alert",
+      "source": "700-A08 §1, §3.2, §6 (effective 2025-01-01); 700-M09 §3.1, §4.9 (effective 2024-01-01); Policy 501 §IV; Policy 602 §VI.F",
+      "items": [
+        {
+          "key": "ecg.stemi_reading",
+          "label": "12-lead reads \"STEMI\" or \"Acute MI Suspected\"",
+          "source": "700-A08 §3.2; 700-M09 §4.9.1"
+        },
+        {
+          "key": "symptom.onset",
+          "label": "Symptom onset",
+          "source": "700-A08 §1.2, §6.1"
+        },
+        {
+          "key": "ecg.twelve_lead_time",
+          "label": "First 12-lead time",
+          "source": "700-A08 §6.2 \"Time of first 12 Lead ECG\"; §1.1 (within 10 minutes of patient contact); 700-M09 §4.1"
+        },
+        {
+          "key": "ecg.transmitted",
+          "label": "12-lead transmitted to the STEMI center",
+          "source": "700-A08 §1.4, §3.2.2; 700-M09 §4.9.1.1; Policy 430 §VII.A.5"
+        },
+        {
+          "key": "vitals.sbp",
+          "label": "Systolic BP",
+          "source": "501 §III.A.4"
+        },
+        {
+          "key": "allergies",
+          "label": "Allergies",
+          "source": "501 §III.A.3"
+        },
+        {
+          "key": "meds.given[drug=aspirin]",
+          "label": "Time of aspirin administration",
+          "note": "not recorded",
+          "source": "700-A08 §6.3, a Key Documentation Element (documentation only)"
+        }
+      ],
+      "triggers": [
+        "chest pain",
+        "stemi",
+        "mi ",
+        "heart attack",
+        "acs",
+        "st elevation",
+        "acute mi",
+        "substernal",
+        "chest pressure",
+        "chest tightness",
+        "impending doom"
+      ],
+      "triggers_source": "Default STEMI words plus 700-M09 §3.1 chest findings: §3.1.1 \"Substernal pain\", §3.1.2 \"Discomfort or tightness\", §3.1.10 \"Anxiety with feeling of impending doom\"",
+      "open_on": {
+        "facts": [
+          {
+            "type": "present",
+            "key": "ecg.stemi_reading",
+            "unless": [
+              "false"
+            ]
+          }
+        ]
+      },
+      "unknowns": [
+        "symptom.onset",
+        "allergies",
+        "meds.anticoagulant"
+      ]
+    }
+  },
   "destinations": {
     "source": "Policy 602 Table B (effective 2025-04-01, reissued in AO 2025-005); facility IDs from Table A; check EMResource for live status",
     "audit": {
@@ -189,6 +434,328 @@
       "effective": "2025-02-15",
       "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-02/policy-440.pdf?VersionId=Oz_VbeSy2ZVNZfZemL5Lf.16.vlwsfpU",
       "file": "archive/440_stroke-center-standards_eff-2025-02-15.pdf",
+      "heading_style": "outline",
+      "mirror_url": null
+    },
+    {
+      "id": "605",
+      "title": "Prehospital Trauma Triage (in AO 2025-005)",
+      "effective": "2025-04-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-03/ao-2025-005.pdf?VersionId=hoI6kUYnjpaiCdXV5IMZfhAhGEPmUxmm",
+      "archive_url": "https://web.archive.org/web/20250714175706/https://files.santaclaracounty.gov/exjcpb1541/2025-03/ao-2025-005.pdf?VersionId=hoI6kUYnjpaiCdXV5IMZfhAhGEPmUxmm",
+      "file": "archive/AO-2025-005_policy-602-destination_eff-2025-04-01.pdf",
+      "heading_style": "outline",
+      "pages": [
+        25,
+        27
+      ],
+      "mirror_url": null
+    },
+    {
+      "id": "700-A03",
+      "title": "Hypoglycemia",
+      "effective": "2025-01-01",
+      "url": "https://files.santaclaracounty.gov/2024-09/700-a03.pdf?VersionId=NBlYgy6jBss8RTSIshQn_EDJJlvlgI0d",
+      "archive_url": "https://web.archive.org/web/20250807014643/https://files.santaclaracounty.gov/2024-09/700-a03.pdf?VersionId=NBlYgy6jBss8RTSIshQn_EDJJlvlgI0d",
+      "file": "archive/700-A03_hypoglycemia_eff-2025-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null
+    },
+    {
+      "id": "700-A04",
+      "title": "Sepsis",
+      "effective": "2026-01-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-a04.pdf?VersionId=llKIHwZNTKdIfmC1DHSq8pLdpZe1BOO.",
+      "archive_url": "https://web.archive.org/web/20260111090446/https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-a04.pdf",
+      "file": "archive/700-A04_sepsis_eff-2026-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null
+    },
+    {
+      "id": "700-A08",
+      "title": "Chest Pain - Suspected Cardiac Ischemia",
+      "effective": "2025-01-01",
+      "url": "https://files.santaclaracounty.gov/2024-09/700-a08.pdf?VersionId=zn1ExoHOzov2.K0pZI0GkN3P512olGXb",
+      "archive_url": "https://web.archive.org/web/20241113062608/https://files.santaclaracounty.gov/2024-09/700-a08.pdf?VersionId=zn1ExoHOzov2.K0pZI0GkN3P512olGXb",
+      "file": "archive/700-A08_chest-pain-suspected-cardiac-ischemia_eff-2025-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null,
+      "figures": [
+        {
+          "page": 3,
+          "section": "8",
+          "title": "Chest pain treatment flowchart (image)"
+        }
+      ]
+    },
+    {
+      "id": "700-A10",
+      "title": "Shock",
+      "effective": "2026-01-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-a10.pdf?VersionId=iOY4wLWFhhHadmcmR6HSNae_RqcSGX4z",
+      "archive_url": "https://web.archive.org/web/20260111090444/https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-a10.pdf?VersionId=iOY4wLWFhhHadmcmR6HSNae_RqcSGX4z",
+      "file": "archive/700-A10_shock_eff-2026-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null
+    },
+    {
+      "id": "700-A14",
+      "title": "Tachycardia with Pulses",
+      "effective": "2026-01-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-a14_0.pdf?VersionId=iKA.Epd8FMBZsck18yLY2Tbc78iWMoKB",
+      "archive_url": "https://web.archive.org/web/20260111090441/https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-a14_0.pdf",
+      "file": "archive/700-A14_tachycardia-with-pulses_eff-2026-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null,
+      "figures": [
+        {
+          "page": 3,
+          "section": "13",
+          "title": "Tachycardia with pulses treatment flowchart (image)"
+        }
+      ]
+    },
+    {
+      "id": "700-A15",
+      "title": "Poisoning and Overdose",
+      "effective": "2025-01-01",
+      "url": "https://files.santaclaracounty.gov/2024-09/700-a15.pdf?VersionId=a7vCGOfflLXv015K8VU0STtdnd6EpXUR",
+      "archive_url": "https://web.archive.org/web/20241113062859/https://files.santaclaracounty.gov/2024-09/700-a15.pdf?VersionId=a7vCGOfflLXv015K8VU0STtdnd6EpXUR",
+      "file": "archive/700-A15_poisoning-and-overdose_eff-2025-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null
+    },
+    {
+      "id": "700-A16",
+      "title": "Trauma Care",
+      "effective": "2026-01-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-a16.pdf?VersionId=NC2vIyxvUeJRvv4bFB6IRF00J0wJpbvm",
+      "archive_url": "https://web.archive.org/web/20260111090419/https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-a16.pdf?VersionId=NC2vIyxvUeJRvv4bFB6IRF00J0wJpbvm",
+      "file": "archive/700-A16_trauma-care_eff-2026-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null
+    },
+    {
+      "id": "700-A18",
+      "title": "Gynecological and Obstetrical Emergencies",
+      "effective": "2026-01-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-a18_0.pdf?VersionId=Lx3.Ijp.b0cVWxTwbk0lBMQN0JmBpx5I",
+      "archive_url": "https://web.archive.org/web/20260111204139/https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-a18_0.pdf",
+      "file": "archive/700-A18_gynecological-obstetrical-emergencies_eff-2026-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null,
+      "figures": [
+        {
+          "page": 4,
+          "section": "13",
+          "title": "Pre-eclampsia with severe features / eclampsia flowchart (image)"
+        }
+      ]
+    },
+    {
+      "id": "700-A20",
+      "title": "Behavioral Emergency - Combative",
+      "effective": "2026-01-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-a20.pdf?VersionId=7uMz4ZUp_PYpwHGSbDyZNi9r9jQH0icy",
+      "archive_url": "https://web.archive.org/web/20260111090413/https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-a20.pdf?VersionId=7uMz4ZUp_PYpwHGSbDyZNi9r9jQH0icy",
+      "file": "archive/700-A20_behavioral-emergency-combative_eff-2026-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null
+    },
+    {
+      "id": "700-M02",
+      "title": "Pleural Decompression",
+      "effective": "2026-01-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-m02.pdf?VersionId=0NDOBfMDvWprxKwjwJsQwOBM2msICDkK",
+      "archive_url": "https://web.archive.org/web/20260111090429/https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-m02.pdf",
+      "file": "archive/700-M02_pleural-decompression_eff-2026-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null
+    },
+    {
+      "id": "700-M09",
+      "title": "12-Lead Electrocardiogram",
+      "effective": "2024-01-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/migrated/Policy_700-M09.pdf",
+      "archive_url": "https://web.archive.org/web/20240224001437/https://emsagency.sccgov.org/sites/g/files/exjcpb266/files/bls/als-protocols-procedures/Policy_700-M09.pdf",
+      "file": "archive/700-M09_12-lead-ecg_eff-2024-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null,
+      "figures": [
+        {
+          "page": 2,
+          "section": "4.10",
+          "title": "STEMI location interpretation chart (image)",
+          "prompt": "prompts/figure_transcribe_chart.md"
+        }
+      ]
+    },
+    {
+      "id": "700-M17",
+      "title": "Traumatic Hemorrhage Control",
+      "effective": "2026-01-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-m17.pdf?VersionId=2.eKtUUqCQZMFHXclfuPvmjv6CF6gcUC",
+      "archive_url": "https://web.archive.org/web/20260111090416/https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-m17.pdf?VersionId=2.eKtUUqCQZMFHXclfuPvmjv6CF6gcUC",
+      "file": "archive/700-M17_traumatic-hemorrhage-control_eff-2026-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null
+    },
+    {
+      "id": "700-P02",
+      "title": "Pediatric Seizure",
+      "effective": "2026-01-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-p02.pdf?VersionId=j3BB7zpc1oO_5r69yFk4.CZS.rZIx1O1",
+      "archive_url": "https://web.archive.org/web/20260111090414/https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-p02.pdf?VersionId=j3BB7zpc1oO_5r69yFk4.CZS.rZIx1O1",
+      "file": "archive/700-P02_pediatric-seizure_eff-2026-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null
+    },
+    {
+      "id": "700-P03",
+      "title": "Pediatric Hypoglycemia",
+      "effective": "2025-01-01",
+      "url": "https://files.santaclaracounty.gov/2024-09/700-p03.pdf?VersionId=b5WqrFcm8At8wI2Ed4QxJnveCd8WMpCa",
+      "archive_url": "https://web.archive.org/web/20241113043117/https://files.santaclaracounty.gov/2024-09/700-p03.pdf?VersionId=b5WqrFcm8At8wI2Ed4QxJnveCd8WMpCa",
+      "file": "archive/700-P03_pediatric-hypoglycemia_eff-2025-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null
+    },
+    {
+      "id": "700-P07",
+      "title": "Pediatric Cardiac Arrest",
+      "effective": "2026-01-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-p07.pdf?VersionId=0ii5ni64ZkKaQNIqMdRmMASI8pwP.u4A",
+      "archive_url": "https://web.archive.org/web/20260111090419/https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-p07.pdf?VersionId=0ii5ni64ZkKaQNIqMdRmMASI8pwP.u4A",
+      "file": "archive/700-P07_pediatric-cardiac-arrest_eff-2026-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null,
+      "figures": [
+        {
+          "page": 5,
+          "section": "15",
+          "title": "Pediatric cardiac arrest flowchart (image)"
+        },
+        {
+          "page": 6,
+          "section": "15",
+          "title": "Pediatric traumatic cardiac arrest flowchart (image)"
+        }
+      ]
+    },
+    {
+      "id": "700-P10",
+      "title": "Pediatric Shock",
+      "effective": "2026-01-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-p10.pdf?VersionId=X50V.A_HU0AkQMdEqLUgUbAuQ3SUameR",
+      "archive_url": "https://web.archive.org/web/20260111090421/https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-p10.pdf?VersionId=X50V.A_HU0AkQMdEqLUgUbAuQ3SUameR",
+      "file": "archive/700-P10_pediatric-shock_eff-2026-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null
+    },
+    {
+      "id": "700-P11",
+      "title": "Pediatric Respiratory Distress",
+      "effective": "2025-01-01",
+      "url": "https://files.santaclaracounty.gov/2024-09/700-p11.pdf?VersionId=4AUm131FmMKvw8Ocbrw33qqe8Wo8huqS",
+      "archive_url": "https://web.archive.org/web/20241113045411/https://files.santaclaracounty.gov/2024-09/700-p11.pdf?VersionId=4AUm131FmMKvw8Ocbrw33qqe8Wo8huqS",
+      "file": "archive/700-P11_pediatric-respiratory-distress_eff-2025-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null
+    },
+    {
+      "id": "700-P15",
+      "title": "Pediatric Poisoning and Overdose",
+      "effective": "2025-01-01",
+      "url": "https://files.santaclaracounty.gov/2024-09/700-p15.pdf?VersionId=h76oEjhI5BQWgvst3QTVrWTVgtGAj9cX",
+      "archive_url": "https://web.archive.org/web/20241113050033/https://files.santaclaracounty.gov/2024-09/700-p15.pdf?VersionId=h76oEjhI5BQWgvst3QTVrWTVgtGAj9cX",
+      "file": "archive/700-P15_pediatric-poisoning-and-overdose_eff-2025-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null
+    },
+    {
+      "id": "700-P16",
+      "title": "Pediatric Trauma Care",
+      "effective": "2025-01-01",
+      "url": "https://files.santaclaracounty.gov/2024-09/700-p16.pdf?VersionId=a_RulfueuVuz3vftlUWgeSfMUfXqekmZ",
+      "archive_url": "https://web.archive.org/web/20241113051653/https://files.santaclaracounty.gov/2024-09/700-p16.pdf?VersionId=a_RulfueuVuz3vftlUWgeSfMUfXqekmZ",
+      "file": "archive/700-P16_pediatric-trauma-care_eff-2025-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null
+    },
+    {
+      "id": "700-S05",
+      "title": "Routine Medical Care Pediatric",
+      "effective": "2026-01-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-s05.pdf?VersionId=QnKyUhbYGzzQB1AuMMHyxOUjMhumdolF",
+      "archive_url": "https://web.archive.org/web/20260111090425/https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-s05.pdf?VersionId=QnKyUhbYGzzQB1AuMMHyxOUjMhumdolF",
+      "file": "archive/700-S05_routine-medical-care-pediatric_eff-2026-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null
+    },
+    {
+      "id": "700-S06",
+      "title": "Falls",
+      "effective": "2026-01-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-s06.pdf?VersionId=cK3AlZTopYqtricNMihHZVoThj.pS5Of",
+      "archive_url": "https://web.archive.org/web/20260111090438/https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-s06.pdf?VersionId=cK3AlZTopYqtricNMihHZVoThj.pS5Of",
+      "file": "archive/700-S06_falls_eff-2026-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null,
+      "figures": [
+        {
+          "page": 2,
+          "section": "4",
+          "title": "Fall flowchart (image)"
+        }
+      ]
+    },
+    {
+      "id": "302",
+      "title": "Prehospital Care Asset - Minimum Inventory Requirements",
+      "effective": "2026-01-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/302.pdf?VersionId=IhpHDZXgkzfPHeSOiosCjWfuVj4QBoHK",
+      "archive_url": "https://web.archive.org/web/20260111090442/https://files.santaclaracounty.gov/exjcpb1541/2025-09/302.pdf",
+      "file": "archive/302_minimum-inventory_eff-2026-01-01.pdf",
+      "heading_style": "outline",
+      "mirror_url": null
+    },
+    {
+      "id": "410",
+      "title": "Pediatric Receiving Center Standards",
+      "effective": "2026-01-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/410.pdf?VersionId=nBdMBiXUder0ZaBjB1iO1xoMxdrPzNK0",
+      "archive_url": "https://web.archive.org/web/20260111090451/https://files.santaclaracounty.gov/exjcpb1541/2025-09/410.pdf",
+      "file": "archive/410_pediatric-receiving-center-standards_eff-2026-01-01.pdf",
+      "heading_style": "nested",
+      "mirror_url": null
+    },
+    {
+      "id": "420",
+      "title": "Trauma Center Standards",
+      "effective": "2025-02-15",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-02/policy-420.pdf?VersionId=mYRbHuA4WxXr4oPVLh5dlC500YvgeXuc",
+      "archive_url": "https://web.archive.org/web/20250811052656/https://files.santaclaracounty.gov/exjcpb1541/2025-02/policy-420.pdf?VersionId=mYRbHuA4WxXr4oPVLh5dlC500YvgeXuc",
+      "file": "archive/420_trauma-center-standards_eff-2025-02-15.pdf",
+      "heading_style": "outline",
+      "mirror_url": null
+    },
+    {
+      "id": "430",
+      "title": "STEMI Center Standards",
+      "effective": "2025-02-15",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-02/policy-430.pdf?VersionId=Tssdc8ndRnCLjIxTPS35C2zm1pNYdESY",
+      "archive_url": "https://web.archive.org/web/20250811045438/https://files.santaclaracounty.gov/exjcpb1541/2025-02/policy-430.pdf?VersionId=Tssdc8ndRnCLjIxTPS35C2zm1pNYdESY",
+      "file": "archive/430_stemi-center-standards_eff-2025-02-15.pdf",
+      "heading_style": "outline",
+      "mirror_url": null
+    },
+    {
+      "id": "500",
+      "title": "Electronic Patient Care Record (ePCR) Documentation",
+      "effective": "2020-01-01",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/migrated/newPolicy500.pdf?VersionId=jqEsC15xks9SC.0TtpXyftuYJ.jurU.h",
+      "archive_url": "https://web.archive.org/web/20250114071108/https://files.santaclaracounty.gov/exjcpb1541/migrated/newPolicy500.pdf?VersionId=jqEsC15xks9SC.0TtpXyftuYJ.jurU.h",
+      "file": "archive/500_epcr-documentation_eff-2020-01-01.pdf",
       "heading_style": "outline",
       "mirror_url": null
     }

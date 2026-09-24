@@ -2,22 +2,38 @@
 # The engine (herald/knowledge/) contains no county-specific rules; everything document-specific is here or in
 # config/counties/<id>.json ("documents").
 heading_styles:
-  # Numbered protocol style: "3.2.1. If transport time ..." (700-A13, 700-S04)
-  decimal: '^\s{0,12}(\d{1,2}(?:\.\d{1,2}){0,3})\.?\s{1,8}(\S.{1,160})$'
-  # Policy outline style: "I. Purpose", "A. Patients shall ...", "1. The closest ...", "a. ..." (501, 602, 440)
+  # Numbered protocol style: "3.2.1. If transport time ..." (the 700 series). Every label is printed with its trailing
+  # period, which tells a label from a wrapped line that starts with a number ("90 mmHg", "2.5 mg; not to exceed");
+  # sub-items sit up to 24 spaces in (700-A10 3.3.1.1, 700-P02 3.1.4); an item can hold only a table (700-P10 3.3.1.3).
+  decimal: '^\s{0,24}(\d{1,2}(?:\.\d{1,2}){0,3})\.(?:\s{1,8}(\S.{0,160}))?\s*$'
+  # Policy outline style: "I. Purpose", "A. Patients shall ...", "1. The closest ...", "a. ..." (302, 420, 430, 440,
+  # 500, 501, 602, 605)
   # The label type sets the level (I > A > 1 > a); indentation varies by document, so it doesn't gate detection.
   outline:
     - '^\s{0,8}([IVXL]{1,5})\.\s{1,10}(\S.{1,160})$'
     - '^\s{0,40}([A-Z])\.\s{1,10}(\S.{1,160})$'
     - '^\s{0,40}(\d{1,2})\.\s{1,10}(\S.{1,160})$'
     - '^\s{0,40}([a-z])\.\s{1,10}(\S.{1,160})$'
-# A line that repeats on at least this share of a document's pages is a running header or footer.
+  # Deep policy outline where a label kind recurs below itself: "I." > "A." > "1." > "a." > "i." > "1." > "a." (410).
+  # One pattern for every label; herald/knowledge/sections.py sets the level from the sequence of labels.
+  nested: '^\s{0,40}([IVXL]{1,5}|[A-Z]|\d{1,2}|[a-z]|[ivxl]{1,5})\.\s{1,10}(\S.{1,160})$'
+# A line that repeats on at least this share of a document's pages is a running header, footer or side tab, if it
+# also sits among the first 5 or last 13 non-empty lines of its page in most of its occurrences. The band keeps body
+# text that a short protocol prints twice (700-A14 §5.1/§7.1, 700-A20 §4.2/§5.1 criteria, 700-A18 §6.1/§7.1) and the
+# 302 table column headers; headers sit in the first 4 lines and footers and side tabs in the last 12 of every page
+# in all 32 indexed documents. A numbered section line is never a running line.
 running_line_share: 0.6
-# Words glued by a broken font (ligatures lost in the text layer, e.g. "Abnormali.es"): the section is marked
-# "text layer uncertain" and the page image is offered instead of trusting the words.
-glyph_error_pattern: '[A-Za-z]{2,}[.9][a-z]{1,3}\b|[ﬀ-ﬆ]'
-# Effective date as printed on the first page, read from each new version.
-effective_pattern: 'Effective:\s+([A-Z][a-z]+ \d{1,2}, \d{4})'
+running_line_band: [5, 13]
+# Text-layer damage: the section is marked "text layer uncertain" and the page image is offered instead of trusting
+# the words. Words glued by a broken font (ligatures lost, e.g. "Abnormali.es" in 700-A13); a Symbol-font "≥"/"≤"
+# that the text layer reports as "³"/"£" (700-A18 6.1.2-6.1.3); runs of symbols from a chart drawn in a font without
+# a character map (700-P07 flowchart pages 5-6).
+glyph_error_pattern: '[A-Za-z]{2,}[.9][a-z]{1,3}\b|[ﬀ-ﬆ]|[³£]|[!"#$%&()*+/<=>?@\\^_{|}~]{4,}'
+# Effective date as printed on the first page, read from each new version: "Effective: January 1, 2026" (700 series,
+# 400/500/600 policies), "Effective Date: 1/1/2026" (302, 410), "January 1,2025" (no space, superseded 700-A11).
+effective_pattern: 'Effective(?:\s+Date)?:\s+([A-Z][a-z]+ \d{1,2},\s?\d{4}|\d{1,2}/\d{1,2}/\d{4})'
+# How the printed date is read into a calendar date (compared with the reviewed "effective" in the county config).
+effective_formats: ['%B %d, %Y', '%B %d,%Y', '%m/%d/%Y']
 search:
   top_k: 5
   rerank_depth: 8                       # passages the local model chooses from

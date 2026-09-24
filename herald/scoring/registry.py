@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Optional
 
 from ..config import CONFIG_DIR, load_yaml
 from .banded import BandedScore
@@ -29,14 +30,16 @@ class ScaleRegistry:
     def __contains__(self, scale_id: str) -> bool:
         return scale_id in self.scales
 
-    def ids(self) -> list[str]:
-        return list(self.scales)
+    def ids(self, county: Optional[str] = None) -> list[str]:
+        """Every score, or with a county: the published scores plus that county's own criteria (`county:`)."""
+        return [sid for sid, s in self.scales.items()
+                if county is None or getattr(s, "county", None) in (None, county)]
 
     def item_scales(self) -> list[ItemSumScale]:
         return [s for s in self.scales.values() if isinstance(s, ItemSumScale)]
 
-    def evaluate_all(self, values: dict) -> dict[str, dict]:
-        return {sid: s.evaluate(values) for sid, s in self.scales.items()}
+    def evaluate_all(self, values: dict, county: Optional[str] = None) -> dict[str, dict]:
+        return {sid: self.scales[sid].evaluate(values) for sid in self.ids(county)}
 
 
 @lru_cache(maxsize=1)

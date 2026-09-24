@@ -49,15 +49,15 @@ class Projector:
             now = utcnow()
             county = self.counties.active
             vals, all_vals = inc.values(confirmed_only=True), inc.values(confirmed_only=False)
-            results = self.scales.evaluate_all(vals)
+            results = self.scales.evaluate_all(vals, county["id"])          # published + this county's criteria
+            results_all = self.scales.evaluate_all(all_vals, county["id"])  # as if every waiting fact were confirmed
             complaint = all_vals.get("complaint.chief")
-            item_scales = {f"@{s.id}": s for s in self.scales.item_scales()}
-            started = {ref: any(k.startswith(s.key_prefix) for k in all_vals) for ref, s in item_scales.items()}
-            alert_ids = self.checklists.active(inc.dispatch, complaint, any(started.values()))
-            readiness = self._readiness(alert_ids, vals, all_vals, results, started)
-            missing, unknown = self._needs_attention(readiness, alert_ids, vals, all_vals, results, started)
+            started = {s.id for s in self.scales.item_scales() if any(k.startswith(s.key_prefix) for k in all_vals)}
+            alert_ids = self.checklists.active(inc.dispatch, complaint, all_vals, results_all)
+            readiness, items = self._readiness(alert_ids, vals, all_vals, results, results_all, started)
+            missing, unknown = self._needs_attention(readiness, items, alert_ids, vals, all_vals, results)
             changed = self._trends(inc)
-            alerts = self._alerts(inc, changed, results, county)
+            alerts = self._alerts(inc, changed, results, county, vals)
             summary = " ".join([str(all_vals["patient.age"])] if "patient.age" in all_vals else [])
             if "patient.sex" in all_vals:
                 summary = f"{summary} {str(all_vals['patient.sex']).upper()[:1]}".strip()
@@ -68,8 +68,7 @@ class Projector:
                 "readiness": readiness,
                 "needs_attention": {"missing": missing, "unknown": unknown},
                 "changed": changed,
-                "scores": {"news2": results["news2"], "news2_history": inc.news2_history, "race": results["race"],
-                           "gfast": results["gfast"], "field_triage": results["field_triage"],
+                "scores": {**results, "news2_history": inc.news2_history,
                            "stroke_scales": county["stroke"]["scales"],
                            "primary_stroke_scale": county["stroke"]["primary_scale"]},
                 "county": {"id": county["id"], "name": county["name"]},
@@ -82,43 +81,50 @@ class Projector:
                 "counters": {"facts": len(inc.facts), "cloud_ai_calls": 0},
             }
 
-    def _readiness(self, alert_ids, vals, all_vals, results, started) -> list[dict]:
-        out = []
+    def _readiness(self, alert_ids, vals, all_vals, results, results_all, started):
+        """One entry per open checklist; also returns the parsed items by key (for needs_attention)."""
+        out, parsed = [], {}
         for aid in alert_ids:
-            items = []
-            for key, label in self.checklists.items(aid):
-                if key.startswith("@"):
-                    state = "done" if results[key[1:]]["complete"] else ("pending" if started[key] else "missing")
-                else:
-                    state = "done" if key in vals else ("pending" if key in all_vals else "missing")
-                items.append({"key": key, "label": label, "state": state})
-            done = sum(i["state"] == "done" for i in items)
-            out.append({"id": aid, "label": self.checklists.label(aid), "done": done, "total": len(items),
-                        "ready": done == len(items), "items": items})
-        return out
+            rows = []
+            for item in self.checklists.items(aid):
+                if not item.listed(vals):
+                    continue
+                parsed[item.key] = item
+                state = item.state(vals, all_vals, results, results_all, started)
+                row = {"key": item.key, "label": item.label, "state": state}
+                if item.note and state != "done":
+                    row["note"] = item.note
+                rows.append(row)
+            done = sum(i["state"] == "done" for i in rows)
+            out.append({"id": aid, "label": self.checklists.label(aid), "source": self.checklists.source(aid),
+                        "done": done, "total": len(rows), "ready": done == len(rows), "items": rows})
+        return out, parsed
 
-    def _needs_attention(self, readiness, alert_ids, vals, all_vals, results, started):
+    def _needs_attention(self, readiness, items, alert_ids, vals, all_vals, results):
         missing, unknown, seen = [], [], set()
 
-        def add(key: str, label: str):
+        def add(key: str, label: str, pending: bool, note=None, kind_key=None):
             if key in seen or key in vals:
                 return
             seen.add(key)
-            kind = "measure" if key.startswith("@") else self.vocab.meta(key).get("kind", "measure")
-            entry = {"key": key, "label": label, "pending_confirm": key in all_vals or started.get(key, False)}
+            kind = self.vocab.meta(kind_key).get("kind", "measure") if kind_key else "measure"
+            entry = {"key": key, "label": label, "pending_confirm": pending}
+            if note:
+                entry["note"] = note
             (unknown if kind == "history" else missing).append(entry)
 
         for r in readiness:
             for i in r["items"]:
                 if i["state"] != "done":
-                    add(i["key"], i["label"])
+                    keys = items[i["key"]].vocab_keys
+                    add(i["key"], i["label"], i["state"] == "pending", i.get("note"), keys[0] if keys else None)
         news2 = self.scales["news2"]
         for label in results["news2"]["missing"]:
             key = next(p["key"] for p in news2.parameters if p["label"] == label)
-            add(key, f"{self.vocab.label(key)} (for NEWS2)")
+            add(key, f"{self.vocab.label(key)} (for NEWS2)", key in all_vals, kind_key=key)
         seeds = self.checklists.default_unknowns + [u for aid in alert_ids for u in self.checklists.unknowns(aid)]
         for key in seeds:
-            add(key, self.vocab.label(key))
+            add(key, self.vocab.label(key), key in all_vals, kind_key=key)
         return missing, unknown
 
     def _trends(self, inc) -> list[dict]:
@@ -134,7 +140,7 @@ class Projector:
                                 "significant": self.trends.significant(key, series[-2], series[-1])})
         return changed
 
-    def _alerts(self, inc, changed, results, county) -> list[dict]:
+    def _alerts(self, inc, changed, results, county, vals) -> list[dict]:
         alerts = []
         for key in sorted(self.vocab.contradiction_keys):
             h = inc.history(key)
@@ -160,6 +166,16 @@ class Projector:
                 if rule:
                     alert.update(county_rule=rule, county=county["name"])
                 alerts.append(alert)
+        for sid, r in results.items():                 # a county's criteria met (Trauma Alert, sepsis pre-notification)
+            alert_type = self.scales[sid].d.get("alert_type")
+            if r.get("kind") != "criteria" or not alert_type or not r["met"]:
+                continue
+            alert = {"type": alert_type, "score": sid, "label": r["name"], "level": r["level"],
+                     "criteria": [t for g in self.scales[sid].groups if g.get("met") for t in r[g["id"]]]}
+            rules = self.checklists.county_rules(sid, vals)
+            if rules:
+                alert.update(county_rule=rules, county=county["name"])
+            alerts.append(alert)
         for f in inc.facts:
             if self.vocab.meta(f.key).get("require_tap") and f.status == Status.unconfirmed:
                 alerts.append({"type": "confirm_required", "key": f.key, "label": self.vocab.label(f.key),

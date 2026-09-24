@@ -42,6 +42,16 @@ class Role(str, Enum):
     photo = "photo"
 
 
+def source_role(captured_by: "CapturedBy", speaker: Optional[str] = None, role: Optional[Role] = None) -> Role:
+    """Whose information a capture is by default: an explicit role; else a speaker named by a role ("patient",
+    "bystander"); else the medic for the medic's own mic, and family for anyone else's."""
+    if role is not None:
+        return role
+    if speaker and speaker.strip().lower() in Role._value2member_map_:
+        return Role(speaker.strip().lower())
+    return Role.medic if captured_by == CapturedBy.medic else Role.family
+
+
 class Status(str, Enum):
     unconfirmed = "unconfirmed"
     confirmed = "confirmed"

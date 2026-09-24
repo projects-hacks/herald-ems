@@ -1,9 +1,7 @@
-"""Speech text -> candidate facts. Every extractor implements core.ports.Extractor."""
+"""Speech text -> candidate facts, by the local model (herald/extraction/model.py), with per-fact confidence from
+token probabilities, grounding, and prompt-injection detection. There is no regex extraction in the product."""
 from .grounding import Grounding
 from .guard import InstructionGuard, instruction_shaped
 from .model import ModelExtractor, Prompts
-from .pipeline import ExtractionPipeline, merge_model_facts
-from .rules import RulesExtractor
 
-__all__ = ["ExtractionPipeline", "Grounding", "InstructionGuard", "ModelExtractor", "Prompts", "RulesExtractor",
-           "instruction_shaped", "merge_model_facts"]
+__all__ = ["Grounding", "InstructionGuard", "ModelExtractor", "Prompts", "instruction_shaped"]

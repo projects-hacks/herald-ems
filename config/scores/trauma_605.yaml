@@ -1,0 +1,172 @@
+# Santa Clara County EMS Policy 605 Prehospital Trauma Triage: the Trauma Alert criteria, as the county's own
+# criteria score. Read from the clean copy in AO 2025-005 (PDF pages 25-27 = policy pages 1-3; pages 22-24 are the
+# tracked-changes copy and are not used). Every `text` is the county's wording with its letter, verified against
+# data/protocols/santa_clara/archive/AO-2025-005_policy-602-destination_eff-2025-04-01.pdf on 2026-09-24 (research:
+# docs/research/county_protocols_2026-09.md §5.1). Rule types: herald/scoring/rules.py. Engine:
+# herald/scoring/criteria.py.
+#
+# How facts map to criteria:
+# - Injury patterns A-I and mechanisms O-W are the fixed `trauma.criteria` values (config/vocabulary.yaml, in the
+#   county's words; the county words several as "suspected", and a suspected finding counts). A value not described
+#   is "unknown", never "absent".
+# - Mental status and vital signs J-N are computed from their own facts, never extracted as criteria.
+# - Criterion S (vehicle telemetry), X.3 (EMS provider judgment), X.4 (hanging) and X.5 (drowning) have no fact in
+#   the vocabulary and are not represented; the bleeding-disorder half of X.1 likewise (see the report in
+#   docs/UX_PLAN.md §5.9c).
+# In Santa Clara a Yellow hit is still a Trauma Alert: Policy 602 §VI.C (PDF p. 14) defines Trauma Alert Patients as
+# meeting the Red criteria "or Moderate Risk Mechanism of Injury or EMS Judgement (Yellow Criteria)". Destination
+# rules (602 §VI.C.2-4, §VI.D) are quoted from config/counties/santa_clara.json, not here.
+id: trauma_605
+name: Trauma Alert criteria (Policy 605)
+kind: criteria
+county: santa_clara
+source: >-
+  Santa Clara County EMS Policy 605 Prehospital Trauma Triage (effective 2025-04-01, in AO 2025-005), §II.B
+  criteria A-X (policy pp. 1-3) and §III.A (p. 3); PDF pages 25-27 of AO 2025-005
+thresholds_text: >-
+  605 §II.B: "Injured patients are to be identified as a Trauma Alert Patient if one or more of the criteria below
+  are met" (Red or Yellow; Policy 602 §VI.C). Special considerations X are EMS judgement. Major burn criteria
+  (§III) are shown separately.
+# 605 §II.A-B: the criteria apply to injured patients. Until a mechanism or an injury is described the score says so.
+applies_when:
+  type: any_of
+  needs: "Mechanism of injury or injuries found (Policy 605 §II.B applies to injured patients)"
+  rules:
+    - {type: present, key: trauma.mechanism}
+    - {type: present, key: trauma.injuries}
+    - {type: present, key: trauma.criteria}
+groups:
+  - {id: red, label: "High Risk Injury Pattern / Mental Status and Vital Signs (Red Criteria)", short: RED,
+     met: true, priority: high}
+  - {id: yellow, label: "Moderate Risk Mechanism of Injury (Yellow Criteria)", short: YELLOW, met: true,
+     priority: medium}
+  - {id: consider, label: "Special Considerations (EMS Judgement), §II.B X: \"The following should be considered in
+       prehospital trauma triage when a traumatic injury is also present\"", short: X, met: false, priority: low}
+  - {id: burn, label: "Major Burn Criteria (§III.A)", short: BURN, met: false, priority: medium}
+red:
+  # High Risk Injury Pattern (Red Criteria), §II.B, policy p. 1 (PDF p. 25)
+  - {code: A, type: contains, key: trauma.criteria, value: penetrating injury head neck torso or proximal extremity,
+     text: "A. Penetrating injuries to head, neck, torso, and proximal extremities"}
+  - {code: B, type: contains, key: trauma.criteria, value: skull deformity,
+     text: "B. Skull deformity, suspected skull fracture"}
+  - {code: C, type: contains, key: trauma.criteria, value: spinal injury with new motor or sensory loss,
+     text: "C. Suspected spinal injury with new motor or sensory loss"}
+  - {code: D, type: contains, key: trauma.criteria, value: chest wall instability,
+     text: "D. Chest wall instability, deformity, or suspected flail chest"}
+  - {code: E, type: contains, key: trauma.criteria, value: pelvic fracture, text: "E. Suspected pelvic fracture"}
+  - {code: F, type: contains, key: trauma.criteria, value: two or more proximal long bone fractures,
+     text: "F. Suspected fracture of two or more proximal long bones"}
+  - {code: G, type: contains, key: trauma.criteria, value: crushed degloved mangled or pulseless extremity,
+     text: "G. Crushed, degloved, mangled, or pulseless extremity"}
+  - {code: H, type: contains, key: trauma.criteria, value: amputation proximal to wrist or ankle,
+     text: "H. Amputation proximal to wrist or ankle"}
+  # A tourniquet or wound packing already applied is itself the criterion (research §5.4, 700-M17); procedure
+  # names as in docs/LABELING_GUIDE.md §4e.
+  - code: I
+    type: any_of
+    text: "I. Active bleeding requiring a tourniquet or wound packing with continuous pressure"
+    rules:
+      - {type: contains, key: trauma.criteria, value: bleeding requiring tourniquet or wound packing,
+         label: "Described: bleeding requiring tourniquet or wound packing", finding: "{value}"}
+      - {type: record_has, key: procedures.done, field: procedure, values: [tourniquet, wound packing],
+         label: "Procedure done: tourniquet or wound packing", finding: "procedure: {value}"}
+  # Mental Status and Vital Signs (Red Criteria), §II.B, policy pp. 1-2 (PDF pp. 25-26)
+  # J: motor GCS as said; without it, a stated GCS total settles it only when the arithmetic does (total 15 means
+  # motor 6; total 7 or less means motor 5 or less). Component ranges eye 1-4, verbal 1-5, motor 1-6: Teasdale G et
+  # al. The Glasgow Coma Scale at 40 years. Lancet Neurol 2014;13(8):844-54.
+  - {code: J, type: motor_gcs_below, key: vitals.gcs_motor, value: 6, total_key: vitals.gcs_total,
+     motor_min: 1, motor_max: 6, others_min: 2, others_max: 9, required: true,
+     text: "J. Unable to follow commands (motor GCS <6)", finding: "motor GCS {value}",
+     needs: {vitals.gcs_motor: "Motor GCS (or GCS total)"}}
+  - {code: K, type: outside, key: vitals.rr, low: 10, high: 29, required: true,
+     text: "K. Respiratory rate less than 10 or greater than 29 breaths per minute", finding: "RR {value}",
+     needs: {vitals.rr: Respiratory rate}}
+  # L: "need for respiratory support" includes ventilation the crew is already giving.
+  - code: L
+    type: any_of
+    text: "L. Respiratory distress or need for respiratory support"
+    rules:
+      - {type: contains, key: trauma.criteria, value: respiratory distress or need for respiratory support,
+         label: "Described: respiratory distress or need for respiratory support", finding: "{value}"}
+      - {type: record_has, key: procedures.done, field: procedure,
+         values: [bvm ventilation, cpap, supraglottic airway, intubation],
+         label: "Procedure done: BVM ventilation, CPAP, supraglottic airway or intubation",
+         finding: "procedure: {value}"}
+  - {code: M, type: room_air_below, key: vitals.spo2, oxygen_key: vitals.on_oxygen, value: 90, required: true,
+     text: "M. Room-air pulse oximetry less than 90%", finding: "SpO2 {value}% on room air",
+     needs: {vitals.spo2: "SpO2 on room air", vitals.on_oxygen: "SpO2 on room air"}}
+  # N.1-N.3, policy p. 2 (PDF p. 26). Age banding: read literally, "10-64" and "older than 65" leave age 65 itself
+  # in no band. 605 §II.A says the county's criteria are the ACS national guideline, which uses "Age ≥ 65"
+  # (Newgard 2022), so age 65 is placed in N.3.
+  - code: N.1-N.3
+    type: sbp_by_age
+    age_key: patient.age
+    sbp_key: vitals.sbp
+    required: true
+    text: "N. Vital signs below the following parameters (systolic BP by age)"
+    finding: "SBP {sbp}, age {age}"
+    needs: {patient.age: Age, vitals.sbp: Systolic BP}
+    bands:
+      - {code: N.1, age_max: 9, sbp_below_base: 70, sbp_below_per_year: 2,
+         text: "N.1 Age 0-9 years: Systolic BP less than 70 mmHg + 2x age years"}
+      - {code: N.2, age_min: 10, age_max: 64, sbp_below: 90, text: "N.2 Age 10-64 years: Systolic BP less than 90 mmHg"}
+      - {code: N.3, age_min: 65, sbp_below: 110,
+         text: "N.3 Age older than 65 years: Systolic BP is less than 110 mmHg"}
+  - {code: N.4, type: hr_above_sbp, age_key: patient.age, sbp_key: vitals.sbp, hr_key: vitals.hr, min_age: 10,
+     required: true, text: "N.4 Age 10 and older: Heart rate is greater than Systolic BP",
+     finding: "HR {hr}, SBP {sbp}",
+     needs: {patient.age: Age, vitals.sbp: Systolic BP, vitals.hr: Heart rate}}
+yellow:
+  # Moderate Risk Mechanism of Injury (Yellow Criteria), §II.B, policy p. 2 (PDF p. 26). S (vehicle telemetry) has
+  # no fact in the vocabulary.
+  - {code: O, type: contains, key: trauma.criteria, value: ejection,
+     text: "O. Auto crash with partial or complete ejection"}
+  - {code: P, type: contains, key: trauma.criteria, value: intrusion or extrication,
+     text: "P. Auto crash with intrusion > 12 inches occupant site, > 18 inches any site, or need for extrication"}
+  - {code: Q, type: contains, key: trauma.criteria, value: death in same passenger compartment,
+     text: "Q. Death in passenger compartment"}
+  - code: R
+    type: all_of
+    text: "R. Child (age 0-9) unrestrained or in unsecure child safety seat"
+    rules:
+      - {type: contains, key: trauma.criteria, value: child unrestrained, label: "Described: child unrestrained",
+         finding: "{value}"}
+      - {type: between, key: patient.age, low: 0, high: 9, label: "Age 0-9", finding: "age {value}"}
+  - {code: T, type: contains, key: trauma.criteria, value: rider separated with significant impact,
+     text: "T. Rider separated from transport vehicle with significant impact (eg. Motorcycle, ATV, horse etc.)"}
+  - {code: U, type: contains, key: trauma.criteria, value: rollover unrestrained,
+     text: "U. Rollover with unrestrained occupant"}
+  - {code: V, type: contains, key: trauma.criteria, value: pedestrian or cyclist thrown or run over,
+     text: "V. Pedestrian/bicycle rider thrown, run over, or with significant impact"}
+  - {code: W, type: contains, key: trauma.criteria, value: fall over 10 feet,
+     text: "W. Fall from height > 10 feet (all ages)"}
+consider:
+  # Special Considerations (EMS Judgement), §II.B X, policy pp. 2-3 (PDF pp. 26-27). They apply "when a traumatic
+  # injury is also present", which applies_when already requires.
+  - {code: X.1, type: present, key: meds.anticoagulant, unless: [none, "no", "false"],
+     text: "X.1 Patients with minor traumatic injuries also on anti-coagulants or with bleeding disorders",
+     finding: "anticoagulant: {value}"}
+  - {code: X.2, type: contains, key: trauma.criteria, value: time sensitive extremity injury,
+     text: "X.2 Time-sensitive extremity injury"}
+  - {code: X.6, type: contains, key: trauma.criteria, value: low level fall with significant head impact,
+     text: "X.6 Low-level falls with significant head impact"}
+  # X.7: "in cardiac arrest" is read from CPR or defibrillation recorded in procedures.done; weeks as said
+  # (patient.pregnancy_weeks), not the fundal-height sign the county gives in brackets.
+  - code: X.7
+    type: all_of
+    text: >-
+      X.7 Any pregnant patient beyond 20 weeks gestation (uterine fundus palpated at or above the umbilicus) in
+      cardiac arrest, that does not meet obvious death criteria
+    rules:
+      - {type: above, key: patient.pregnancy_weeks, value: 20, label: "Pregnant beyond 20 weeks",
+         finding: "{value} weeks"}
+      - {type: record_has, key: procedures.done, field: procedure, values: [cpr, defibrillation],
+         label: "In cardiac arrest (CPR or defibrillation recorded)", finding: "procedure: {value}"}
+burn:
+  # §III.A, policy p. 3 (PDF p. 27): not a Trauma Alert criterion; §III.B sends major burns to a burn center.
+  - {code: III.A, type: contains, key: trauma.criteria, value: major burn,
+     text: "III.A Patients with burn injuries are to be identified as major burn criteria (§III.A.1-7); §III.B
+       \"Transport all identified major burn patients to a designated burn center\""}
+relay_text: "{by_group}"
+relay_text_not_met: "no Policy 605 criterion met"
+alert_type: trauma_alert_criteria

@@ -123,7 +123,7 @@ When `by` is `"other"` and nothing else is said about the source, the role is th
 - **Nested attribution:** the daughter on the mic relaying the neighbor → the neighbor's statement is `bystander` (clause-level attribution wins over the speaker's default role).
 
 ## 4c. Rules settled while building gold v2 (adjudication of 15 disagreements, 2026-09-23)
-- **`stroke.*` keys only for stroke-like presentations.** `stroke.onset_witnessed`, `stroke.lkw` and `stroke.deficits` are labeled when the words describe stroke-like symptoms: focal weakness, facial droop, speech or language trouble, gaze deviation, sudden collapse with neuro signs, vertigo with ataxia. They are **not** labeled for a trauma mechanism (a witnessed bike crash), a found-down fall, hypoglycemia, hypothermia, or numbness from a suspected spinal injury (v2_013, 019, 034, 048, 072, 078, 079).
+- **`stroke.*` keys only for stroke-like presentations.** From run E on, an utterance may carry the call's dispatch (`"dispatch"`, e.g. "possible stroke"; the model sees it as the first line). **When the dispatch is a possible stroke, `stroke.lkw` and `stroke.onset_witnessed` are labeled whenever they are stated, even in a sentence with no symptoms** ("Onset was witnessed.", "husband says she was fine at 2:28"): the paramedic already knows it's a stroke call. Otherwise (no dispatch, or another dispatch), `stroke.onset_witnessed`, `stroke.lkw` and `stroke.deficits` are labeled when the words describe stroke-like symptoms: focal weakness, facial droop, speech or language trouble, gaze deviation, sudden collapse with neuro signs, vertigo with ataxia. They are **not** labeled for a trauma mechanism (a witnessed bike crash), a found-down fall, hypoglycemia, hypothermia, or numbness from a suspected spinal injury (v2_013, 019, 034, 048, 072, 078, 079).
 - **Attribution is clause-scoped, also in run-ons.** "per mom she's been vomiting since yesterday she's fourteen and on an insulin pump": only the vomiting clause is the mother's. A new clause (a new subject, or a subjectless shorthand clause like "takes lipiter and metoprolol") is the medic's (v2_022, v2_057).
 - **A stated presenting problem that no structured key captures is `complaint.chief`:** "lethargic", "collapsed", "vomiting", "room spinning". This joins the rules for "fall" and "MVC". Still, don't repeat what a structured key holds: fever goes in `vitals.temp`, and new confusion in `vitals.consciousness` (v2_016, v2_068).
 - **Response words give an ACVPU letter; a GCS number doesn't.** "Eyes open to pain" or "only responds to pain" → P. "GCS nine" alone gives no letter (v2_062).
@@ -167,11 +167,72 @@ difficulties; T is the last-known-well time and is labeled as `stroke.lkw`, not 
 
 G.F.A.S.T. labels for the gold sets live in separate files (`eval/gold_v1_gfast.jsonl`, `eval/gold_v2_gfast.jsonl`), scored separately, so extraction F1 stays comparable with every number already published.
 
+## 4e. Every call type: keys added for run E (2026-09-23)
+Herald is a copilot for every EMS call, not only strokes. These keys cover what the crew does and what trauma and sepsis calls need. Values follow NEMSIS where it has an element.
+
+**Records (one fact per event).** A record value is a JSON object; only the fields said are filled.
+- **`meds.given`** `{"drug", "dose", "unit", "route", "time", "by"}`: a drug given by the crew or, before arrival, by someone else (fire, first responder, bystander, police). NEMSIS eMedications.03–.06.
+  - `drug`: generic, lowercase ("naloxone" for Narcan, "ondansetron" for Zofran, "dextrose" for D10/D50, "nitroglycerin", "aspirin", "epinephrine", "albuterol", "fentanyl"). `dose`: the number as said (324, 0.4, 2). `unit`: mg, mcg, g, mL, units. `route`: IV, IO, IM, IN, PO, SL, SQ, neb, PR. `time`: as said. `by`: "crew" when our crew gave it ("gave", "we gave", "pushed"), otherwise who ("fire", "bystander", "police", "first responder").
+  - **Not** `meds.given`: the patient's own doses before the call ("took two nitro at home" → `meds.list`); plans ("going to give zofran"); denials ("no aspirin given yet"); oxygen (`vitals.on_oxygen`).
+  - A repeat dose is a second fact ("second round of narcan at 14:12"). Doses said as a count with no separate times ("nitro 0.4 SL times three") are **one** fact with `"count": 3`; identical facts would be read as the same dose said twice.
+  - A medic reporting an intervention without naming anyone else ("TXA one gram IV", "IO in the right humerus") is reporting the crew's: `by` "crew" (settled when adjudicating gold v3).
+  - `by` is a category: crew, fire, police, first responder, family, facility (nursing-home or school staff) or bystander (friend, coworker, coach, security). The relation itself ("husband") goes in the fact's source. The vocabulary normalizes synonyms (`field_synonyms` in `config/vocabulary.yaml`), so "husband" and "family" are the same label. The patient's own dose before the call stays `meds.list`, even when a family member reports it; a dose a family member **gave** the patient is `meds.given` with `by` the relation.
+  - Before arrival, a dose **given to** the patient by someone else (a parent's EpiPen, nursing-home nitro paste) is `meds.given` with `by` as said, not `meds.list`; a caregiver handing over the usual daily pills is neither. Unnamed fluids ("a liter wide open") give `{"drug": "iv fluids"}`. A drug being given right now ("pushing the D50 now") counts; a plan ("gonna push D10") doesn't. When a time or route could belong to two drugs, it goes on the nearest one only.
+  - Names: IV fluid → "normal saline"; oral glucose gel → "glucose"; IV dextrose (D10/D50) → "dextrose"; DuoNeb → "ipratropium-albuterol"; Keflex → "cephalexin".
+- **`procedures.done`** `{"procedure", "time", "detail", "by"}`: something done to the patient. NEMSIS eProcedures. `procedure`, short and lowercase: "iv access", "io access", "bvm ventilation", "supraglottic airway", "intubation", "cpr", "defibrillation", "cardioversion", "pacing", "cpap", "splint", "spinal motion restriction", "tourniquet", "wound packing", "needle decompression". `detail`: size, site, count or result as said ("18 gauge left AC", "2 shocks", "200 joules"). Not procedures: a 12-lead (`ecg.*`) or a glucose check (`vitals.glucose`); plans; attempts said to have failed go in `detail` ("iv access", detail "missed x2").
+
+**Numbers.**
+- **`vitals.pain`** 0–10, only when a number is said ("eight out of ten", "pain 3/10"); "a lot of pain" gives none.
+- **`vitals.gcs_eye`** (1–4), **`vitals.gcs_verbal`** (1–5), **`vitals.gcs_total`** (3–15): each only when its number is said. (`vitals.gcs_motor` keeps its older rule: a stated response such as "withdraws to pain" gives the motor number.) Examples: "GCS 14" → total 14; "E4 V4 M6" → eye 4, verbal 4, motor 6. Never compute a total from components, or components from a total.
+- **`vitals.etco2`** in mmHg as said ("end tidal 32", "capno reading 18").
+- **`patient.pregnancy_weeks`**: "she's 30 weeks" → 30; "pregnant" with no weeks gives none.
+
+**Trauma and sepsis.**
+- **`trauma.mechanism`**: how the injury happened, short, as said, on any call where it's stated (a fall on a stroke call too; "found down" is not a mechanism) ("rollover mvc, ejected", "fall from 12 feet", "gsw to the abdomen", "pedestrian struck at 35 mph"). `complaint.chief` keeps its own rule; the same words may give both.
+- **`trauma.injuries`**: a list of injuries found, as said ("open deformity right femur", "penetrating wound left chest", "unstable pelvis", "flail segment"). Complaints without a finding ("my leg hurts") are not injuries.
+- **`trauma.criteria`**: a list from the fixed values in `config/vocabulary.yaml` (the national field-triage injury patterns and mechanisms, in Policy 605's words), labeled when the words describe one: "ejected from the vehicle" → "ejection"; "fell from the second floor balcony, about 15 feet" → "fall over 10 feet"; "GSW to the chest" → "penetrating injury head neck torso or proximal extremity"; "tourniquet on the left thigh, still oozing" → "bleeding requiring tourniquet or wound packing"; "unstable pelvis" → "pelvic fracture"; "rolled the car, no seatbelt" → "rollover unrestrained". Label only what the words support (a fall "from a ladder" with no height gives none); hedged heights ("maybe 8, maybe 12 feet") give none. The county words the injury patterns as suspicions ("suspected pelvic fracture", "suspected skull fracture"), so for these values a stated suspicion counts ("possible pelvic fracture" → "pelvic fracture"), unlike the general hedge rule. "Major burn" is a burn-center criterion (Policy 605 §III), not a Trauma Alert criterion. **Never** label the vital-sign criteria (GCS motor, RR, SpO2, blood pressure by age), anticoagulants or pregnancy here: those are computed from their own facts.
+- **`ecg.stemi_reading`**: true when the 12-lead's interpretation reads STEMI or "acute MI suspected" ("monitor's reading STEMI", "tombstones in 2, 3, aVF, it's calling a STEMI"); false when stated otherwise ("no STEMI on the 12-lead"). ST changes described without the reading give none.
+- **`ecg.transmitted`**: true when the 12-lead was sent to the hospital ("transmitted to Regional", "12-lead is sent"); a plan ("I'll send it") gives none.
+- **What counts as an injury found:** wounds, deformity, swelling, bruising, crepitus, instability, tenderness on palpation, and new motor or sensory loss after trauma. Pupils, breath sounds and distal pulses are signs, not injuries. A penetrating wound can give the mechanism, the complaint and the injury from the same words.
+- **A negative stroke screen said on a trauma call** ("no facial droop, speech clear" after a fall) gives no G.F.A.S.T. or RACE values (§4d: stroke-like presentations only).
+- **Approximators** ("about", "like") are dropped from pain, pregnancy weeks and speeds as from times; hedges ("maybe") and ranges ("six to eight") give no fact.
+- **`infection.suspected`**: the suspected source when the crew or a caregiver states one ("probably urosepsis" → "urinary"; "looks like pneumonia" → "respiratory"; "that wound looks infected" → "skin"; "septic, no clear source" → "unknown"). A fever alone gives none.
+
 ## 5. Corrections, negations, numbers
 - **Corrections:** "pulse 88, correction, 98" → only `vitals.hr` = 98. "BP 120 over 80, I mean 130 over 80" → SBP 130, DBP 80. The corrected value replaces the first; never label both.
 - **Negations:** "denies chest pain" gives no complaint fact (a symptom denial isn't a chief complaint in our schema). "Denies blood thinners" → `meds.anticoagulant` = "none". "No facial droop" → `exam.race.facial` = 0.
 - **Spoken numbers:** convert to digits: "one forty over eighty" → 140/80; "ninety one" → 91; "one twenty six" → 126.
 - **Units:** labels carry no units; units are implied by the key.
+
+- **Times said as numbers:** "normal at one forty" → `stroke.lkw` "1:40" (never "1:14"); "fourteen thirty" → "14:30".
+- **Hyphenated and run-together numbers:** "one-eighteen" → 118; "one-oh-two" → 102; "a hundred and ten" → 110.
+
+## 5a. Additions for run D (2026-09-23; from the dev-set error analysis, MODEL_PLAN §0g)
+- **Order of facts:** list the facts **in the order they were said** (by the first word that supports each fact). When one phrase gives several facts ("left facial droop" → a G.F.A.S.T. item and a RACE item), the G.F.A.S.T. item comes before the RACE item. `scripts/build_train_set.py --order spoken` re-sorts every training target by the same rule (`config/training.yaml`), so the builder's order is the one the model learns.
+- **Antiplatelets are not anticoagulants:** clopidogrel (Plavix), aspirin, ticagrelor (Brilinta), prasugrel (Effient) go in `meds.list` only, never `meds.anticoagulant`. Other drug classes (SGLT2 inhibitors, statins, beta blockers) likewise.
+- **Slurred speech is dysarthria, not aphasia:** it gives G.F.A.S.T. speech 1 but **no** RACE `aphasia_agnosia` value on its own. RACE aphasia needs language trouble (can't find words, doesn't follow commands, nonsense speech); agnosia needs not recognizing the arm or the deficit.
+- **Someone else's mic (`by: "other"`):** the model input will start with a speaker line (see `config/prompts/extract_finetuned.md`), e.g. `[speaker: daughter]`. The speaker is the source of what they say about themselves or what they saw; "Mom is allergic to aspirin" said by the daughter → role `family`, not the patient.
+
+## 5b. Conventions settled while writing the run D batches (2026-09-23)
+Annotators flagged these as unclear; these are the labels used from batch 10 on.
+- **Facility staff** (nurse, aide, group-home staff, caregiver) are `family` with their job word as the source ("aide").
+- **Subjectless shorthand** ("NKDA", "denies allergies", "takes eliquis and metformin") is the medic's; "Pt denies…" is the patient's.
+- **Family or bystander descriptions of stroke findings** ("her face drooped at dinner") give `stroke.deficits` only, never RACE or G.F.A.S.T. items (those are the medic's own exam, §4d).
+- **A POLST marked "attempt resuscitation"** → `code_status` "full code".
+- **A drug the patient has stopped** gets no `meds.list`; `meds.anticoagulant` "none" still needs an explicit denial.
+- **Clock-time arrivals and ranges** ("around fourteen fifteen", "in the one-forties", "HI, north of six hundred") give no numeric fact.
+- **Nested relays** ("my brother says…" said by the daughter): the source is the relation to the patient ("son").
+- **One drug word, two facts** ("she takes eloquis"): `meds.anticoagulant` before `meds.list`.
+- **A 12-lead "done at T"** gives `ecg.twelve_lead_time`; "attached" gives `ecg.attached` true; "I'll attach it" gives nothing.
+- **Unqualified "no drift"** → `exam.gfast.arm_leg` 0 and `exam.race.arm` 0; arm-only wording ("arms fine") → `exam.race.arm` 0 only.
+- **"Speech clear"** is articulation: G.F.A.S.T. speech 0, no RACE value. "Talking normally" gives both 0s. Word-finding trouble with no severity: G.F.A.S.T. speech 1 and a deficit, no RACE value.
+- **Resolved findings** (RACE as well as G.F.A.S.T.): the current state wins, and a resolved finding is not a deficit.
+- **"Can't look to the left"** → G.F.A.S.T. gaze 1 and a deficit; RACE gaze only when a deviation is stated.
+- **Times of day:** "this morning" adds am, "this afternoon/last night" adds pm; 24-hour times stay as said ("2200"); "quarter past eight" → "8:15". `symptom.onset` keeps "since" ("since 2 pm"); `stroke.lkw` drops "at".
+- **Discovery times** ("found at 0400", "noticed at 1045") are not last known well and not onset: no time fact.
+- **"Unknown down time" / "LKW unknown"** give no fact; `onset_witnessed` false needs "found", "woke up with it", "unwitnessed", or "nobody saw it". Seeing it happen on a video call counts as witnessed.
+- **"Found by her landlord" / "last seen normal by her daughter":** the source is the person named; a bare "found down" is the medic's.
+- **Bare RACE scores** ("face two, arm one") give no `stroke.deficits` (no phrase was said). "GFAST positive" without the count gives no item labels.
 
 ## 6. Phenomena tags (use all that apply)
 `clean`, `shorthand` (yom, sats, A&O, D-stick…), `spoken_numbers`, `correction`, `negation`, `attribution` (someone else's statement), `other_speaker` (`by: "other"`), `multi_event` (many facts in one utterance), `no_facts`, `uncertain` (hedged statements that must yield no fact), `brand_names`, `fahrenheit`, `disfluency` (uh, um, restarts), `asr_noise` (the kind of errors speech-to-text makes: missing punctuation, homophones, lowercase).

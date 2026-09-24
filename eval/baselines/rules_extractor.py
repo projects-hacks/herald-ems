@@ -1,22 +1,24 @@
-"""Deterministic fallback extractor: transcript text -> FactIn list.
+"""Regex rules extractor: transcript text -> FactIn list. EVALUATION BASELINE ONLY.
 
-Role (team decision 2026-09-23, docs/MODEL_PLAN.md): a fallback when no model is served, and an instant first
-pass. It is NOT extended with new phrase patterns: extraction quality comes from the model. Its word lists are
-content (config/lexicons.yaml). Every fact carries the clause it came from and a confidence; ambiguous
+Removed from the product (team lead, 2026-09-24: "there is nothing like an app without AI"); kept here so the
+benchmark's "rules" row stays reproducible. Never extended. Its word lists are
+content (eval/baselines/lexicons.yaml, frozen with this baseline). Every fact carries the clause it came from and a confidence; ambiguous
 mappings get low confidence so the medic confirms them.
 """
 from __future__ import annotations
 
 import re
-from typing import Iterable, Optional
+from pathlib import Path
+from typing import Optional
 
-from ..config import load_yaml
-from ..core.ports import FactCoder
-from ..core.schema import CapturedBy, FactIn, Provenance, Role
-from .guard import InstructionGuard, default_guard
+import yaml
 
-_LEX = load_yaml("lexicons.yaml")
+from herald.core.schema import CapturedBy, FactIn, Provenance, Role
+from herald.extraction.guard import InstructionGuard, default_guard
+
+_LEX = yaml.safe_load((Path(__file__).parent / "lexicons.yaml").read_text(encoding="utf-8"))
 ROLE_WORDS: dict[str, str] = _LEX["attribution_words"]
+ANTICOAG: dict[str, str] = _LEX["anticoagulants"]
 ATTR_RE = re.compile(
     r"\b(?:per (?:the |her |his )?(" + "|".join(ROLE_WORDS) + r")\b"
     r"|(?:the |her |his )?(" + "|".join(ROLE_WORDS) + r")\s+(?:\w+\s+){0,2}?"
@@ -56,34 +58,21 @@ def _attribution(sentence: str) -> tuple[Optional[str], Optional[str]]:
     return ROLE_WORDS[word], word
 
 
-def anticoagulant_pattern(names: Iterable[str]) -> Optional[re.Pattern]:
-    """One pattern over every generic and brand name of an anticoagulant (from RxNorm), longest first."""
-    names = sorted(names, key=len, reverse=True)
-    return re.compile(r"\b(" + "|".join(map(re.escape, names)) + r")\b", re.I) if names else None
-
-
 class RulesExtractor:
-    """The `Extractor` interface over the deterministic patterns below. Anticoagulant names come from RxNorm and
-    are recorded as said; the `FactCoder` maps them to generic names. Without them, no anticoagulant is recorded."""
+    """The `Extractor` interface over the deterministic patterns below."""
     name = "rules"
 
-    def __init__(self, guard: Optional[InstructionGuard] = None,
-                 anticoagulant_names: Iterable[str] = (), coder: Optional[FactCoder] = None):
+    def __init__(self, guard: Optional[InstructionGuard] = None):
         self.guard = guard or default_guard()
-        self.anticoagulant_re = anticoagulant_pattern(anticoagulant_names)
-        self.coder = coder
 
     def extract(self, text: str, captured_by: CapturedBy = CapturedBy.medic, default_role: Role = Role.medic,
                 default_speaker: Optional[str] = None, audio_id: Optional[str] = None) -> list[FactIn]:
-        facts = extract(text, captured_by, default_role, default_speaker, audio_id, guard=self.guard,
-                        anticoagulant_re=self.anticoagulant_re)
-        return self.coder.code(facts) if self.coder else facts
+        return extract(text, captured_by, default_role, default_speaker, audio_id, guard=self.guard)
 
 
 def extract(text: str, captured_by: CapturedBy = CapturedBy.medic,
             default_role: Role = Role.medic, default_speaker: Optional[str] = None,
-            audio_id: Optional[str] = None, guard: Optional[InstructionGuard] = None,
-            anticoagulant_re: Optional[re.Pattern] = None) -> list[FactIn]:
+            audio_id: Optional[str] = None, guard: Optional[InstructionGuard] = None) -> list[FactIn]:
     guard = guard or default_guard()
     out: list[FactIn] = []
     # Spoken corrections: "pulse was 88, correction, 98" -> "pulse was 98" (before clause splitting,
@@ -102,12 +91,12 @@ def extract(text: str, captured_by: CapturedBy = CapturedBy.medic,
         for sent in [c.strip() for c in re.split(r"[,;]\s*|:\s+", sentence) if c.strip()]:
             if guard.match(sent):
                 break               # an instruction and everything after it in this sentence is not a fact
-            out.extend(_extract_clause(sent, captured_by, default_role, default_speaker, audio_id, anticoagulant_re))
+            out.extend(_extract_clause(sent, captured_by, default_role, default_speaker, audio_id))
     return out
 
 
-def _extract_clause(sent: str, captured_by: CapturedBy, default_role: Role, default_speaker: Optional[str],
-                    audio_id: Optional[str], anticoagulant_re: Optional[re.Pattern]) -> list[FactIn]:
+def _extract_clause(sent: str, captured_by: CapturedBy, default_role: Role,
+                    default_speaker: Optional[str], audio_id: Optional[str]) -> list[FactIn]:
     out: list[FactIn] = []
     if True:
         role_s, speaker = _attribution(sent)
@@ -202,10 +191,11 @@ def _extract_clause(sent: str, captured_by: CapturedBy, default_role: Role, defa
 
         if re.search(r"\b(?:no|not on (?:any )?|denies|without)\s*(?:blood thinners|anticoagulants?)\b", low):
             add("meds.anticoagulant", "none", 0.9)
-        m = anticoagulant_re.search(sent) if anticoagulant_re else None
-        if m:
-            add("meds.anticoagulant", m.group(1), 0.9)
-            add("meds.list", [m.group(1)], 0.9)
+        for name, canon in ANTICOAG.items():
+            if re.search(r"\b" + name + r"\b", low):
+                add("meds.anticoagulant", canon, 0.9)
+                add("meds.list", [canon], 0.9)
+                break
 
         if re.search(r"\b(?:no known (?:drug )?allergies|nkda|no allergies|denies (?:any )?allergies)\b", low):
             add("allergies", [], 0.9)

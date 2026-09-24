@@ -7,32 +7,44 @@ from functools import lru_cache
 from typing import Any
 
 from ..config import load_yaml
+from .numbers import SpokenNumbers
 
 
 class Grounding:
     def __init__(self, rules: dict):
         self.filler = {x.lower() for x in rules["filler_values"]}
-        self.digits_required = rules.get("vitals_digits_must_appear", True)
-        self.digits_exempt = set(rules.get("vitals_digits_exempt", []))
+        self.filler_exempt = {k: {x.lower() for x in v} for k, v in (rules.get("filler_allowed_for") or {}).items()}
+        self.numbers_said_keys = set(rules.get("numbers_must_be_said", []))
+        self.zero_allowed = set(rules.get("zero_allowed", []))
+        self.spoken = SpokenNumbers.from_config(rules["spoken_numbers"])
         self.requires = {k: re.compile(v, re.I) for k, v in rules["key_requires_words"].items()}
 
     @classmethod
     def from_config(cls, rel: str = "grounding.yaml") -> "Grounding":
         return cls(load_yaml(rel))
 
+    def _number_ok(self, name: str, value: Any, text: str) -> bool:
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            return True
+        if name.startswith("vitals.") and value <= 0 and name not in self.zero_allowed:
+            return False
+        return name not in self.numbers_said_keys or any(abs(v - float(value)) < 0.05 for v in self.numbers_said(text))
+
+    def numbers_said(self, text: str) -> set[float]:
+        """Every number in the words: digits, and numbers spoken as words."""
+        return {float(d) for d in re.findall(r"\d+(?:\.\d+)?", text)} | self.spoken.values(text)
+
     def supported(self, key: str, value: Any, text: str) -> bool:
-        if value is None or (isinstance(value, str) and value.strip().lower() in self.filler):
+        filler = self.filler - self.filler_exempt.get(key, set())
+        if value is None or (isinstance(value, str) and value.strip().lower() in filler):
             return False
-        if isinstance(value, list) and any(str(v).strip().lower() in self.filler for v in value):
+        if isinstance(value, list) and any(str(v).strip().lower() in filler for v in value):
             return False
-        if key.startswith("vitals.") and isinstance(value, (int, float)) and not isinstance(value, bool):
-            if value <= 0:
+        if isinstance(value, dict):             # a record: each numeric field listed as key.field must be said
+            if not all(self._number_ok(f"{key}.{f}", x, text) for f, x in value.items()):
                 return False
-            digits = re.findall(r"\d+(?:\.\d+)?", text)
-            # spoken-number utterances have no digits; trust the model there
-            if self.digits_required and digits and key not in self.digits_exempt:
-                if not any(abs(float(d) - float(value)) < 0.05 for d in digits):
-                    return False
+        elif not self._number_ok(key, value, text):
+            return False
         rx = self.requires.get(key)
         return not (rx and not rx.search(text))
 

@@ -1,0 +1,36 @@
+# Word lists of the frozen rules baseline (eval/baselines/rules_extractor.py) only: the product reads no word lists.
+# Drug names in the product come from RxNorm (config/terminology.yaml, herald/terminology/). Kept byte-for-byte
+# otherwise, so the benchmark's "rules" row stays reproducible.
+attribution_words:
+  husband: family
+  wife: family
+  daughter: family
+  son: family
+  mother: family
+  father: family
+  mom: family
+  dad: family
+  family: family
+  brother: family
+  sister: family
+  caregiver: family
+  patient: patient
+  bystander: bystander
+  neighbor: bystander
+  neighbour: bystander
+  witness: bystander
+anticoagulants:
+  warfarin: warfarin
+  coumadin: warfarin
+  jantoven: warfarin
+  apixaban: apixaban
+  eliquis: apixaban
+  rivaroxaban: rivaroxaban
+  xarelto: rivaroxaban
+  dabigatran: dabigatran
+  pradaxa: dabigatran
+  edoxaban: edoxaban
+  savaysa: edoxaban
+  enoxaparin: enoxaparin
+  lovenox: enoxaparin
+  heparin: heparin

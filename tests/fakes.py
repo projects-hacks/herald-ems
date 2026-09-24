@@ -8,7 +8,6 @@ from fastapi.testclient import TestClient
 from herald.api import build_context, create_app
 from herald.config import Settings
 from herald.core.vocabulary import default_vocabulary
-from herald.extraction import RulesExtractor
 from herald.terminology import MedicationCoder, RxNormNormalizer
 
 # A tiny RxNorm index with real RxCUIs (release 2026-09-08): generic -> itself, brand and salt names -> generic.
@@ -35,17 +34,12 @@ def tiny_coder() -> MedicationCoder:
     return MedicationCoder.from_config(tiny_normalizer(), default_vocabulary())
 
 
-def rules_extractor() -> RulesExtractor:
-    """The rules extractor as the app wires it, over the tiny index."""
-    coder = tiny_coder()
-    return RulesExtractor(anticoagulant_names=coder.anticoagulant_names(), coder=coder)
-
-
 class FakeModel:
     """A TextModel that returns canned rows (or fails), with the usage a real server would report."""
 
-    def __init__(self, name: Optional[str] = "test-model", rows: Optional[list] = None, fail: bool = False):
-        self.name, self.rows, self.fail = name, rows or [], fail
+    def __init__(self, name: Optional[str] = "test-model", rows: Optional[list] = None, fail: bool = False,
+                 conf: float = 0.999):
+        self.name, self.rows, self.fail, self.conf = name, rows or [], fail, conf
         self.calls = 0
 
     def available(self) -> bool:
@@ -54,13 +48,20 @@ class FakeModel:
     def model_name(self) -> Optional[str]:
         return self.name
 
-    def chat_json(self, system, user, *, image_b64=None, max_tokens=256, schema=None, usage=None, examples=None):
+    def chat_json(self, system, user, *, image_b64=None, max_tokens=256, schema=None, usage=None, examples=None,
+                  logprobs=False, top_logprobs=0):
         self.calls += 1
         if self.fail:
             raise RuntimeError("model down")
         if usage is not None:
             usage.update({"completion_tokens": 42, "prompt_tokens": 100})
-        return {"f": self.rows}
+        out = {"f": self.rows}
+        if logprobs:        # one token spanning the output: every row gets confidence `conf`
+            import json
+            import math
+            content = json.dumps(out, separators=(",", ":"))
+            out = {**out, "_content": content, "_tokens": [(content, math.log(self.conf))]}
+        return out
 
 
 class FakeSTT:
@@ -91,8 +92,9 @@ def test_settings(**overrides) -> Settings:
 
 
 def make_client(model: Optional[FakeModel] = None, vision: Optional[FakeVision] = None,
-                vision_model: Optional[FakeModel] = None, **settings):
+                vision_model: Optional[FakeModel] = None, normalizer=None, **settings):
+    """The app over fakes. Drug coding is off unless a normalizer is passed (e.g. `tiny_normalizer()`)."""
     ctx = build_context(test_settings(**settings), text_model=model or FakeModel(name=None),
                         vision_model=vision_model, stt=FakeSTT(), vision=vision or FakeVision(),
-                        normalizer=tiny_normalizer())
+                        normalizer=normalizer)
     return TestClient(create_app(ctx)), ctx

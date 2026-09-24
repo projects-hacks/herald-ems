@@ -34,16 +34,17 @@ def main():
                          "(facts the vocabulary's plausibility validation rejects are dropped, as the app does)")
     a = ap.parse_args()
     from bench_extract import build_extractor
-    from herald.core.schema import CapturedBy, Role
+    from herald.core.schema import CapturedBy, source_role
     ext, _, _ = build_extractor(a.extractor, a.model)
     items = [json.loads(l) for l in open(a.set) if l.strip()]
     for run in range(a.runs):
         fails = []
         for it in items:
             by = CapturedBy(it.get("by", "medic"))
-            role = Role.family if by == CapturedBy.other else Role.medic
+            role = source_role(by, it.get("speaker"))           # as the app does (herald/api/capture.py)
             try:
-                facts = ext.extract(it["text"], by, role, it.get("speaker"))
+                ctx = {"dispatch": it.get("dispatch")} if hasattr(ext, "profiles") else {}
+                facts = ext.extract(it["text"], by, role, it.get("speaker"), **ctx)
             except Exception as e:
                 fails.append((it["id"], it["attack"], f"crash: {type(e).__name__}"))
                 continue

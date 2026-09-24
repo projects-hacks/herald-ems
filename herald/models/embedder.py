@@ -6,12 +6,14 @@ from typing import Optional
 
 import numpy as np
 
+from .weights import local_weights
+
 
 class HFEmbedder:
     """The `Embedder` interface. Loads on first use."""
 
-    def __init__(self, model_id: str, query_prefix: str = "", device: str = "cpu"):
-        self.model_id, self.query_prefix, self.device = model_id, query_prefix, device
+    def __init__(self, model_id: str, query_prefix: str = "", device: str = "cpu", offline: bool = True):
+        self.model_id, self.query_prefix, self.device, self.offline = model_id, query_prefix, device, offline
         self._tok = self._model = None
         self._lock = threading.Lock()
 
@@ -19,8 +21,9 @@ class HFEmbedder:
         with self._lock:
             if self._model is None:
                 from transformers import AutoModel, AutoTokenizer
-                self._tok = AutoTokenizer.from_pretrained(self.model_id)
-                self._model = AutoModel.from_pretrained(self.model_id).to(self.device).eval()
+                path = local_weights(self.model_id, self.offline)
+                self._tok = AutoTokenizer.from_pretrained(path)
+                self._model = AutoModel.from_pretrained(path).to(self.device).eval()
 
     def embed(self, texts: list[str], query: bool = False, batch: int = 32) -> np.ndarray:
         import torch

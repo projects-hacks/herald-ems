@@ -1,20 +1,26 @@
 """Capture: speech, photos, and structured readings in; facts and a trace entry out.
 
-Speech is two-phase: the rules result reaches the screen immediately, and the local model's additions follow
-on the same trace entry. Every step is recorded (the "Herald thinking" card)."""
+Speech is two-phase: the words reach the screen immediately, and the extraction model's facts follow on the
+same trace entry. The model is the only extractor. `trace.rules` stays in the entry shape for the UI contract; for
+speech and photos it is always empty, and it carries the monitor panel's readings. Every step is recorded (the
+"Herald thinking" card)."""
 from __future__ import annotations
 
 import asyncio
 import time
+from functools import partial
 from typing import Awaitable, Callable, Optional
 
 from fastapi.concurrency import run_in_threadpool
 
-from ..core.schema import CapturedBy, FactIn, Role, new_id, utcnow
-from ..extraction.pipeline import merge_model_facts
+from ..core.schema import CapturedBy, FactIn, Role, new_id, source_role, utcnow
 from .context import AppContext
 
 Broadcast = Callable[[], Awaitable[None]]
+
+
+class ModelUnavailable(RuntimeError):
+    """The extraction model isn't serving: Herald does not extract without it."""
 
 
 class CaptureService:
@@ -42,42 +48,43 @@ class CaptureService:
 
     # ---------- speech ----------
     async def text(self, text: str, captured_by: CapturedBy, role: Optional[Role], speaker: Optional[str],
-                   audio_id: Optional[str], use_model: bool, stt_info: Optional[dict] = None) -> dict:
-        ctx, tracer = self.ctx, self.ctx.tracer
-        default_role = role or (Role.medic if captured_by == CapturedBy.medic else Role.family)
-        policy = ctx.settings
-        before = self._summary()
+                   audio_id: Optional[str], use_model: bool = True, stt_info: Optional[dict] = None) -> dict:
+        """The words appear at once (the entry, model "running"); the model's facts follow on the same entry.
+        There is no regex extraction: if the model is down, the words are kept as evidence and nothing is
+        extracted (ModelUnavailable). Each fact confirms itself only if the confirmation policy allows it
+        (the paramedic's own mic, confidence at or above the calibrated bar); everything else needs a tap."""
+        ctx = self.ctx
+        default_role = source_role(captured_by, speaker, role)
         injected = ctx.guard.match(text)
-        model_ready = use_model and ctx.text_model.available()
-        model_on = model_ready and (not injected or policy.guard_policy == "unconfirm")
-        run_rules = policy.rules_mode == "always" or not model_on
-        t0 = time.perf_counter()
-        rules_in = ctx.rules.extract(text, captured_by, default_role, speaker, audio_id) if run_rules else []
-        if injected and policy.guard_policy == "unconfirm":
-            self._hold(rules_in, injected)
-        rules_ms = round((time.perf_counter() - t0) * 1000, 1)
-        rejected: list = []
-        facts = self.ingest_batch(rules_in, rejected)
-        after = self._summary()
+        skip = bool(injected) and ctx.settings.guard_policy == "skip_model"
+        available = use_model and ctx.text_model.available()
+        if not use_model:
+            model = {"status": "off", "reason": "model extraction switched off for this request"}
+        elif not available:
+            model = {"status": "unavailable", "reason": "the extraction model is not running: nothing extracted "
+                     "from these words (check `zrt status`)"}
+        elif skip:
+            model = {"status": "skipped", "reason": f'instruction-shaped speech ("{injected}"): model not run'}
+        else:
+            model = {"status": "running", "name": ctx.text_model.model_name()}
         entry = {"id": new_id("t"), "ts": utcnow().isoformat(), "text": text, "captured_by": captured_by.value,
-                 "speaker": speaker, "audio_id": audio_id, "fact_ids": [f.id for f in facts],
-                 "extract": {"rules": len(facts), "llm": None, "ms": rules_ms}, "stt": stt_info,
+                 "speaker": speaker, "audio_id": audio_id, "fact_ids": [],
+                 "extract": {"rules": 0, "llm": None, "ms": 0}, "stt": stt_info,
                  "trace": {"heard": {"text": text, "speaker": speaker or captured_by.value, "audio_id": audio_id,
                                      "stt": stt_info},
-                           "rules": {"ms": rules_ms, "facts": [tracer.fact_view(f) for f in facts], "rejected": rejected},
-                           "model": ({"status": "running", "name": ctx.text_model.model_name()} if model_on else
-                                     {"status": "skipped", "reason": f"instruction-shaped speech (\"{injected}\"): "
-                                      "model output discarded for this utterance"} if injected else {"status": "off"}),
+                           "rules": {"ms": 0, "facts": [], "rejected": []},
+                           "model": model,
                            "guard": {"instruction_shaped": injected,
                                      **({"policy": "every fact from this utterance needs the medic's tap"}
-                                        if injected and policy.guard_policy == "unconfirm" else {})},
-                           "effects": tracer.diff(before, after)}}
+                                        if injected and not skip else {})},
+                           "effects": {"readiness": [], "alerts_new": [], "scores": [], "gaps_closed": []}}}
         self.inc.transcripts.append(entry)
         await self.broadcast()
-        if model_on:
-            asyncio.create_task(self._refine(entry, text, captured_by, default_role, speaker, audio_id, rules_in,
-                                             hold=injected, fallback_rules=not run_rules))
-        return {"transcript": entry, "facts": [f.model_dump(mode="json") for f in facts]}
+        if model["status"] == "running":
+            asyncio.create_task(self._extract(entry, text, captured_by, default_role, speaker, audio_id, injected))
+        elif model["status"] == "unavailable":
+            raise ModelUnavailable(model["reason"])
+        return {"transcript": entry, "facts": []}
 
     @staticmethod
     def _hold(facts: list, phrase: str) -> None:
@@ -87,46 +94,30 @@ class CaptureService:
             f.provenance.hold_reason = (f'said together with a command to the system ("{phrase}"): '
                                         "check before confirming")
 
-    async def _refine(self, entry: dict, text: str, captured_by: CapturedBy, default_role: Role,
-                      speaker: Optional[str], audio_id: Optional[str], rules_in: list, hold: Optional[str] = None,
-                      fallback_rules: bool = False) -> None:
+    async def _extract(self, entry: dict, text: str, captured_by: CapturedBy, default_role: Role,
+                       speaker: Optional[str], audio_id: Optional[str], hold: Optional[str]) -> None:
         ctx, tracer = self.ctx, self.ctx.tracer
         before = self._summary()
         t0 = time.perf_counter()
         name = ctx.text_model.model_name()
         try:
-            model_in = await run_in_threadpool(ctx.model_extractor.extract, text, captured_by, default_role,
-                                               speaker, audio_id)
+            facts_in = await run_in_threadpool(partial(ctx.model_extractor.extract, dispatch=self.inc.dispatch),
+                                               text, captured_by, default_role, speaker, audio_id)
             if hold:
-                self._hold(model_in, hold)
+                self._hold(facts_in, hold)
             usage = ctx.model_extractor.last_usage or {}
-            by_key = {f.key: f for f in rules_in}
-            agreed = sum(1 for f in model_in if f.key in by_key
-                         and str(by_key[f.key].value).lower() == str(f.value).lower())
             rejected: list = []
-            added = self.ingest_batch(merge_model_facts(rules_in, model_in), rejected)
+            added = self.ingest_batch(facts_in, rejected)
             entry["fact_ids"] += [f.id for f in added]
             entry["extract"]["llm"] = len(added)
             entry["trace"]["model"] = {"status": "done", "name": name, "ms": round((time.perf_counter() - t0) * 1000),
-                                       "tokens": usage.get("completion_tokens"), "proposed": len(model_in),
+                                       "tokens": usage.get("completion_tokens"), "proposed": len(facts_in),
                                        "facts": [tracer.fact_view(f) for f in added], "rejected": rejected,
-                                       "agreed_with_rules": agreed,
-                                       "overridden_by_rules": len(model_in) - len(added) - len(rejected) - agreed}
-            eff = tracer.diff(before, self._summary())
-            for k in ("readiness", "alerts_new", "scores", "gaps_closed"):
-                entry["trace"]["effects"][k] = entry["trace"]["effects"].get(k, []) + eff[k]
+                                       "auto_confirm_threshold": ctx.policy.auto_confirm}
+            entry["trace"]["effects"] = tracer.diff(before, self._summary())
         except Exception as e:
             entry["trace"]["model"] = {"status": "error", "name": name, "error": str(e)[:200],
                                        "ms": round((time.perf_counter() - t0) * 1000)}
-            if fallback_rules:          # rules_mode=fallback: the model failed, so the rules extractor stands in
-                fb = ctx.rules.extract(text, captured_by, default_role, speaker, audio_id)
-                if hold:
-                    self._hold(fb, hold)
-                rejected_fb: list = []
-                added_fb = self.ingest_batch(fb, rejected_fb)
-                entry["fact_ids"] += [f.id for f in added_fb]
-                entry["trace"]["rules"] = {"ms": 0, "facts": [tracer.fact_view(f) for f in added_fb],
-                                           "rejected": rejected_fb, "fallback": True}
         await self.broadcast()
 
     # ---------- photo ----------

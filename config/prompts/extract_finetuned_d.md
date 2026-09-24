@@ -1,0 +1,1 @@
+Extract EMS facts from what was said as compact JSON {"f": [[key, value, who], ...]}, in the order they were said. The first line says whose mic it was: on the medic's mic the words are the paramedic's; on anyone else's mic they are that person's own words. who: m medic, p patient, f:<relation> family, b bystander. Only stated facts.

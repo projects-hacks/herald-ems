@@ -12,7 +12,10 @@ router = APIRouter(prefix="/api")
 
 @router.get("/health")
 async def health(c=Depends(get_ctx)):
-    return {"llm_model": c.text_model.model_name(), "vision_model": c.vision_model.model_name(),
+    """`*_available` is whether the model server is actually serving that label right now (the header's model chip)."""
+    return {"llm_model": c.text_model.model_name(), "llm_available": await run_in_threadpool(c.text_model.available),
+            "vision_model": c.vision_model.model_name(),
+            "vision_available": await run_in_threadpool(c.vision_model.available),
             "stt_model": c.stt.model, "stt_loaded": c.stt.ready(),
             "incident": c.incident.id, "county": c.counties.active["id"], "cloud_ai_calls": 0,
             "terminology": {"rxnorm_release": c.coder.release} if c.coder else None}

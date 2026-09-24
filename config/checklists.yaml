@@ -1,6 +1,15 @@
-# Alert-ready checklists: what the receiving team needs before a pre-alert. The stroke checklist is replaced
-# by the active county's (config/counties/*.json). "@<scale>" means that stroke scale is complete.
-# triggers: words in the dispatch or chief complaint that open the checklist.
+# Alert-ready checklists: what the receiving team needs before a pre-alert. These are the defaults for a county with
+# no rule of its own. The active county (config/counties/*.json) overrides any alert in its `alerts` section, field by
+# field, and its `stroke.checklist` replaces the stroke items. Engine: herald/checklists/engine.py.
+#
+# items: [key, label] or {key, label, note?, source?, when?}. A key is a vocabulary key; "@<score>" (that score is
+#   complete, or has a criterion met); "<record key>[<field>=<value>]" (a confirmed record with that field value,
+#   e.g. meds.given[drug=aspirin]); or alternatives joined by "|". `note` is shown while the item isn't done. `when`
+#   is a criteria rule (herald/scoring/rules.py): the item is listed unless the rule is decided false.
+# triggers: words in the dispatch or chief complaint that open the checklist (lowercase substrings; a leading space
+#   keeps "burn" out of "heartburn").
+# open_on: facts (criteria rules over every value, confirmed or not) or scores (a score with any criterion hit).
+# unknowns: history questions shown as "not yet asked" while the checklist is open.
 default_unknowns:
 - allergies
 - meds.list
@@ -29,6 +38,10 @@ alerts:
     - hemipar
     - cva
     - tia
+    open_on:
+      facts:                     # a stroke exam has started
+      - {type: present_prefix, prefix: exam.race.}
+      - {type: present_prefix, prefix: exam.gfast.}
     unknowns:
     - stroke.lkw
     - meds.anticoagulant
@@ -60,3 +73,64 @@ alerts:
     - symptom.onset
     - allergies
     - meds.anticoagulant
+  # Generic trauma checklist: the national 2021 field-triage criteria (config/scores/field_triage.yaml). A county with
+  # its own trauma criteria (Santa Clara Policy 605) overrides it.
+  trauma:
+    label: Trauma alert
+    source: >-
+      National Guideline for the Field Triage of Injured Patients 2021 (Newgard CD et al., J Trauma Acute Care Surg
+      2022;93(2):e49-e60)
+    items:
+    - {key: trauma.mechanism, label: Mechanism of injury}
+    - {key: '@field_triage', label: Field triage criteria (2021)}
+    - {key: vitals.gcs_total|vitals.gcs_motor, label: GCS}
+    - {key: vitals.sbp, label: Systolic BP}
+    - {key: vitals.hr, label: Heart rate}
+    - {key: vitals.rr, label: Respiratory rate}
+    - {key: vitals.spo2, label: SpO2}
+    - {key: meds.anticoagulant, label: Anticoagulants}
+    # The national guideline lists "Pregnancy > 20 weeks" as a Yellow EMS-judgment criterion. The item is listed
+    # unless the patient is known to be male or outside ages 10-55: Herald's own display rule (design decision),
+    # wider on purpose than the CDC reproductive-age band of 15-44 so a possibly pregnant patient is never skipped.
+    - key: patient.pregnancy_weeks
+      label: Pregnancy (weeks)
+      when:
+        type: all_of
+        rules:
+        - {type: one_of, key: patient.sex, values: [F, female]}
+        - {type: between, key: patient.age, low: 10, high: 55}
+    - {key: transport.destination, label: Destination}
+    - {key: transport.eta_min, label: ETA}
+    triggers: [' fall', ' fell', mvc, mva, crash, collision, gsw, gunshot, ' shot', stabb, stab wound, assault,
+               pedestrian, struck, eject, rollover, motorcycle, ' burn', trauma, injur]
+    open_on:
+      facts:
+      - {type: present, key: trauma.mechanism}
+      - {type: present, key: trauma.injuries}
+      - {type: present, key: trauma.criteria}
+    unknowns:
+    - meds.anticoagulant
+    - allergies
+  # Generic sepsis checklist. Without a county criterion, the published screening tool on screen is NEWS2
+  # (config/scores/news2.yaml); Surviving Sepsis Campaign 2026 suggests "using a standard sepsis screening tool" for
+  # acutely ill adults en route by ambulance (Prescott H et al., Crit Care Med 2026, doi 10.1097/CCM.0000000000007075).
+  sepsis:
+    label: Suspected sepsis
+    source: >-
+      Surviving Sepsis Campaign 2026 (prehospital screening with a standard tool); NEWS2 (Royal College of
+      Physicians, 2017)
+    items:
+    - {key: infection.suspected, label: Suspected infection (source)}
+    - {key: vitals.temp, label: Temperature}
+    - {key: vitals.hr, label: Heart rate}
+    - {key: vitals.rr, label: Respiratory rate}
+    - {key: vitals.sbp, label: Systolic BP}
+    - {key: vitals.consciousness|vitals.gcs_total, label: Mental status (ACVPU or GCS)}
+    - {key: '@news2', label: NEWS2 complete}
+    triggers: [fever, sepsis, septic, infection, infected, pneumonia, ' uti', urinary tract infection, cellulitis]
+    open_on:
+      facts:
+      - {type: present, key: infection.suspected}
+    unknowns:
+    - infection.suspected
+    - allergies

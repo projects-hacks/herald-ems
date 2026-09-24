@@ -1,0 +1,228 @@
+{"id": "b01_022", "broad": [["vitals.gcs_total", 14, "medic", null]]}
+{"id": "b01_084", "broad": [["meds.given", {"drug": "dextrose", "by": "crew"}, "medic", null]]}
+{"id": "b01_092", "broad": [["trauma.mechanism", "fall at home", "medic", null]]}
+{"id": "b02_004", "broad": [["trauma.mechanism", "fell down the stairs", "bystander", null]]}
+{"id": "b02_020", "broad": [["meds.given", {"drug": "naloxone", "by": "fire"}, "medic", null], ["meds.given", {"drug": "naloxone", "by": "fire"}, "medic", null]]}
+{"id": "b02_044", "broad": [["trauma.mechanism", "tripped at the mailbox and fell", "bystander", null]]}
+{"id": "b02_068", "broad": [["trauma.mechanism", "fell and hit his head on the curb", "bystander", null], ["vitals.gcs_total", 15, "medic", null]]}
+{"id": "b02_120", "broad": [["trauma.mechanism", "fell after getting up to pee", "family", "wife"]]}
+{"id": "b02_133", "broad": [["trauma.mechanism", "fell in the shower", "family", "son"]]}
+{"id": "b02_139", "broad": [["meds.given", {"drug": "albuterol", "route": "neb", "by": "father"}, "family", "father"], ["meds.given", {"drug": "albuterol", "route": "neb", "by": "father"}, "family", "father"]]}
+{"id": "b03_004", "broad": [["meds.given", {"drug": "aspirin", "dose": 324, "route": "PO", "by": "crew"}, "medic", null], ["meds.given", {"drug": "nitroglycerin", "dose": 0.4, "route": "SL", "by": "crew"}, "medic", null], ["vitals.pain", 8, "medic", null], ["vitals.pain", 5, "medic", null]]}
+{"id": "b03_011", "broad": [["procedures.done", {"procedure": "cpr", "by": "bystander"}, "medic", null], ["procedures.done", {"procedure": "defibrillation", "detail": "1 AED shock prior to arrival"}, "medic", null], ["procedures.done", {"procedure": "bvm ventilation", "by": "crew"}, "medic", null]]}
+{"id": "b03_018", "broad": [["meds.given", {"drug": "nitroglycerin", "by": "crew"}, "medic", null], ["meds.given", {"drug": "nitroglycerin", "by": "crew"}, "medic", null], ["meds.given", {"drug": "fentanyl", "dose": 50, "by": "crew"}, "medic", null], ["vitals.pain", 3, "medic", null]]}
+{"id": "b03_021", "broad": [["procedures.done", {"procedure": "cpr", "detail": "6 minutes of compressions", "by": "crew"}, "medic", null]]}
+{"id": "b03_023", "broad": [["meds.given", {"drug": "adenosine", "dose": 6, "by": "crew"}, "medic", null]]}
+{"id": "b03_027", "broad": [["meds.given", {"drug": "aspirin", "dose": 324, "by": "crew"}, "medic", null]]}
+{"id": "b03_030", "broad": [["procedures.done", {"procedure": "cpr", "detail": "4 minutes", "by": "bystander"}, "medic", null], ["procedures.done", {"procedure": "defibrillation", "detail": "1 shock", "by": "crew"}, "medic", null]]}
+{"id": "b03_043", "broad": [["meds.given", {"drug": "nitroglycerin", "route": "SL", "by": "crew"}, "medic", null], ["meds.given", {"drug": "nitroglycerin", "route": "SL", "by": "crew"}, "medic", null]]}
+{"id": "b03_053", "broad": [["meds.given", {"drug": "fentanyl", "dose": 25, "route": "IV", "time": "1430", "by": "crew"}, "medic", null]]}
+{"id": "b03_056", "broad": [["meds.given", {"drug": "nitroglycerin", "by": "crew"}, "medic", null], ["vitals.pain", 7, "medic", null], ["vitals.pain", 4, "medic", null]]}
+{"id": "b03_061", "broad": [["meds.given", {"drug": "aspirin", "by": "crew"}, "medic", null], ["meds.given", {"drug": "nitroglycerin", "by": "crew"}, "medic", null], ["meds.given", {"drug": "nitroglycerin", "by": "crew"}, "medic", null]]}
+{"id": "b03_065", "broad": [["procedures.done", {"procedure": "defibrillation", "detail": "2 AED shocks before arrival"}, "medic", null], ["procedures.done", {"procedure": "intubation", "by": "crew"}, "medic", null], ["vitals.gcs_total", 3, "medic", null]]}
+{"id": "b03_066", "broad": [["meds.given", {"drug": "heparin", "dose": 4000, "unit": "units", "by": "crew"}, "medic", null], ["meds.given", {"drug": "ticagrelor", "dose": 180, "by": "crew"}, "medic", null]]}
+{"id": "b03_075", "broad": [["meds.given", {"drug": "aspirin", "dose": 324, "by": "crew"}, "medic", null]]}
+{"id": "b03_080", "broad": [["vitals.pain", 8, "patient", null]]}
+{"id": "b03_082", "broad": [["meds.given", {"drug": "epinephrine", "by": "crew"}, "medic", null]]}
+{"id": "b03_090", "broad": [["meds.given", {"drug": "epinephrine", "by": "crew"}, "medic", null], ["meds.given", {"drug": "epinephrine", "by": "crew"}, "medic", null], ["meds.given", {"drug": "epinephrine", "by": "crew"}, "medic", null]]}
+{"id": "b03_091", "broad": [["vitals.pain", 9, "medic", null]]}
+{"id": "b03_103", "broad": [["trauma.mechanism", "syncope with a head strike on the curb", "medic", null], ["vitals.gcs_total", 15, "medic", null]]}
+{"id": "b03_106", "broad": [["meds.given", {"drug": "aspirin", "by": "crew"}, "medic", null], ["meds.given", {"drug": "nitroglycerin", "by": "crew"}, "medic", null], ["meds.given", {"drug": "nitroglycerin", "by": "crew"}, "medic", null], ["meds.given", {"drug": "nitroglycerin", "by": "crew"}, "medic", null], ["meds.given", {"drug": "fentanyl", "dose": 50, "by": "crew"}, "medic", null], ["vitals.pain", 2, "medic", null]]}
+{"id": "b03_120", "broad": [["procedures.done", {"procedure": "defibrillation", "detail": "1 shock", "by": "crew"}, "medic", null], ["meds.given", {"drug": "amiodarone", "dose": 150, "by": "crew"}, "medic", null]]}
+{"id": "b03_143", "broad": [["procedures.done", {"procedure": "cpap", "detail": "10 peep", "by": "crew"}, "medic", null]]}
+{"id": "b03_146", "broad": [["meds.given", {"drug": "aspirin", "by": "crew"}, "medic", null]]}
+{"id": "b03_149", "broad": [["meds.given", {"drug": "aspirin", "by": "crew"}, "medic", null]]}
+{"id": "b04_001", "broad": [["trauma.mechanism", "ground-level fall from standing, struck her head on a door frame", "medic", null], ["trauma.injuries", ["large hematoma left occiput"], "medic", null]]}
+{"id": "b04_002", "broad": [["trauma.mechanism", "fell off a ladder 12 feet, landed flat on his back on the driveway", "medic", null]]}
+{"id": "b04_003", "broad": [["trauma.mechanism", "pedestrian struck, thrown 15 feet", "medic", null]]}
+{"id": "b04_006", "broad": [["trauma.mechanism", "two-car t-bone, restrained front passenger, 18 inches of passenger door intrusion, side curtain airbags deployed", "medic", null]]}
+{"id": "b04_008", "broad": [["trauma.mechanism", "gsw, left upper quadrant", "medic", null], ["trauma.injuries", ["single entry left upper quadrant, no exit found"], "medic", null]]}
+{"id": "b04_011", "broad": [["trauma.mechanism", "unwitnessed fall", "medic", null]]}
+{"id": "b04_012", "broad": [["trauma.mechanism", "belted driver, rear-ended at a stoplight", "medic", null]]}
+{"id": "b04_013", "broad": [["trauma.mechanism", "pedestrian struck by a pickup, 60 feet of throw", "medic", null], ["vitals.gcs_total", 7, "medic", null], ["vitals.gcs_eye", 1, "medic", null], ["vitals.gcs_verbal", 2, "medic", null]]}
+{"id": "b04_017", "broad": [["trauma.mechanism", "stabbed once in the left flank", "bystander", null]]}
+{"id": "b04_018", "broad": [["trauma.mechanism", "electrical injury, lineman contacted a live wire", "medic", null], ["trauma.injuries", ["entry wound right palm", "exit wound left foot"], "medic", null]]}
+{"id": "b04_019", "broad": [["trauma.mechanism", "slipped on the bath mat, fell onto her left side", "medic", null], ["trauma.injuries", ["left leg shortened and rotated"], "medic", null]]}
+{"id": "b04_020", "broad": [["trauma.mechanism", "fell 20 feet off scaffolding onto concrete", "medic", null]]}
+{"id": "b04_022", "broad": [["trauma.mechanism", "single vehicle rollover, unrestrained driver ejected, found 30 feet from the car, roof crushed on the driver's side", "medic", null]]}
+{"id": "b04_024", "broad": [["trauma.mechanism", "fell out of bed", "family", "facility nurse"]]}
+{"id": "b04_025", "broad": [["trauma.mechanism", "bike versus curb, no helmet", "medic", null], ["trauma.injuries", ["road rash to both palms and chin"], "medic", null], ["vitals.gcs_total", 15, "medic", null]]}
+{"id": "b04_026", "broad": [["trauma.mechanism", "motorcycle laid down at highway speed, rider slid 100 feet", "medic", null], ["trauma.injuries", ["road rash down the left side", "left clavicle deformity"], "medic", null], ["procedures.done", {"procedure": "spinal motion restriction", "detail": "collar", "by": "crew"}, "medic", null], ["procedures.done", {"procedure": "iv access", "detail": "2 large-bore", "by": "crew"}, "medic", null]]}
+{"id": "b04_030", "broad": [["trauma.mechanism", "pedestrian clipped by a bus mirror", "medic", null]]}
+{"id": "b04_031", "broad": [["trauma.mechanism", "gsw to the head", "medic", null], ["trauma.injuries", ["left temporal entry wound"], "medic", null]]}
+{"id": "b04_033", "broad": [["trauma.mechanism", "fell backwards off a step stool, struck the back of his head", "medic", null]]}
+{"id": "b04_034", "broad": [["procedures.done", {"procedure": "pressure dressing", "by": "crew"}, "medic", null], ["procedures.done", {"procedure": "tourniquet", "time": "2241", "by": "crew"}, "medic", null], ["meds.given", {"drug": "tranexamic acid", "by": "crew"}, "medic", null]]}
+{"id": "b04_036", "broad": [["trauma.mechanism", "mvc, rear passenger, lap belt only", "medic", null]]}
+{"id": "b04_038", "broad": [["trauma.mechanism", "struck by a car in a parking lot at low speed", "medic", null]]}
+{"id": "b04_041", "broad": [["trauma.mechanism", "fell in the garden", "medic", null]]}
+{"id": "b04_042", "broad": [["vitals.gcs_total", 14, "medic", null], ["vitals.gcs_eye", 4, "medic", null], ["vitals.gcs_verbal", 4, "medic", null]]}
+{"id": "b04_046", "broad": [["trauma.mechanism", "assault", "medic", null]]}
+{"id": "b04_047", "broad": [["trauma.mechanism", "car rolled back over her left foot", "bystander", null]]}
+{"id": "b04_050", "broad": [["trauma.mechanism", "mountain biker went over the bars, helmet cracked", "medic", null], ["vitals.gcs_eye", 3, "medic", null], ["vitals.gcs_verbal", 5, "medic", null]]}
+{"id": "b04_051", "broad": [["trauma.mechanism", "single car into a tree, 45 mph, restrained, airbags deployed", "medic", null], ["trauma.injuries", ["seatbelt abrasion across the chest", "right wrist deformity"], "medic", null], ["vitals.gcs_total", 15, "medic", null]]}
+{"id": "b04_055", "broad": [["trauma.mechanism", "fell down a full flight of stairs, 14 steps", "medic", null], ["vitals.gcs_total", 12, "medic", null], ["vitals.gcs_eye", 3, "medic", null], ["vitals.gcs_verbal", 4, "medic", null]]}
+{"id": "b04_059", "broad": [["patient.pregnancy_weeks", 32, "patient", null]]}
+{"id": "b04_060", "broad": [["trauma.mechanism", "fell getting out of the shower", "medic", null]]}
+{"id": "b04_064", "broad": [["trauma.mechanism", "fell in the driveway, hit his head on the curb", "medic", null]]}
+{"id": "b04_065", "broad": [["trauma.mechanism", "mvc with heavy entrapment, dash rolled down onto his legs, 35-minute extrication", "medic", null]]}
+{"id": "b04_068", "broad": [["trauma.mechanism", "single gsw to the left buttock", "medic", null], ["trauma.injuries", ["gsw to the left buttock"], "medic", null]]}
+{"id": "b04_069", "broad": [["trauma.mechanism", "fell from a second-story window onto grass, 12 feet", "medic", null]]}
+{"id": "b04_074", "broad": [["trauma.mechanism", "motorcycle hit a deer, full face helmet intact", "medic", null]]}
+{"id": "b04_075", "broad": [["trauma.mechanism", "unwitnessed nursing home fall", "medic", null]]}
+{"id": "b04_076", "broad": [["trauma.mechanism", "stab wound to the left chest", "medic", null], ["trauma.injuries", ["stab wound to the left chest"], "medic", null]]}
+{"id": "b04_077", "broad": [["trauma.mechanism", "missed the curb and fell", "patient", null]]}
+{"id": "b04_078", "broad": [["trauma.mechanism", "hit by a van", "bystander", null]]}
+{"id": "b04_080", "broad": [["trauma.mechanism", "t-bone, a foot of driver side intrusion, airbags deployed", "medic", null]]}
+{"id": "b04_082", "broad": [["trauma.mechanism", "fell off the porch steps", "family", "granddaughter"]]}
+{"id": "b04_083", "broad": [["trauma.mechanism", "gsw to the occiput", "medic", null], ["trauma.injuries", ["gsw to the occiput"], "medic", null]]}
+{"id": "b04_084", "broad": [["trauma.mechanism", "riding her bike down a hill, brakes gave out, hit the fence", "family", "father"]]}
+{"id": "b04_088", "broad": [["trauma.mechanism", "fell out of his tree stand, harness not clipped in", "medic", null]]}
+{"id": "b04_089", "broad": [["trauma.mechanism", "fell in the hallway", "medic", null], ["trauma.injuries", ["bleeding scalp lac"], "medic", null]]}
+{"id": "b04_090", "broad": [["vitals.gcs_eye", 3, "medic", null], ["vitals.gcs_verbal", 4, "medic", null]]}
+{"id": "b04_092", "broad": [["trauma.mechanism", "tripped on the stairs", "patient", null]]}
+{"id": "b04_093", "broad": [["trauma.mechanism", "chased his ball into the street, hit by a car on the side", "family", "mother"]]}
+{"id": "b04_094", "broad": [["trauma.mechanism", "highway speed head-on, both cars totaled, steering column bent, belted", "medic", null]]}
+{"id": "b04_097", "broad": [["trauma.mechanism", "fall", "medic", null]]}
+{"id": "b04_098", "broad": [["trauma.mechanism", "motorcycle down, passenger thrown, half-shell helmet", "medic", null], ["trauma.injuries", ["scraped up"], "medic", null]]}
+{"id": "b04_101", "broad": [["trauma.mechanism", "fall from a second-floor balcony onto a parked car", "medic", null], ["trauma.injuries", ["open tib-fib on the right"], "medic", null], ["vitals.gcs_eye", 4, "medic", null], ["vitals.gcs_verbal", 5, "medic", null], ["procedures.done", {"procedure": "splint", "by": "crew"}, "medic", null], ["procedures.done", {"procedure": "pelvic binder", "by": "crew"}, "medic", null]]}
+{"id": "b04_102", "broad": [["trauma.mechanism", "fell reaching for the cat food", "medic", null]]}
+{"id": "b04_103", "broad": [["trauma.mechanism", "restrained pickup driver, rear-ended at highway speed", "medic", null]]}
+{"id": "b04_106", "broad": [["trauma.mechanism", "fell off an 8 foot a-frame ladder, hit his head on the fence post", "medic", null]]}
+{"id": "b04_117", "broad": [["trauma.mechanism", "road cyclist went down in a pace line, touched wheels, helmet split in two places", "medic", null]]}
+{"id": "b04_120", "broad": [["trauma.mechanism", "fell out of his wheelchair during a transfer", "medic", null]]}
+{"id": "b04_121", "broad": [["trauma.mechanism", "fight, stab wound to the right upper arm", "medic", null], ["trauma.injuries", ["single stab wound to the right upper arm"], "medic", null], ["procedures.done", {"procedure": "direct pressure", "detail": "bleeding controlled", "by": "crew"}, "medic", null]]}
+{"id": "b04_122", "broad": [["trauma.mechanism", "stepped off the joist, fell through the attic ceiling 10 feet onto concrete", "medic", null], ["vitals.gcs_total", 15, "medic", null]]}
+{"id": "b04_125", "broad": [["trauma.mechanism", "low-speed fender bender, airbag deployed", "medic", null], ["trauma.injuries", ["friction burn on the forearm"], "medic", null]]}
+{"id": "b04_126", "broad": [["trauma.mechanism", "flash fire at a propane tank", "medic", null], ["trauma.injuries", ["partial thickness burns to the face and both hands, 12 percent"], "medic", null], ["procedures.done", {"procedure": "iv access", "by": "crew"}, "medic", null]]}
+{"id": "b04_131", "broad": [["trauma.mechanism", "fell in the bathroom", "medic", null], ["meds.given", {"drug": "dextrose", "by": "crew"}, "medic", null]]}
+{"id": "b04_133", "broad": [["trauma.mechanism", "stab wound to the right lower back", "medic", null], ["trauma.injuries", ["single stab wound right lower back, 2 centimeters"], "medic", null]]}
+{"id": "b04_136", "broad": [["trauma.mechanism", "pedestrian versus sedan at 35 mph", "medic", null], ["trauma.injuries", ["closed head injury", "deformed right femur"], "medic", null], ["vitals.gcs_total", 9, "medic", null], ["vitals.gcs_eye", 2, "medic", null], ["vitals.gcs_verbal", 2, "medic", null], ["procedures.done", {"procedure": "spinal motion restriction", "detail": "collar", "by": "crew"}, "medic", null], ["procedures.done", {"procedure": "splint", "detail": "traction", "by": "crew"}, "medic", null]]}
+{"id": "b04_137", "broad": [["trauma.mechanism", "thrown from a horse, landed on her back", "medic", null]]}
+{"id": "b04_140", "broad": [["trauma.mechanism", "shoved by another resident, fell backward onto her bottom", "family", "aide"]]}
+{"id": "b04_141", "broad": [["trauma.mechanism", "gsw to the left chest", "medic", null], ["trauma.injuries", ["gsw to the left chest"], "medic", null]]}
+{"id": "b04_143", "broad": [["trauma.mechanism", "rollover, roof caved in 8 inches", "medic", null]]}
+{"id": "b04_146", "broad": [["trauma.mechanism", "fell down the basement stairs", "medic", null]]}
+{"id": "b04_149", "broad": [["trauma.mechanism", "fell off the toilet", "medic", null]]}
+{"id": "b04_150", "broad": [["trauma.mechanism", "motorcycle versus tree, no helmet", "medic", null], ["vitals.gcs_eye", 1, "medic", null], ["vitals.gcs_verbal", 1, "medic", null]]}
+{"id": "b05_004", "broad": [["procedures.done", {"procedure": "cpap", "by": "crew"}, "medic", null]]}
+{"id": "b05_012", "broad": [["meds.given", {"drug": "epinephrine", "route": "IM", "time": "1412", "by": "crew"}, "medic", null]]}
+{"id": "b05_018", "broad": [["meds.given", {"drug": "albuterol", "time": "5:00", "by": "mom"}, "medic", null]]}
+{"id": "b05_023", "broad": [["procedures.done", {"procedure": "bvm ventilation", "by": "crew"}, "medic", null]]}
+{"id": "b05_024", "broad": [["meds.given", {"drug": "epinephrine", "by": "crew"}, "medic", null], ["meds.given", {"drug": "diphenhydramine", "by": "crew"}, "medic", null]]}
+{"id": "b05_034", "broad": [["infection.suspected", "unknown", "medic", null]]}
+{"id": "b05_036", "broad": [["meds.given", {"drug": "epinephrine", "by": "crew"}, "medic", null]]}
+{"id": "b05_039", "broad": [["meds.given", {"drug": "ipratropium/albuterol", "route": "neb", "by": "crew"}, "medic", null]]}
+{"id": "b05_044", "broad": [["meds.given", {"drug": "epinephrine", "time": "2:15", "by": "mother"}, "family", "mother"]]}
+{"id": "b05_045", "broad": [["procedures.done", {"procedure": "cpap", "detail": "7.5", "by": "crew"}, "medic", null]]}
+{"id": "b05_046", "broad": [["trauma.mechanism", "fell in his unheated garage", "medic", null]]}
+{"id": "b05_052", "broad": [["meds.given", {"drug": "methylprednisolone", "by": "crew"}, "medic", null], ["meds.given", {"drug": "famotidine", "route": "IV", "by": "crew"}, "medic", null], ["meds.given", {"drug": "epinephrine", "time": "1438", "by": "crew"}, "medic", null]]}
+{"id": "b05_057", "broad": [["meds.given", {"drug": "albuterol", "dose": 5, "unit": "mg", "route": "neb", "by": "crew"}, "medic", null]]}
+{"id": "b05_076", "broad": [["procedures.done", {"procedure": "cpap", "by": "crew"}, "medic", null]]}
+{"id": "b05_087", "broad": [["meds.given", {"drug": "epinephrine", "by": "crew"}, "medic", null]]}
+{"id": "b05_106", "broad": [["meds.given", {"drug": "epinephrine", "by": "crew"}, "medic", null]]}
+{"id": "b05_124", "broad": [["procedures.done", {"procedure": "cpap", "detail": "10", "by": "crew"}, "medic", null]]}
+{"id": "b05_128", "broad": [["meds.given", {"drug": "epinephrine", "route": "IM", "by": "crew"}, "medic", null], ["meds.given", {"drug": "albuterol", "by": "crew"}, "medic", null]]}
+{"id": "b05_142", "broad": [["procedures.done", {"procedure": "cpap", "by": "crew"}, "medic", null]]}
+{"id": "b06_001", "broad": [["meds.given", {"drug": "dextrose", "by": "crew"}, "medic", null]]}
+{"id": "b06_006", "broad": [["meds.given", {"drug": "dextrose", "by": "crew"}, "medic", null]]}
+{"id": "b06_007", "broad": [["meds.given", {"drug": "glucagon", "by": "friend"}, "medic", null]]}
+{"id": "b06_023", "broad": [["meds.given", {"drug": "naloxone", "dose": 4, "unit": "mg", "route": "IN", "by": "friend"}, "medic", null]]}
+{"id": "b06_033", "broad": [["vitals.gcs_total", 15, "medic", null]]}
+{"id": "b06_035", "broad": [["meds.given", {"drug": "naloxone", "dose": 2, "route": "IN", "by": "crew"}, "medic", null]]}
+{"id": "b06_040", "broad": [["meds.given", {"drug": "dextrose", "by": "crew"}, "medic", null]]}
+{"id": "b06_062", "broad": [["meds.given", {"drug": "glucagon", "dose": 1, "route": "IM", "by": "crew"}, "medic", null]]}
+{"id": "b06_064", "broad": [["meds.given", {"drug": "naloxone", "route": "IN", "by": "friend"}, "bystander", null], ["meds.given", {"drug": "naloxone", "route": "IN", "by": "friend"}, "bystander", null]]}
+{"id": "b06_065", "broad": [["meds.given", {"drug": "naloxone", "dose": 4, "by": "crew"}, "medic", null]]}
+{"id": "b06_069", "broad": [["trauma.mechanism", "fell off the stool and smacked his head on the rail", "bystander", null]]}
+{"id": "b06_076", "broad": [["meds.given", {"drug": "dextrose", "by": "crew"}, "medic", null]]}
+{"id": "b06_084", "broad": [["vitals.gcs_total", 8, "medic", null], ["vitals.gcs_eye", 2, "medic", null], ["vitals.gcs_verbal", 2, "medic", null]]}
+{"id": "b06_098", "broad": [["trauma.mechanism", "fell out of bed at the nursing home", "medic", null]]}
+{"id": "b06_100", "broad": [["vitals.gcs_total", 7, "medic", null]]}
+{"id": "b06_104", "broad": [["meds.given", {"drug": "midazolam", "by": "crew"}, "medic", null]]}
+{"id": "b06_116", "broad": [["procedures.done", {"procedure": "bvm ventilation", "by": "crew"}, "medic", null]]}
+{"id": "b06_121", "broad": [["vitals.gcs_total", 15, "medic", null]]}
+{"id": "b06_126", "broad": [["meds.given", {"drug": "dextrose", "by": "crew"}, "medic", null]]}
+{"id": "b06_132", "broad": [["vitals.gcs_total", 9, "medic", null]]}
+{"id": "b06_143", "broad": [["infection.suspected", "unknown", "medic", null]]}
+{"id": "b06_144", "broad": [["vitals.gcs_total", 3, "medic", null]]}
+{"id": "b06_145", "broad": [["meds.given", {"drug": "dextrose", "by": "crew"}, "medic", null]]}
+{"id": "b06_146", "broad": [["meds.given", {"drug": "glucagon", "by": "husband"}, "family", "husband"]]}
+{"id": "b07_006", "broad": [["meds.given", {"drug": "aspirin", "dose": 324, "route": "PO", "by": "crew"}, "medic", null], ["meds.given", {"drug": "nitroglycerin", "route": "SL", "time": "1410", "by": "crew"}, "medic", null]]}
+{"id": "b07_008", "broad": [["trauma.mechanism", "ground level fall", "medic", null]]}
+{"id": "b07_022", "broad": [["meds.given", {"drug": "glucagon", "dose": 1, "unit": "mg", "route": "IM", "by": "fire"}, "medic", null]]}
+{"id": "b07_037", "broad": [["meds.given", {"drug": "naloxone", "dose": 2, "route": "IN", "by": "crew"}, "medic", null]]}
+{"id": "b07_042", "broad": [["trauma.mechanism", "fell in the bathroom", "medic", null]]}
+{"id": "b07_058", "broad": [["meds.given", {"drug": "aspirin", "dose": 324, "by": "crew"}, "medic", null]]}
+{"id": "b07_071", "broad": [["meds.given", {"drug": "epinephrine", "dose": 0.3, "route": "IM", "by": "crew"}, "medic", null]]}
+{"id": "b07_081", "broad": [["meds.given", {"drug": "albuterol", "route": "neb", "by": "crew"}, "medic", null], ["meds.given", {"drug": "ipratropium", "route": "neb", "by": "crew"}, "medic", null], ["meds.given", {"drug": "methylprednisolone", "dose": 125, "route": "IV", "by": "crew"}, "medic", null]]}
+{"id": "b07_082", "broad": [["meds.given", {"drug": "ipratropium/albuterol", "route": "neb", "by": "crew"}, "medic", null]]}
+{"id": "b07_112", "broad": [["meds.given", {"drug": "nitroglycerin", "by": "crew"}, "medic", null]]}
+{"id": "b07_119", "broad": [["meds.given", {"drug": "dextrose", "by": "crew"}, "medic", null]]}
+{"id": "b07_142", "broad": [["meds.given", {"drug": "ondansetron", "dose": 4, "route": "IV", "by": "crew"}, "medic", null]]}
+{"id": "b07_147", "broad": [["trauma.mechanism", "fall with head strike", "medic", null], ["vitals.gcs_total", 15, "medic", null]]}
+{"id": "b08_047", "broad": [["trauma.mechanism", "fell down the stairs", "medic", null]]}
+{"id": "b08_060", "broad": [["meds.given", {"drug": "glucose", "route": "PO", "by": "crew"}, "medic", null]]}
+{"id": "b08_145", "broad": [["trauma.mechanism", "unwitnessed fall, hit her head", "medic", null]]}
+{"id": "b09_055", "broad": [["trauma.mechanism", "fell 15 feet off a roof", "medic", null]]}
+{"id": "b09_056", "broad": [["trauma.mechanism", "mvc, restrained driver", "medic", null], ["trauma.injuries", ["obvious deformity at the elbow"], "medic", null]]}
+{"id": "b09_061", "broad": [["meds.given", {"drug": "dextrose", "by": "crew"}, "medic", null]]}
+{"id": "b09_064", "broad": [["trauma.mechanism", "mechanical fall", "medic", null]]}
+{"id": "b09_072", "broad": [["trauma.injuries", ["head lac"], "medic", null], ["vitals.gcs_total", 14, "medic", null]]}
+{"id": "b09_075", "broad": [["trauma.mechanism", "fell off the monkey bars", "medic", null], ["trauma.injuries", ["deformity mid forearm"], "medic", null]]}
+{"id": "b09_114", "broad": [["procedures.done", {"procedure": "iv access", "by": "crew"}, "medic", null]]}
+{"id": "b09_141", "broad": [["infection.suspected", "urinary", "medic", null]]}
+{"id": "b09_145", "broad": [["meds.given", {"drug": "glucose", "route": "PO", "by": "crew"}, "medic", null]]}
+{"id": "b10_109", "broad": [["trauma.mechanism", "fell off a ladder", "medic", null]]}
+{"id": "b10_124", "broad": [["vitals.gcs_total", 14, "medic", null]]}
+{"id": "b11_008", "broad": [["trauma.mechanism", "fall", "family", "wife"]]}
+{"id": "b11_013", "broad": [["trauma.mechanism", "witnessed mechanical fall off a ladder", "medic", null]]}
+{"id": "b11_051", "broad": [["trauma.mechanism", "fell over at the mailbox", "bystander", null]]}
+{"id": "b11_066", "broad": [["trauma.mechanism", "mechanical fall, hit his head", "medic", null]]}
+{"id": "b11_114", "broad": [["trauma.mechanism", "fell off his bike, helmeted", "medic", null]]}
+{"id": "b12_017", "broad": [["trauma.mechanism", "fall from standing", "medic", null]]}
+{"id": "b12_071", "broad": [["meds.given", {"drug": "aspirin", "dose": 324, "route": "PO", "time": "14:12", "by": "crew"}, "medic", null]]}
+{"id": "b12_072", "broad": [["meds.given", {"drug": "nitroglycerin", "route": "SL", "by": "crew"}, "medic", null]]}
+{"id": "b12_073", "broad": [["meds.given", {"drug": "nitroglycerin", "time": "14:05", "by": "crew"}, "medic", null]]}
+{"id": "b12_074", "broad": [["meds.given", {"drug": "aspirin", "dose": 324, "route": "PO", "by": "crew"}, "medic", null]]}
+{"id": "b12_075", "broad": [["meds.given", {"drug": "ondansetron", "dose": 4, "route": "IV", "by": "crew"}, "medic", null]]}
+{"id": "b12_076", "broad": [["meds.given", {"drug": "nitroglycerin", "dose": 0.4, "route": "SL", "by": "crew"}, "medic", null], ["vitals.pain", 8, "medic", null], ["vitals.pain", 5, "medic", null]]}
+{"id": "b12_079", "broad": [["meds.given", {"drug": "aspirin", "dose": 324, "by": "crew"}, "medic", null]]}
+{"id": "b12_080", "broad": [["meds.given", {"drug": "ondansetron", "dose": 8, "by": "crew"}, "medic", null]]}
+{"id": "b12_081", "broad": [["meds.given", {"drug": "nitroglycerin", "by": "nursing home staff"}, "medic", null]]}
+{"id": "b12_082", "broad": [["meds.given", {"drug": "ipratropium/albuterol", "route": "neb", "by": "crew"}, "medic", null]]}
+{"id": "b12_083", "broad": [["meds.given", {"drug": "morphine", "dose": 4, "by": "crew"}, "medic", null], ["meds.given", {"drug": "midazolam", "dose": 2, "by": "crew"}, "medic", null]]}
+{"id": "b12_084", "broad": [["meds.given", {"drug": "aspirin", "by": "crew"}, "medic", null]]}
+{"id": "b13_012", "broad": [["vitals.gcs_total", 15, "medic", null]]}
+{"id": "b13_017", "broad": [["vitals.gcs_total", 11, "medic", null], ["vitals.gcs_eye", 3, "medic", null], ["vitals.gcs_verbal", 3, "medic", null]]}
+{"id": "b13_018", "broad": [["vitals.gcs_total", 9, "medic", null]]}
+{"id": "b13_019", "broad": [["vitals.gcs_total", 14, "medic", null]]}
+{"id": "b13_032", "broad": [["meds.given", {"drug": "nitroglycerin", "by": "crew"}, "medic", null]]}
+{"id": "b13_034", "broad": [["meds.given", {"drug": "dextrose", "by": "crew"}, "medic", null]]}
+{"id": "b13_057", "broad": [["vitals.gcs_total", 3, "medic", null]]}
+{"id": "b13_087", "broad": [["vitals.gcs_eye", 4, "medic", null], ["vitals.gcs_verbal", 5, "medic", null]]}
+{"id": "b13_088", "broad": [["vitals.gcs_total", 14, "medic", null]]}
+{"id": "b13_097", "broad": [["procedures.done", {"procedure": "cpap", "detail": "10", "by": "crew"}, "medic", null]]}
+{"id": "b14_010", "broad": [["trauma.mechanism", "dropped her bags and fell", "bystander", null]]}
+{"id": "b14_038", "broad": [["trauma.mechanism", "fell off the ladder", "bystander", null]]}
+{"id": "b14_053", "broad": [["trauma.mechanism", "fell off the roof, 12 feet", "family", "wife"]]}
+{"id": "b14_059", "broad": [["trauma.mechanism", "hit by a car at low speed", "bystander", null]]}
+{"id": "b14_091", "broad": [["patient.pregnancy_weeks", 34, "patient", null]]}
+{"id": "b14_109", "broad": [["trauma.mechanism", "fell getting out of the tub", "patient", null]]}
+{"id": "b14_116", "broad": [["vitals.pain", 10, "patient", null]]}
+{"id": "b15_006", "broad": [["meds.given", {"drug": "dextrose", "by": "crew"}, "medic", null]]}
+{"id": "b15_007", "broad": [["trauma.mechanism", "motorcycle versus car", "medic", null]]}
+{"id": "b15_017", "broad": [["procedures.done", {"procedure": "cpr", "by": "bystander"}, "medic", null], ["procedures.done", {"procedure": "defibrillation", "detail": "1 AED shock", "by": "bystander"}, "medic", null]]}
+{"id": "b15_022", "broad": [["trauma.mechanism", "fell 12 feet off a ladder, landed on his back", "medic", null]]}
+{"id": "b15_029", "broad": [["meds.given", {"drug": "aspirin", "by": "crew"}, "medic", null], ["meds.given", {"drug": "nitroglycerin", "by": "crew"}, "medic", null]]}
+{"id": "b15_030", "broad": [["trauma.mechanism", "fell over in the garden", "bystander", null]]}
+{"id": "b15_032", "broad": [["trauma.mechanism", "fell off a step stool, hit her head", "medic", null], ["vitals.gcs_total", 15, "medic", null]]}
+{"id": "b15_036", "broad": [["vitals.gcs_total", 15, "medic", null]]}
+{"id": "b15_037", "broad": [["patient.pregnancy_weeks", 28, "medic", null]]}
+{"id": "b15_045", "broad": [["trauma.mechanism", "fell getting out of the shower, hit her head", "medic", null], ["trauma.injuries", ["laceration to the forehead"], "medic", null]]}
+{"id": "b15_047", "broad": [["trauma.mechanism", "crashed his bike, helmet on", "medic", null]]}
+{"id": "b15_053", "broad": [["trauma.mechanism", "assault, struck in the face with a bottle", "medic", null]]}
+{"id": "b15_064", "broad": [["meds.given", {"drug": "dextrose", "by": "crew"}, "medic", null]]}
+{"id": "b15_066", "broad": [["trauma.mechanism", "fell out of bed at the nursing home", "medic", null], ["trauma.injuries", ["right hip shortened and rotated"], "medic", null]]}
+{"id": "b15_071", "broad": [["meds.given", {"drug": "nitroglycerin", "by": "crew"}, "medic", null]]}
+{"id": "b16_023", "broad": [["vitals.gcs_total", 14, "medic", null]]}
+{"id": "b16_107", "broad": [["trauma.mechanism", "unwitnessed fall in the bathroom", "medic", null]]}

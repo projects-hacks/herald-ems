@@ -1,0 +1,10 @@
+# Keys scored against their own gold files, not in the headline F1, so the headline stays comparable with every
+# number published before these keys existed (eval/bench_extract.py --group-gold <group>=<file>).
+groups:
+  gfast:            # G.F.A.S.T. items (run C), gold in eval/gold_v*_gfast.jsonl
+    prefixes: [exam.gfast.]
+  broad:            # fact types added for all call types (run E), gold in eval/gold_v*_broad.jsonl
+    keys: [meds.given, procedures.done, vitals.pain, vitals.gcs_eye, vitals.gcs_verbal, vitals.gcs_total, vitals.etco2,
+           ecg.stemi_reading, ecg.transmitted,
+           patient.pregnancy_weeks]
+    prefixes: [trauma., infection.]

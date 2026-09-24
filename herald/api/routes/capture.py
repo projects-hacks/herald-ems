@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from ...core.schema import CapturedBy, FactIn, Role, new_id
+from ..capture import ModelUnavailable
 from . import get_capture, get_ctx
 
 router = APIRouter(prefix="/api")
@@ -29,7 +30,10 @@ class TranscriptIn(BaseModel):
 
 @router.post("/transcript")
 async def post_transcript(body: TranscriptIn, cap=Depends(get_capture)):
-    return await cap.text(body.text, body.captured_by, body.role, body.speaker, None, body.use_llm)
+    try:
+        return await cap.text(body.text, body.captured_by, body.role, body.speaker, None, body.use_llm)
+    except ModelUnavailable as e:
+        raise HTTPException(503, str(e))
 
 
 @router.post("/audio")
@@ -49,8 +53,11 @@ async def post_audio(file: UploadFile = File(...), captured_by: CapturedBy = For
     result["ms"] = round((time.perf_counter() - t0) * 1000)
     if not result["text"]:
         return {"transcript": None, "facts": [], "stt": result}
-    return await cap.text(result["text"], captured_by, None, speaker, audio_id, use_llm,
-                          {"seconds": result["seconds"], "ms": result["ms"], "chunks": result["chunks"]})
+    try:
+        return await cap.text(result["text"], captured_by, None, speaker, audio_id, use_llm,
+                              {"seconds": result["seconds"], "ms": result["ms"], "chunks": result["chunks"]})
+    except ModelUnavailable as e:
+        raise HTTPException(503, str(e))
 
 
 @router.post("/photo")

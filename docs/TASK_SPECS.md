@@ -188,7 +188,7 @@ Everything runs locally.
 
 **Goal:** drug names reach the patient picture as standard generic names with an RxNorm code, whatever was said: a brand ("Lipitor"), a speech-to-text misspelling ("lipiter", "eloquis"), or a generic. This replaces the hand-written word lists (`config/lexicons.yaml` `anticoagulants`) with the national drug vocabulary: the approach production clinical systems use, and the coding NEMSIS uses (RxNorm) for medications and allergies.
 
-**Read:** the research summary in `docs/MODEL_PLAN.md` (grounding and normalization); `herald/extraction/pipeline.py`, `herald/extraction/model.py`, `herald/models/vision.py` (uses `lexicons.yaml`); `config/vocabulary.yaml` (`meds.list`, `meds.anticoagulant`, `allergies`); the labeling guide §4 (generic, lowercase).
+**Read:** the research summary in `docs/MODEL_PLAN.md` (grounding and normalization); `herald/extraction/model.py` (the only speech extractor; the old rules merge is `eval/baselines/rules_plus_model.py`), `herald/models/vision.py` (uses `lexicons.yaml`); `config/vocabulary.yaml` (`meds.list`, `meds.anticoagulant`, `allergies`); the labeling guide §4 (generic, lowercase).
 
 **Data:**
 - **RxNorm Current Prescribable Content** from the NLM: https://www.nlm.nih.gov/research/umls/rxnorm/docs/prescribe.html. It needs no UMLS licence.

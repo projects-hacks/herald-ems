@@ -6,8 +6,6 @@
   python eval/bench_extract.py --extractor llm --model omni --gold eval/gold_v0.jsonl --out eval/results.jsonl
 
   python eval/bench_extract.py --rescore dump.jsonl --gold eval/gold_v1.jsonl  # re-score saved predictions
-  python eval/bench_extract.py --rescore dump.jsonl --terminology on           # ... after RxNorm coding (S6)
-  python eval/bench_extract.py --rescore dump.jsonl --keys meds.list,meds.anticoagulant,allergies  # these keys only
 
 Scores atomic facts: precision / recall / F1, role accuracy on matched facts, JSON validity, and
 per-utterance latency. Numbers go straight into the deck.
@@ -21,11 +19,11 @@ What an atomic fact is (scorer v2, 2026-09-23; v1 scored whole facts):
   ago" == "15 minutes ago", "06:30" == "0630");
 - free-text keys (FREE_TEXT): presence only, reported separately.
 Drug names are NOT normalized by the scorer: mapping brands and misspellings to generic names is the
-extractor's job (LABELING_GUIDE §4), done by RxNorm coding (herald/terminology/) as the app wires it.
-`--terminology on` applies that coding to saved predictions, so its effect is measured on identical model output.
+extractor's job (LABELING_GUIDE §4).
 """
 import argparse
 import json
+import yaml
 import os
 import statistics
 import sys
@@ -35,11 +33,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from herald.config import Settings  # noqa: E402
-from herald.core.schema import CapturedBy, FactIn, Role  # noqa: E402
+from herald.core.schema import CapturedBy, Role, source_role  # noqa: E402
 from herald.core.vocabulary import default_vocabulary  # noqa: E402
-from herald.extraction import ExtractionPipeline, ModelExtractor, RulesExtractor  # noqa: E402
+from herald.extraction import ModelExtractor  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from eval.baselines.rules_extractor import RulesExtractor  # noqa: E402  (baseline rows only)
+from eval.baselines.rules_plus_model import ExtractionPipeline  # noqa: E402  (baseline rows only)
 from herald.models import LocalLLMClient  # noqa: E402
-from herald.terminology import MedicationCoder, RxNormNormalizer  # noqa: E402
 
 KEYS = default_vocabulary().keys
 
@@ -83,17 +84,36 @@ def norm(key, v):
 
 # Free-text keys can't be scored by exact string match (paraphrase is not an error). They are scored
 # separately by key presence; the headline F1 covers structured keys only.
-FREE_TEXT = {"complaint.chief", "stroke.deficits", "transport.destination", "scene.notes"}
-# Scored separately against their own gold files (eval/gold_v*_gfast.jsonl, --gfast-gold), so the headline F1
-# stays comparable with every number published before these keys existed.
+FREE_TEXT = {"complaint.chief", "stroke.deficits", "transport.destination", "scene.notes", "trauma.mechanism",
+             "trauma.injuries"}
+# Scored separately against their own gold files (eval/scoring.yaml; --group-gold, --gfast-gold), so the headline
+# F1 stays comparable with every number published before these keys existed.
 SEPARATE_PREFIX = "exam.gfast."
+GROUPS = yaml.safe_load(open(Path(__file__).resolve().parent / "scoring.yaml"))["groups"]
+
+
+def group_of(key: str) -> str | None:
+    for name, g in GROUPS.items():
+        if key in g.get("keys", []) or any(key.startswith(p) for p in g.get("prefixes", [])):
+            return name
+    return None
 
 
 def atoms(facts) -> dict:
     """(key, normalized value) -> role, for facts given as (key, value, role). See the module docstring."""
     out = {}
     for k, v, r in facts:
-        if KEYS.get(k, {}).get("type") == "list":
+        if KEYS.get(k, {}).get("type") == "record" and isinstance(v, dict):
+            try:
+                v = default_vocabulary().coerce(k, v)       # the same field normalization as the app ("husband" -> family)
+            except ValueError:
+                pass
+            # one atom per stated field of the event, tied to its identity ("aspirin"): partial credit per field
+            ident = " ".join(str(v.get(KEYS[k]["identity"], "")).strip().lower().split())
+            for f, x in v.items():
+                if x not in (None, ""):
+                    out[(k, ident, f, norm_time(x) if f == "time" else norm(k, x))] = r
+        elif KEYS.get(k, {}).get("type") == "list":
             items = v if isinstance(v, list) else [v]
             if not items:
                 out[(k, "<none>")] = r
@@ -109,9 +129,10 @@ def score(gold, pred, free_text=False):
     if free_text:
         keep = lambda k: k in FREE_TEXT
     else:
-        keep = lambda k: k not in FREE_TEXT and not k.startswith(SEPARATE_PREFIX)
-    gold = [(k, v, r) for k, v, r in gold if keep(k)]
-    pred = [(k, v, r) for k, v, r in pred if keep(k)]
+        keep = lambda k: k not in FREE_TEXT and group_of(k) is None
+    # gold rows may carry a 4th element (the source's relation, LABELING_GUIDE §3); scoring uses key, value, role
+    gold = [(f[0], f[1], f[2]) for f in gold if keep(f[0])]
+    pred = [(f[0], f[1], f[2]) for f in pred if keep(f[0])]
     if free_text:   # presence only
         g = {(k, None): r for k, v, r in gold}
         p = {(k, None): r for k, v, r in pred}
@@ -123,43 +144,36 @@ def score(gold, pred, free_text=False):
     return len(tp), len(p) - len(tp), len(g) - len(tp), role_ok, sorted(set(p) - set(g)), sorted(set(g) - set(p))
 
 
-def build_coder(on: bool):
-    if not on:
-        return None
-    s = Settings.from_env()
-    if not s.terminology_index.exists():
-        sys.exit(f"--terminology on needs {s.terminology_index}: run scripts/build_rxnorm_index.py")
-    return MedicationCoder.from_config(RxNormNormalizer.load(s.terminology_index), default_vocabulary())
+def group_atoms(facts) -> dict:
+    """Atoms for a key group: free-text keys by presence (paraphrase is not an error), the rest exactly."""
+    out = atoms([f for f in facts if f[0] not in FREE_TEXT])
+    out.update({(k, "<present>"): r for k, v, r in facts if k in FREE_TEXT})
+    return out
 
 
-def code_pred(coder, pred):
-    """Apply RxNorm coding to saved (key, value, role) predictions, as the extractors do live."""
-    facts = coder.code([FactIn(key=k, value=v, role=Role(r)) for k, v, r in pred])
-    return [(f.key, f.value, f.role.value) for f in facts]
-
-
-def build_extractor(kind: str, model: str | None, coder=None):
+def build_extractor(kind: str, model: str | None):
     """The same extractors the app wires (herald/api/context.py), for one served model label."""
     s = Settings.from_env()
     client = LocalLLMClient(s.llm_url, model or s.llm_model)
-    rules = RulesExtractor(anticoagulant_names=coder.anticoagulant_names() if coder else (), coder=coder)
-    model_x = ModelExtractor(client, finetuned_labels=s.finetuned_models, coder=coder)
+    rules = RulesExtractor()
+    model_x = ModelExtractor(client, finetuned_labels=s.finetuned_models)
     ext = {"rules": rules, "llm": model_x,
            "pipeline": ExtractionPipeline(rules, model_x, model_available=client.available)}[kind]
     return ext, model_x, client
 
 
-def predict(a, rows, coder):
+def predict(a, rows):
     """Run the extractor on every row. Yields (row, pred as (key, value, role) tuples, ms, tokens, error)."""
-    ext, model_x, _ = build_extractor(a.extractor, a.model, coder)
+    ext, model_x, _ = build_extractor(a.extractor, a.model)
     for r in rows:
         by = CapturedBy(r.get("by", "medic"))
-        role = Role.family if by == CapturedBy.other else Role.medic
+        role = source_role(by, r.get("speaker"))              # as the app does (herald/api/capture.py)
         model_x.last_usage = {}
         t0 = time.perf_counter()
         err = None
         try:
-            pred = ext.extract(r["text"], by, role, r.get("speaker"))
+            ctx = {"dispatch": r.get("dispatch")} if isinstance(ext, ModelExtractor) else {}   # run E sees it
+            pred = ext.extract(r["text"], by, role, r.get("speaker"), **ctx)
         except Exception as e:
             pred, err = [], f"{type(e).__name__}: {str(e)[:200]}"
         ms = (time.perf_counter() - t0) * 1000
@@ -167,13 +181,12 @@ def predict(a, rows, coder):
         yield r, [(f.key, f.value, f.role.value) for f in pred], ms, tokens, err
 
 
-def replay(path, rows, coder=None):
-    """Saved predictions from a --dump file, in gold order (RxNorm-coded first when a coder is given)."""
+def replay(path, rows):
+    """Saved predictions from a --dump file, in gold order."""
     saved = {d["id"]: d for d in map(json.loads, open(path))}
     for r in rows:
         d = saved[r["id"]]
-        pred = [tuple(x) for x in d["pred"]]
-        yield r, code_pred(coder, pred) if coder else pred, d["ms"], d.get("tokens"), d.get("error")
+        yield r, [tuple(x) for x in d["pred"]], d["ms"], d.get("tokens"), d.get("error")
 
 
 def main():
@@ -187,13 +200,9 @@ def main():
     ap.add_argument("--rescore", default=None, help="score the predictions saved in this --dump file (no model calls)")
     ap.add_argument("--ids", default=None, help="score only these ids: a range like v1_001-v1_050")
     ap.add_argument("--gfast-gold", default=None, help="G.F.A.S.T. labels (eval/gold_v*_gfast.jsonl), scored separately")
-    ap.add_argument("--terminology", choices=["on", "off"], default=None,
-                    help="RxNorm coding of drug names (default: on for live runs, as the app wires it; "
-                         "off for --rescore, which replays saved predictions as they were)")
-    ap.add_argument("--keys", default=None, help="score only these keys (comma-separated), e.g. the drug keys")
+    ap.add_argument("--group-gold", action="append", default=[], metavar="GROUP=FILE",
+                    help="labels for a key group in eval/scoring.yaml (e.g. broad=eval/gold_v2_broad.jsonl)")
     a = ap.parse_args()
-    only = set(a.keys.split(",")) if a.keys else None
-    coder = build_coder((a.terminology or ("off" if a.rescore else "on")) == "on")
 
     rows = [json.loads(line) for line in open(a.gold) if line.strip()]
     if a.ids:
@@ -202,21 +211,23 @@ def main():
     if a.rescore:
         first = json.loads(open(a.rescore).readline())
         label = first.get("label") or first["extractor"]
-        items = replay(a.rescore, rows, coder)
+        items = replay(a.rescore, rows)
     else:
         name = a.model or build_extractor("rules", None)[2].model_name()
         label = {"rules": "rules", "llm": f"llm:{name}", "pipeline": f"rules+llm:{name}"}[a.extractor]
-        items = predict(a, rows, coder)
+        items = predict(a, rows)
     TP = FP = FN = ROLE = 0
     FT = [0, 0, 0]
     gfast_gold = ({d["id"]: d["gfast"] for d in map(json.loads, open(a.gfast_gold))} if a.gfast_gold else None)
     GF = [0, 0, 0]
+    group_gold = {}
+    for spec in a.group_gold:
+        name, path = spec.split("=", 1)
+        group_gold[name] = {d["id"]: d.get("facts", d.get(name, [])) for d in map(json.loads, open(path))}
+    GG = {name: [0, 0, 0] for name in group_gold}
     dump = open(a.dump, "w") if a.dump else None
     lat, invalid, out_tokens = [], 0, []
     for r, pred, ms, tokens, err in items:
-        if only:
-            r = {**r, "facts": [x for x in r["facts"] if x[0] in only]}
-            pred = [x for x in pred if x[0] in only]
         lat.append(ms)
         invalid += err is not None
         if tokens is not None:
@@ -230,6 +241,11 @@ def main():
             g = atoms([tuple(x[:3]) for x in gfast_gold.get(r["id"], [])])
             p = atoms([x for x in pred if x[0].startswith(SEPARATE_PREFIX)])
             GF = [GF[0] + len(set(g) & set(p)), GF[1] + len(set(p) - set(g)), GF[2] + len(set(g) - set(p))]
+        for name, gold_g in group_gold.items():
+            g = group_atoms([tuple(x[:3]) for x in gold_g.get(r["id"], []) if group_of(x[0]) == name])
+            p = group_atoms([x for x in pred if group_of(x[0]) == name])
+            c = GG[name]
+            GG[name] = [c[0] + len(set(g) & set(p)), c[1] + len(set(p) - set(g)), c[2] + len(set(g) - set(p))]
         if dump:
             dump.write(json.dumps({"id": r["id"], "extractor": a.extractor, "label": label, "ms": round(ms),
                                    "tokens": tokens, "error": err, "pred": [list(x) for x in pred],
@@ -246,8 +262,7 @@ def main():
     ft_f1 = (2 * ftp / (2 * ftp + ffp + ffn)) if (ftp + ffp + ffn) else 0.0
     res = {
         "extractor": label, "gold": a.gold + (f"[{a.ids}]" if a.ids else ""), "scorer": "v2",
-        "rescored_from": a.rescore, "n": len(rows), "terminology": coder.release if coder else None,
-        **({"keys": sorted(only)} if only else {}),
+        "rescored_from": a.rescore, "n": len(rows),
         "precision": round(P, 3), "recall": round(R, 3), "f1": round(F1, 3),
         "role_acc": round(ROLE / TP, 3) if TP else 0.0, "json_invalid": invalid,
         "free_text_presence_f1": round(ft_f1, 3),
@@ -255,6 +270,10 @@ def main():
             "gfast_recall": round(GF[0] / (GF[0] + GF[2]), 3) if GF[0] + GF[2] else 0.0,
             "gfast_f1": round(2 * GF[0] / (2 * GF[0] + GF[1] + GF[2]), 3) if GF[0] else 0.0,
             "gfast_counts": {"tp": GF[0], "fp": GF[1], "fn": GF[2]}} if gfast_gold is not None else {}),
+        **({"groups": {n: {"precision": round(c[0] / (c[0] + c[1]), 3) if c[0] + c[1] else 0.0,
+                           "recall": round(c[0] / (c[0] + c[2]), 3) if c[0] + c[2] else 0.0,
+                           "f1": round(2 * c[0] / (2 * c[0] + c[1] + c[2]), 3) if c[0] else 0.0,
+                           "counts": {"tp": c[0], "fp": c[1], "fn": c[2]}} for n, c in GG.items()}} if GG else {}),
         "first_call_ms": round(lat[0]),
         "latency_ms_p50": round(statistics.median(lat)), "latency_ms_p95": round(lat_sorted[int(0.95 * (len(lat) - 1))]),
         "out_tokens_avg": round(statistics.mean(out_tokens), 1) if out_tokens else None,

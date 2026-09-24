@@ -78,7 +78,14 @@ class Incident:
             h = self.history(key, confirmed_only)
             if not h:
                 continue
-            if meta.get("merge") == "accumulate":
+            if meta.get("merge") == "each":             # every fact is its own event (a dose given, a procedure)
+                seen, events = set(), []
+                for f in h:
+                    if norm_value(f.value) not in seen:
+                        seen.add(norm_value(f.value))
+                        events.append(f.value)
+                out[key] = events
+            elif meta.get("merge") == "accumulate":
                 seen, merged = set(), []
                 for f in h:
                     for x in (f.value or []):

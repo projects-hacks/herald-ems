@@ -1,12 +1,12 @@
-"""Rules first (instant), then the local model's additions, merged with the app's semantics."""
+"""Rules + model merge, as the app ran before 2026-09-24. EVALUATION BASELINE ONLY (the "rules + model" rows)."""
 from __future__ import annotations
 
 import time
 from typing import Optional
 
-from ..core.ports import Extractor
-from ..core.schema import CapturedBy, FactIn, Role
-from .guard import InstructionGuard, default_guard
+from herald.core.ports import Extractor
+from herald.core.schema import CapturedBy, FactIn, Role
+from herald.extraction.guard import InstructionGuard, default_guard
 
 MODEL_ONLY_CONFIDENCE_CAP = 0.8   # below auto-confirm: the medic confirms what only the model heard
 

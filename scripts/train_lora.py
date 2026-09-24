@@ -21,16 +21,34 @@ import sys
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from herald.config import load_text  # noqa: E402
-
-SHORT_SYSTEM = load_text("prompts/extract_finetuned.md")   # the served extractor uses the same prompt file
+from herald.extraction.profiles import default_profiles  # noqa: E402
 
 
-def rows(path, limit=None):
+def system_prompt(profile_prefix: str) -> str:
+    """The prompt the served extractor will use for this label (config/extraction.yaml): train and serve alike."""
+    profile = default_profiles().for_label(profile_prefix)
+    if profile is None:
+        raise SystemExit(f"no fine-tuned profile matches {profile_prefix!r} in config/extraction.yaml")
+    return profile.prompt
+
+
+def reclaim_unified_memory(gib: float) -> None:
+    """On the GB10, CPU and GPU share memory and the kernel's page cache counts as used until something allocates.
+    Allocating (then freeing) `gib` makes the kernel drop clean cache, so the loader sees the real headroom."""
+    before, _ = torch.cuda.mem_get_info()
+    x = torch.empty(int(gib * 2**30), dtype=torch.uint8, device="cuda")
+    x.fill_(0)
+    del x
+    torch.cuda.empty_cache()
+    after, _ = torch.cuda.mem_get_info()
+    print(json.dumps({"reclaimed_gib": round((after - before) / 2**30, 1), "free_gib": round(after / 2**30, 1)}))
+
+
+def rows(path, system: str, limit=None):
     out = []
     for line in open(path):
         r = json.loads(line)
-        out.append({"prompt": [{"role": "system", "content": SHORT_SYSTEM}, {"role": "user", "content": r["text"]}],
+        out.append({"prompt": [{"role": "system", "content": system}, {"role": "user", "content": r["text"]}],
                     "completion": [{"role": "assistant", "content": r["completion"]}]})
         if limit and len(out) >= limit:
             break
@@ -48,6 +66,10 @@ def main():
     ap.add_argument("--batch", type=int, default=8)
     ap.add_argument("--accum", type=int, default=2)
     ap.add_argument("--smoke", action="store_true")
+    ap.add_argument("--reclaim-gib", type=float, default=0.0,
+                    help="GB10 unified memory: touch this much GPU memory first so the page cache is reclaimed and the "
+                         "loader sees it (the cache is only given back when something allocates)")
+    ap.add_argument("--profile", default="ems", help="served-label prefix whose prompt to train with (ems-d for run D)")
     a = ap.parse_args()
 
     from datasets import Dataset
@@ -55,9 +77,12 @@ def main():
     from transformers import AutoTokenizer
     from trl import SFTConfig, SFTTrainer
 
+    if a.reclaim_gib:
+        reclaim_unified_memory(a.reclaim_gib)
     limit = 64 if a.smoke else None
-    train = Dataset.from_list(rows(Path(a.data) / "train.jsonl", limit))
-    dev = Dataset.from_list(rows(Path(a.data) / "dev.jsonl", 32 if a.smoke else None))
+    system = system_prompt(a.profile)
+    train = Dataset.from_list(rows(Path(a.data) / "train.jsonl", system, limit))
+    dev = Dataset.from_list(rows(Path(a.data) / "dev.jsonl", system, 32 if a.smoke else None))
     tok = AutoTokenizer.from_pretrained(a.base)
     cfg = SFTConfig(
         output_dir=a.out, num_train_epochs=a.epochs, max_steps=10 if a.smoke else -1,
@@ -68,7 +93,9 @@ def main():
         save_strategy="no" if a.smoke else "steps", save_steps=max(1, int(len(train) / (a.batch * a.accum) / 2)),
         load_best_model_at_end=not a.smoke, metric_for_best_model="eval_loss",
         max_length=512, packing=False, gradient_checkpointing=False, report_to=[],
-        model_init_kwargs={"dtype": torch.bfloat16, "attn_implementation": "sdpa"},
+        # the whole model on the GPU: if memory is short this fails loudly instead of offloading layers to disk
+        # (a disk-offloaded model can't be trained; run E's first attempt, 2026-09-24)
+        model_init_kwargs={"dtype": torch.bfloat16, "attn_implementation": "sdpa", "device_map": {"": 0}},
     )
     lora = LoraConfig(r=a.rank, lora_alpha=2 * a.rank, lora_dropout=0.05, target_modules="all-linear", task_type="CAUSAL_LM")
     trainer = SFTTrainer(model=a.base, args=cfg, train_dataset=train, eval_dataset=dev, processing_class=tok, peft_config=lora)
@@ -78,7 +105,7 @@ def main():
     dt = time.time() - t0
     losses = [h["loss"] for h in trainer.state.log_history if "loss" in h]
     evals = [h["eval_loss"] for h in trainer.state.log_history if "eval_loss" in h]
-    toks = sum(len(tok.apply_chat_template(r["prompt"] + r["completion"], tokenize=True)) for r in rows(Path(a.data) / "train.jsonl", limit))
+    toks = sum(len(tok.apply_chat_template(r["prompt"] + r["completion"], tokenize=True)) for r in rows(Path(a.data) / "train.jsonl", system, limit))
     steps = trainer.state.global_step
     report = {"steps": steps, "seconds": round(dt, 1), "loss_first": losses[:1], "loss_last": losses[-1:],
               "eval_loss": evals, "nan": any(x != x for x in losses),
