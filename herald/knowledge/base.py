@@ -46,6 +46,7 @@ class KnowledgeBase:
 
     def build(self) -> None:
         sections, versions, missing = [], {}, []
+        self.figure_errors: list[dict] = []
         eff = re.compile(self.cfg["effective_pattern"])
         for doc in self.county.get("documents", []):
             path = self.document_path(doc)
@@ -120,16 +121,20 @@ class KnowledgeBase:
         for fig in doc.get("figures", []):
             sha = hashlib.sha256(path.read_bytes()).hexdigest()[:16]
             cache = self.dir / "index" / f"{doc['id']}_{sha}_figure_p{fig['page']}.json"
+            cache.parent.mkdir(parents=True, exist_ok=True)
             steps = json.loads(cache.read_text())["steps"] if cache.exists() else None
             if steps is None and self.vision is not None:
-                import base64
-                png = render_page(path, fig["page"], self.dir / "index" / f"{doc['id']}_{sha}_p{fig['page']}.png", dpi=150)
-                data = self.vision.chat_json("You transcribe protocol figures. Output strict JSON only.",
-                                             load_text("prompts/figure_transcribe.md"),
-                                             image_b64=base64.b64encode(png.read_bytes()).decode(), max_tokens=500)
-                steps = [str(x) for x in data.get("steps", [])][:30]
-                cache.parent.mkdir(parents=True, exist_ok=True)
-                cache.write_text(json.dumps({"steps": steps, "page": fig["page"]}, indent=1))
+                try:            # a figure that can't be read leaves the rest of the knowledge base working
+                    import base64
+                    png = render_page(path, fig["page"], cache.parent / f"{doc['id']}_{sha}_p{fig['page']}.png", dpi=150)
+                    data = self.vision.chat_json("You transcribe protocol figures. Output strict JSON only.",
+                                                 load_text("prompts/figure_transcribe.md"),
+                                                 image_b64=base64.b64encode(png.read_bytes()).decode(), max_tokens=500)
+                    steps = [str(x) for x in data.get("steps", [])][:30]
+                    cache.write_text(json.dumps({"steps": steps, "page": fig["page"]}, indent=1))
+                except Exception as e:
+                    self.figure_errors.append({"doc": doc["id"], "page": fig["page"], "error": str(e)[:160]})
+                    continue
             if not steps:
                 continue
             target = next((s for s in sections if s.number == fig["section"]), None)
@@ -202,6 +207,7 @@ class KnowledgeBase:
         m = self._manifest()
         return {"county": self.county["id"], "documents": list(self.versions.values()), "missing": self.missing,
                 "sections": len(self.sections), "destination_audit": self.audit_destinations(),
+                "figure_errors": getattr(self, "figure_errors", []),
                 "review_required": [d for d, e in m.items() if isinstance(e, dict) and e.get("review_required")],
                 "last_sync": m.get("_last_sync")}
 

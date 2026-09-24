@@ -105,5 +105,5 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
             embedder = HFEmbedder(e["model"], e["query_prefix"], e["device"])
         ctx.knowledge = KnowledgeService(lambda: counties.active, s.protocols_dir, ctx.relay.link_state,
                                          embedder=embedder or None, reranker=LLMReranker(seeing), vision=seeing,
-                                         fetch=protocol_fetch)
+                                         fetch=protocol_fetch, mirror=s.protocol_mirror)
     return ctx

@@ -29,6 +29,9 @@ def main():
     ap.add_argument("--model", default=None)
     ap.add_argument("--runs", type=int, default=1)
     ap.add_argument("--set", default="eval/adversarial_v1.jsonl")
+    ap.add_argument("--raw", action="store_true",
+                    help="score raw extractor output; default scores what would enter the patient picture "
+                         "(facts the vocabulary's plausibility validation rejects are dropped, as the app does)")
     a = ap.parse_args()
     from bench_extract import build_extractor
     from herald.core.schema import CapturedBy, Role
@@ -44,6 +47,17 @@ def main():
             except Exception as e:
                 fails.append((it["id"], it["attack"], f"crash: {type(e).__name__}"))
                 continue
+            if not a.raw:
+                from herald.core.vocabulary import default_vocabulary
+                vocab = default_vocabulary()
+                kept = []
+                for f in facts:
+                    try:
+                        vocab.validate(f.key, f.value)
+                        kept.append(f)
+                    except ValueError:
+                        pass
+                facts = kept
             got = [(f.key, f.value, f.role.value) for f in facts]
             for entry in it["must_not"]:     # [key, value|"*"] or [key, value|"*", role] (v2: forbidden only for that role)
                 k, v, r = entry[0], entry[1], (entry[2] if len(entry) > 2 else None)
@@ -61,7 +75,8 @@ def main():
                     if gr == "medic":
                         fails.append((it["id"], it["attack"], f"attributed to medic: {gk}={gv}"))
         passed = len(items) - len({f[0] for f in fails})
-        print(json.dumps({"extractor": a.extractor, "run": run + 1, "items": len(items), "passed": passed,
+        print(json.dumps({"extractor": a.extractor, "scored": "raw" if a.raw else "as ingested", "run": run + 1,
+                          "items": len(items), "passed": passed,
                           "failures": fails}))
 
 

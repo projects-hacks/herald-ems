@@ -40,6 +40,7 @@ class Settings(BaseModel):
     data_dir: Optional[Path] = None               # captured audio and photos (default: <root>/data)
     # protocol lookup (P9): build the county knowledge base (embeddings on CPU, cached per document version)
     knowledge: bool = True
+    protocol_mirror: Optional[str] = None        # base URL of a document mirror: <mirror>/<county>/<doc_id>.pdf
     # cost-comparison overrides (defaults in config/telemetry.yaml)
     price_overrides: dict[str, float] = {}
 
@@ -91,6 +92,7 @@ class Settings(BaseModel):
             ui=e.get("HERALD_UI", "new"),
             data_dir=Path(e["HERALD_DATA_DIR"]) if e.get("HERALD_DATA_DIR") else None,
             knowledge=e.get("HERALD_KNOWLEDGE", "1") == "1",
+            protocol_mirror=opt("HERALD_PROTOCOL_MIRROR"),
             price_overrides=prices,
         )
         return cls(**fields)

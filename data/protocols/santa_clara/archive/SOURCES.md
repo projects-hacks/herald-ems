@@ -14,3 +14,11 @@ captures of the county's own URLs. They are stand-ins until current copies are d
 | 2026-policy-protocol-changes-summary.pdf | https://files.santaclaracounty.gov/exjcpb1541/2025-09/ems-policy-protocol-changes-summary.pdf?VersionId=h_JWuvxZE2dSayMfWxH_BFuNNzhgAR0D | https://web.archive.org/web/20260111090427/https://files.santaclaracounty.gov/exjcpb1541/2025-09/ems-policy-protocol-changes-summary.pdf?VersionId=h_JWuvxZE2dSayMfWxH_BFuNNzhgAR0D |
 
 Known amendments not captured: AO 2025-006 (Sept 1 2025) and AO 2025-007 (Oct 16 2025) amend Policy 602.
+
+## Previous versions (used for the protocol-update demo)
+| File | County URL (captured version) |
+|---|---|
+| previous/700-S04_routine-medical-care-adult_eff-2025-01-01.pdf | https://files.santaclaracounty.gov/exjcpb1541/2024-09/700-s04.pdf (the 2024-09 publication, effective January 1, 2025), via the Wayback Machine |
+
+The demo installs this older real version, serves the current real version (effective January 1, 2026) from a local
+mirror, and shows the sync picking it up on a good link and flagging it for review (`scripts/demo_protocol_update.sh`).

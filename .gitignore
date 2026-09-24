@@ -19,3 +19,5 @@ data/protocols/*/index/
 data/protocols/*/versions/
 data/protocols/*/manifest.json
 data/train_*/
+data/protocols/_pages/
+data/protocols/demo_mirror/

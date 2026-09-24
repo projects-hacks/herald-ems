@@ -92,6 +92,32 @@ Every citation shown on screen lives in `config/scores/*.yaml` and `config/count
 
 First, check with `pdffonts` / `pdftotext -bbox` whether Table B's check marks are text glyphs. If they are, a deterministic grid reader may beat every model. **Blocked on the county PDFs** (the county site returns 403 to scripts; Rajeev downloads them to `data/protocols/santa_clara/`).
 
+## 0e. Protocol lookup results (P9, 2026-09-24; archived county PDFs; keys in `eval/protocols/`)
+| Component | Method | Result |
+|---|---|---|
+| Sections | text layer (`pdftotext -layout`) + heading styles in `config/knowledge.yaml`; running headers found by repetition; Roman-vs-letter labels resolved by sequence | **338 / 338** key sections, 0 spurious |
+| Policy 602 Table B | check marks are text glyphs ("R" in Wingdings2 = ☑); word positions from `pdftotext -bbox-layout`, rows anchored on the checks | **168 / 168** cells; the reviewed destination lists in `config/counties/santa_clara.json` match (audit) |
+| 700-A13 flowchart (raster image) | the local vision model (Omni) transcribes it once per document version (cached); labeled "read from the image; the numbered sections govern" | all 6 labeled branches exactly as printed |
+| Retrieval, 22 answerable questions | keyword BM25 → + document titles, plural folding → + semantic embeddings (bge-base-en-v1.5, CPU, cached) with rank fusion → + Omni choosing among the top 8 | top-1 / top-3: 5/22 → 7/11 → **10/17** → **14/19**; refusals on 3 out-of-scope questions: **2/3**; p50 ≈ 1.5 s with reranking |
+| Updates | conditional GET (ETag) only on a good link; new versions stored side by side; `review_required` until a person confirms; the county config is never rewritten | demo with two real versions of 700-S04 (effective 2025 → 2026): picked up, flagged, 304 on re-check, cleared on review |
+
+**Parser bake-off verdict (§0d):** for these documents, no document-parsing model is needed. The text layer is clean except for ligature glyphs in one box, which are flagged as uncertain so the page image can be shown instead. Table B's check marks are characters. The only image-only content, the flowchart, is read by the vision model already served (0 GB extra). PaddleOCR-VL-1.6 / MinerU2.5 remain the fallback for scanned or graphics-drawn tables from other counties.
+
+**Remaining misses are mostly defensible:** e.g. "check a blood sugar on a stroke?" returns 700-S04 §2.9, which says exactly that, where the key expects 700-A13 §2.2. A "GFAST of 2" question needs reasoning over "three or fewer points".
+
+## 0f. Adversarial speech with the fine-tuned model (as ingested, 2026-09-24)
+`eval/adversarial_bench.py` now scores **what would enter the patient picture** by default: facts the vocabulary's plausibility validation rejects ("sats 400") are dropped, as the app does. `--raw` scores extractor output. Unseen `adversarial_v2` (40 attacks):
+
+| Extractor | Passed | Forbidden facts attributed to the medic |
+|---|---|---|
+| Omni alone / rules + Omni (guard skips the model) | 16 / 19 | 0 / 4 |
+| **run C alone** | **25** | 2 |
+| rules + run C (guard skips the model; **the app today**) | 22 | 4 |
+
+- Run C was trained on instruction-shaped speech (training batch 08), and it is the strongest single defence.
+- The guard's "skip the model for a flagged utterance" now **loses** legitimate facts said next to an injection (spoken vitals the rules can't parse) and lets rules-extracted injected values through.
+- **Proposal, pending the team lead's decision:** run the model on every utterance. When the guard flags an utterance, every fact from it starts unconfirmed (needs a tap), instead of skipping the model.
+
 ## 1. Text model (live extraction)
 | Rank | Model | Active | Decode on GB10 (measured by others) | 150-tok latency (est.) | Instruction-following evidence | vLLM 0.26 status |
 |---|---|---|---|---|---|---|
