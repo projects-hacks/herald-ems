@@ -63,7 +63,10 @@ class SpokenOrder:
             spots = [m.start() for m in re.finditer(r"\d+(?:\.\d+)?", text) if abs(float(m.group()) - value) < 0.05]
             spots += [s for s, vals in self.numbers.spans(text) if any(abs(v - value) < 0.05 for v in vals)]
             if spots:
-                return min(spots)
+                cue = self.cues.get(key)
+                c = cue.search(text) if cue else None
+                after = [s for s in spots if c and s >= c.start()]   # "Eighty-four ... GCS 12, V4": the 4 after "GCS"
+                return min(after or spots)
         elif isinstance(value, (str, list)) and not (isinstance(value, str) and value.lower() == "none"):
             spots = []
             for item in (value if isinstance(value, list) else [value]):
