@@ -21,16 +21,22 @@ import sys
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from herald.config import load_text  # noqa: E402
-
-SHORT_SYSTEM = load_text("prompts/extract_finetuned.md")   # the served extractor uses the same prompt file
+from herald.extraction.profiles import default_profiles  # noqa: E402
 
 
-def rows(path, limit=None):
+def system_prompt(profile_prefix: str) -> str:
+    """The prompt the served extractor will use for this label (config/extraction.yaml): train and serve alike."""
+    profile = default_profiles().for_label(profile_prefix)
+    if profile is None:
+        raise SystemExit(f"no fine-tuned profile matches {profile_prefix!r} in config/extraction.yaml")
+    return profile.prompt
+
+
+def rows(path, system: str, limit=None):
     out = []
     for line in open(path):
         r = json.loads(line)
-        out.append({"prompt": [{"role": "system", "content": SHORT_SYSTEM}, {"role": "user", "content": r["text"]}],
+        out.append({"prompt": [{"role": "system", "content": system}, {"role": "user", "content": r["text"]}],
                     "completion": [{"role": "assistant", "content": r["completion"]}]})
         if limit and len(out) >= limit:
             break
@@ -48,6 +54,7 @@ def main():
     ap.add_argument("--batch", type=int, default=8)
     ap.add_argument("--accum", type=int, default=2)
     ap.add_argument("--smoke", action="store_true")
+    ap.add_argument("--profile", default="ems", help="served-label prefix whose prompt to train with (ems-d for run D)")
     a = ap.parse_args()
 
     from datasets import Dataset
@@ -56,8 +63,9 @@ def main():
     from trl import SFTConfig, SFTTrainer
 
     limit = 64 if a.smoke else None
-    train = Dataset.from_list(rows(Path(a.data) / "train.jsonl", limit))
-    dev = Dataset.from_list(rows(Path(a.data) / "dev.jsonl", 32 if a.smoke else None))
+    system = system_prompt(a.profile)
+    train = Dataset.from_list(rows(Path(a.data) / "train.jsonl", system, limit))
+    dev = Dataset.from_list(rows(Path(a.data) / "dev.jsonl", system, 32 if a.smoke else None))
     tok = AutoTokenizer.from_pretrained(a.base)
     cfg = SFTConfig(
         output_dir=a.out, num_train_epochs=a.epochs, max_steps=10 if a.smoke else -1,
@@ -78,7 +86,7 @@ def main():
     dt = time.time() - t0
     losses = [h["loss"] for h in trainer.state.log_history if "loss" in h]
     evals = [h["eval_loss"] for h in trainer.state.log_history if "eval_loss" in h]
-    toks = sum(len(tok.apply_chat_template(r["prompt"] + r["completion"], tokenize=True)) for r in rows(Path(a.data) / "train.jsonl", limit))
+    toks = sum(len(tok.apply_chat_template(r["prompt"] + r["completion"], tokenize=True)) for r in rows(Path(a.data) / "train.jsonl", system, limit))
     steps = trainer.state.global_step
     report = {"steps": steps, "seconds": round(dt, 1), "loss_first": losses[:1], "loss_last": losses[-1:],
               "eval_loss": evals, "nan": any(x != x for x in losses),

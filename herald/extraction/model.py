@@ -7,8 +7,8 @@ and the grounding rules; anything invalid is dropped.
 Two prompt styles:
 - a general model (e.g. Nemotron-Omni) gets the full instructions, the key list, worked examples, and a strict
   JSON schema whose rows are exactly [key, value, who];
-- a fine-tuned extractor (served labels "ems", "ems-*", or listed in HERALD_FINETUNED_MODELS) gets the short
-  prompt it was trained on and decodes in JSON mode. Under the strict schema it appended an optional "?" to
+- a fine-tuned extractor (a profile in config/extraction.yaml, or a label listed in HERALD_FINETUNED_MODELS) gets
+  exactly the input it was trained on: its short prompt, the speaker line from run D on, and JSON mode. Under the strict schema it appended an optional "?" to
   49 of 49 facts (2026-09-23 audit), and the "?" element also sent Omni into a degenerate mode (invented
   vitals, repeated keys to the token cap), so rows are exactly three elements.
 """
@@ -23,6 +23,7 @@ from ..core.schema import CapturedBy, FactIn, Provenance, Role
 from ..core.vocabulary import Vocabulary, default_vocabulary
 from .confidence import row_confidences
 from .grounding import Grounding, default_grounding
+from .profiles import Profiles
 
 ROLE = {"m": Role.medic, "p": Role.patient, "f": Role.family, "b": Role.bystander}
 SEX = {"female": "F", "woman": "F", "f": "F", "male": "M", "man": "M", "m": "M"}
@@ -45,15 +46,16 @@ def output_schema(vocab: Vocabulary) -> dict:
 
 
 class Prompts:
-    def __init__(self, system: str, finetuned: str, examples: list[tuple[str, str]], vocab: Vocabulary):
+    """The general-model prompt: instructions with the key list, and worked examples."""
+
+    def __init__(self, system: str, examples: list[tuple[str, str]], vocab: Vocabulary):
         key_list = "; ".join(f"{k} [{v['type']}]" for k, v in vocab.keys.items())
         self.system = system.replace("{keys}", key_list)
-        self.finetuned = finetuned
         self.examples = examples
 
     @classmethod
     def from_config(cls, vocab: Vocabulary) -> "Prompts":
-        return cls(load_text("prompts/extract_system.md"), load_text("prompts/extract_finetuned.md"),
+        return cls(load_text("prompts/extract_system.md"),
                    [(e["user"], e["assistant"]) for e in load_jsonl("prompts/extract_examples.jsonl")], vocab)
 
 
@@ -67,7 +69,7 @@ class ModelExtractor:
         self.vocab = vocabulary or default_vocabulary()
         self.grounding = grounding or default_grounding()
         self.prompts = prompts or Prompts.from_config(self.vocab)
-        self.finetuned_labels = set(finetuned_labels)
+        self.profiles = Profiles.from_config(finetuned_labels)
         self.schema = output_schema(self.vocab)
         self.last_usage: dict = {}
         measure, self.top_logprobs = confidence_measure()
@@ -78,12 +80,13 @@ class ModelExtractor:
         return f"llm:{self.model.model_name()}"
 
     def is_finetuned(self, label: Optional[str]) -> bool:
-        return bool(label) and (label in self.finetuned_labels or label.split("-")[0] == "ems")
+        return self.profiles.for_label(label) is not None
 
     def request_for(self, label: Optional[str]) -> tuple[str, Optional[list], Optional[dict]]:
         """(system prompt, worked examples, output schema) for the served model."""
-        if self.is_finetuned(label):
-            return self.prompts.finetuned, None, None
+        profile = self.profiles.for_label(label)
+        if profile is not None:
+            return profile.prompt, None, None
         return self.prompts.system, self.prompts.examples, self.schema
 
     def extract(self, text: str, captured_by: CapturedBy = CapturedBy.medic, default_role: Role = Role.medic,
@@ -91,7 +94,8 @@ class ModelExtractor:
         usage: dict = {}
         label = self.model.model_name()
         system, examples, schema = self.request_for(label)
-        data = self.model.chat_json(system, text, schema=schema, max_tokens=MAX_TOKENS, usage=usage, examples=examples,
+        user = self.profiles.model_input(self.profiles.for_label(label), text, captured_by, default_speaker)
+        data = self.model.chat_json(system, user, schema=schema, max_tokens=MAX_TOKENS, usage=usage, examples=examples,
                                     logprobs=True,
                                     top_logprobs=self.top_logprobs if self.confidence_mode == "order_free" else 0)
         self.last_usage = usage

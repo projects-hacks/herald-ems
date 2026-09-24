@@ -29,6 +29,21 @@ class SpokenNumbers:
                     out |= self._readings(run[i:j])
         return out
 
+    def spans(self, text: str) -> list[tuple[int, set[float]]]:
+        """(character offset, values) for each run of number words, e.g. where "one sixty" starts and {160, ...}."""
+        words = [(m.start(), m.group(0)) for m in re.finditer(r"[a-z]+", text.lower())]
+        out, k = [], 0
+        for run in self._runs([w for _, w in words]):
+            while words[k][1] != run[0]:
+                k += 1
+            vals: set[float] = set()
+            for i in range(len(run)):
+                for j in range(i + 1, min(len(run), i + self.max_span) + 1):
+                    vals |= self._readings(run[i:j])
+            out.append((words[k][0], vals))
+            k += len(run)
+        return out
+
     def _runs(self, words: list[str]) -> list[list[str]]:
         runs, cur = [], []
         for k, w in enumerate(words):

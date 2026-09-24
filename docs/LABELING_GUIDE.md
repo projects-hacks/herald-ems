@@ -173,6 +173,36 @@ G.F.A.S.T. labels for the gold sets live in separate files (`eval/gold_v1_gfast.
 - **Spoken numbers:** convert to digits: "one forty over eighty" → 140/80; "ninety one" → 91; "one twenty six" → 126.
 - **Units:** labels carry no units; units are implied by the key.
 
+- **Times said as numbers:** "normal at one forty" → `stroke.lkw` "1:40" (never "1:14"); "fourteen thirty" → "14:30".
+- **Hyphenated and run-together numbers:** "one-eighteen" → 118; "one-oh-two" → 102; "a hundred and ten" → 110.
+
+## 5a. Additions for run D (2026-09-23; from the dev-set error analysis, MODEL_PLAN §0g)
+- **Order of facts:** list the facts **in the order they were said** (by the first word that supports each fact). When one phrase gives several facts ("left facial droop" → a G.F.A.S.T. item and a RACE item), the G.F.A.S.T. item comes before the RACE item. `scripts/build_train_set.py --order spoken` re-sorts every training target by the same rule (`config/training.yaml`), so the builder's order is the one the model learns.
+- **Antiplatelets are not anticoagulants:** clopidogrel (Plavix), aspirin, ticagrelor (Brilinta), prasugrel (Effient) go in `meds.list` only, never `meds.anticoagulant`. Other drug classes (SGLT2 inhibitors, statins, beta blockers) likewise.
+- **Slurred speech is dysarthria, not aphasia:** it gives G.F.A.S.T. speech 1 but **no** RACE `aphasia_agnosia` value on its own. RACE aphasia needs language trouble (can't find words, doesn't follow commands, nonsense speech); agnosia needs not recognizing the arm or the deficit.
+- **Someone else's mic (`by: "other"`):** the model input will start with a speaker line (see `config/prompts/extract_finetuned.md`), e.g. `[speaker: daughter]`. The speaker is the source of what they say about themselves or what they saw; "Mom is allergic to aspirin" said by the daughter → role `family`, not the patient.
+
+## 5b. Conventions settled while writing the run D batches (2026-09-23)
+Annotators flagged these as unclear; these are the labels used from batch 10 on.
+- **Facility staff** (nurse, aide, group-home staff, caregiver) are `family` with their job word as the source ("aide").
+- **Subjectless shorthand** ("NKDA", "denies allergies", "takes eliquis and metformin") is the medic's; "Pt denies…" is the patient's.
+- **Family or bystander descriptions of stroke findings** ("her face drooped at dinner") give `stroke.deficits` only, never RACE or G.F.A.S.T. items (those are the medic's own exam, §4d).
+- **A POLST marked "attempt resuscitation"** → `code_status` "full code".
+- **A drug the patient has stopped** gets no `meds.list`; `meds.anticoagulant` "none" still needs an explicit denial.
+- **Clock-time arrivals and ranges** ("around fourteen fifteen", "in the one-forties", "HI, north of six hundred") give no numeric fact.
+- **Nested relays** ("my brother says…" said by the daughter): the source is the relation to the patient ("son").
+- **One drug word, two facts** ("she takes eloquis"): `meds.anticoagulant` before `meds.list`.
+- **A 12-lead "done at T"** gives `ecg.twelve_lead_time`; "attached" gives `ecg.attached` true; "I'll attach it" gives nothing.
+- **Unqualified "no drift"** → `exam.gfast.arm_leg` 0 and `exam.race.arm` 0; arm-only wording ("arms fine") → `exam.race.arm` 0 only.
+- **"Speech clear"** is articulation: G.F.A.S.T. speech 0, no RACE value. "Talking normally" gives both 0s. Word-finding trouble with no severity: G.F.A.S.T. speech 1 and a deficit, no RACE value.
+- **Resolved findings** (RACE as well as G.F.A.S.T.): the current state wins, and a resolved finding is not a deficit.
+- **"Can't look to the left"** → G.F.A.S.T. gaze 1 and a deficit; RACE gaze only when a deviation is stated.
+- **Times of day:** "this morning" adds am, "this afternoon/last night" adds pm; 24-hour times stay as said ("2200"); "quarter past eight" → "8:15". `symptom.onset` keeps "since" ("since 2 pm"); `stroke.lkw` drops "at".
+- **Discovery times** ("found at 0400", "noticed at 1045") are not last known well and not onset: no time fact.
+- **"Unknown down time" / "LKW unknown"** give no fact; `onset_witnessed` false needs "found", "woke up with it", "unwitnessed", or "nobody saw it". Seeing it happen on a video call counts as witnessed.
+- **"Found by her landlord" / "last seen normal by her daughter":** the source is the person named; a bare "found down" is the medic's.
+- **Bare RACE scores** ("face two, arm one") give no `stroke.deficits` (no phrase was said). "GFAST positive" without the count gives no item labels.
+
 ## 6. Phenomena tags (use all that apply)
 `clean`, `shorthand` (yom, sats, A&O, D-stick…), `spoken_numbers`, `correction`, `negation`, `attribution` (someone else's statement), `other_speaker` (`by: "other"`), `multi_event` (many facts in one utterance), `no_facts`, `uncertain` (hedged statements that must yield no fact), `brand_names`, `fahrenheit`, `disfluency` (uh, um, restarts), `asr_noise` (the kind of errors speech-to-text makes: missing punctuation, homophones, lowercase).
 

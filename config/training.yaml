@@ -1,0 +1,24 @@
+# Training-data preparation only (scripts/build_train_set.py); nothing here runs in the product.
+# Fact order in training targets: the order things were said (LABELING_GUIDE §5a). Each fact is placed at the
+# first place in the utterance that supports it: its number (digits or words), its text, or else a cue for its key.
+# A fact with no match keeps its place after the fact before it. Among facts found at the same place, keys are
+# ordered by `same_place_order` (prefixes; first match wins), then by the annotator's order.
+order_cues:
+  patient.sex: '\b(female|male|woman|man|lady|gentleman|guy|girl|boy|yo ?[mf]|y/o ?[mf]|[mf])\b'
+  vitals.on_oxygen: 'room air|\bra\b|oxygen|\bo2\b|cannula|rebreather|liters|lpm|\bnrb\b'
+  vitals.consciousness: 'alert|a ?& ?o|oriented|confus|disorient|voice|verbal|pain|unrespons|responsive|avpu|gcs'
+  allergies: 'allerg|nkda|\bnka\b'
+  meds.anticoagulant: 'thinner|anticoag|coumadin|warfarin|eliquis|xarelto|pradaxa|lovenox|heparin|apixaban|rivaroxaban|dabigatran|edoxaban|savaysa|eloquis'
+  meds.list: '\b(takes|on|meds|medications?)\b'
+  stroke.lkw: 'normal|last (known|seen)|\blkw\b|fine (at|until)|since|was ok'
+  stroke.onset_witnessed: 'witness|saw|in front of|found|woke|collapsed|watched|down time|heard'
+  symptom.onset: 'start|began|since|ago|onset|came on'
+  transport.eta_min: '\beta\b|minutes|out\b'
+  transport.destination: 'transport|going to|en route|headed|taking'
+  ecg.twelve_lead_time: 'twelve|12|lead|ekg|ecg'
+  ecg.attached: 'twelve|12|lead|ekg|ecg|attach'
+  code_status: 'dnr|polst|resusc|full code|dni|molst'
+  vitals.temp: 'temp|febrile|fever|degrees'
+  vitals.glucose: 'glucose|sugar|bgl|cbg|d-?stick|accu'
+  complaint.chief: 'complain|c/o|chief|pain|short(ness)? of breath|sob|fall|fell'
+same_place_order: [exam.gfast., exam.race., stroke.deficits, meds.anticoagulant, meds.list]
