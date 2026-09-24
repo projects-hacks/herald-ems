@@ -5,7 +5,62 @@ Deadline **Fri 2026-09-25, 8:00 PM**. Internal target: submit by 6:00 PM. Featur
 Where decisions live: product spec and pitch → `/home/hp18/Documents/team-last-minute/.agent/ideas/herald-ems-copilot.md` (Nano only) · models → `docs/MODEL_PLAN.md` · UI → `docs/UX_PLAN.md` · hackathon rules and history → `/home/hp18/Documents/team-last-minute/.agent/context.md` (Nano only). The full document map is in `AGENTS.md`.
 Status: ✅ done · 🔄 in progress · ⏳ todo · ⛔ blocked. Update this file in the same PR as the work.
 
-## Checkpoint: Thu 2026-09-24, 00:50 UTC (Wed 17:50 PDT) (verified)
+## Checkpoint: Thu 2026-09-24, 18:00 UTC (11:00 PDT) (verified: every line below checked against the repo and the live server)
+**Scope (team lead, 2026-09-24): a copilot for every EMS call, not a stroke tool.** Stroke stays the demo story.
+
+**Live on port 8100** (`/api/health`, `zrt status`):
+- **speech → facts: `ems-e-v2-fp8`** (run E v2: every call type, and the call's dispatch as context);
+- **photos, flowcharts, protocol ranking: `qwen3vl-fp8`** (Qwen3-VL-30B-A3B-Instruct, Apache-2.0; replaced Nemotron-Omni after a level bake-off, MODEL_PLAN §2a);
+- speech → text: Whisper large-v3-turbo; search embeddings: bge-base;
+- drug coding: RxNorm release 2026-09-08 (PR #1);
+- protocol lookup: **32 current Santa Clara documents, 1,804 passages**, 7 figure pages read, destination audit OK;
+- still loaded: `ems-d-fp8` (run D, rollback); Omni and run C are cached, not loaded.
+- **Tests: 366 pass** (`python -m pytest -q`).
+
+**Held-out results** (3 runs; MODEL_PLAN §0h, §0i, §2a, §0j):
+- extraction F1 on gold v2: rules 0.444 · Omni 0.661 · run C 0.871→0.885 (grounding fix) · run D 0.916 · **run E v2 0.948–0.952** (+0.032 over run D, 95% CI [+0.013, +0.053]);
+- G.F.A.S.T. F1: run D 0.923 → **run E v2 0.961**;
+- every call type (gold v3, 100 utterances, two blind annotators): **F1 0.92**; new fact types **0.84**: medications given 0.91, pain 0.90, EtCO2 0.90, trauma mechanism 0.89, GCS total 0.87, trauma injuries 0.79, procedures 0.76. **Weak: trauma criteria 0.28 (recall 0.19) and suspected infection 0.20 (recall 0.11)** (see "Open risks");
+- dispatch context (gold_ctx, 60): F1 0.918, G.F.A.S.T. 0.896; no stroke facts wrongly given on other-dispatch lines;
+- auto-confirm at 0.8: 173 of 327 held-out medic facts confirm themselves, **1 wrong** (a role; run D: 5);
+- adversarial (as ingested): 19/25 seen, 24/40 unseen; the three new failures are held for a tap in the app;
+- latency p50 / p95: 1.1–1.5 / 2.4–3.1 s on held-out; longer lines with many facts about 2.5 / 3.5 s;
+- vision (45 synthetic photos): Qwen3-VL F1 0.989, 43/45 exact; Omni 0.978, 42/45. Protocol ranking (22 questions): right passage first 17 vs 13.
+- drug names (held-out, run D predictions): precision 0.933 → 0.956 and recall 0.850 → 0.871 with coding (MODEL_PLAN §0j).
+
+**Done since the last checkpoint** (all merged to `main`):
+- model-only speech extraction (no regex rules), 503 when the model is down, `llm_available` / `vision_available`;
+- per-fact confidence from token probabilities; auto-confirm at 0.8; held facts always wait for a tap;
+- **run D** (spoken fact order, speaker line) and **run E v2** (every call type + dispatch; 49 fact types): trained, measured, live;
+- vocabulary: records for **medications given** and **procedures done**, pain, GCS eye/verbal/total, EtCO2, pregnancy weeks, trauma mechanism / injuries / criteria, suspected infection, 12-lead reads STEMI / transmitted; the snapshot lists every event (`events`);
+- **county alerts:** Santa Clara Policy 605 trauma criteria, 700-A04 sepsis pre-notification, STEMI checklist (12-lead reads STEMI, transmitted, aspirin time), each item cited;
+- **27 more county protocols** archived with sources and checksums, all indexed (sections checked against a CPU-built key); 59 protocol questions;
+- **vision bake-off** and the switch to Qwen3-VL; photo prompts store generic drug names and "DNR" / "full code";
+- **gold sets:** v3 (every call type, 0.993 agreement), gold_ctx (dispatch, 1.000), new-key labels on v1/v2 (0.986 / 0.993);
+- **PR #1 merged** (RxNorm drug coding, Shivani); **PR #2 merged** (field robustness kit, Jenil);
+- local models load from disk only (no network at startup; 0 outbound connections checked); the live test found and fixed 5 bugs (MODEL_PLAN §0g);
+- a speaker on someone else's mic gets the role their words imply (neighbor → bystander, staff → family; Jenil's request).
+
+**Demo scenario** (`scenarios/stroke_demo.json`, replayed on run E v2): every stroke-alert item is extracted, "Onset was witnessed" included. Last known well, onset and deficits come in below the confidence bar, so the script has a second tap step: **Stroke alert 6/6**, NEWS2 5, RACE 6, G.F.A.S.T. 4 of 4, allergy contradiction. **Jenil: re-rehearse with this version** (two tap steps).
+
+**Open risks (in order):**
+1. **The new UI is not on GitHub.** No branch from Collaborator 1 (C1.x) exists; `main` has only the classic `web/` screens. Feature freeze is Fri 11:00.
+2. **Nothing is measured on real voices or real photos yet.** The field kit is merged (C4.9); it needs ≥5 consenting people. Props and real photos (C4.1, C4.2) are not done.
+3. **Weak new fact types:** trauma criteria (recall 0.19) and suspected infection (0.11). The trauma alert still fires from vitals (computed), but injury-pattern criteria are mostly missed. The fix is training data (a run F), not code.
+4. **Latency** is above the 2 s p95 target on long multi-fact lines (about 3.5 s).
+5. **Adversarial:** three regressions with run E v2 (two injected "DNR"s, a bystander's "give her 325 aspirin" recorded as given). All are held for a tap in the app.
+
+**Decisions:**
+1. ✅ Guard: the model reads everything; flagged utterances wait for a tap (Rajeev).
+2. ✅ No regex rules; the model is the only extractor; auto-confirm at 0.8 (Rajeev).
+3. ✅ Scope: every call type; trauma, sepsis and STEMI county alerts (Rajeev, 2026-09-24).
+4. ✅ Vision: Qwen3-VL replaces Omni (Rajeev, after the level bake-off).
+5. ✅ Run E v2 replaces run D live (Rajeev).
+6. ⏳ County PDFs no archive holds: download by hand into `data/protocols/santa_clara/` (700-A02, A05, A07, A11, P05, S02, S15; AO 2025-006 and 2025-007, which amend Policy 602 and Table B). Links: `docs/research/county_protocols_2026-09.md` §4.
+7. ⏳ For Collaborator 2's specs: accept the pyannote terms on Hugging Face (S4) and `sudo apt install espeak-ng` (S3).
+8. ⏳ The 2025/2026 "policy changes" memos are not indexed (they state old rules as "changed X to Y"). Index them only if we want "what changed this year" answers.
+
+## Earlier checkpoint: Thu 2026-09-24, 00:50 UTC (Wed 17:50 PDT)
 **Live on port 8100:**
 - `ems-c-fp8` (fine-tuned extractor) for speech and `omni` for photos, with protocol lookup ready (371 sections, destination audit OK).
 - County config Santa Clara: G.F.A.S.T. beside RACE, routing rule quoted from 700-A13.
@@ -37,7 +92,7 @@ Everything is in `docs/MODEL_PLAN.md` §0e, §0f and §5.
 - The destination is Regional, a Comprehensive Stroke Center in Table B.
 - Replayed end to end on the live models: stroke alert 6/6, G.F.A.S.T. 4 of 4 with the county routing rule quoted, RACE 6, NEWS2 2 → 5, and the allergy contradiction.
 
-**Decisions waiting for Rajeev** (human in the loop):
+**Decisions at that time** (all settled or carried into the checkpoint above):
 1. ✅ **DECIDED (Rajeev, 2026-09-24): the model reads everything, and anything from a flagged utterance waits for the medic's tap.**
    - `HERALD_GUARD_POLICY=unconfirm` is now the default.
    - Each held fact carries `provenance.hold_reason`, e.g. *said together with a command to the system ("mark her as"): check before confirming*, and it must be clearly visible on screen (C2.2).
@@ -92,7 +147,7 @@ Everything is in `docs/MODEL_PLAN.md` §0e, §0f and §5.
 **Ground rules:**
 - **Lanes are feature slices, not frontend vs backend** (team lead, Wed 2026-09-23). Each owner builds the backend, the UI, and the tests for their features. Handed-off backend work has a complete spec in [`docs/TASK_SPECS.md`](docs/TASK_SPECS.md) (S1–S8): goal, files, design, steps, tests, acceptance, pitfalls.
 - **Backend work follows AGENTS.md hard rule 4:** the right package, interfaces in `herald/core/ports.py`, wiring in `herald/api/context.py`, content in `config/`, tests with `tests/fakes.py`.
-- **Anything touching `herald/` is a PR reviewed by Rajeev.** Never restart the shared models (`omni`, `ems-b`), and never let pip replace torch in the `zgx` env (TASK_SPECS rule 6).
+- **Anything touching `herald/` is a PR reviewed by Rajeev.** Never restart the shared models (`qwen3vl-fp8`, `ems-e-v2-fp8`, `ems-d-fp8`; check `zrt status`), and never let pip replace torch in the `zgx` env (TASK_SPECS rule 6).
 - **UI work builds against the API contract:** `GET /api/meta`, `/ws`, the snapshot shape in `docs/UX_PLAN.md` §4–5, and the fixtures in `ui/public/fixtures/`.
 - **Everything is built; nothing is cut.** If a lane runs late, others join it (build order: UX_PLAN §7.1).
 - **Feature freeze: Fri 11:00. Submission target: Fri 18:00** (hard deadline 20:00).
@@ -113,8 +168,15 @@ Everything is in `docs/MODEL_PLAN.md` §0e, §0f and §5.
   - `GET /api/protocols/{doc}/page/{n}` returns the page image (PNG).
   - `POST /api/protocols/sync` runs a sync now; `POST /api/protocols/{doc}/reviewed` clears a review flag.
   - The snapshot has a `protocols` block (`ready`, `review_required`, `destination_audit_ok`, documents).
-- **G.F.A.S.T. from speech:** the live model (`ems-c-fp8`) extracts `exam.gfast.*`. They arrive unconfirmed; the medic's taps complete the screen.
-- **Drug coding (RxNorm, S6; merged with PR #1; 8100 needs `scripts/build_rxnorm_index.py` then a restart):** drug values of `meds.list`, `meds.anticoagulant`, `allergies` and `meds.given.drug` are RxNorm ingredient names; every fact has `code` (a `Coding {system, code}`: RxNorm, or ICD-10-CM Z88.x for a class allergy such as "sulfa"; a list per item for list keys; `null` = not coded) and `provenance.normalized[]` (as said → coded, with the method). A drug matched only by spelling, sound, as a combination or from product words waits for a tap with `provenance.hold_reason` (C2.2 shows it). Trace facts carry `code`; `GET /api/health` has `terminology.rxnorm_release`. UX_PLAN §5.9d.
+- **G.F.A.S.T. from speech:** the live model (`ems-e-v2-fp8`) extracts `exam.gfast.*`. Items below the confidence bar arrive unconfirmed; the medic's taps complete the screen.
+- **Drug coding (RxNorm, S6; merged with PR #1; live on 8100 since 2026-09-24, index release 2026-09-08):** drug values of `meds.list`, `meds.anticoagulant`, `allergies` and `meds.given.drug` are RxNorm ingredient names; every fact has `code` (a `Coding {system, code}`: RxNorm, or ICD-10-CM Z88.x for a class allergy such as "sulfa"; a list per item for list keys; `null` = not coded) and `provenance.normalized[]` (as said → coded, with the method). A drug matched only by spelling, sound, as a combination or from product words waits for a tap with `provenance.hold_reason` (C2.2 shows it). Trace facts carry `code`; `GET /api/health` has `terminology.rxnorm_release`. UX_PLAN §5.9d.
+- **Every call type (run E v2, 2026-09-24):**
+  - new keys in `config/vocabulary.yaml`: `meds.given` and `procedures.done` are **records** (a JSON object per event: drug, dose, unit, route, time, by, count; procedure, time, detail, by), plus `vitals.pain`, `vitals.gcs_eye/verbal/total`, `vitals.etco2`, `patient.pregnancy_weeks`, `trauma.mechanism`, `trauma.injuries`, `trauma.criteria` (a controlled list), `infection.suspected`, `ecg.stemi_reading`, `ecg.transmitted`;
+  - the snapshot's **`events`** lists every medication given and procedure done in order (`facts` keeps the latest per key);
+  - the incident's dispatch is passed to the model (`POST /api/incident {dispatch}`).
+- **County alerts:** `scores.trauma_605` (Policy 605 red/yellow criteria with letters and citations; major burn shown separately) and `scores.sepsis_700a04` (the county's "sepsis pre-notification"); Santa Clara checklists for **trauma, sepsis and STEMI** (items cite their source; record items like `meds.given[drug=aspirin]`); `GET /api/meta` `scores.json` and `checklists.json`. UX_PLAN §5.9c.
+- **Model availability:** `GET /api/health` has `llm_available` and `vision_available`; with no extraction model, `POST /api/transcript` / `/api/audio` return 503 and keep the words.
+- **Held facts:** `provenance.hold_reason` (guard, and non-exact drug matches) always waits for a tap.
 - **Also already live:** WebSocket ping → pong, `GET /api/meta`, `trace.heard.stt.ms`, the failed-photo and monitor-panel trace entries, ED `last_contact_at`, and `/classic/`.
 
 ### Rajeev Chaurasia (@rajeev-chaurasia): lead + backend, models, eval, infra (claimed)
@@ -124,13 +186,17 @@ Docs: `docs/MODEL_PLAN.md`, `docs/LABELING_GUIDE.md`, `eval/`.
 |---|---|---|---|
 | B1 | Final held-out numbers on gold v2 for every extractor (rules, Omni p3, fine-tuned run B; alone and with rules), 3 runs, contamination check | ✅ Rajeev: final 3-run table in MODEL_PLAN §5 (rules 0.444 · Omni 0.661 · rules + Omni 0.693 · **run B 0.861** · rules + run B 0.854) | table in MODEL_PLAN §5; the deck uses only these |
 | B2 | Modular restructure (AGENTS rule 4): packages by responsibility, interfaces, all clinical content in `config/` | ✅ Rajeev: merged to `main`, 90 tests pass, smoke-tested live | merged; live app on 8100 runs it |
-| B3 | Grounded extraction: each model fact carries its transcript quote + assertion (present/absent/uncertain) + subject; the deterministic quote check drops ungrounded facts (research: Abridge/Nabla/Corti pattern) | ⏳ Rajeev (next after B1) | precision up on gold v2 with no recall loss beyond the spread |
+| B3 | Grounded extraction: each model fact carries its transcript quote + assertion (present/absent/uncertain) + subject; the deterministic quote check drops ungrounded facts (research: Abridge/Nabla/Corti pattern) | 🔄 Rajeev: numbers are grounded (a vital, dose or ETA must be a number that was said, in digits or words: `herald/extraction/numbers.py`; held-out F1 +0.014 from grounding fixes). Quote spans per fact not done | precision up on gold v2 with no recall loss beyond the spread |
 | B4 | Medication normalization with RxNorm | ➡️ moved to Collaborator 3 (C3.7, spec S6); ✅ PR #1 (review fixes by Rajeev) | brand names and ASR misspellings map to generics on gold v2 |
-| B5 | G.F.A.S.T. extraction: labeling-guide rules, annotated training data, run C fine-tune, gold G.F.A.S.T. labels (two annotators) | ✅ Rajeev: labeling rules (§4d), gold G.F.A.S.T. labels (two annotators, 99–100% identical), training data, **run C: held-out G.F.A.S.T. F1 0.789 (P 0.90), main F1 0.871**; live as `ems-c-fp8` | G.F.A.S.T. items extracted from speech; measured |
-| B6 | Latency: fine-tuned model p95 ≤ 2 s (FP8 serving or the 1.7B run B) | ✅ Rajeev: FP8 serving halves latency at equal accuracy (p50 ~1.0 s, p95 2.24 s with G.F.A.S.T. facts) | p50/p95 measured 3× |
-| B7 | P9 protocol lookup + online sync (document-parser bake-off on the county PDFs, local index, cited sections, version on screen, review flag on update) | 🔄 Rajeev: `herald/knowledge/` built and tested: Table B 168/168 from the text layer, flowchart read by the local vision model, hybrid search + model reranking (top-1 14/22, top-3 19/22, refusals 2/3 on the first 25 questions), sync on good link with review flags, destination audit. **2026-09-24: 32 documents indexed** (the 27 new current files incl. Policy 605, sepsis, trauma, shock, chest pain, overdose, falls, hemorrhage, pediatrics, 302/410/420/430/500; 1,804 passages): numbered sections 1,746/1,746 against the CPU answer key with none extra, every effective date read from its file, 8 figure pages configured; qa_gold 59 questions; retrieval without the reranker (hybrid, 52 answerable, deterministic): top-1 26, top-3 37, in the reranker's 8: 43 (`eval/bench_protocols.py`, `eval/protocols/README.md` §5). Pending: 700-A02/A05/A07/A11 and other files no archive holds (Rajeev downloads), transcribing the 7 new figures (next vision-model start), rerank bench on the 59 questions, UI panel, demo mirror | "open the stroke protocol" shows 700-A13 §3.2 with its effective date |
+| B5 | G.F.A.S.T. extraction: labeling-guide rules, annotated training data, run C fine-tune, gold G.F.A.S.T. labels (two annotators) | ✅ Rajeev: labeling rules (§4d), gold G.F.A.S.T. labels (two annotators, 99–100% identical), training data, **run C: held-out G.F.A.S.T. F1 0.789 (P 0.90), main F1 0.871**; was live as `ems-c-fp8` (now run E v2, B11) | G.F.A.S.T. items extracted from speech; measured |
+| B6 | Latency: fine-tuned model p95 ≤ 2 s (FP8 serving or the 1.7B run B) | ⚠️ Rajeev: FP8 halved latency (run C p95 2.24 s). **Run E v2 misses the target**: held-out p50 1.1–1.5 s, p95 2.4–3.1 s; long multi-fact lines about 2.5 / 3.5 s (it writes more facts). Options: the 1.7B base for run F, or shorter outputs | p50/p95 measured 3× |
+| B7 | P9 protocol lookup + online sync (document-parser bake-off on the county PDFs, local index, cited sections, version on screen, review flag on update) | 🔄 Rajeev: `herald/knowledge/` built and tested: Table B 168/168 from the text layer, flowchart read by the local vision model, hybrid search + model reranking (top-1 14/22, top-3 19/22, refusals 2/3 on the first 25 questions), sync on good link with review flags, destination audit. **2026-09-24: 32 documents indexed** (the 27 new current files incl. Policy 605, sepsis, trauma, shock, chest pain, overdose, falls, hemorrhage, pediatrics, 302/410/420/430/500; 1,804 passages): numbered sections 1,746/1,746 against the CPU answer key with none extra, every effective date read from its file, 8 figure pages configured; qa_gold 59 questions; retrieval without the reranker (hybrid, 52 answerable, deterministic): top-1 26, top-3 37, in the reranker's 8: 43 (`eval/bench_protocols.py`, `eval/protocols/README.md` §5). Live on 8100 since 2026-09-24 with Qwen3-VL (7 new figures read, no errors). Pending: 700-A02/A05/A07/A11, AO 2025-006/007 and other files no archive holds (Rajeev downloads), rerank bench on the 59 questions, UI panel, demo mirror | "open the stroke protocol" shows 700-A13 §3.2 with its effective date |
 | B8 | Field robustness eval (real people, own words, noise) | ➡️ moved to Jenil (C4.9, spec S8) | per-key precision/recall with confidence intervals |
 | B9 | UI fixtures | ➡️ moved to Collaborator 1 (C1.5, spec S1) | the frontend can build every state without the Nano |
+| B11 | **Every call type + dispatch (run E):** new keys, labeling rules (§4c dispatch rule, §4e, §5b), 780 + 750 annotated lines from independent annotators, gold v3 / gold_ctx / new-key labels (two blind annotators each), run E v1 → dispatch-assignment flaw found on dev → run E v2 | ✅ Rajeev: **live as `ems-e-v2-fp8`**: held-out F1 0.950 (+0.032, significant), G.F.A.S.T. 0.961, every-call F1 0.92, new keys 0.84; weak: trauma criteria, suspected infection (MODEL_PLAN §0i) | measured on dev, held-out, v3, gold_ctx; 3 runs; bootstrap |
+| B12 | **Vision bake-off** (level: both official FP8, same serving and prompts): Nemotron-Omni vs Qwen3-VL-30B-A3B on 45 synthetic photos, the flowchart, protocol ranking | ✅ Rajeev: Qwen3-VL ≥ Omni everywhere, better ranking (17 vs 13 of 22 first); Apache-2.0; **live as `qwen3vl-fp8`** (MODEL_PLAN §2a) | decision logged |
+| B13 | **County trauma, sepsis and STEMI alerts** (Policy 605, 700-A04, 700-A08/M09/501/602): criteria scores and checklists as config, every item cited | ✅ Rajeev (reviewed subagent work): `config/scores/trauma_605.yaml`, `sepsis_700a04.yaml`, `santa_clara.json` `alerts`; 264 → 366 tests | a rollover with SBP 84 at 70 flags red N.3 and yellow O/U; a UTI with fever, HR 112, RR 24 meets the sepsis rule |
+| B14 | **Live end-to-end test on the real models** (not only unit tests) | ✅ Rajeev: found and fixed model-availability, speaker-attribution, hub-at-startup, number-grounding and snapshot-events bugs (MODEL_PLAN §0g) | the pitch scenario replays on the live stack |
 | B10 | P11, P8, M8, M5, I2 | ➡️ moved: P8 + M8 → Collaborator 2 (S3, S4); P11 + M5 → Collaborator 3 (S5, S7); I2 → Collaborator 1 (S2). Rajeev reviews their `herald/` PRs | see the rows below |
 
 ### Collaborator 1: NOW screen, trace, fixtures, clean-clone setup
@@ -168,7 +234,7 @@ Docs: `docs/UX_PLAN.md` §3.4 (ED screen), §3.5 (presenter), §3.6 (phone captu
 | C3.4 | **U15 strip:** telemetry strip (tokens/s, GPU W, Wh, $ vs cloud with the stated rates and sources, cloud AI calls 0) | 1.5 | C1.3 | the UX_PLAN §5.9 contract rendered; honest labels |
 | C3.5 | **P4.3:** show field-triage criteria only on trauma or fall dispatches | 0.5 | C1.3 | hidden on stroke |
 | C3.6 | **Mass-casualty mode (P11)**: patient roster, `triage.category`, relay across patients by triage rank, patient strip + ED list. **Spec S5** | 5 | C3.2 | two patients on a weak link: the immediate one's update goes first |
-| C3.7 | ✅ PR #1 (Shivani; review fixes by Rajeev) **Medication normalization with RxNorm (B4)**: pinned RxNorm release + RxNav brand supplement (Coumadin, Zofran, Vicodin), exact → product name → combination → contained / fuzzy → phonetic, class allergies → ICD-10-CM (NEMSIS), `Coding` on facts, non-exact matches held for a tap, classes and drug keys in config. **Spec S6**. Held-out gold v2 drug keys, live run D: P 0.933 → 0.956, R 0.850 → 0.871 (F1 0.890 → 0.911); Omni F1 0.484 → 0.875; 200 atoms fixed, 0 lost across 42 saved runs; auto-confirm unchanged (MODEL_PLAN §0j). After merge: rebuild the index on 8100 | 3.5 | — | med/allergy recall up on gold v2 with no precision loss beyond the spread |
+| C3.7 | ✅ PR #1 (Shivani; review fixes by Rajeev) **Medication normalization with RxNorm (B4)**: pinned RxNorm release + RxNav brand supplement (Coumadin, Zofran, Vicodin), exact → product name → combination → contained / fuzzy → phonetic, class allergies → ICD-10-CM (NEMSIS), `Coding` on facts, non-exact matches held for a tap, classes and drug keys in config. **Spec S6**. Held-out gold v2 drug keys, live run D: P 0.933 → 0.956, R 0.850 → 0.871 (F1 0.890 → 0.911); Omni F1 0.484 → 0.875; 200 atoms fixed, 0 lost across 42 saved runs; auto-confirm unchanged (MODEL_PLAN §0j). ✅ merged; index built and live on 8100 (release 2026-09-08) | 3.5 | — | med/allergy recall up on gold v2 with no precision loss beyond the spread |
 | C3.8 | **30-minute soak test + pre-demo runbook (M5)**: `scripts/soak.py`, MARLIN check, `docs/RUNBOOK.md`. **Spec S7** | 1 | — | 30 min, 0 errors, no drift; runbook rehearsed |
 
 ### Jenil Savalia (@Jenil133): pitch, field evaluation, and deliverables (claimed)
@@ -183,7 +249,7 @@ Docs: the product spec on the Nano (`/home/hp18/Documents/team-last-minute/.agen
 | C4.5 | **Rehearsals:** link hotkeys ×5 (P2.4), the judge beat with a stranger (P6.2, U14 script), the mic test on a real laptop (P1.5) | 2 | C2.4, C3.1 | no stumble in 3 full runs |
 | C4.6 | **D4 + U16:** ask the organizers whether the overall prize depends on track (Community Impact recommended), and ask HP about registering on the ZGX console | 0.5 | — | answers recorded in `.agent/context.md` |
 | C4.7 | **D1:** interactive deck: problem → solution → architecture → held-out benchmarks (B1 numbers only) → impact | 3 | B1 | reviewed by Rajeev |
-| C4.9 | **Field robustness eval (B8)**: 30 fact cards, ≥5 people in their own words, quiet + road noise, ≥100 clips; scored with confidence intervals. **Spec S8**. 🔄 Jenil (`feat/c4-field-eval`): tooling done and tested: blind-written cards (`eval/field_cards_v1.jsonl`, 30 cards / 169 facts; second blind labeler agrees 30/30, F1 1.000 — an upper bound, see `eval/field/README.md`), the recording station (`python -m eval.field.recorder --station <you>`, port 8105: consent, per-station speaker codes and one shared audio folder so several teammates can record at once, counterbalanced quiet/noise blocks, withdraw & delete that is verified before it is logged; records with the app's own `web/wav.js`), `eval/field_bench.py` (Whisper → live extractor → the gold-v2 scorer; 3 runs; intervals over clips and speakers; quiet − noise resampled by speaker; omission review by listening to each clip, independent of any model's output), session guide `eval/field/README.md`. **Next: recordings with ≥5 consenting people** | 3 | — | numbers in MODEL_PLAN §5 and a slide |
+| C4.9 | **Field robustness eval (B8)**: 30 fact cards, ≥5 people in their own words, quiet + road noise, ≥100 clips; scored with confidence intervals. **Spec S8**. 🔄 Jenil (`feat/c4-field-eval`): tooling done and tested: blind-written cards (`eval/field_cards_v1.jsonl`, 30 cards / 169 facts; second blind labeler agrees 30/30, F1 1.000 — an upper bound, see `eval/field/README.md`), the recording station (`python -m eval.field.recorder --station <you>`, port 8105: consent, per-station speaker codes and one shared audio folder so several teammates can record at once, counterbalanced quiet/noise blocks, withdraw & delete that is verified before it is logged; records with the app's own `web/wav.js`), `eval/field_bench.py` (Whisper → live extractor → the gold-v2 scorer; 3 runs; intervals over clips and speakers; quiet − noise resampled by speaker; omission review by listening to each clip, independent of any model's output), session guide `eval/field/README.md`. ✅ **merged to main (PR #2, 2026-09-24)**, 365 tests pass after merge. **Next: recordings with ≥5 consenting people**, then MODEL_PLAN numbers | 3 | — | numbers in MODEL_PLAN §5 and a slide |
 | C4.8 | **U17 / D2:** 2-minute video (`scripts/replay.py` for the screen capture) and **D3:** socials tagging sponsors | 3 | all | uploaded, linked in the README |
 
 ### Open tasks: anyone can pick
@@ -191,13 +257,13 @@ These are in nobody's lane. To claim one, put your GitHub handle in "Claimed by"
 
 | # | Task | Hours | Needs | Claimed by | Done when |
 |---|---|---|---|---|---|
-| O1 | **Medications the crew gives** (aspirin 324, nitroglycerin, naloxone, ondansetron, D10 …) as `meds.given` records, NEMSIS eMedications.03–.06. **Status:** ✅ key and labeling rules (`config/vocabulary.yaml`, LABELING_GUIDE §4e), gold v3 labels and run E training data (Rajeev); ✅ drug coding to RxNorm with holds (PR #1, MODEL_PLAN §0j: v3 `meds.given` F1 0.915 with run E, unchanged by coding). ⏳ run E live and its per-key numbers; ⏳ screens: NOW timeline, trace and ED screen show the given drug with its code; ⏳ relay tier reason in `config/relay.yaml` (already tier 1) | 2 (screens) | run E served | — | "Gave 324 of aspirin, chewed, at 14:05" shows as aspirin (RxNorm 1191), 324 mg, PO, 14:05 on the NOW screen, the trace and the ED screen, and ticks Santa Clara's STEMI aspirin item |
+| O1 | **Medications the crew gives** (aspirin 324, nitroglycerin, naloxone, ondansetron, D10 …) as `meds.given` records, NEMSIS eMedications.03–.06. **Status:** ✅ key and labeling rules (`config/vocabulary.yaml`, LABELING_GUIDE §4e), gold v3 labels and run E training data (Rajeev); ✅ drug coding to RxNorm with holds (PR #1, MODEL_PLAN §0j: v3 `meds.given` F1 0.915 with run E, unchanged by coding). ✅ run E v2 live: `meds.given` F1 0.91 on gold v3 (P 0.95, R 0.88); the snapshot lists every dose (`events`); ⏳ screens: NOW timeline, trace and ED screen show the given drug with its code; ⏳ relay tier reason in `config/relay.yaml` (already tier 1) | 2 (screens) | run E served | — | "Gave 324 of aspirin, chewed, at 14:05" shows as aspirin (RxNorm 1191), 324 mg, PO, 14:05 on the NOW screen, the trace and the ED screen, and ticks Santa Clara's STEMI aspirin item |
 
 **Requests to backend** (any lane adds rows; Rajeev triages):
 
 | From | Request | Status |
 |---|---|---|
-| @Jenil133 | **A speaker on the other mic who is a neighbor, friend, coworker or other non-relative is recorded as `family`.** `herald/core/schema.source_role` maps any speaker label that isn't a role name to `family`, and `ModelExtractor` uses that role for every fact on someone else's mic, but LABELING_GUIDE §3 makes a neighbor a bystander. `config/vocabulary.yaml` already groups these words (`field_synonyms.by`: family / facility / bystander …), so the same groups could decide the source role. Found while writing the field cards (fc28, a neighbor on the mic, will show it) | ⏳ |
+| @Jenil133 | **A speaker on the other mic who is a neighbor, friend, coworker or other non-relative is recorded as `family`.** `herald/core/schema.source_role` maps any speaker label that isn't a role name to `family`, and `ModelExtractor` uses that role for every fact on someone else's mic, but LABELING_GUIDE §3 makes a neighbor a bystander. `config/vocabulary.yaml` already groups these words (`field_synonyms.by`: family / facility / bystander …), so the same groups could decide the source role. Found while writing the field cards (fc28, a neighbor on the mic, will show it) | ✅ fixed 2026-09-24: `config/vocabulary.yaml` `people` groups decide the speaker's role (`speaker_roles`: neighbor, coworker, police → bystander; facility staff → family), shared by the app and the benchmarks; test in `tests/test_trace.py` |
 
 ## P1: Speech → patient picture → NOW screen, gap-first
 | ID | Task | Owner | Status | Done when |
@@ -229,12 +295,13 @@ These are in nobody's lane. To claim one, put your GitHub handle in "Claimed by"
 | P4.1 | NEWS2 + RACE + 2021 field triage, unit-tested, sources in code/UI | Rajeev | ✅ | tests pass |
 | P4.2 | Verify which stroke scale the **Santa Clara County** destination policy uses (RACE vs LAMS vs C-STAT); switch if needed | Rajeev | ✅ Santa Clara uses **G.F.A.S.T.** (Protocol 700-A13, eff. 2026-01-01; 4/4 → Comprehensive Stroke Center unless > 45 min); RACE kept beside it | policy PDF cited in the README |
 | P4.3 | Show field-triage criteria only for trauma/fall dispatches | frontend | ⏳ | hidden on stroke |
+| P4.4 | County criteria: Santa Clara Policy 605 trauma (red/yellow/considerations) and 700-A04 sepsis pre-notification, cited per criterion | Rajeev | ✅ (= B13) | tested scenarios in `tests/test_county_scores.py` |
 
 ## P5: Eyes (photo reading)
 | ID | Task | Owner | Status | Done when |
 |---|---|---|---|---|
-| P5.1 | `herald/models/vision.py`, `/api/photo`, `web/capture.html` | ML/frontend | ✅ code | — |
-| P5.2 | Smoke test on `eval/photos/synthetic_*.jpg` | ML | ✅ 3/3 each | warfarin + SpO2 94 / PR 104 read correctly |
+| P5.1 | `herald/models/vision.py`, `/api/photo`, `web/capture.html`; live model `qwen3vl-fp8` (B12); prompts store generic drug names and "DNR" / "full code", and read glucometers and thermometers | ML/frontend | ✅ | — |
+| P5.2 | Synthetic photo set (`eval/photos/`, 45 images, 31 degraded; `eval/vision_bench.py`) | ML | ✅ Qwen3-VL F1 0.989, 43/45 exact (a glucometer "HI" and a POLST with only section B are missed) | numbers in MODEL_PLAN §2a |
 | P5.3 | Props: fingertip pulse oximeter, empty bottle with a printed "WARFARIN 5 MG" label, printed CA POLST | pitch | ⏳ | bought/printed |
 | P5.4 | Photo test set: ~50 real phone photos of the props (angles, glare) + gold labels → photo-reading accuracy | data | ⏳ | number for the deck |
 
@@ -249,28 +316,28 @@ These are in nobody's lane. To claim one, put your GitHub handle in "Claimed by"
 |---|---|---|---|---|
 | P7 | Simulated monitor panel | frontend | ✅ | fallback for P5 |
 | P8 | Interpreter (Spanish ↔ English: Whisper + LLM + Kokoro TTS), statements land in the timeline with the original kept | Collaborator 2 (S3) | ⏳ | a Spanish answer shows up translated in the chart; round-trip latency measured |
-| P9 | Protocol lookup: county policy PDFs → local search, read-only, cited section shown | Rajeev | 🔄 (= B7) | "open the stroke protocol" shows the right county section |
+| P9 | Protocol lookup: county policy PDFs → local search, read-only, cited section shown | Rajeev | ✅ backend, 32 documents live; 🔄 UI panel, rerank bench on 59 questions (= B7) | "open the stroke protocol" shows the right county section |
 | P11 | Multi-patient mass-casualty mode: several patient pictures on one rig; the relay prioritizes across patients by triage color | Collaborator 3 (S5) | ⏳ | two patients, the critical one's update goes first on a weak link |
 | P12 | County configuration file (stroke scale, checklist items, destinations, reassessment interval); switch counties live | Rajeev (backend) + Collaborator 3 (switch UI, C3.1) | ✅ backend: `config/counties/*.json`, `POST /api/county/{id}`; UI in C3.1 | switching county changes the checklist and scale on screen |
 | P10.0 | Synthetic data (`scripts/compose_synth.py`, template composition; teacher generation piloted and rejected, MODEL_PLAN §4): 3,000 rows, 2,448 / 274 / 278 | Rajeev | ✅ | labels correct by construction |
 | P10.1 | Go/no-go checklist (MODEL_PLAN §4) | Rajeev | ✅ 1–4 · 🔄 5 (latency) | failures get a root cause and a fix path the same morning |
-| P10.2 | Run A: Qwen3-4B-Instruct-2507 BF16 LoRA r16 on composed data ✅ (0.635 on v1: covered 19/31 keys); **run B: same base on 1,200 annotated utterances ✅ (0.903 on v1 dev, 0.860 on held-out v2)**; Qwen3-1.7B ⏳ | Rajeev | 🔄 | table: F1, exact match, JSON validity, role acc, p50/p95, J/utterance |
+| P10.2 | Run A: Qwen3-4B-Instruct-2507 BF16 LoRA r16 on composed data ✅ (0.635 on v1: covered 19/31 keys); **run B: same base on 1,200 annotated utterances ✅ (0.903 on v1 dev, 0.860 on held-out v2)**; run C (+ G.F.A.S.T.) 0.885; run D (spoken order, speaker line) 0.916; **run E v2 (every call type + dispatch) 0.950, live**; Qwen3-1.7B ⏳ (only if latency needs it) | Rajeev | ✅ run E v2 | table: F1, exact match, JSON validity, role acc, p50/p95, J/utterance |
 | P10.3 | Serve: **ZRT's proxy routes by label only, so a LoRA module name 404s** ("unknown model name"). Merged model pushed to a private HF repo and served as `ems` (`scripts/merge_lora.py`). Fine-tuned models decode in JSON mode (the strict schema made it append "?" to every fact) | Rajeev | ✅ | outputs differ from base |
 | P10.4 | Improve the fine-tune through **data, not rules**: onset vs LKW, brands and misspellings → generics, corrections, negative exams, home vs EMS-given meds, no invented vitals (the gold v1 dev-half error taxonomy, MODEL_PLAN §5) | Rajeev | ✅ run B (data from 8 independent annotators) | judged on gold v2 only |
 
 ## Models (lock before building further on them)
 | ID | Task | Owner | Status | Done when |
 |---|---|---|---|---|
-| M1 | Serve Nemotron-3-Nano-Omni NVFP4 with the fixes in AGENTS.md | Rajeev | ✅ | `omni` serving on :8080 |
-| M2 | Bake-off (MODEL_PLAN §5). gold v1 dev: rules 0.571, Omni p3 0.710, rules + Omni 0.764, run B 0.903. **gold v2 held-out (run 1): rules 0.444, Omni 0.644, rules + Omni 0.696, run B 0.860, rules + run B 0.854.** Always 3 runs; report the spread | Rajeev | 🔄 runs 2–3 on v2 | table in MODEL_PLAN |
-| M3 | Lock: best F1 with p95 ≤ 2 s; on a tie, prefer the model that also reads photos | Rajeev | ⏳ run B leads on accuracy; blocked on B6 latency (p95 ≤ 2 s) | decision logged |
+| M1 | Serve Nemotron-3-Nano-Omni NVFP4 with the fixes in AGENTS.md | Rajeev | ✅, then replaced by Qwen3-VL for vision (B12); Omni stays cached for rollback | `omni` serving on :8080 |
+| M2 | Bake-off (MODEL_PLAN §5). gold v1 dev: rules 0.571, Omni p3 0.710, rules + Omni 0.764, run B 0.903. **gold v2 held-out (run 1): rules 0.444, Omni 0.644, rules + Omni 0.696, run B 0.860, rules + run B 0.854.** Always 3 runs; report the spread | Rajeev | ✅ all 3 runs; later runs in MODEL_PLAN §0h, §0i (run E v2 0.950 held-out) | table in MODEL_PLAN |
+| M3 | Lock: best F1 with p95 ≤ 2 s; on a tie, prefer the model that also reads photos | Rajeev | ✅ **locked: run E v2** (team lead, 2026-09-24): best held-out F1; p95 is above 2 s on long lines (B6) | decision logged |
 | M5 | 30-min soak test of the chosen model (NVFP4 instability reports); confirm MARLIN in the log; warm-up before the demo | Collaborator 3 (S7) | ⏳ | no errors |
 | M6 | `python3.12-dev` installed | lead | ✅ | — |
 | M7 | 30-item gold v0 → **independent held-out gold v1 (100 items)**: labeler A writes and labels per `docs/LABELING_GUIDE.md`, labeler B labels blind, agreement measured, disagreements adjudicated | Rajeev | ✅ F1 0.993; bench 3× done | agreement ≥ 0.9 F1 between labelers; bench rerun 3× on v1 |
 | M7b | **Gold v2 (100 items), the held-out set from now on**: same protocol, stricter phrasing variety; quotas for onset phrasing, non-anticoagulant brand names, misspelled drug names, EMS-given drugs | Rajeev | ✅ 100 items, 320 facts, agreement F1 0.976 before adjudication; 15 disagreements settled into LABELING_GUIDE §4c | agreement ≥ 0.9; adjudicated `eval/gold_v2.jsonl`; every extractor 3× |
 | M8 | Speaker diarization (`pyannote/speaker-diarization-community-1`, the model HP's Audio2Text and Doctor NoteAI use): check it installs on aarch64 with torch 2.14 (gated on HF: accept terms with the team token), then measure whether it labels medic vs family correctly on multi-speaker clips | Collaborator 2 (S4) | ⏳ | works on 10 two-speaker clips, or a documented reason it can't |
-| M9 | Adversarial speech eval + prompt-injection containment (`herald/extraction/guard.py`, `eval/adversarial_v1.jsonl`, `eval/adversarial_bench.py`) | Rajeev | ✅ 25/25 rules and 25/25 ×3 pipeline (was 21 and 18–19) | see MODEL_PLAN §0b |
-| M9b | Fresh adversarial set (≥30) written by someone who hasn't read `guard.py`; measure guard false positives on gold v1 | Rajeev | ✅ `eval/adversarial_v2.jsonl` (40, unseen): rules 22/40, Omni 15–17, rules + Omni 18–19; guard false positives 0/200 on gold v1+v2. Improvement via training data (B3/B5) | pass rate on unseen attacks; 0 legitimate facts blocked on gold v1 |
+| M9 | Adversarial speech eval + prompt-injection containment (`herald/extraction/guard.py`, `eval/adversarial_v1.jsonl`, `eval/adversarial_bench.py`) | Rajeev | ✅ earlier: 25/25 rules and pipeline. Live run E v2: 19/25 as ingested (two injected DNRs and an advice line regress; all held for a tap) | see MODEL_PLAN §0b, §0i |
+| M9b | Fresh adversarial set (≥30) written by someone who hasn't read `guard.py`; measure guard false positives on gold v1 | Rajeev | ✅ `eval/adversarial_v2.jsonl` (40, unseen): rules 22/40, Omni 15–17, rules + Omni 18–19; guard false positives 0/200 on gold v1+v2. Run D 24/40, **run E v2 24/40**. Improvement via training data | pass rate on unseen attacks; 0 legitimate facts blocked on gold v1 |
 | M10 | Measure warm restart time of `omni` (the kernel cache is populated now) and whole-stack cold start; write the pre-demo warm-up procedure | Rajeev | ✅ measured: stop 4 s, warm restart to ready 7.6 min (cold first start was 23 min), first request 1.6 s, then 0.9 s. Warm-up checklist: in the demo runbook (C4.5) | numbers in MODEL_PLAN; checklist in the demo runbook |
 | M4 | **Gold set v1: ~100 utterances** incl. shorthand, number words, negations, corrections, attribution; two labelers; free-text keys scored by presence. **Blocks the text-model decision** (30 items can't separate ±0.04) | Rajeev | ✅ (= M7) | agreement reported |
 
@@ -278,7 +345,7 @@ These are in nobody's lane. To claim one, put your GitHub handle in "Claimed by"
 | ID | Task | Owner | Status | Done when |
 |---|---|---|---|---|
 | U0 | Evidence-based UX plan: clinical alarm/color standards, human-AI interaction guidelines, "Herald thinking" trace panel, production component stack, what HP/NVIDIA provide on the ZGX | frontend lead | ✅ first version; 🔄 being expanded to full detail | `docs/UX_PLAN.md` |
-| U5 | **Backend done:** every `transcripts[]` entry carries `trace` (heard → rules facts → model facts with status running/done/error → effects on the checklist, scores, alerts, gaps → per-fact relay eligibility); two-phase update in place | Rajeev | ✅ | `tests/test_trace.py` |
+| U5 | **Backend done:** every `transcripts[]` entry carries `trace` (heard → model facts with status running/done/error/unavailable → effects on the checklist, scores, alerts, gaps → per-fact relay eligibility); two-phase update in place (words first, facts on the same entry); `trace.rules` is empty for speech since the rules extractor was removed | Rajeev | ✅ | `tests/test_trace.py` |
 | U15-API | **Backend done:** `GET /api/telemetry` (tokens, tok/s, GPU W and utilization, energy Wh, local $ vs cloud-equivalent $ with stated rates, cloud AI calls 0) and `GET /api/stack` (models with readiness + intelligence services, in HP's console format) | Rajeev | ✅ | `tests/test_telemetry.py`; frontend renders it in U15 |
 | U1–U17 | Frontend build per `docs/UX_PLAN.md` §6, **by the frontend teammates** | frontend | ⏳ | see UX_PLAN |
 

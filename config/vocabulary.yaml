@@ -6,6 +6,23 @@
 #   merge: accumulate = list facts are unioned across utterances; each = every fact is its own event (a dose given)
 #   require_tap: always starts unconfirmed (the medic confirms)
 # contradiction_keys: two different values from different sources are a contradiction, not a trend.
+# Words for people who give care or speak on scene, grouped (LABELING_GUIDE §3, §4e). They decide a record's `by`
+# ("husband" -> family) and, on someone else's mic, the speaker's role (`speaker_roles`).
+people: &people
+  family: [husband, wife, spouse, partner, mother, father, mom, dad, parent, son, daughter, brother, sister,
+           grandmother, grandfather, grandma, grandpa, grandson, granddaughter, aunt, uncle, cousin, boyfriend,
+           girlfriend, fiance, niece, nephew, relative]
+  facility: [nurse, aide, staff, nursing home staff, facility staff, caregiver, school nurse, home health aide,
+             group home staff, care home staff]
+  bystander: [friend, roommate, neighbor, neighbour, coworker, co-worker, witness, passerby, teacher, coach,
+              lifeguard, security, security guard, store manager, clerk, stranger, golf partner, trainer,
+              athletic trainer, supervisor, landlord]
+  police: [officer, pd, cop, police officer, deputy, law enforcement]
+  fire: [firefighter, fire department, engine, engine company, fd]
+  first responder: [first responders, responder]
+  crew: [we, us, ems, medic, paramedic, our crew]
+# The role of a named speaker on someone else's mic, by people group (facility staff are family: LABELING_GUIDE §3).
+speaker_roles: {family: [family, facility], bystander: [bystander, police, fire, first responder]}
 keys:
   patient.age:
     label: Age
@@ -219,19 +236,7 @@ keys:
     fields: {drug: str, dose: float, unit: str, route: str, time: time, by: str, count: int}
     field_ranges: {dose: [0, 10000], count: [1, 20]}
     field_synonyms:                 # `by` is who gave it, as a category (the relation is in the fact's source)
-      by: &by_synonyms
-        family: [husband, wife, spouse, partner, mother, father, mom, dad, parent, son, daughter, brother, sister,
-                 grandmother, grandfather, grandma, grandpa, grandson, granddaughter, aunt, uncle, cousin, boyfriend,
-                 girlfriend, fiance, niece, nephew, relative]
-        facility: [nurse, aide, staff, nursing home staff, facility staff, caregiver, school nurse, home health aide,
-                   group home staff, care home staff]
-        bystander: [friend, roommate, neighbor, neighbour, coworker, co-worker, witness, passerby, teacher, coach,
-                    lifeguard, security, security guard, store manager, clerk, stranger, golf partner, trainer,
-                    athletic trainer, supervisor, landlord]
-        police: [officer, pd, cop, police officer, deputy, law enforcement]
-        fire: [firefighter, fire department, engine, engine company, fd]
-        first responder: [first responders, responder]
-        crew: [we, us, ems, medic, paramedic, our crew]
+      by: *people
   procedures.done:
     # NEMSIS eProcedures: 03 procedure, 01 time, successful or not; e.g. IV access, CPR, defibrillation, splint.
     label: Procedure done
@@ -241,7 +246,7 @@ keys:
     identity: procedure
     fields: {procedure: str, time: time, detail: str, by: str}
     field_synonyms:
-      by: *by_synonyms
+      by: *people
   trauma.mechanism:
     label: Mechanism of injury
     type: str

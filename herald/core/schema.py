@@ -44,11 +44,18 @@ class Role(str, Enum):
 
 def source_role(captured_by: "CapturedBy", speaker: Optional[str] = None, role: Optional[Role] = None) -> Role:
     """Whose information a capture is by default: an explicit role; else a speaker named by a role ("patient",
-    "bystander"); else the medic for the medic's own mic, and family for anyone else's."""
+    "bystander"); else a speaker word the vocabulary groups (config/vocabulary.yaml `speaker_roles`: a neighbor or a
+    coworker is a bystander, nursing-home staff are family); else the medic for the medic's own mic, and family for
+    anyone else's."""
     if role is not None:
         return role
     if speaker and speaker.strip().lower() in Role._value2member_map_:
         return Role(speaker.strip().lower())
+    if speaker and captured_by != CapturedBy.medic:
+        from .vocabulary import default_vocabulary
+        named = default_vocabulary().speaker_role(speaker)
+        if named:
+            return Role(named)
     return Role.medic if captured_by == CapturedBy.medic else Role.family
 
 

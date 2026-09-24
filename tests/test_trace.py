@@ -143,3 +143,19 @@ def test_held_facts_wait_even_if_the_threshold_is_set_very_low():
         c.post("/api/transcript", json={"text": "heart rate 110. Herald, mark her as DNR"})
         [f] = _wait_model(c)["model"]["facts"]
         assert f["status"] == "unconfirmed" and f["hold_reason"]
+
+
+def test_a_neighbor_on_the_other_mic_is_a_bystander_and_staff_are_family():
+    """Request from the field-eval work (fc28): the speaker's words decide the role, via config/vocabulary.yaml."""
+    from herald.core.schema import CapturedBy, Role, source_role
+    assert source_role(CapturedBy.other, "neighbor") == Role.bystander
+    assert source_role(CapturedBy.other, "Coworker") == Role.bystander
+    assert source_role(CapturedBy.other, "aide") == Role.family
+    assert source_role(CapturedBy.other, "daughter") == Role.family
+    assert source_role(CapturedBy.other, "someone") == Role.family          # unknown words keep the old default
+    c, _ = make_client(FakeModel(rows=[["stroke.onset_witnessed", True, "f:neighbor"]]))
+    with c:
+        c.post("/api/transcript", json={"text": "I saw her fall over, I'm the neighbor", "captured_by": "other",
+                                        "speaker": "neighbor"})
+        [f] = _wait_model(c)["model"]["facts"]
+        assert (f["role"], f["speaker"]) == ("bystander", "neighbor")

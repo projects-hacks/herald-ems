@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Any
+from typing import Any, Optional
 
 from ..config import load_yaml
 
@@ -11,15 +11,18 @@ _TRUE_WORDS = ("true", "yes", "y", "1", "witnessed", "on")
 
 
 class Vocabulary:
-    def __init__(self, keys: dict[str, dict], contradiction_keys: set[str]):
+    def __init__(self, keys: dict[str, dict], contradiction_keys: set[str], people: Optional[dict] = None,
+                 speaker_roles: Optional[dict] = None):
         self.keys = keys
         self.contradiction_keys = contradiction_keys
+        self.people = people or {}
+        self.speaker_roles = speaker_roles or {}
 
     @classmethod
     def from_config(cls, rel: str = "vocabulary.yaml") -> "Vocabulary":
         data = load_yaml(rel)
         keys = {k: {**v, **({"range": tuple(v["range"])} if "range" in v else {})} for k, v in data["keys"].items()}
-        return cls(keys, set(data["contradiction_keys"]))
+        return cls(keys, set(data["contradiction_keys"]), data.get("people"), data.get("speaker_roles"))
 
     def __contains__(self, key: str) -> bool:
         return key in self.keys
@@ -29,6 +32,15 @@ class Vocabulary:
 
     def label(self, key: str) -> str:
         return self.keys[key]["label"]
+
+    def speaker_role(self, speaker: Optional[str]) -> Optional[str]:
+        """The role name for a speaker named on someone else's mic ("neighbor" -> "bystander"), or None if unknown."""
+        word = (speaker or "").strip().lower()
+        for role, groups in self.speaker_roles.items():
+            for g in groups:
+                if word == g or word in (self.people.get(g) or []):
+                    return role
+        return None
 
     def coerce(self, key: str, value: Any) -> Any:
         """Convert an extracted value to the key's declared type; ValueError if it can't be."""
