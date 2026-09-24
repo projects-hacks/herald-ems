@@ -12,7 +12,7 @@
 {"id": "v2_012", "facts": [["trauma.mechanism", "ground level fall, tripped over the dog and hit her head on the coffee table", "medic", null], ["trauma.criteria", ["low level fall with significant head impact"], "medic", null]]}
 {"id": "v2_013", "facts": []}
 {"id": "v2_014", "facts": []}
-{"id": "v2_015", "facts": [["meds.given", {"drug": "ipratropium-albuterol", "by": "crew"}, "medic", null]]}
+{"id": "v2_015", "facts": [["meds.given", {"drug": "albuterol / ipratropium", "by": "crew"}, "medic", null]]}
 {"id": "v2_016", "facts": []}
 {"id": "v2_017", "facts": []}
 {"id": "v2_018", "facts": [["meds.given", {"drug": "aspirin", "dose": 324, "route": "PO", "by": "crew"}, "medic", null], ["meds.given", {"drug": "nitroglycerin", "dose": 1, "route": "SL", "by": "crew"}, "medic", null]]}
