@@ -38,7 +38,9 @@ Everything is in `docs/MODEL_PLAN.md` §0e, §0f and §5.
 - Replayed end to end on the live models: stroke alert 6/6, G.F.A.S.T. 4 of 4 with the county routing rule quoted, RACE 6, NEWS2 2 → 5, and the allergy contradiction.
 
 **Decisions waiting for Rajeev** (human in the loop):
-1. **Injection guard policy.** With the fine-tuned model, skipping it on flagged utterances loses legitimate facts (rules + run C 22/40 vs run C alone 25/40). Proposal: always run the model, and let flagged utterances produce only unconfirmed facts (MODEL_PLAN §0f). **Built and tested behind `HERALD_GUARD_POLICY=unconfirm`; the default is still `skip_model`.**
+1. ✅ **DECIDED (Rajeev, 2026-09-24): the model reads everything, and anything from a flagged utterance waits for the medic's tap.**
+   - `HERALD_GUARD_POLICY=unconfirm` is now the default.
+   - Each held fact carries `provenance.hold_reason`, e.g. *said together with a command to the system ("mark her as"): check before confirming*, and it must be clearly visible on screen (C2.2).
 2. **Rules extractor's role.** On held-out data it adds nothing on top of run C (0.854 vs 0.861 for run B) and lowers who-said-it accuracy. Production systems use model extraction + validation + human confirmation, not phrase lists. Proposal: rules run only when no model is served. **Built and tested behind `HERALD_RULES=fallback`; the default is still `always`.** Two consequences to decide with it:
    - (a) The instant rules result disappears; facts arrive with the model, about 1 s later.
    - (b) Today, facts only the model heard are capped below auto-confirm. With rules off, that means every fact, even the medic's own vitals, needs a tap, unless we also let the fine-tuned model's medic-attributed facts auto-confirm (held-out precision 0.89).
@@ -148,7 +150,7 @@ Docs: `docs/UX_PLAN.md` §3.1.11 (capture bar), §3.1.13 (hotkeys), §3.2–3.3,
 | # | Task | Hours | Needs | Done when |
 |---|---|---|---|---|
 | C2.1 | **U4:** push-to-talk (Space = medic, F = other speaker), typed input, and the monitor-panel fallback (`POST /api/facts`) | 2 | C1.1, C1.2 | a clip round-trips; the monitor entry shows in the trace |
-| C2.2 | **U13:** confirm/reject and the contradiction card, with both sources and ▶ audio | 2 | C1.3 | one tap per confirm; the contradiction clears on confirm |
+| C2.2 | **U13:** confirm/reject and the contradiction card, with both sources and ▶ audio. **Held facts** (`provenance.hold_reason` set, i.e. said together with a command to the system) get a distinct "held · check" badge in both the Patient picture and the trace. The reason is shown in words, and confirming one shows the reason again at the moment of the tap | 2 | C1.3 | one tap per confirm; the contradiction clears on confirm; a held fact is unmistakable at arm's length |
 | C2.3 | **U10:** link UX and reconciliation on both screens: queued / sent / "reconciled · 0 duplicates · 0 lost" (P3.2) | 2 | C1.3, C3.2 | the counter appears on both screens after restore |
 | C2.5 | **Interpreter (P8)**: Spanish ↔ English end to end: translator + language detection + Kokoro TTS + endpoints + interpreter panel + 20-utterance eval. **Spec S3** (needs Rajeev: `sudo apt install espeak-ng`) | 5 | C2.1 | a Spanish sentence becomes unconfirmed English facts with the original kept; English is spoken back in Spanish |
 | C2.6 | **Speaker diarization evaluation (M8)**: pyannote community-1 on 10 two-speaker clips; DER + word attribution; go/no-go. **Spec S4** (needs Rajeev: accept the model's terms on Hugging Face) | 2 | — | numbers in MODEL_PLAN §3 |

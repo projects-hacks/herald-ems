@@ -62,4 +62,4 @@ class TraceRecorder:
             relay = "stays on the vehicle (not in the ED set)"
         return {"id": f.id, "key": f.key, "label": self.vocab.label(f.key), "value": f.value, "role": f.role.value,
                 "speaker": f.speaker, "status": f.status.value, "confidence": round(f.confidence, 2),
-                "extractor": f.provenance.extractor, "relay": relay}
+                "extractor": f.provenance.extractor, "relay": relay, "hold_reason": f.provenance.hold_reason}

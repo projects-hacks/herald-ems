@@ -116,7 +116,7 @@ First, check with `pdffonts` / `pdftotext -bbox` whether Table B's check marks a
 
 - Run C was trained on instruction-shaped speech (training batch 08), and it is the strongest single defence.
 - The guard's "skip the model for a flagged utterance" now **loses** legitimate facts said next to an injection (spoken vitals the rules can't parse) and lets rules-extracted injected values through.
-- **Proposal, pending the team lead's decision:** run the model on every utterance. When the guard flags an utterance, every fact from it starts unconfirmed (needs a tap), instead of skipping the model.
+- **Decided (team lead, 2026-09-24), now the default:** the model reads every utterance ("the model decides what the facts are; the paramedic decides what counts"). When the guard flags an utterance, every fact from it is held for a tap, with a visible `hold_reason`. `HERALD_GUARD_POLICY=skip_model` restores the previous behavior.
 
 ## 1. Text model (live extraction)
 | Rank | Model | Active | Decode on GB10 (measured by others) | 150-tok latency (est.) | Instruction-following evidence | vLLM 0.26 status |

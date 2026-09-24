@@ -55,6 +55,7 @@ class Provenance(BaseModel):
     photo_id: Optional[str] = None      # data/photos/<photo_id>.jpg
     crop: Optional[list[float]] = None  # [x0, y0, x1, y1] normalized
     extractor: Optional[str] = None     # "rules", "llm:<model>", "vision:<model>", "manual"
+    hold_reason: Optional[str] = None   # why this fact waits for the medic's tap (shown on screen), e.g. the guard
 
 
 class FactIn(BaseModel):

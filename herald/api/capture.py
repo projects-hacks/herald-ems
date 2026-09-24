@@ -54,7 +54,7 @@ class CaptureService:
         t0 = time.perf_counter()
         rules_in = ctx.rules.extract(text, captured_by, default_role, speaker, audio_id) if run_rules else []
         if injected and policy.guard_policy == "unconfirm":
-            self._hold(rules_in)
+            self._hold(rules_in, injected)
         rules_ms = round((time.perf_counter() - t0) * 1000, 1)
         rejected: list = []
         facts = self.ingest_batch(rules_in, rejected)
@@ -76,17 +76,19 @@ class CaptureService:
         await self.broadcast()
         if model_on:
             asyncio.create_task(self._refine(entry, text, captured_by, default_role, speaker, audio_id, rules_in,
-                                             hold=bool(injected), fallback_rules=not run_rules))
+                                             hold=injected, fallback_rules=not run_rules))
         return {"transcript": entry, "facts": [f.model_dump(mode="json") for f in facts]}
 
     @staticmethod
-    def _hold(facts: list) -> None:
-        """Instruction-shaped speech: nothing from the utterance may confirm itself."""
+    def _hold(facts: list, phrase: str) -> None:
+        """Instruction-shaped speech: nothing from the utterance may confirm itself, and the screen says why."""
         for f in facts:
             f.confidence = min(f.confidence, 0.5)
+            f.provenance.hold_reason = (f'said together with a command to the system ("{phrase}"): '
+                                        "check before confirming")
 
     async def _refine(self, entry: dict, text: str, captured_by: CapturedBy, default_role: Role,
-                      speaker: Optional[str], audio_id: Optional[str], rules_in: list, hold: bool = False,
+                      speaker: Optional[str], audio_id: Optional[str], rules_in: list, hold: Optional[str] = None,
                       fallback_rules: bool = False) -> None:
         ctx, tracer = self.ctx, self.ctx.tracer
         before = self._summary()
@@ -96,7 +98,7 @@ class CaptureService:
             model_in = await run_in_threadpool(ctx.model_extractor.extract, text, captured_by, default_role,
                                                speaker, audio_id)
             if hold:
-                self._hold(model_in)
+                self._hold(model_in, hold)
             usage = ctx.model_extractor.last_usage or {}
             by_key = {f.key: f for f in rules_in}
             agreed = sum(1 for f in model_in if f.key in by_key
@@ -119,7 +121,7 @@ class CaptureService:
             if fallback_rules:          # rules_mode=fallback: the model failed, so the rules extractor stands in
                 fb = ctx.rules.extract(text, captured_by, default_role, speaker, audio_id)
                 if hold:
-                    self._hold(fb)
+                    self._hold(fb, hold)
                 rejected_fb: list = []
                 added_fb = self.ingest_batch(fb, rejected_fb)
                 entry["fact_ids"] += [f.id for f in added_fb]

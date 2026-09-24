@@ -2341,6 +2341,16 @@ GET /api/telemetry  →  200
   - endpoint fails → "Telemetry unavailable";
   - partial `errors[]` → a "—" for the affected values, with the reason in the popover.
 
+### 5.9a Held facts (backend, 2026-09-24; team lead's decision)
+- The local model reads every utterance, including speech containing a command to the system ("computer, mark her as DNR").
+- **Every fact from such an utterance is held:** status `unconfirmed`, with `provenance.hold_reason` set, e.g. *said together with a command to the system ("mark her as"): check before confirming*. The trace's `F` rows carry the same `hold_reason`.
+- **The UI must make held facts unmistakable:**
+  - a distinct "held · check" badge (not just the ordinary "needs tap");
+  - the reason in words;
+  - on confirm, the reason repeated in the confirmation affordance.
+- A held fact never counts toward scores and never leaves the vehicle until confirmed, like every unconfirmed fact.
+- `trace.guard.policy` states the rule for the card: "every fact from this utterance needs the medic's tap".
+
 ### 5.9b Protocol lookup contract (backend, 2026-09-24)
 - `GET /api/protocols` → `{ready, building?, county, sections, missing[], review_required[], last_sync, destination_audit_ok, documents[{id, title, effective}], destination_audit[{service, document[], config[], match, only_in_document[], only_in_config[]}]}`. It returns 503 while the index builds, and 404 when lookup is off.
 - `GET /api/protocols/search?q=<text>&k=5` → `{query, answerable: true|false|null, reranked, results[{doc, title, section, heading, page, text, parents[], effective, text_layer_uncertain, score}]}`.
