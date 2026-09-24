@@ -45,15 +45,20 @@ class CaptureService:
                    audio_id: Optional[str], use_model: bool, stt_info: Optional[dict] = None) -> dict:
         ctx, tracer = self.ctx, self.ctx.tracer
         default_role = role or (Role.medic if captured_by == CapturedBy.medic else Role.family)
+        policy = ctx.settings
         before = self._summary()
+        injected = ctx.guard.match(text)
+        model_ready = use_model and ctx.text_model.available()
+        model_on = model_ready and (not injected or policy.guard_policy == "unconfirm")
+        run_rules = policy.rules_mode == "always" or not model_on
         t0 = time.perf_counter()
-        rules_in = ctx.rules.extract(text, captured_by, default_role, speaker, audio_id)
+        rules_in = ctx.rules.extract(text, captured_by, default_role, speaker, audio_id) if run_rules else []
+        if injected and policy.guard_policy == "unconfirm":
+            self._hold(rules_in)
         rules_ms = round((time.perf_counter() - t0) * 1000, 1)
         rejected: list = []
         facts = self.ingest_batch(rules_in, rejected)
         after = self._summary()
-        injected = ctx.guard.match(text)
-        model_on = use_model and ctx.text_model.available() and not injected
         entry = {"id": new_id("t"), "ts": utcnow().isoformat(), "text": text, "captured_by": captured_by.value,
                  "speaker": speaker, "audio_id": audio_id, "fact_ids": [f.id for f in facts],
                  "extract": {"rules": len(facts), "llm": None, "ms": rules_ms}, "stt": stt_info,
@@ -63,16 +68,26 @@ class CaptureService:
                            "model": ({"status": "running", "name": ctx.text_model.model_name()} if model_on else
                                      {"status": "skipped", "reason": f"instruction-shaped speech (\"{injected}\"): "
                                       "model output discarded for this utterance"} if injected else {"status": "off"}),
-                           "guard": {"instruction_shaped": injected},
+                           "guard": {"instruction_shaped": injected,
+                                     **({"policy": "every fact from this utterance needs the medic's tap"}
+                                        if injected and policy.guard_policy == "unconfirm" else {})},
                            "effects": tracer.diff(before, after)}}
         self.inc.transcripts.append(entry)
         await self.broadcast()
         if model_on:
-            asyncio.create_task(self._refine(entry, text, captured_by, default_role, speaker, audio_id, rules_in))
+            asyncio.create_task(self._refine(entry, text, captured_by, default_role, speaker, audio_id, rules_in,
+                                             hold=bool(injected), fallback_rules=not run_rules))
         return {"transcript": entry, "facts": [f.model_dump(mode="json") for f in facts]}
 
+    @staticmethod
+    def _hold(facts: list) -> None:
+        """Instruction-shaped speech: nothing from the utterance may confirm itself."""
+        for f in facts:
+            f.confidence = min(f.confidence, 0.5)
+
     async def _refine(self, entry: dict, text: str, captured_by: CapturedBy, default_role: Role,
-                      speaker: Optional[str], audio_id: Optional[str], rules_in: list) -> None:
+                      speaker: Optional[str], audio_id: Optional[str], rules_in: list, hold: bool = False,
+                      fallback_rules: bool = False) -> None:
         ctx, tracer = self.ctx, self.ctx.tracer
         before = self._summary()
         t0 = time.perf_counter()
@@ -80,6 +95,8 @@ class CaptureService:
         try:
             model_in = await run_in_threadpool(ctx.model_extractor.extract, text, captured_by, default_role,
                                                speaker, audio_id)
+            if hold:
+                self._hold(model_in)
             usage = ctx.model_extractor.last_usage or {}
             by_key = {f.key: f for f in rules_in}
             agreed = sum(1 for f in model_in if f.key in by_key
@@ -99,6 +116,15 @@ class CaptureService:
         except Exception as e:
             entry["trace"]["model"] = {"status": "error", "name": name, "error": str(e)[:200],
                                        "ms": round((time.perf_counter() - t0) * 1000)}
+            if fallback_rules:          # rules_mode=fallback: the model failed, so the rules extractor stands in
+                fb = ctx.rules.extract(text, captured_by, default_role, speaker, audio_id)
+                if hold:
+                    self._hold(fb)
+                rejected_fb: list = []
+                added_fb = self.ingest_batch(fb, rejected_fb)
+                entry["fact_ids"] += [f.id for f in added_fb]
+                entry["trace"]["rules"] = {"ms": 0, "facts": [tracer.fact_view(f) for f in added_fb],
+                                           "rejected": rejected_fb, "fallback": True}
         await self.broadcast()
 
     # ---------- photo ----------

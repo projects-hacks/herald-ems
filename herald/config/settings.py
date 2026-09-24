@@ -27,6 +27,9 @@ class Settings(BaseModel):
     warm_stt: bool = True
     # patient state
     auto_confirm: float = 0.85
+    # speech extraction policy (MODEL_PLAN §0f; defaults keep the reviewed behavior until the team lead decides)
+    guard_policy: str = "skip_model"            # skip_model | unconfirm (run the model; every fact needs a tap)
+    rules_mode: str = "always"                  # always | fallback (rules only when the model is unavailable/fails)
     reassess_min: Optional[int] = None            # None = the county's interval
     timezone: str = "America/Los_Angeles"
     county: str = "santa_clara"
@@ -43,6 +46,20 @@ class Settings(BaseModel):
     protocol_mirror: Optional[str] = None        # base URL of a document mirror: <mirror>/<county>/<doc_id>.pdf
     # cost-comparison overrides (defaults in config/telemetry.yaml)
     price_overrides: dict[str, float] = {}
+
+    @field_validator("guard_policy")
+    @classmethod
+    def _guard(cls, v: str) -> str:
+        if v not in ("skip_model", "unconfirm"):
+            raise ValueError("HERALD_GUARD_POLICY must be skip_model or unconfirm")
+        return v
+
+    @field_validator("rules_mode")
+    @classmethod
+    def _rules(cls, v: str) -> str:
+        if v not in ("always", "fallback"):
+            raise ValueError("HERALD_RULES must be always or fallback")
+        return v
 
     @field_validator("llm_url")
     @classmethod
@@ -83,6 +100,8 @@ class Settings(BaseModel):
             stt_model=e.get("HERALD_STT_MODEL", cls.model_fields["stt_model"].default),
             warm_stt=e.get("HERALD_WARM_STT", "1") == "1",
             auto_confirm=float(e.get("HERALD_AUTO_CONFIRM", 0.85)),
+            guard_policy=e.get("HERALD_GUARD_POLICY", "skip_model"),
+            rules_mode=e.get("HERALD_RULES", "always"),
             reassess_min=int(e["HERALD_REASSESS_MIN"]) if e.get("HERALD_REASSESS_MIN") else None,
             timezone=e.get("HERALD_TZ", cls.model_fields["timezone"].default),
             county=e.get("HERALD_COUNTY", cls.model_fields["county"].default),

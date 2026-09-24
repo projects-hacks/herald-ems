@@ -38,8 +38,10 @@ Everything is in `docs/MODEL_PLAN.md` §0e, §0f and §5.
 - Replayed end to end on the live models: stroke alert 6/6, G.F.A.S.T. 4 of 4 with the county routing rule quoted, RACE 6, NEWS2 2 → 5, and the allergy contradiction.
 
 **Decisions waiting for Rajeev** (human in the loop):
-1. **Injection guard policy.** With the fine-tuned model, skipping it on flagged utterances loses legitimate facts (rules + run C 22/40 vs run C alone 25/40). Proposal: always run the model, and let flagged utterances produce only unconfirmed facts (MODEL_PLAN §0f).
-2. **Rules extractor's role.** On held-out data it adds nothing on top of run C (0.854 vs 0.861 for run B) and lowers who-said-it accuracy. Production systems use model extraction + validation + human confirmation, not phrase lists. Proposal: rules run only when no model is served.
+1. **Injection guard policy.** With the fine-tuned model, skipping it on flagged utterances loses legitimate facts (rules + run C 22/40 vs run C alone 25/40). Proposal: always run the model, and let flagged utterances produce only unconfirmed facts (MODEL_PLAN §0f). **Built and tested behind `HERALD_GUARD_POLICY=unconfirm`; the default is still `skip_model`.**
+2. **Rules extractor's role.** On held-out data it adds nothing on top of run C (0.854 vs 0.861 for run B) and lowers who-said-it accuracy. Production systems use model extraction + validation + human confirmation, not phrase lists. Proposal: rules run only when no model is served. **Built and tested behind `HERALD_RULES=fallback`; the default is still `always`.** Two consequences to decide with it:
+   - (a) The instant rules result disappears; facts arrive with the model, about 1 s later.
+   - (b) Today, facts only the model heard are capped below auto-confirm. With rules off, that means every fact, even the medic's own vitals, needs a tap, unless we also let the fine-tuned model's medic-attributed facts auto-confirm (held-out precision 0.89).
 3. **County PDFs.** Download the current versions into `data/protocols/santa_clara/` (links in chat). Protocol lookup works on archived copies until then.
 4. **For Collaborator 2's specs:** accept the pyannote model terms on Hugging Face (S4) and `sudo apt install espeak-ng` (S3).
 
