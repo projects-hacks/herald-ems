@@ -34,7 +34,7 @@ Work on `feat/<area>` branches and merge to `main` through short PRs. `main` mus
 ## 4. Ports and the GPU
 
 - Models are served once, for everyone, by ZRT on `127.0.0.1:8080`. Don't start a second copy.
-- Each person runs their own Herald server on their own port: 8101, 8102, 8103, 8104. Port 8100 is the demo instance.
+- Each person runs their own Herald server on their own port: 8101, 8102, 8103, 8104. Port 8100 is the demo instance. The field recording station (`eval/field/recorder.py`) uses 8105.
 - Only one GPU-heavy job at a time (fine-tuning, big model swaps). Announce it in the team chat first.
 
 ## 5. Owners (fill in)
@@ -45,4 +45,4 @@ Work on `feat/<area>` branches and merge to `main` through short PRs. `main` mus
 | State + relay backend | TBD |
 | Frontend: NOW screen, phone capture page, ED screen | TBD |
 | Data + eval | TBD |
-| Pitch + integration | TBD |
+| Pitch + integration, field evaluation | Jenil Savalia (@Jenil133) |

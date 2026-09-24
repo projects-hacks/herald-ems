@@ -1,0 +1,27 @@
+# Field recording protocol (docs/TASK_SPECS.md S8): what the recording page shows and logs. The consent version is
+# stored with every speaker, so a changed wording never silently covers earlier recordings.
+consent_version: field-v1-2026-09-24
+consent_text: >-
+  You will see short cards about made-up patients and say each one in your own words, as if you were on the call.
+  Your voice is recorded on this machine only (the team's HP ZGX Nano), to measure how well Herald understands
+  real speech. Recordings are never uploaded, never shared, never used to train a model, and are deleted after the
+  event (September 2026). You are identified only by a code such as s03, never by name. You can stop at any time,
+  and your recordings are deleted on request.
+cards_per_speaker: 10
+min_seconds: 0.5
+max_seconds: 60
+too_quiet_peak: 0.02            # a clip whose loudest sample is below this is almost certainly a mic problem
+conditions:                      # one block each, counterbalanced: the 1st, 3rd, 5th ... speaker starts with quiet,
+                                 # the 2nd, 4th, 6th ... with noise. The page always shows which block is next.
+  - id: quiet
+    label: Quiet
+    instruction: Quiet room. Nothing playing.
+  - id: noise
+    label: Road noise
+    instruction: >-
+      Play ambulance or road noise from a phone about one meter from the microphone, at a normal speaking volume,
+      and keep it playing for the whole block.
+capture:                         # the same browser settings as Herald's push-to-talk (web/app.js), so clips match the product
+  sample_rate: 16000
+  echo_cancellation: true
+  noise_suppression: true

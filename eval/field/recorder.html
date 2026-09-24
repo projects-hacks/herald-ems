@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Herald field recorder</title>
+<style>
+  :root { --bg: #0f1419; --panel: #1a2129; --line: #2d3742; --text: #e8edf2; --muted: #9aa7b4; --accent: #4fb3ff;
+          --rec: #ff5a5f; --ok: #3ecf8e; --warn: #ffcc4d; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; } h2 { font-size: 19px; margin: 0 0 12px; }
+  .muted { color: var(--muted); } .small { font-size: 14px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin: 16px 0; }
+  button { font: inherit; border: 1px solid var(--line); background: #243040; color: var(--text); border-radius: 8px;
+           padding: 10px 18px; min-height: 48px; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #06121e; font-weight: 600; }
+  button.danger { color: var(--rec); background: transparent; }
+  button:disabled { opacity: .45; cursor: default; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  table { width: 100%; border-collapse: collapse; } td { padding: 8px 4px; border-top: 1px solid var(--line); }
+  .banner { border-left: 5px solid var(--warn); }
+  .banner.quiet { border-left-color: var(--ok); }
+  .role { font-weight: 600; }
+  ul.say { font-size: 22px; line-height: 1.55; margin: 12px 0 4px; padding-left: 26px; }
+  #rec { width: 100%; min-height: 84px; font-size: 22px; font-weight: 700; }
+  #rec.on { background: var(--rec); border-color: var(--rec); color: #fff; }
+  .meter { height: 10px; background: #0b1016; border-radius: 5px; overflow: hidden; flex: 1; min-width: 160px; }
+  .meter > div { height: 100%; width: 0; background: var(--ok); transition: width 60ms linear; }
+  .msg { min-height: 26px; margin-top: 10px; }
+  .msg.err { color: var(--rec); } .msg.ok { color: var(--ok); }
+  .progress { height: 6px; background: #0b1016; border-radius: 3px; overflow: hidden; margin-top: 8px; }
+  .progress > div { height: 100%; background: var(--accent); }
+  [hidden] { display: none !important; }
+  label.check { display: flex; gap: 10px; align-items: flex-start; margin: 14px 0; }
+  label.check input { width: 22px; height: 22px; margin-top: 3px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Herald field recorder</h1>
+  <div class="muted small">Field robustness evaluation: real voices, own words, quiet and road noise. Audio stays on this machine. <span id="station"></span></div>
+
+  <!-- home: speakers -->
+  <section id="home">
+    <div class="panel">
+      <h2>Speakers</h2>
+      <table id="speakers"></table>
+      <div class="row" style="margin-top:14px"><button class="primary" id="new">New speaker</button></div>
+    </div>
+  </section>
+
+  <!-- consent -->
+  <section id="consent" hidden>
+    <div class="panel">
+      <h2>Before recording: read this to the speaker</h2>
+      <p id="consent-text"></p>
+      <label class="check"><input type="checkbox" id="agree"> <span>The speaker has heard this and agrees to be recorded.</span></label>
+      <div class="row"><button class="primary" id="start" disabled>Start</button><button id="cancel">Cancel</button></div>
+      <div class="msg" id="consent-msg"></div>
+    </div>
+  </section>
+
+  <!-- session -->
+  <section id="session" hidden>
+    <div class="row" style="justify-content:space-between">
+      <div><b id="who"></b> <span class="muted" id="count"></span></div>
+      <button id="home-btn">Speakers</button>
+    </div>
+    <div class="progress"><div id="bar"></div></div>
+
+    <div class="panel banner" id="block">
+      <b id="block-label"></b> <span class="muted" id="block-instr"></span>
+      <div class="row" id="block-gate" style="margin-top:12px" hidden>
+        <span>New block. Set up the room as above, then continue.</span><button class="primary" id="ready">Ready</button>
+      </div>
+    </div>
+
+    <div class="panel" id="card-panel">
+      <div class="muted small" id="dispatch"></div>
+      <div class="role" id="role"></div>
+      <ul class="say" id="say"></ul>
+      <div class="muted small">Say all of it in your own words, in one go, as you would on the call. Don't read it out word for word.</div>
+    </div>
+
+    <div class="panel">
+      <button id="rec">● Record</button>
+      <div class="row" style="margin-top:12px">
+        <span id="timer" class="muted">0.0 s</span><div class="meter"><div id="level"></div></div>
+      </div>
+      <div id="review" hidden style="margin-top:14px">
+        <audio id="play" controls style="width:100%"></audio>
+        <div class="row" style="margin-top:12px"><button class="primary" id="keep">Keep</button><button id="redo">Record again</button></div>
+      </div>
+      <div class="msg" id="msg"></div>
+      <div class="row small" style="margin-top:8px"><button id="skip">Skip for now</button></div>
+    </div>
+  </section>
+
+  <!-- done -->
+  <section id="done" hidden>
+    <div class="panel"><h2>All clips recorded. Thank you!</h2><button class="primary" id="done-home">Back to speakers</button></div>
+  </section>
+</main>
+<script src="/wav.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+let protocol = null, speaker = null, plan = [], pos = 0, lastCond = null, clip = null, skipped = new Set();
+// Recording state. `gen` changes whenever the operator leaves the current clip (another speaker, the speakers list):
+// a microphone that opens, or a take that finishes, after that belongs to nobody and is discarded.
+let rec = null, starting = false, stopWanted = false, gen = 0;
+const STOP_EARLY = 0.25;          // seconds before the server's max_seconds, so a full-length take is never refused
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const body = r.headers.get("content-type")?.includes("json") ? await r.json() : null;
+  if (!r.ok) throw new Error((body && body.detail) || r.statusText);
+  return body;
+}
+function show(id) { for (const s of ["home", "consent", "session", "done"]) $(s).hidden = s !== id; }
+function msg(text, cls = "") { $("msg").textContent = text; $("msg").className = "msg " + cls; }
+
+// ---- home ----
+async function home() {
+  cancelRec();
+  show("home");
+  const list = await api("/api/speakers");
+  $("speakers").innerHTML = list.length ? "" : "<tr><td class='muted'>No speakers yet at this station.</td></tr>";
+  for (const s of list) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td><b>${s.speaker}</b></td><td class="muted">${s.done} of ${s.total} clips</td><td></td>`;
+    const go = document.createElement("button"); go.textContent = s.done < s.total ? "Continue" : "Review";
+    go.onclick = () => openSpeaker(s.speaker);
+    const del = document.createElement("button"); del.className = "danger"; del.textContent = "Withdraw & delete";
+    del.onclick = async () => {
+      if (!confirm(`Delete every recording of ${s.speaker}? This cannot be undone.`)) return;
+      try { await api(`/api/speakers/${s.speaker}`, { method: "DELETE" }); } catch (err) { alert(err.message); }
+      home();
+    };
+    tr.lastChild.append(go, " ", del); $("speakers").append(tr);
+  }
+}
+$("new").onclick = () => { $("agree").checked = false; $("start").disabled = true; $("consent-msg").textContent = ""; show("consent"); };
+$("agree").onchange = () => { $("start").disabled = !$("agree").checked; };
+$("cancel").onclick = home;
+$("start").onclick = async () => {
+  if ($("start").disabled) return;
+  $("start").disabled = true; $("cancel").disabled = true;         // one click, one speaker
+  try {
+    start(await api("/api/speakers", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ consent: true }) }));
+  } catch (err) {
+    $("consent-msg").textContent = err.message; $("consent-msg").className = "msg err";
+    $("start").disabled = !$("agree").checked;
+  } finally { $("cancel").disabled = false; }
+};
+async function openSpeaker(code) { start(await api(`/api/speakers/${code}/plan`)); }
+$("home-btn").onclick = home; $("done-home").onclick = home;
+
+// ---- session ----
+function start(s) { cancelRec(); speaker = s.speaker; plan = s.plan; skipped = new Set(); lastCond = null; next(); }
+function next() {
+  const i = plan.findIndex((p, k) => !p.done && !skipped.has(k));
+  const j = i >= 0 ? i : plan.findIndex((p) => !p.done);
+  if (j < 0) { show("done"); return; }
+  if (i < 0) skipped = new Set();
+  pos = j; render();
+}
+function render() {
+  show("session");
+  const p = plan[pos], c = p.card, cond = protocol.conditions.find((x) => x.id === p.condition);
+  const done = plan.filter((x) => x.done).length;
+  $("who").textContent = `Speaker ${speaker}`;
+  $("count").textContent = `· clip ${done + 1} of ${plan.length}`;
+  $("bar").style.width = `${(100 * done) / plan.length}%`;
+  $("block").className = "panel banner " + p.condition;
+  $("block-label").textContent = cond.label + ":";
+  $("block-instr").textContent = cond.instruction;
+  const gate = lastCond !== p.condition;
+  $("block-gate").hidden = !gate; $("card-panel").hidden = gate; $("rec").disabled = gate;
+  $("dispatch").textContent = `${c.call_type}${c.dispatch ? " · dispatched for: " + c.dispatch : ""} · card ${c.id}`;
+  $("role").textContent = c.by === "medic" ? "You are the paramedic, speaking into the medic's mic."
+    : c.speaker === "patient" ? "You are the patient, telling the paramedic."
+    : `You are the patient's ${c.speaker}, telling the paramedic.`;
+  $("say").innerHTML = ""; for (const s of c.say) { const li = document.createElement("li"); li.textContent = s; $("say").append(li); }
+  $("rec").classList.remove("on"); $("rec").textContent = "● Record"; $("level").style.width = "0";
+  $("review").hidden = true; clip = null; msg(""); $("timer").textContent = "0.0 s";
+}
+$("ready").onclick = () => { lastCond = plan[pos].condition; render(); };
+$("skip").onclick = () => { if (rec || starting) return; skipped.add(pos); next(); };
+
+// ---- recording: 16 kHz mono WAV with the app's capture code (wav.js) and the protocol's capture settings ----
+function teardown(r) {
+  clearInterval(r.tick); r.proc.disconnect(); r.stream.getTracks().forEach((t) => t.stop());
+  return r.ctx.close();
+}
+function cancelRec() {                        // leave the clip: stop and discard anything recording or starting
+  gen++; stopWanted = false;
+  if (rec) { const r = rec; rec = null; teardown(r); }
+  $("rec").classList.remove("on"); $("rec").textContent = "● Record"; $("level").style.width = "0";
+}
+async function startRec() {
+  if (rec || starting || $("rec").disabled) return;
+  starting = true; stopWanted = false;
+  const my = gen, cap = protocol.capture;
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: cap.echo_cancellation, noiseSuppression: cap.noise_suppression } });
+  } catch (err) {
+    starting = false;
+    msg("Microphone blocked. Open this page as http://localhost:8105 (port forward) and allow the mic.", "err");
+    return;
+  }
+  starting = false;
+  if (my !== gen) { stream.getTracks().forEach((t) => t.stop()); return; }     // left the clip while the mic opened
+  const ctx = new AudioContext(), src = ctx.createMediaStreamSource(stream);
+  const proc = ctx.createScriptProcessor(4096, 1, 1), chunks = [];
+  proc.onaudioprocess = (e) => {
+    const d = new Float32Array(e.inputBuffer.getChannelData(0)); chunks.push(d);
+    let peak = 0; for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]));
+    $("level").style.width = `${Math.min(100, peak * 140)}%`;
+  };
+  src.connect(proc); proc.connect(ctx.destination);
+  const t0 = performance.now();
+  rec = { stream, ctx, proc, chunks, tick: setInterval(() => {
+    const s = (performance.now() - t0) / 1000; $("timer").textContent = `${s.toFixed(1)} s`;
+    if (s >= protocol.max_seconds - STOP_EARLY) stopRec();
+  }, 100) };
+  $("rec").classList.add("on"); $("rec").textContent = "■ Stop"; $("review").hidden = true; msg("");
+  if (stopWanted) stopRec();                  // released (Space up, second click) before the mic was ready
+}
+async function stopRec() {
+  if (!rec) { if (starting) stopWanted = true; return; }
+  const r = rec, my = gen; rec = null; stopWanted = false;
+  const sr = r.ctx.sampleRate; await teardown(r);
+  if (my !== gen) return;                     // left the clip while stopping: this take belongs to nobody
+  $("rec").classList.remove("on"); $("rec").textContent = "● Record"; $("level").style.width = "0";
+  const rate = protocol.capture.sample_rate, samples = downsample(concat(r.chunks), sr, rate);
+  if (samples.length < protocol.min_seconds * rate) { msg("Too short: press Record (or hold Space), then speak.", "err"); return; }
+  clip = encodeWav(samples, rate);
+  $("play").src = URL.createObjectURL(new Blob([clip], { type: "audio/wav" }));
+  $("review").hidden = false; msg("Listen back if you like, then keep it or record again.");
+}
+$("rec").onclick = () => (rec || starting ? stopRec() : startRec());
+document.addEventListener("keydown", (e) => { if (e.code === "Space" && !e.repeat && !$("session").hidden) { e.preventDefault(); startRec(); } });
+document.addEventListener("keyup", (e) => { if (e.code === "Space" && !$("session").hidden) { e.preventDefault(); stopRec(); } });
+$("redo").onclick = () => { $("review").hidden = true; clip = null; msg(""); };
+$("keep").onclick = async () => {
+  if (!clip) return;
+  const p = plan[pos], my = gen, fd = new FormData();
+  fd.append("speaker", speaker); fd.append("card", p.card.id); fd.append("condition", p.condition);
+  fd.append("file", new Blob([clip], { type: "audio/wav" }), "clip.wav");
+  $("keep").disabled = true;
+  try {
+    await api("/api/clips", { method: "POST", body: fd }); p.done = true;
+    if (my === gen) { msg("Saved.", "ok"); setTimeout(() => { if (my === gen) next(); }, 400); }
+  } catch (err) { if (my === gen) msg(err.message, "err"); }
+  finally { $("keep").disabled = false; }
+};
+
+(async () => {
+  protocol = await api("/api/protocol");
+  $("consent-text").textContent = protocol.consent_text;
+  $("station").textContent = `Station: ${protocol.station}.`;
+  home();
+})();
+</script>
+</body>
+</html>

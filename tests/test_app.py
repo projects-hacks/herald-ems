@@ -61,7 +61,8 @@ def test_classic_page_is_served_with_relative_assets():
     c, _ = make_client()
     page = c.get("/classic/")
     assert page.status_code == 200 and 'src="app.js"' in page.text
-    assert c.get("/classic/app.js").status_code == 200
+    assert page.text.index('src="wav.js"') < page.text.index('src="app.js"')    # push-to-talk's WAV encoder, shared
+    assert c.get("/classic/app.js").status_code == 200 and c.get("/classic/wav.js").status_code == 200
     assert c.get("/classic/style.css").status_code == 200
 
 

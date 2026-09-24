@@ -24,3 +24,7 @@ data/protocols/demo_mirror/
 
 # RxNorm download and derived index (scripts/build_rxnorm_index.py)
 data/terminology/
+# field robustness evaluation (docs/TASK_SPECS.md S8): recordings, transcripts and the consent log are personal data.
+# They live outside every clone, in ~/herald-field-audio (eval/field/manifest.py); this is the safety net for a
+# station started with --audio-dir inside the clone.
+data/field_audio/
