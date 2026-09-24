@@ -2,19 +2,21 @@
 
 Removed from the product (team lead, 2026-09-24: "there is nothing like an app without AI"); kept here so the
 benchmark's "rules" row stays reproducible. Never extended. Its word lists are
-content (config/lexicons.yaml). Every fact carries the clause it came from and a confidence; ambiguous
+content (eval/baselines/lexicons.yaml, frozen with this baseline). Every fact carries the clause it came from and a confidence; ambiguous
 mappings get low confidence so the medic confirms them.
 """
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Optional
 
-from herald.config import load_yaml
+import yaml
+
 from herald.core.schema import CapturedBy, FactIn, Provenance, Role
 from herald.extraction.guard import InstructionGuard, default_guard
 
-_LEX = load_yaml("lexicons.yaml")
+_LEX = yaml.safe_load((Path(__file__).parent / "lexicons.yaml").read_text(encoding="utf-8"))
 ROLE_WORDS: dict[str, str] = _LEX["attribution_words"]
 ANTICOAG: dict[str, str] = _LEX["anticoagulants"]
 ATTR_RE = re.compile(

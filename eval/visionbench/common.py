@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+from herald.config import Settings
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -87,7 +89,8 @@ INPUTS = {
     "vision_prompt": "config/prompts/vision.yaml",
     "figure_prompt": "config/prompts/figure_transcribe.md",
     "rerank_prompt": "config/prompts/protocol_rerank.md",
-    "lexicons": "config/lexicons.yaml",
+    "terminology": "config/terminology.yaml",           # drug names on labels are coded (VisionReader's coder)
+    "drug_classes": "config/terminology/anticoagulants.yaml",
     "photo_gold": "eval/photos/gold.jsonl",
     "flowchart_key": "eval/protocols/flowchart_700a13_key.json",
     "qa_gold": "eval/protocols/qa_gold.jsonl",
@@ -95,8 +98,20 @@ INPUTS = {
 
 
 def fingerprint() -> dict:
-    """Hashes of the prompts and test sets. Two runs are a level comparison only if these match."""
-    return {k: sha(ROOT / rel) for k, rel in INPUTS.items() if (ROOT / rel).exists()}
+    """Hashes of the prompts and test sets, and the RxNorm index the coder used. Two runs are a level comparison
+    only if these match."""
+    out = {k: sha(ROOT / rel) for k, rel in INPUTS.items() if (ROOT / rel).exists()}
+    index = Settings.from_env().terminology_index
+    out["rxnorm_index"] = sha(index) if index.exists() else None
+    return out
+
+
+def photo_reader(model) -> "VisionReader":
+    """The product's VisionReader with the coder the app wires (herald/terminology/factory.py)."""
+    from herald.core.vocabulary import default_vocabulary
+    from herald.models import VisionReader
+    from herald.terminology import build_coder
+    return VisionReader(model, build_coder(Settings.from_env(), default_vocabulary()))
 
 
 def write_jsonl(path: Path, rows: list[dict]) -> None:

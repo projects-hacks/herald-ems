@@ -6,7 +6,7 @@ from typing import Any, Awaitable, Optional, Protocol, runtime_checkable
 
 import numpy as np
 
-from .schema import CapturedBy, FactIn, Role
+from .schema import CapturedBy, FactIn, NormalizedValue, Role
 
 
 @runtime_checkable
@@ -49,6 +49,17 @@ class SpeechToText(Protocol):
 class PhotoReader(Protocol):
     modes: tuple[str, ...]
     def read(self, image_bytes: bytes, mode: str, photo_id: Optional[str] = None) -> list[FactIn]: ...
+
+
+class Normalizer(Protocol):
+    """One drug or allergen name -> its standard name and code. Never guesses: no match is unresolved."""
+    release: str
+    def normalize(self, key: str, value: str) -> NormalizedValue: ...
+
+
+class FactCoder(Protocol):
+    """Normalizes the drug and allergen values of a batch of facts (and derives what follows from the codes)."""
+    def code(self, facts: list[FactIn]) -> list[FactIn]: ...
 
 
 class Embedder(Protocol):

@@ -1,0 +1,29 @@
+# The anticoagulant class: which ingredients make `meds.anticoagulant` (and the field-triage anticoagulant
+# criterion). Keys are RxNorm ingredient (IN) names, lowercase; values are their ATC codes.
+# Source: WHO Collaborating Centre for Drug Statistics Methodology, ATC index, group B01A antithrombotic agents,
+# https://atcddd.fhi.no/atc_ddd_index/?code=B01A
+# Antiplatelets (B01AC: aspirin, clopidogrel, prasugrel, ticagrelor, dipyridamole, cilostazol) are NOT
+# anticoagulants. The build script lists any ingredient here that the RxNorm index does not contain.
+name: anticoagulant
+key: meds.anticoagulant        # the key this class sets; its drugs are also listed under keys.meds
+source: https://atcddd.fhi.no/atc_ddd_index/?code=B01A
+groups:
+  B01AA:
+    name: vitamin K antagonists
+    ingredients: {warfarin: B01AA03}
+  B01AB:
+    name: heparin group
+    ingredients: {heparin: B01AB01, dalteparin: B01AB04, enoxaparin: B01AB05, tinzaparin: B01AB10}
+  B01AE:
+    name: direct thrombin inhibitors
+    # RxNorm has two ingredient concepts for dabigatran; Pradaxa links to "dabigatran etexilate".
+    ingredients: {desirudin: B01AE01, argatroban: B01AE03, bivalirudin: B01AE06, dabigatran: B01AE07,
+                  dabigatran etexilate: B01AE07}
+  B01AF:
+    name: direct factor Xa inhibitors
+    ingredients: {rivaroxaban: B01AF01, apixaban: B01AF02, edoxaban: B01AF03, betrixaban: B01AF04}
+  B01AX:
+    # Only fondaparinux from "other antithrombotic agents": an indirect factor Xa inhibitor taken at home by
+    # injection (Arixtra). Pending clinical review: added beyond the four groups in the S6 spec.
+    name: other antithrombotic agents (anticoagulants only)
+    ingredients: {fondaparinux: B01AX05}

@@ -1,0 +1,91 @@
+# Dev check for drug-name matching (tune here and on gold v1 only; never on the held-out sets).
+# `resolve`: said -> the RxNorm name it must become (spelling and speech-to-text errors, brands, retired brands).
+# Known limitation, held for a tap (not in `never`): "stent" -> Sutent (sunitinib), one letter apart.
+# `never`: words that must never become a drug (allergens, drug classes, EMS words, common English). Checked for the
+# allergies key and the meds.list key; "never" means not resolved to any drug (unresolved or ambiguous).
+resolve:
+  xeralto: rivaroxaban
+  zarelto: rivaroxaban
+  eloquis: apixaban
+  eliquiss: apixaban
+  cumadin: warfarin
+  coumadine: warfarin
+  plavicks: clopidogrel
+  lipiter: atorvastatin
+  atorvastin: atorvastatin
+  metforman: metformin
+  lisinipril: lisinopril
+  levothyroxin: levothyroxine
+  synthroyd: levothyroxine
+  zanax: alprazolam
+  zolof: sertraline
+  kepra: levetiracetam
+  lasics: furosemide
+  seroquil: quetiapine
+  ativan: lorazepam
+  adavan: lorazepam
+  dilaudid: hydromorphone
+  norco: acetaminophen / hydrocodone
+  percoset: acetaminophen / oxycodone
+  vicodin: acetaminophen / hydrocodone
+  zofran: ondansetron
+  coumadin: warfarin
+  prodaxa: dabigatran etexilate
+  jardians: empagliflozin
+  januvia: sitagliptin
+  entresto: sacubitril / valsartan
+  toprol: metoprolol
+  lopressor: metoprolol
+  norvasc: amlodipine
+  prilosec: omeprazole
+  neurontin: gabapentin
+  flomax: tamsulosin
+  brilinta: ticagrelor
+  xarelto: rivaroxaban
+  narcan: naloxone
+  benadryl: diphenhydramine
+  nitro: nitroglycerin
+  nitro spray: nitroglycerin
+  divalproex: valproate
+  albuterol inhaler: albuterol
+  ipratropium-albuterol: albuterol / ipratropium
+  tylenol 3: acetaminophen / codeine
+never:
+  - peanuts
+  - peanut
+  - shellfish
+  - latex
+  - bees
+  - bee stings
+  - eggs
+  - milk
+  - strawberries
+  - dust
+  - pollen
+  - cats
+  - iodine dye
+  - contrast dye
+  - sulfa
+  - penicillin
+  - insulin
+  - blood thinner
+  - blood thinners
+  - water pill
+  - heart pills
+  - pacemaker
+  - oxygen tank
+  - dialysis
+  - chemo
+  - vitamins
+  - steroids
+  - antibiotics
+  - opioids
+  - narcotics
+  - morphine allergy
+  - unknown
+  - none
+  - daughter
+  - hospital
+  - stroke
+  - seizure
+  - diabetes

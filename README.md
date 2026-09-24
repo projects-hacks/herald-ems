@@ -42,6 +42,7 @@ The extraction gold set (gold v2) is 100 utterances and 320 facts, written and l
 
 - **Adversarial speech:** 40 unseen attacks (instruction injection, role spoofing, advice stuffing, garbage input). The fine-tuned extractor passes 24/40 (run C: 25/40); no other extractor tested passes more. Facts said together with a command to the system are held for the medic's tap, with the reason shown.
 - **Confidence:** a fact confirms itself only at the model's own probability ≥ 0.8. On held-out data that is 162 of 324 medic facts (50%), 5 of them wrong; one of those is clinically meaningful (a subtle facial droop scored RACE 2 instead of 1). The rest wait for one tap.
+- **Drug names → RxNorm:** brands, retired brands, misspellings and combinations are coded to RxNorm on the box (class allergies such as "sulfa" to ICD-10-CM). Held-out gold v2, live model, same predictions with and without coding: drug-name precision 0.933 → 0.956, recall 0.850 → 0.871; 200 facts fixed and 0 lost across 42 saved runs. A name matched only by spelling or sound waits for a tap (MODEL_PLAN §0j).
 - **Local only:** every model runs on the box and loads from local folders; a running server makes no outbound connections (checked). The only network use is the county protocol sync and the ED relay, when a link exists.
 - **Protocol lookup** (the county's 32 current documents: stroke, sepsis, trauma, shock, chest pain, overdose, falls, hemorrhage control, pediatrics, destinations, radio reports and center standards):
   - all 1,746 numbered sections recovered, none spurious, against an answer key built with CPU tools only;
@@ -76,6 +77,7 @@ monitor panel       ─┘           trends · clocks · NEWS2 · RACE · G.F.A.
 | `herald/extraction/` | Speech → facts: the model extractor, per-fact confidence, grounding and injection guards |
 | `herald/models/` | Adapters to the local model servers (localhost only), Whisper, photo reading, embeddings |
 | `herald/knowledge/` | Protocol lookup: sections, tables, figures, hybrid search, sync with review flags |
+| `herald/terminology/` | Drug and allergen names → RxNorm (brands, retired brands, misspellings, combinations), class allergies → ICD-10-CM; the code on each fact; anything not matched exactly waits for a tap |
 | `herald/relay/` | Weak-link relay to the emergency department |
 | `herald/telemetry/` | Tokens, GPU power, energy, cost vs a cloud equivalent |
 | `herald/api/` | FastAPI app, WebSocket hub, composition root |
@@ -86,6 +88,7 @@ monitor panel       ─┘           trends · clocks · NEWS2 · RACE · G.F.A.
 ```bash
 # on the ZGX Nano, in the `zgx` conda env (torch 2.14 + CUDA 13)
 pip install -r requirements.txt
+python scripts/build_rxnorm_index.py         # RxNorm drug-name index (public NLM download + RxNav brand names) -> data/terminology/
 scripts/serve_models.sh                       # qwen3vl-fp8 (photos) + ems-d-fp8 (extraction) via HP Z Runtime on :8080
 HERALD_LLM_MODEL=ems-d-fp8 HERALD_VISION_MODEL=qwen3vl-fp8 PORT=8100 scripts/run_dev.sh
 ```

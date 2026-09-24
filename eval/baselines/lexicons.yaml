@@ -1,5 +1,6 @@
-# Word lists used by the deterministic fallback extractor and photo reading.
-# anticoagulants: brand or generic -> generic. To be replaced by RxNorm-based normalization (MODEL_PLAN).
+# Word lists of the frozen rules baseline (eval/baselines/rules_extractor.py) only: the product reads no word lists.
+# Drug names in the product come from RxNorm (config/terminology.yaml, herald/terminology/). Kept byte-for-byte
+# otherwise, so the benchmark's "rules" row stays reproducible.
 attribution_words:
   husband: family
   wife: family

@@ -13,7 +13,7 @@ from typing import Awaitable, Callable, Optional
 
 from fastapi.concurrency import run_in_threadpool
 
-from ..core.schema import CapturedBy, FactIn, Role, new_id, source_role, utcnow
+from ..core.schema import CapturedBy, FactIn, Role, join_reasons, new_id, source_role, utcnow
 from .context import AppContext
 
 Broadcast = Callable[[], Awaitable[None]]
@@ -89,10 +89,10 @@ class CaptureService:
     @staticmethod
     def _hold(facts: list, phrase: str) -> None:
         """Instruction-shaped speech: nothing from the utterance may confirm itself, and the screen says why."""
+        reason = f'said together with a command to the system ("{phrase}"): check before confirming'
         for f in facts:
             f.confidence = min(f.confidence, 0.5)
-            f.provenance.hold_reason = (f'said together with a command to the system ("{phrase}"): '
-                                        "check before confirming")
+            f.provenance.hold_reason = join_reasons(reason, f.provenance.hold_reason)   # keep a drug-match reason
 
     async def _extract(self, entry: dict, text: str, captured_by: CapturedBy, default_role: Role,
                        speaker: Optional[str], audio_id: Optional[str], hold: Optional[str]) -> None:
@@ -158,8 +158,11 @@ class CaptureService:
 
     # ---------- structured readings (monitor panel, device feed) ----------
     async def structured(self, facts: list[FactIn]) -> list[dict]:
-        """All-or-nothing: one invalid fact rejects the batch (ValueError). One trace entry per call."""
+        """All-or-nothing: one invalid fact rejects the batch (ValueError). One trace entry per call. Drug names are
+        coded here like the extractors' (a device or form may send them)."""
         tracer = self.ctx.tracer
+        if self.ctx.coder:
+            facts = self.ctx.coder.code(facts)
         for f in facts:
             self.inc.validate(f)
         before = self._summary()

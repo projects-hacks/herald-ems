@@ -18,7 +18,7 @@ from typing import Optional
 
 from ..config import load_jsonl, load_text
 from ..core.confirmation import confidence_measure
-from ..core.ports import TextModel
+from ..core.ports import FactCoder, TextModel
 from ..core.schema import CapturedBy, FactIn, Provenance, Role
 from ..core.vocabulary import Vocabulary, default_vocabulary
 from .confidence import row_confidences
@@ -65,8 +65,10 @@ class ModelExtractor:
 
     def __init__(self, model: TextModel, *, vocabulary: Optional[Vocabulary] = None,
                  grounding: Optional[Grounding] = None, prompts: Optional[Prompts] = None,
-                 finetuned_labels: tuple[str, ...] = ("ems",), confidence_mode: Optional[str] = None):
+                 finetuned_labels: tuple[str, ...] = ("ems",), confidence_mode: Optional[str] = None,
+                 coder: Optional[FactCoder] = None):
         self.model = model
+        self.coder = coder                                  # drug names -> RxNorm (herald/terminology/)
         self.vocab = vocabulary or default_vocabulary()
         self.grounding = grounding or default_grounding()
         self.prompts = prompts or Prompts.from_config(self.vocab)
@@ -133,4 +135,4 @@ class ModelExtractor:
             out.append(FactIn(key=key, value=value, role=role, speaker=speaker, captured_by=captured_by,
                               confidence=round(min(conf, 0.999), 4),
                               provenance=Provenance(audio_id=audio_id, text=text, extractor=f"llm:{label}")))
-        return out
+        return self.coder.code(out) if self.coder else out

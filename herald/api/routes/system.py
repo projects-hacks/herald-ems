@@ -17,7 +17,8 @@ async def health(c=Depends(get_ctx)):
             "vision_model": c.vision_model.model_name(),
             "vision_available": await run_in_threadpool(c.vision_model.available),
             "stt_model": c.stt.model, "stt_loaded": c.stt.ready(),
-            "incident": c.incident.id, "county": c.counties.active["id"], "cloud_ai_calls": 0}
+            "incident": c.incident.id, "county": c.counties.active["id"], "cloud_ai_calls": 0,
+            "terminology": {"rxnorm_release": c.coder.release} if c.coder else None}
 
 
 @router.get("/telemetry")
