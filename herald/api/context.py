@@ -19,6 +19,8 @@ from ..core.trends import TrendRules
 from ..core.vocabulary import Vocabulary, default_vocabulary
 from ..extraction import ExtractionPipeline, ModelExtractor, RulesExtractor
 from ..extraction.guard import InstructionGuard, default_guard
+from ..knowledge import KnowledgeService
+from ..knowledge.rerank import LLMReranker
 from ..models import LocalLLMClient, VisionReader, WhisperSTT
 from ..relay import LinkEmulator, Relay, RelayTiers, default_tiers
 from ..scoring import ScaleRegistry, default_scales
@@ -51,6 +53,7 @@ class AppContext:
     contract: UIContract
     link: LinkEmulator
     relay: Optional[Relay] = None
+    knowledge: Optional[KnowledgeService] = None
     incident: Optional[Incident] = None
     netem_mode: Optional[str] = None
     extra: dict = field(default_factory=dict)
@@ -63,12 +66,15 @@ class AppContext:
         snap = self.incident.snapshot()
         rs = self.relay.status()
         snap["relay"], snap["ed_sync"], snap["netem"] = rs, rs["sync"], self.netem_mode
+        if self.knowledge is not None:
+            snap["protocols"] = self.knowledge.status()
         return snap
 
 
 def build_context(settings: Optional[Settings] = None, *, text_model: Optional[TextModel] = None,
                   vision_model: Optional[TextModel] = None, stt: Optional[SpeechToText] = None,
-                  vision: Optional[PhotoReader] = None, telemetry: Optional[Telemetry] = None) -> AppContext:
+                  vision: Optional[PhotoReader] = None, telemetry: Optional[Telemetry] = None,
+                  embedder=None, protocol_fetch=None) -> AppContext:
     s = settings or get_settings()
     vocab, scales, tiers, guard = default_vocabulary(), default_scales(), default_tiers(), default_guard()
     counties = CountyRegistry(s.county)
@@ -91,4 +97,13 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
         link=LinkEmulator(s.toxiproxy_url))
     ctx.new_incident(s.dispatch)
     ctx.relay = Relay(lambda: ctx.incident, s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir)
+    if s.knowledge:
+        if embedder is None and text_model is None:        # real deployment; tests pass their own (or none)
+            from ..config import load_yaml
+            from ..models.embedder import HFEmbedder
+            e = load_yaml("knowledge.yaml")["embedding"]
+            embedder = HFEmbedder(e["model"], e["query_prefix"], e["device"])
+        ctx.knowledge = KnowledgeService(lambda: counties.active, s.protocols_dir, ctx.relay.link_state,
+                                         embedder=embedder or None, reranker=LLMReranker(seeing), vision=seeing,
+                                         fetch=protocol_fetch)
     return ctx

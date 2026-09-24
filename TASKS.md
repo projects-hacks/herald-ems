@@ -65,6 +65,13 @@ Status: ✅ done · 🔄 in progress · ⏳ todo · ⛔ blocked. Update this fil
   - `snapshot.county` holds `{id, name}`.
   - `GET /api/county` returns the full config; `POST /api/county/{id}` switches live (`santa_clara`, `generic`).
 - **Rejected facts:** `trace.rules.rejected[]` and `trace.model.rejected[]` list facts refused as physically impossible, e.g. "sats 400".
+- **Protocol lookup** (`herald/knowledge/`):
+  - `GET /api/protocols` returns status, document versions and effective dates, `review_required`, and the destination audit.
+  - `GET /api/protocols/search?q=` returns the county's passages with document, section, page, effective date and `answerable`.
+  - `GET /api/protocols/{doc}/page/{n}` returns the page image (PNG).
+  - `POST /api/protocols/sync` runs a sync now; `POST /api/protocols/{doc}/reviewed` clears a review flag.
+  - The snapshot has a `protocols` block (`ready`, `review_required`, `destination_audit_ok`, documents).
+- **G.F.A.S.T. from speech:** the live model (`ems-c-fp8`) extracts `exam.gfast.*`. They arrive unconfirmed; the medic's taps complete the screen.
 - **Also already live:** WebSocket ping → pong, `GET /api/meta`, `trace.heard.stt.ms`, the failed-photo and monitor-panel trace entries, ED `last_contact_at`, and `/classic/`.
 
 ### Rajeev Chaurasia (@rajeev-chaurasia): lead + backend, models, eval, infra (claimed)
@@ -72,13 +79,13 @@ Docs: `docs/MODEL_PLAN.md`, `docs/LABELING_GUIDE.md`, `eval/`.
 
 | # | Task | Status | Done when |
 |---|---|---|---|
-| B1 | Final held-out numbers on gold v2 for every extractor (rules, Omni p3, fine-tuned run B; alone and with rules), 3 runs, contamination check | 🔄 Rajeev: run 1 done (rules 0.444 · Omni 0.644 · rules + Omni 0.696 · **run B 0.860** · rules + run B 0.854); runs 2–3 running; contamination: 3/100 items share ≥30% 4-grams with training text | table in MODEL_PLAN §5; the deck uses only these |
+| B1 | Final held-out numbers on gold v2 for every extractor (rules, Omni p3, fine-tuned run B; alone and with rules), 3 runs, contamination check | ✅ Rajeev: final 3-run table in MODEL_PLAN §5 (rules 0.444 · Omni 0.661 · rules + Omni 0.693 · **run B 0.861** · rules + run B 0.854) | table in MODEL_PLAN §5; the deck uses only these |
 | B2 | Modular restructure (AGENTS rule 4): packages by responsibility, interfaces, all clinical content in `config/` | ✅ Rajeev: merged to `main`, 90 tests pass, smoke-tested live | merged; live app on 8100 runs it |
 | B3 | Grounded extraction: each model fact carries its transcript quote + assertion (present/absent/uncertain) + subject; the deterministic quote check drops ungrounded facts (research: Abridge/Nabla/Corti pattern) | ⏳ Rajeev (next after B1) | precision up on gold v2 with no recall loss beyond the spread |
 | B4 | Medication normalization with RxNorm | ➡️ moved to Collaborator 3 (C3.7, spec S6) | brand names and ASR misspellings map to generics on gold v2 |
-| B5 | G.F.A.S.T. extraction: labeling-guide rules, annotated training data, run C fine-tune, gold G.F.A.S.T. labels (two annotators) | 🔄 Rajeev: county config + G.F.A.S.T. scoring live ✅; extraction data next | G.F.A.S.T. items extracted from speech; measured |
-| B6 | Latency: fine-tuned model p95 ≤ 2 s (FP8 serving or the 1.7B run B) | ⏳ Rajeev: run B p95 is 3.1–4.0 s | p50/p95 measured 3× |
-| B7 | P9 protocol lookup + online sync (document-parser bake-off on the county PDFs, local index, cited sections, version on screen, review flag on update) | 🔄 Rajeev: parser research running; waiting on the county PDFs (Rajeev downloads) | "open the stroke protocol" shows 700-A13 §3.2 with its effective date |
+| B5 | G.F.A.S.T. extraction: labeling-guide rules, annotated training data, run C fine-tune, gold G.F.A.S.T. labels (two annotators) | ✅ Rajeev: labeling rules (§4d), gold G.F.A.S.T. labels (two annotators, 99–100% identical), training data, **run C: held-out G.F.A.S.T. F1 0.789 (P 0.90), main F1 0.871**; live as `ems-c-fp8` | G.F.A.S.T. items extracted from speech; measured |
+| B6 | Latency: fine-tuned model p95 ≤ 2 s (FP8 serving or the 1.7B run B) | ✅ Rajeev: FP8 serving halves latency at equal accuracy (p50 ~1.0 s, p95 2.24 s with G.F.A.S.T. facts) | p50/p95 measured 3× |
+| B7 | P9 protocol lookup + online sync (document-parser bake-off on the county PDFs, local index, cited sections, version on screen, review flag on update) | 🔄 Rajeev: `herald/knowledge/` built and tested: sections 338/338, Table B 168/168 from the text layer, flowchart read by the local vision model, hybrid search + model reranking (top-1 14/22, top-3 19/22, refusals 2/3), sync on good link with review flags, destination audit. Pending: current county PDFs (Rajeev downloads), UI panel, demo mirror | "open the stroke protocol" shows 700-A13 §3.2 with its effective date |
 | B8 | Field robustness eval (real people, own words, noise) | ➡️ moved to Collaborator 4 (C4.9, spec S8) | per-key precision/recall with confidence intervals |
 | B9 | UI fixtures | ➡️ moved to Collaborator 1 (C1.5, spec S1) | the frontend can build every state without the Nano |
 | B10 | P11, P8, M8, M5, I2 | ➡️ moved: P8 + M8 → Collaborator 2 (S3, S4); P11 + M5 → Collaborator 3 (S5, S7); I2 → Collaborator 1 (S2). Rajeev reviews their `herald/` PRs | see the rows below |

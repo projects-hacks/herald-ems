@@ -53,25 +53,45 @@
     ]
   },
   "destinations": {
-    "source": "Policy 602 Table B (effective 2025-04-01, reissued in AO 2025-005); check EMResource for live status",
+    "source": "Policy 602 Table B (effective 2025-04-01, reissued in AO 2025-005); facility IDs from Table A; check EMResource for live status",
+    "audit": {
+      "document": "602",
+      "table": "Table B",
+      "services": {
+        "comprehensive_stroke": "Comprehensive Stroke Center",
+        "primary_stroke": "Primary Stroke Center"
+      }
+    },
+    "facilities": {
+      "ECH": "El Camino Hospital of Mountain View",
+      "GSH": "Good Samaritan Hospital",
+      "KSC": "Kaiser Foundation Santa Clara",
+      "LGH": "El Camino Hospital of Los Gatos",
+      "OCH": "O'Connor Hospital",
+      "RSJ": "Regional Medical Center of San Jose",
+      "SLH": "Saint Louise Regional Medical Center",
+      "STH": "Kaiser Foundation San Jose",
+      "SUH": "Stanford Health Care",
+      "VMC": "Santa Clara Valley Medical Center"
+    },
     "comprehensive_stroke": [
-      "El Camino Mountain View",
-      "Good Samaritan",
-      "Kaiser Santa Clara",
-      "Regional Medical Center of San Jose",
-      "Stanford"
+      "ECH",
+      "GSH",
+      "KSC",
+      "RSJ",
+      "SUH"
     ],
     "primary_stroke": [
-      "El Camino Mountain View",
-      "Good Samaritan",
-      "Kaiser Santa Clara",
-      "El Camino Los Gatos",
-      "O'Connor",
-      "Regional Medical Center of San Jose",
-      "Saint Louise",
-      "Kaiser San Jose",
-      "Stanford",
-      "Santa Clara Valley Medical Center"
+      "ECH",
+      "GSH",
+      "KSC",
+      "LGH",
+      "OCH",
+      "RSJ",
+      "SLH",
+      "STH",
+      "SUH",
+      "VMC"
     ]
   },
   "pre_alert": {
@@ -97,26 +117,80 @@
       "title": "Stroke",
       "effective": "2026-01-01",
       "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-a13.pdf",
-      "archive_url": "https://web.archive.org/web/20260111090437/https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-a13.pdf"
+      "archive_url": "https://web.archive.org/web/20260111090437/https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-a13.pdf",
+      "file": "archive/700-A13_stroke_eff-2026-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null,
+      "figures": [
+        {
+          "page": 3,
+          "section": "7",
+          "title": "Stroke flowchart (image)"
+        }
+      ]
     },
     {
       "id": "602",
       "title": "911 EMS Patient Destination (in AO 2025-005)",
       "effective": "2025-04-01",
       "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-03/ao-2025-005.pdf?VersionId=hoI6kUYnjpaiCdXV5IMZfhAhGEPmUxmm",
-      "archive_url": "https://web.archive.org/web/20250714175706/https://files.santaclaracounty.gov/exjcpb1541/2025-03/ao-2025-005.pdf?VersionId=hoI6kUYnjpaiCdXV5IMZfhAhGEPmUxmm"
+      "archive_url": "https://web.archive.org/web/20250714175706/https://files.santaclaracounty.gov/exjcpb1541/2025-03/ao-2025-005.pdf?VersionId=hoI6kUYnjpaiCdXV5IMZfhAhGEPmUxmm",
+      "file": "archive/AO-2025-005_policy-602-destination_eff-2025-04-01.pdf",
+      "heading_style": "outline",
+      "pages": [
+        12,
+        21
+      ],
+      "mirror_url": null,
+      "tables": [
+        {
+          "id": "Table A",
+          "title": "Approved Santa Clara County Facilities",
+          "reader": "columns",
+          "page": 20,
+          "header": "Table A",
+          "fields": [
+            "facility",
+            "city",
+            "id"
+          ]
+        },
+        {
+          "id": "Table B",
+          "title": "Approved In-County Services",
+          "reader": "check_glyph",
+          "page": 20,
+          "glyph": "R",
+          "legend": "Table A"
+        }
+      ]
     },
     {
       "id": "501",
       "title": "Hospital Radio Reports",
       "effective": "2025-01-01",
-      "url": "https://files.santaclaracounty.gov/exjcpb1541/2024-09/policy-501.pdf?VersionId=lPXZcOawuog6grDdame1RLjgdP7cNQgl"
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2024-09/policy-501.pdf?VersionId=lPXZcOawuog6grDdame1RLjgdP7cNQgl",
+      "file": "archive/501_hospital-radio-reports_eff-2025-01-01.pdf",
+      "heading_style": "outline",
+      "mirror_url": null
     },
     {
       "id": "700-S04",
       "title": "Routine Medical Care Adult",
       "effective": "2026-01-01",
-      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-s04.pdf?VersionId=dffCKzVxvjEXaRO4jYZ6IA8vxnFL1tJp"
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-09/700-s04.pdf?VersionId=dffCKzVxvjEXaRO4jYZ6IA8vxnFL1tJp",
+      "file": "archive/700-S04_routine-medical-care-adult_eff-2026-01-01.pdf",
+      "heading_style": "decimal",
+      "mirror_url": null
+    },
+    {
+      "id": "440",
+      "title": "Stroke Center Standards",
+      "effective": "2025-02-15",
+      "url": "https://files.santaclaracounty.gov/exjcpb1541/2025-02/policy-440.pdf?VersionId=Oz_VbeSy2ZVNZfZemL5Lf.16.vlwsfpU",
+      "file": "archive/440_stroke-center-standards_eff-2025-02-15.pdf",
+      "heading_style": "outline",
+      "mirror_url": null
     }
   ]
 }

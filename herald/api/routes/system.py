@@ -60,5 +60,7 @@ async def set_county(county_id: str, c=Depends(get_ctx), h=Depends(get_hub)):
         c.counties.activate(county_id)
     except KeyError:
         raise HTTPException(404, f"no county config '{county_id}'; available: {list(c.counties.available())}")
+    if c.knowledge is not None:
+        c.knowledge.build_async()          # protocol lookup follows the county
     await h.broadcast()
     return c.counties.summary()

@@ -2341,6 +2341,16 @@ GET /api/telemetry  →  200
   - endpoint fails → "Telemetry unavailable";
   - partial `errors[]` → a "—" for the affected values, with the reason in the popover.
 
+### 5.9b Protocol lookup contract (backend, 2026-09-24)
+- `GET /api/protocols` → `{ready, building?, county, sections, missing[], review_required[], last_sync, destination_audit_ok, documents[{id, title, effective}], destination_audit[{service, document[], config[], match, only_in_document[], only_in_config[]}]}`. It returns 503 while the index builds, and 404 when lookup is off.
+- `GET /api/protocols/search?q=<text>&k=5` → `{query, answerable: true|false|null, reranked, results[{doc, title, section, heading, page, text, parents[], effective, text_layer_uncertain, score}]}`.
+  - Show `text` verbatim with "{doc} §{section}, page {page}, effective {effective}".
+  - `answerable: false` → "The county documents don't cover this."
+  - `text_layer_uncertain` → offer the page image ("the printed page may differ from the extracted text").
+- `GET /api/protocols/{doc}/page/{n}` → PNG of the printed page.
+- `POST /api/protocols/sync` → `{checked, updated[], errors[], at}`. `POST /api/protocols/{doc}/reviewed` clears the review flag after a person checks the county config.
+- The snapshot's `protocols` block is the same shape as `GET /api/protocols` without the audit detail. Show "Protocol updated: review county settings" while `review_required` is non-empty.
+
 ### 5.10 Build and serving with FastAPI
 
 **Backend changes (U7).** In `herald/app.py`, replace the single mount at the end:

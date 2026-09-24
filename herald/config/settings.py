@@ -38,6 +38,8 @@ class Settings(BaseModel):
     ui: str = "new"                               # "classic" serves web/ at / as well
     root: Path = ROOT                             # the repo: web/, ui/dist/
     data_dir: Optional[Path] = None               # captured audio and photos (default: <root>/data)
+    # protocol lookup (P9): build the county knowledge base (embeddings on CPU, cached per document version)
+    knowledge: bool = True
     # cost-comparison overrides (defaults in config/telemetry.yaml)
     price_overrides: dict[str, float] = {}
 
@@ -51,6 +53,10 @@ class Settings(BaseModel):
     @property
     def audio_dir(self) -> Path:
         return (self.data_dir or self.root / "data") / "audio"
+
+    @property
+    def protocols_dir(self) -> Path:
+        return (self.data_dir or self.root / "data") / "protocols"
 
     @property
     def photo_dir(self) -> Path:
@@ -84,6 +90,7 @@ class Settings(BaseModel):
             toxiproxy_url=e.get("TOXIPROXY_URL", cls.model_fields["toxiproxy_url"].default),
             ui=e.get("HERALD_UI", "new"),
             data_dir=Path(e["HERALD_DATA_DIR"]) if e.get("HERALD_DATA_DIR") else None,
+            knowledge=e.get("HERALD_KNOWLEDGE", "1") == "1",
             price_overrides=prices,
         )
         return cls(**fields)

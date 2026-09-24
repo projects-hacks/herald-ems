@@ -13,3 +13,9 @@ node_modules/
 .agent/
 data/synth/
 runs/
+
+# protocol lookup: derived index and synced versions
+data/protocols/*/index/
+data/protocols/*/versions/
+data/protocols/*/manifest.json
+data/train_*/

@@ -235,7 +235,18 @@ Any failure → ship rules + Omni, and present the fine-tune as a slide with wha
   | p50 / p95 on v2 | ~1,890 / ~4,040 ms | **~910 / ~1,965 ms** |
   | decode | ~22 tok/s | **46 tok/s** |
 
-  Accuracy is unchanged (±0.008, deterministic runs); latency halves and p95 meets the 2 s target. **The live instance uses `ems-b-fp8`.**
+  Accuracy is unchanged (±0.008, deterministic runs); latency halves and p95 meets the 2 s target. 
+- **Run C = run B's recipe + G.F.A.S.T. data** (label overlays on the 1,200 annotated utterances from three annotators, and 150 new G.F.A.S.T.-focused utterances; 455 G.F.A.S.T. training facts; `data/train_c`). Served in FP8 as `ems-c-fp8`. Deterministic, 3 runs each:
+
+  | | run B FP8 | **run C FP8** |
+  |---|---|---|
+  | gold v1 dev F1 / G.F.A.S.T. F1 | 0.911 / 0 | **0.925 / 0.897** (P 0.97, R 0.83) |
+  | gold v2 held-out F1 | 0.858 | **0.871** |
+  | gold v2 G.F.A.S.T. F1 (40 labels) | 0 | **0.789** (P 0.90, R 0.70; 28 TP, 3 FP, 12 FN) |
+  | role accuracy (v2) | 0.959 | 0.965 |
+  | p50 / p95 on v2 | ~910 / ~1,965 ms | ~1,000 / ~2,235 ms |
+
+  Main extraction is comparable or slightly better (+0.013 on v2), and G.F.A.S.T. goes from absent to 0.79 F1 with 0.90 precision. p95 is 0.24 s over target because it emits the extra facts; the rules phase still shows immediately. **The live instance uses `ems-c-fp8` (text) + `omni` (photos).**
 - **Disclosure:** Omni's third run started after the modular restructure was pulled into the working copy, so its key list also contained the four G.F.A.S.T. keys (not yet their instruction). Its F1 (0.671) is inside the spread of runs 1–2.
 - **G.F.A.S.T.** is scored separately (`--gfast-gold eval/gold_v2_gfast.jsonl`, 40 labels from two blind annotators, 99/100 items identical). Run B: 0 of 40, never trained on those keys. Run C is the fix.
 

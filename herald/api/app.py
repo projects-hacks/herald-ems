@@ -15,7 +15,7 @@ from .capture import CaptureService
 from .context import AppContext, build_context
 from .hub import Hub
 from .routes import capture as capture_routes
-from .routes import incident, relay, system
+from .routes import incident, protocols, relay, system
 
 
 def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
@@ -28,13 +28,27 @@ def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
             asyncio.get_running_loop().run_in_executor(None, getattr(ctx.stt, "warm", lambda: None))
         task = asyncio.create_task(ctx.relay.run_forever(hub.broadcast))
         ctx.telemetry.start()
+        sync_task = None
+        if ctx.knowledge is not None:
+            ctx.knowledge.build_async()
+
+            async def sync_loop():
+                while True:
+                    await asyncio.sleep(5)
+                    if ctx.knowledge.ready and ctx.knowledge.sync.due():
+                        result = await asyncio.get_running_loop().run_in_executor(None, ctx.knowledge.sync.run)
+                        if result and result.get("updated"):
+                            await hub.broadcast()
+            sync_task = asyncio.create_task(sync_loop())
         yield
         task.cancel()
+        if sync_task:
+            sync_task.cancel()
 
     app = FastAPI(title="Herald", version="0.2.0", lifespan=lifespan)
     app.state.ctx, app.state.hub = ctx, hub
     app.state.capture = CaptureService(ctx, hub.broadcast)
-    for module in (incident, capture_routes, relay, system):
+    for module in (incident, capture_routes, relay, system, protocols):
         app.include_router(module.router)
 
     @app.websocket("/ws")

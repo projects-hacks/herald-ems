@@ -55,7 +55,7 @@ class FakeVision:
 
 def test_settings(**overrides) -> Settings:
     base = Settings.from_env({})          # never the developer's environment
-    return base.model_copy(update={"warm_stt": False, **overrides})
+    return base.model_copy(update={"warm_stt": False, "knowledge": False, **overrides})
 
 
 def make_client(model: Optional[FakeModel] = None, vision: Optional[FakeVision] = None,

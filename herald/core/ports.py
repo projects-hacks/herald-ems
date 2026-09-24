@@ -47,6 +47,11 @@ class PhotoReader(Protocol):
     def read(self, image_bytes: bytes, mode: str, photo_id: Optional[str] = None) -> list[FactIn]: ...
 
 
+class Embedder(Protocol):
+    """Text -> L2-normalized vectors for semantic retrieval."""
+    def embed(self, texts: list[str], query: bool = False) -> np.ndarray: ...
+
+
 class Transport(Protocol):
     """Sends one relay packet and returns the receiver's acknowledgement."""
     def __call__(self, wire: bytes) -> Awaitable[dict]: ...
