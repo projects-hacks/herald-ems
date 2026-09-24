@@ -35,6 +35,16 @@ for step in sc["steps"]:
         d = r.json()
         print(f"[{step.get('speaker') or step.get('by', 'medic')}] {text}\n    -> {len(d['facts'])} facts, "
               f"{d['transcript']['extract']} in {time.perf_counter() - t0:.2f}s")
+    elif "confirm" in step:
+        # The medic's taps: wait for model phases to finish, then confirm this key group's unconfirmed facts.
+        for _ in range(120):
+            if all(t["trace"]["model"]["status"] != "running" for t in c.get("/api/state").json()["transcripts"]):
+                break
+            time.sleep(0.25)
+        facts = c.get("/api/state").json()["facts"]
+        done = [k for k, f in facts.items() if k.startswith(step["confirm"]) and f["status"] == "unconfirmed"
+                and not c.post(f"/api/facts/{f['id']}/confirm").raise_for_status() is None]
+        print(f"[tap] confirmed {done}")
     elif "monitor" in step:
         facts = [{"key": k, "value": v, "captured_by": "device", "role": "device", "speaker": "monitor",
                   "confidence": 0.99} for k, v in step["monitor"].items()]
@@ -46,4 +56,5 @@ s = c.get("/api/state").json()
 r = s["readiness"][0] if s["readiness"] else None
 print("\nFINAL:", s["summary"], "|", f"{r['label']} {r['done']}/{r['total']}" if r else "",
       "| NEWS2", s["scores"]["news2"]["score"], s["scores"]["news2"]["band"],
-      "| RACE", s["scores"]["race"]["score"], "| alerts:", [x["type"] for x in s["alerts"]])
+      "| RACE", s["scores"]["race"]["score"], "| G.F.A.S.T.", s["scores"]["gfast"]["score"],
+      "(complete)" if s["scores"]["gfast"]["complete"] else "(incomplete)", "| alerts:", [x["type"] for x in s["alerts"]])

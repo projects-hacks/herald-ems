@@ -31,6 +31,12 @@ Everything is in `docs/MODEL_PLAN.md` §0e, §0f and §5.
 - README rewritten for judges;
 - model card on the private HF repo.
 
+**Demo scenario updated for Santa Clara** (`scenarios/stroke_demo.json`; **Collaborator 4, re-rehearse with this version**):
+- The exam line now states the speech finding.
+- A `confirm` step taps the four G.F.A.S.T. items.
+- The destination is Regional, a Comprehensive Stroke Center in Table B.
+- Replayed end to end on the live models: stroke alert 6/6, G.F.A.S.T. 4 of 4 with the county routing rule quoted, RACE 6, NEWS2 2 → 5, and the allergy contradiction.
+
 **Decisions waiting for Rajeev** (human in the loop):
 1. **Injection guard policy.** With the fine-tuned model, skipping it on flagged utterances loses legitimate facts (rules + run C 22/40 vs run C alone 25/40). Proposal: always run the model, and let flagged utterances produce only unconfirmed facts (MODEL_PLAN §0f).
 2. **Rules extractor's role.** On held-out data it adds nothing on top of run C (0.854 vs 0.861 for run B) and lowers who-said-it accuracy. Production systems use model extraction + validation + human confirmation, not phrase lists. Proposal: rules run only when no model is served.
