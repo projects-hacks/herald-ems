@@ -1,0 +1,34 @@
+// Global keys (UX_PLAN §3.1.13). Ignored while typing in a field or while a dialog is open. Push-to-talk keys
+// (Space, F) belong to the capture bar (U4) and are not handled here.
+import { useEffect } from "react";
+import { api } from "@/lib/api";
+import { useHerald, type TypeScale } from "@/lib/store";
+
+const NEXT_SCALE: Record<number, TypeScale> = { 1: 1.25, 1.25: 1.5, 1.5: 1 };
+
+function typing(t: EventTarget | null): boolean {
+  const el = t as HTMLElement | null;
+  return !!el && (["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) || el.isContentEditable);
+}
+
+export function useHotkeys() {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (typing(e.target) || document.querySelector("[role=dialog][data-state=open]")) return;
+      const { ui, setUi } = useHerald.getState();
+      if (e.key === "`") { setUi({ presenterOpen: !ui.presenterOpen }); return; }
+      if (!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = e.key.toUpperCase();
+      if (k === "E") setUi({ mode: ui.mode === "medic" ? "explain" : "medic" });
+      else if (k === "T") setUi({ typeScale: NEXT_SCALE[ui.typeScale] });
+      else if (k === "L") setUi({ theme: ui.theme === "dark" ? "light" : "dark" });
+      else if (k === "G") void api.netem("good");
+      else if (k === "W") void api.netem("weak");
+      else if (k === "D") void api.netem("down");
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+}

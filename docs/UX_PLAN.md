@@ -364,6 +364,39 @@ This principle turns existing team decisions into a design rule.
 ---
 ## 2. Visual system
 
+> **Visual refresh (2026-09-24, @tushar-fs, branch `feat/c1-now-screen`).** The first build followed this section literally and read as dated and flat (the team's verdict); a second pass as a card grid was still judged cluttered and hard to scan. The NOW screen is now a **dashboard**: a sidebar with pages, an inset canvas, a KPI row, and one attention queue. **The rules of §1 and §2.3–2.4 are unchanged:** priority is color + icon + word, never color alone; every text pair is ≥4.5:1 and every control or fill ≥3:1 (`npm run contrast` checks all of them, both themes); critical text stays 20 px (≥16′ at 0.7 m). What changed, and where the values now live:
+>
+> - **Palette.** "Midnight slate" neutrals in four depths plus one indigo accent for everything interactive. Status colors are used sparingly (dots, icons, badges, thin bars) and never as large fills, except the one urgent (HIGH) row. **The authoritative values are `ui/src/styles/tokens.css`**; the tables in §2.2 below are the first version, kept for the record.
+>   - Dark: app frame and sidebar `#08090D`, canvas `#0D0F14`, cards `#13161D`, raised rows and tiles `#1A1E27`, overlays `#222733`; accent text `#A5B4FC`, button fill `#5A52EE`.
+>   - Light: frame `#E9ECF2`, canvas `#F5F6F9`, cards `#FFFFFF`, raised `#F2F4F8`; accent `#4338CA` / `#4F46E5`.
+>   - `--border-control` moved to `#666F83` (dark) and `#7B8699` (light) so dashed "missing" outlines keep ≥3:1 on raised surfaces too. The contrast script gained the canvas pairs, text-muted on overlays, and border-control on raised surfaces.
+>   - Emerald = done / ok, amber = CHECK, rose = HIGH, sky = info / technical, as before.
+> - **Frame.** A sidebar (220 px) on the app frame, and the page on an inset, rounded canvas.
+>   - The sidebar holds the Herald mark; the five pages with count badges (Overview: items waiting on the medic, red if any is HIGH; Vitals & trends: big changes; ED handoff: held or queued fields); the **replay controls** (they replace the full-width REPLAY banner; the top bar still shows a REPLAY badge); **"On this vehicle"** (speech, model, cloud AI calls, ED link, each a dot + word), moved out of the header; and the settings (theme, text size, explain mode, collapse).
+>   - It collapses to a 76 px icon rail with tooltips. The medic's choice is remembered; screens narrower than 1360 px start as the rail; explain mode forces the rail so the trace has room. Below 1024 px it becomes a top bar with the pages in a row.
+>   - The **top bar** of every page: the patient ("68 F · Suspected stroke"), dispatch, incident, started, on-scene time; on the right, "N need attention" (amber, red with a flashing icon if anything is HIGH) and the pre-alert chip ("Stroke alert ready" / "Stroke alert 3/6"), both jumping to the overview, so nothing is missed while another page is open (H7); and the time.
+>   - The **last-heard bar** at the bottom (§3.1.10) opens the transcript; voice capture links to the classic screen until U4.
+> - **Pages.**
+>   - **Overview**, the at-a-glance page. A KPI row: last known well, ETA (or on-scene time), next vitals, NEWS2 (with a sparkline), then the county's stroke scales, primary first and marked "primary", and field triage on trauma or fall dispatches. Score tiles open the detail sheet. Below: **Needs attention** (the flexible column) and the **pre-alert card** (400 px): the checklist with a segment bar, the items in two columns (done, needs a tap, or missing: dashed and bold, gap-first) and a legend; then ED sync (sent / queued / held, reconciled, "Details" to the handoff page) or the authorize form. Explain mode adds a third column, "Herald thinking". It fits 1366×768 without page scrolling; each card scrolls inside itself.
+>   - **Patient** (§3.1.9 patient picture): fact groups as cards in columns, each fact with its source, time, previous value and status icon; rejected facts can be restored.
+>   - **Vitals & trends**: a card per trend (NEWS2 first) with the latest value, the change, a large sparkline and the "big change" rule.
+>   - **ED handoff**: figures (sent, queued, held, bytes / packets / retries), reconciled, the fields table in send order (held and queued rows prominent) and the packet log (tap for why it was sent).
+>   - **Transcript**: every capture, newest first, with the rules and model steps, the extracted facts and the effects.
+> - **One attention queue instead of the alert slot (deviation from §3.1.6 and §3.1.8).** The first build's "one alert at a time, 1 of N" slot hid a contradiction behind other alerts and needed paging; code status had no Confirm button at all. Now a single list, in groups that keep the handling order of §2.3 and P10:
+>   1. **Urgent**: HIGH alerts, on a rose row with the icon flashing at 2 Hz until "Got it" (steady with reduced motion); announced assertively.
+>   2. **Choose a value**: each contradiction shows both sources as two large choice cards (source · time · value, tagged "ED has this" or "new · held"); tapping a card uses that value (older → reject the newer, newer → confirm it). They can't be dismissed.
+>   3. **Needs your tap**: code status (Confirm / Reject, "never sent until you confirm"), then unconfirmed facts, oldest first so rows don't move as new ones arrive; a model-extracted fact shows the sparkle icon and "local model".
+>   4. **New findings**: informational alerts (NEWS2 rise below HIGH, RACE / G.F.A.S.T. screen positive with the county rule, significant change), newest first, each with "Got it", plus "Mark all seen".
+>   5. **Still to capture**: checklist gaps, "not asked yet", and the NEWS2 inputs still needed.
+>   6. **Seen**: acknowledged findings, folded.
+>   While push-to-talk is held, alerts that arrive wait until release (P4). The store keeps `holdAlerts(on)`, which U4 calls. With nothing to confirm, the card says "Nothing to confirm" (never "all caught up" while there are gaps).
+> - **Type.** Sentence-case titles; small-caps section labels inside cards; supporting text 13–15 px; critical 20 px; KPI numbers 30 px, clocks 24 px mono.
+> - **Shape and depth.** 16 px card radius, 10 px controls, 18 px canvas; borders carry the structure in dark, soft shadows in light; no background glow.
+> - **Targets.** Buttons are 44 px tall with a hit area extended 4 px on every side (the `hit` utility: 52 px targets, neighbours ≥8 px apart so the areas never overlap); choice cards ≥80 px; nav items 48 px. §2.7 asked for 64 px primary actions. **Re-check in the in-vehicle test (U11)** and go back to 64 px if there are mis-taps.
+> - **Details on demand.** Score parts, thresholds, sources and evidence open in a side sheet from each score tile.
+> - **Code layout** (`ui/src`): `layout/` (Sidebar, TopBar, TranscriptBar), `pages/` (one file per page), `features/` (attention, overview, scores, handoff, trace), `components/` (the kit, ActionButton with `usePendingAction`, Sparkline, StatusIcon, GlobalStates, shadcn `ui/`), `hooks/useAttention.ts`. Selectors `attention()` and `rankAlerts()` replace `sortedAlerts()`. The store has `ui.page` (also `?page=overview|patient|trends|handoff|transcript`) and `ui.sidebarCollapsed` (remembered) instead of `tab` and `alertIndex`.
+> - **A fix worth knowing.** `cn()` teaches tailwind-merge Herald's type scale (`text-meta` … `text-kpi`). Without it, tailwind-merge read `text-kpi` as a color and silently dropped it whenever a color class followed. `src/test/utils.test.ts` guards it.
+
 All tokens live in `ui/src/styles/tokens.css` as CSS custom properties. They are exposed to Tailwind v4 through `@theme inline`, as in the shadcn theming docs [60]. `web/capture.html` and `ed_receiver/web/` get the same file.
 
 ### 2.1 Themes
@@ -961,6 +994,8 @@ The interval comes from `HERALD_REASSESS_MIN` (default 10) and appears in the `r
 
 #### 3.1.6 Needs attention (`NeedsAttention`)
 
+> **As built:** one queue for alerts and taps, in `ui/src/features/attention/AttentionQueue.tsx` (see the §2 visual-refresh note).
+
 - **Data:**
   - `facts` whose `status == "unconfirmed"`, excluding facts already shown in a `contradiction` or `confirm_required` alert;
   - `needs_attention.missing` and `needs_attention.unknown`;
@@ -1034,6 +1069,8 @@ The interval comes from `HERALD_REASSESS_MIN` (default 10) and appears in the `r
 - **Wording (P1):** Herald says the county's criteria are met and quotes them; it never says "call a Trauma Alert", "notify", or "transport to". The decision and the radio report are the medic's.
 
 #### 3.1.8 Alert slot (`AlertSlot`)
+
+> **As built:** merged into the Needs attention queue (see the §2 visual-refresh note). The variants and copy below still apply to the queue's rows; "1 of N" paging is gone.
 
 - **Size:** a fixed 188 px in both modes. Content scrolls inside the slot if it overflows.
 - **Header:** "ALERT", then "{i} of {n}", then 48 px `‹` and `›` buttons.
@@ -2321,6 +2358,7 @@ ui/
   scripts/
     contrast.mjs                        checks every token pair in §2.2; exits non-zero on failure
     copy-ed.mjs                         dist/ed.html → ../ed_receiver/web/index.html, plus assets
+  (As built, the components are grouped as layout/ · pages/ · features/ · components/; see the §2 visual-refresh note.)
   src/
     styles/tokens.css                   all §2 tokens, dark and light, type scale, motion, reduced motion
     styles/index.css                    @import "tailwindcss"; @theme inline mapping; base styles
@@ -2361,6 +2399,8 @@ scripts/                                (repo root)
 ### 5.6 TypeScript contract (`ui/src/lib/types.ts`)
 
 These types are derived from `herald/core/snapshot.py` (`Projector.snapshot()`), `herald/relay/relay.py` `status()`, `herald/api/trace.py`, `herald/api/capture.py`, and `ed_receiver/app.py`, as read on 2026-09-23 (after the modular restructure; shapes unchanged), and updated on 2026-09-24 for model-only extraction (also read from `herald/api/routes/capture.py`, `herald/api/routes/system.py`, and `herald/core/schema.py`) and for the county alert checklists and criteria scores (`herald/scoring/criteria.py`, `herald/checklists/`, `herald/api/contract.py`; §5.9c). When the backend changes a field, change it here in the same PR.
+
+**The authoritative copy is now `ui/src/lib/types.ts`** (checked against a live snapshot on 2026-09-24). It adds what the backend gained after this section was written: `scores.gfast`, `scores.stroke_scales`, `scores.primary_stroke_scale`, `county`, `protocols`, the `gfast_positive` alert (`county_rule`, `county`), `provenance.hold_reason` and `TraceFact.hold_reason`, and `Health.vision_model` / `Health.county`. The block below is kept for the record.
 
 ```ts
 // ---------- enums (schema.py) ----------
@@ -3147,6 +3187,18 @@ Every task ships. There is no cut list: the build order below sequences the work
 - [ ] `npm run contrast` passes, and its output matches the §2.2 ratios.
 - [ ] A full fixture replay makes zero requests to other hosts (HAR export attached).
 - [ ] The grayscale screenshots are in the PR.
+
+**As built (2026-09-24, @tushar-fs, branch `feat/c1-now-screen`).**
+- Toolchain: conda env `herald-ui` with `nodejs=22.23.2`; `node -v` = v22.23.2, `npm -v` = 10.9.8. Every package in §5.3 is installed at exactly the listed version (`save-exact`, `engine-strict`, `engines.node >=22.12`).
+- `shadcn@4.21.0 init` asks for a preset interactively; `-b radix -p nova --template vite --no-monorepo` runs it non-interactively. Its theme is replaced by `src/styles/tokens.css` and the `@theme inline` mapping in `src/index.css`, so shadcn's primitives use Herald's tokens.
+- `shadcn add` (the §5.4 component list) installed the unified `radix-ui@1.6.7` package. It pulls in 57 `@radix-ui/react-*` packages (from `ui/package-lock.json`; the unified package installs every primitive, and only the imported ones are bundled): accessible-icon, accordion, alert-dialog, arrow, aspect-ratio, avatar, checkbox, collapsible, collection, compose-refs, context, context-menu, dialog, direction, dismissable-layer, dropdown-menu, focus-guards, focus-scope, form, hover-card, id, label, menu, menubar, navigation-menu, one-time-password-field, password-toggle-field, popover, popper, portal, presence, primitive, progress, radio-group, roving-focus, scroll-area, select, separator, slider, slot, switch, tabs, toast, toggle, toggle-group, toolbar, tooltip, use-callback-ref, use-controllable-state, use-effect-event, use-escape-keydown, use-is-hydrated, use-layout-effect, use-previous, use-rect, use-size, visually-hidden.
+- Deviations from §5.4, with reasons:
+  - shadcn's nova preset added `cn@0.4.0` (a replacement for clsx + tailwind-merge) and `@fontsource-variable/geist`. Both were removed: `lib/utils.ts` uses the pinned `clsx` + `tailwind-merge`, and the fonts are Inter and JetBrains Mono as specified.
+  - `shadcn` itself is a devDependency (it provides `shadcn/tailwind.css` at build time), not a runtime dependency.
+  - The ED entry (`ed.html`) and `postbuild` copy step are left to U9; the build has one entry (`now`) until then.
+  - Tests have their own `tsconfig.test.json` (Node types for reading fixtures); the app's type-check stays browser-only.
+- `npm run contrast` passes in both themes, and its ratios match the §2.2 table (e.g. text-primary on s1 15.14 / 15.80, border-control 3.93 / 4.55).
+- `grep` of `dist` for URLs finds only XML namespaces and React's error-message text (`react.dev/errors`), which is a string, not a request.
 
 #### U2: WebSocket store, fixtures, and contract export (frontend + backend)
 

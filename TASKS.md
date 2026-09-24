@@ -199,15 +199,15 @@ Docs: `docs/MODEL_PLAN.md`, `docs/LABELING_GUIDE.md`, `eval/`.
 | B14 | **Live end-to-end test on the real models** (not only unit tests) | ✅ Rajeev: found and fixed model-availability, speaker-attribution, hub-at-startup, number-grounding and snapshot-events bugs (MODEL_PLAN §0g) | the pitch scenario replays on the live stack |
 | B10 | P11, P8, M8, M5, I2 | ➡️ moved: P8 + M8 → Collaborator 2 (S3, S4); P11 + M5 → Collaborator 3 (S5, S7); I2 → Collaborator 1 (S2). Rajeev reviews their `herald/` PRs | see the rows below |
 
-### Collaborator 1: NOW screen, trace, fixtures, clean-clone setup
+### Tushar Singh (@tushar-fs): NOW screen, trace, fixtures, clean-clone setup (claimed; was Collaborator 1)
 Docs: `docs/UX_PLAN.md` §1–2 (principles, tokens), §3.1 (NOW screen), §4 (trace), §5.7–5.8 (store, fixtures), §5.10 (build and serving).
 
 | # | Task | Hours | Needs | Done when |
 |---|---|---|---|---|
-| C1.1 | **U1:** toolchain (React + TS + Vite + Tailwind + shadcn/ui) and design tokens | 2 | — | `npm run build` produces `ui/dist`, served at `/` (UX_PLAN U1 checklist) |
-| C1.2 | **U2 frontend:** WebSocket store with heartbeat and stale detection, and a fixture player (`?fixture=…&speed=…`) with the REPLAY banner | 1.5 | C1.1 | stale scrim within 3 s of stopping the server; fixtures replay |
-| C1.3 | **U3:** NOW screen layout and states S0–S10, including **G.F.A.S.T. and RACE side by side** (primary scale first, the county name shown, `county_rule` on the `gfast_positive` alert) | 5 | C1.2 | a non-team viewer says "a checklist filling up"; U3 checklist |
-| C1.5 | **UI fixtures (B9)**: record `stroke_demo`, `rules_only`, `model_error`, `photo`, `offline` → `ui/public/fixtures/`. **Spec S1** | 1 | — | all five replay in the fixture player |
+| C1.1 | 🔄 `feat/c1-now-screen`: toolchain pinned per §5.3, tokens for both themes, `npm run contrast` passes (ratios match §2.2), build served at `/`; **left:** the `/?tokens` preview and grayscale screenshots. **U1:** toolchain (React + TS + Vite + Tailwind + shadcn/ui) and design tokens | 2 | — | `npm run build` produces `ui/dist`, served at `/` (UX_PLAN U1 checklist) |
+| C1.2 | 🔄 `feat/c1-now-screen`: store, heartbeat, stale detection, backoff, fixture player with replay controls; 21 vitest tests; **left:** the live stop-the-server check. **U2 frontend:** WebSocket store with heartbeat and stale detection, and a fixture player (`?fixture=…&speed=…`) with the REPLAY banner | 1.5 | C1.1 | stale scrim within 3 s of stopping the server; fixtures replay |
+| C1.3 | 🔄 `feat/c1-now-screen`: dashboard layout (sidebar with Overview / Patient / Vitals & trends / ED handoff / Transcript, top bar, KPI row), one Needs-attention queue replacing the alert slot (UX_PLAN §2 note), pre-alert card with ED sync, scores (G.F.A.S.T. first in Santa Clara), medic/explain/narrow layouts, S0/S1/S6/S9/S10; **left:** second-checklist popover, county-policy sheet, keyboard-order audit, the non-team viewer test. **U3:** NOW screen layout and states S0–S10, including **G.F.A.S.T. and RACE side by side** (primary scale first, the county name shown, `county_rule` on the `gfast_positive` alert) | 5 | C1.2 | a non-team viewer says "a checklist filling up"; U3 checklist |
+| C1.5 | 🔄 `stroke_demo` recorded (ems-c-fp8, relay authorized, 44 messages, ends 6/6 READY); four to go. **UI fixtures (B9)**: record `stroke_demo`, `rules_only`, `model_error`, `photo`, `offline` → `ui/public/fixtures/`. **Spec S1** | 1 | — | all five replay in the fixture player |
 | C1.6 | **Clean-clone setup (I2)**: `scripts/setup.sh` + README section; the Nano is wiped after the event. **Spec S2** | 2 | — | clean clone → tests pass → server runs |
 | C1.4 | **U6:** "Herald thinking" trace panel: every card state a–j, effects, the explain-mode stage line, and `rejected[]` as "Not recorded: … (implausible)" | 4 | C1.3 | T1–T10 in UX_PLAN §4.12 pass |
 
@@ -264,6 +264,8 @@ These are in nobody's lane. To claim one, put your GitHub handle in "Claimed by"
 | From | Request | Status |
 |---|---|---|
 | @Jenil133 | **A speaker on the other mic who is a neighbor, friend, coworker or other non-relative is recorded as `family`.** `herald/core/schema.source_role` maps any speaker label that isn't a role name to `family`, and `ModelExtractor` uses that role for every fact on someone else's mic, but LABELING_GUIDE §3 makes a neighbor a bystander. `config/vocabulary.yaml` already groups these words (`field_synonyms.by`: family / facility / bystander …), so the same groups could decide the source role. Found while writing the field cards (fc28, a neighbor on the mic, will show it) | ✅ fixed 2026-09-24: `config/vocabulary.yaml` `people` groups decide the speaker's role (`speaker_roles`: neighbor, coworker, police → bystander; facility staff → family), shared by the app and the benchmarks; test in `tests/test_trace.py` |
+| @tushar-fs | `relay.status().kept_local_pct` goes negative (−57.5% in the recorded stroke replay): typed input has no audio, and every good-link full sync re-sends the whole timeline, so bytes sent exceed local bytes. The ER footer would read "−57.5% kept on the vehicle". | ⏳ |
+| @tushar-fs | `scripts/replay.py` writes LKW_TIME in the box's clock (UTC) but the server reads clock times in `HERALD_TZ` (Pacific), so the demo's LKW clock shows about +06:04 instead of about +01:04. | ⏳ |
 
 ## P1: Speech → patient picture → NOW screen, gap-first
 | ID | Task | Owner | Status | Done when |

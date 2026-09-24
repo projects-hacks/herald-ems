@@ -1,0 +1,128 @@
+/* Herald design tokens. Visual language: a dashboard in "midnight slate". The app frame (--bg) holds the sidebar;
+   the page sits on an inset canvas (--canvas); cards (--surface-1) sit on the canvas; rows and tiles inside a card
+   are raised (--surface-2). One indigo accent for everything interactive; status colors are used sparingly (dots,
+   icons, badges, thin bars), never as large fills. Semantics follow docs/UX_PLAN.md §2 (priority = color + icon +
+   word, never color alone); scripts/contrast.mjs checks every pair (text >= 4.5:1, controls and fills >= 3:1).
+   Theme: data-theme="dark|light" on <html> (dark is the NOW default). */
+
+:root,
+[data-theme="dark"] {
+  /* neutrals and surfaces, darkest to lightest */
+  --bg: #08090D;                 /* app frame and sidebar */
+  --canvas: #0D0F14;             /* the inset page */
+  --surface-1: #13161D;          /* cards */
+  --surface-2: #1A1E27;          /* raised: rows, tiles, inputs, hover */
+  --surface-3: #222733;          /* overlays: popovers, sheets, the presenter bar */
+  --border-subtle: #232834;      /* card outlines and dividers (decoration only) */
+  --border-control: #666F83;     /* input and control outlines, dashed "missing" (>= 3:1) */
+  --text-primary: #EDF0F6;
+  --text-secondary: #B3BBC9;
+  --text-muted: #8690A2;
+  --text-disabled: #5D6679;
+
+  /* interaction: indigo */
+  --accent: #A5B4FC;             /* links, focus ring, the active nav item's icon */
+  --on-accent: #0B0E14;
+  --accent-fill: #5A52EE;        /* primary buttons: >= 3:1 vs the card, white text >= 4.5:1 */
+  --on-accent-fill: #FFFFFF;
+  --accent-tint: #1B1E3B;        /* selected / active backgrounds */
+  --capture: #D8B4FE;            /* push-to-talk "listening" only */
+  --scrim: rgb(8 9 13 / .76);
+
+  /* status sets: fg (text/icon), fill + on-fill (solid badges), tint (soft badge / the one urgent row) */
+  --high-fg: #FB7185;   --high-fill: #E11D48;   --high-on-fill: #FFFFFF;   --high-tint: #2B1119;
+  --medium-fg: #FBBF24; --medium-fill: #F59E0B; --medium-on-fill: #1A1204; --medium-tint: #291F0B;
+  --medium-fill-border: transparent;
+  --low-fg: #38BDF8;    --low-fill: #0EA5E9;    --low-on-fill: #04121A;    --low-tint: #0B2130;
+  --ok-fg: #34D399;     --ok-fill: #047857;     --ok-on-fill: #FFFFFF;     --ok-tint: #0B241D;
+
+  /* depth: borders carry the structure in dark; shadows only lift overlays */
+  --shadow-1: 0 1px 0 rgb(255 255 255 / .03) inset, 0 1px 2px rgb(0 0 0 / .35);
+  --shadow-2: 0 1px 0 rgb(255 255 255 / .035) inset, 0 1px 3px rgb(0 0 0 / .4);
+  --shadow-3: 0 16px 48px rgb(0 0 0 / .55);
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --bg: #E9ECF2;
+  --canvas: #F5F6F9;
+  --surface-1: #FFFFFF;
+  --surface-2: #F2F4F8;
+  --surface-3: #FFFFFF;
+  --border-subtle: #E1E5EC;
+  --border-control: #7B8699;
+  --text-primary: #0F172A;
+  --text-secondary: #334155;
+  --text-muted: #5E6B80;
+  --text-disabled: #94A0B3;
+
+  --accent: #4338CA;
+  --on-accent: #FFFFFF;
+  --accent-fill: #4F46E5;
+  --on-accent-fill: #FFFFFF;
+  --accent-tint: #EEF0FF;
+  --capture: #7E22CE;
+  --scrim: rgb(245 246 249 / .82);
+
+  --high-fg: #BE123C;   --high-fill: #E11D48;   --high-on-fill: #FFFFFF;   --high-tint: #FFF1F3;
+  --medium-fg: #A15C07; --medium-fill: #F59E0B; --medium-on-fill: #1A1204; --medium-tint: #FFF8EB;
+  /* amber on white is too light for an edge: light medium badges carry a darker 1 px border */
+  --medium-fill-border: #A15C07;
+  --low-fg: #0369A1;    --low-fill: #0369A1;    --low-on-fill: #FFFFFF;    --low-tint: #EFF8FF;
+  --ok-fg: #047857;     --ok-fill: #047857;     --ok-on-fill: #FFFFFF;     --ok-tint: #ECFDF5;
+
+  --shadow-1: 0 1px 2px rgb(15 23 42 / .06);
+  --shadow-2: 0 1px 2px rgb(15 23 42 / .04), 0 2px 8px rgb(15 23 42 / .04);
+  --shadow-3: 0 16px 48px rgb(15 23 42 / .16);
+  color-scheme: light;
+}
+
+:root {
+  /* type scale (§2.5): Shift+T cycles 1 -> 1.25 -> 1.5; every text size is in rem, so it scales the root */
+  --type-scale: 1;
+
+  /* radius */
+  --radius-chip: 8px;
+  --radius-control: 10px;
+  --radius-card: 16px;
+  --radius-sheet: 20px;
+
+  /* layout */
+  --sidebar-w: 220px;
+  --sidebar-rail-w: 76px;
+
+  /* z-layers (§2.6) */
+  --z-content: 0;
+  --z-sticky: 10;
+  --z-focused-alert: 20;
+  --z-trace-pill: 30;
+  --z-presenter: 40;
+  --z-toast: 50;
+  --z-stale: 60;
+  --z-dialog: 70;
+
+  /* motion (§2.8): Material 3 durations and easing */
+  --dur-short1: 50ms;
+  --dur-short2: 100ms;
+  --dur-short3: 150ms;
+  --dur-short4: 200ms;
+  --dur-medium1: 250ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0, 1);
+  --ease-accelerate: cubic-bezier(0.3, 0, 1, 1);
+  --ease-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+}
+
+html {
+  font-size: calc(16px * var(--type-scale));
+}
+
+/* Reduced motion: the OS setting, or the presenter bar's switch (data-reduced-motion on <html>). */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-short1: 0ms; --dur-short2: 0ms; --dur-short3: 0ms; --dur-short4: 0ms; --dur-medium1: 0ms;
+  }
+}
+[data-reduced-motion="true"] {
+  --dur-short1: 0ms; --dur-short2: 0ms; --dur-short3: 0ms; --dur-short4: 0ms; --dur-medium1: 0ms;
+}

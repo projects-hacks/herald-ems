@@ -1,0 +1,162 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "./styles/tokens.css";
+
+/* Theme follows data-theme on <html> (§2.1), not a .dark class. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --font-heading: var(--font-sans);
+
+  /* Herald tokens as Tailwind colors: text-high-fg, bg-ok-fill, bg-surface-2, border-border-control, ... */
+  --color-bg: var(--bg);
+  --color-canvas: var(--canvas);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-control: var(--border-control);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-disabled: var(--text-disabled);
+  --color-herald-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-accent-fill: var(--accent-fill);
+  --color-on-accent-fill: var(--on-accent-fill);
+  --color-accent-tint: var(--accent-tint);
+  --color-capture: var(--capture);
+  --color-scrim: var(--scrim);
+  --color-high-fg: var(--high-fg);
+  --color-high-fill: var(--high-fill);
+  --color-high-on-fill: var(--high-on-fill);
+  --color-high-tint: var(--high-tint);
+  --color-medium-fg: var(--medium-fg);
+  --color-medium-fill: var(--medium-fill);
+  --color-medium-on-fill: var(--medium-on-fill);
+  --color-medium-tint: var(--medium-tint);
+  --color-medium-fill-border: var(--medium-fill-border);
+  --color-low-fg: var(--low-fg);
+  --color-low-fill: var(--low-fill);
+  --color-low-on-fill: var(--low-on-fill);
+  --color-low-tint: var(--low-tint);
+  --color-ok-fg: var(--ok-fg);
+  --color-ok-fill: var(--ok-fill);
+  --color-ok-on-fill: var(--ok-on-fill);
+  --color-ok-tint: var(--ok-tint);
+
+  /* shadcn's variables, pointed at Herald's tokens so its primitives match the screen */
+  --color-background: var(--bg);
+  --color-foreground: var(--text-primary);
+  --color-card: var(--surface-1);
+  --color-card-foreground: var(--text-primary);
+  --color-popover: var(--surface-3);
+  --color-popover-foreground: var(--text-primary);
+  --color-primary: var(--accent-fill);
+  --color-primary-foreground: var(--on-accent-fill);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--text-primary);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--text-muted);
+  --color-accent: var(--surface-2);
+  --color-accent-foreground: var(--text-primary);
+  --color-destructive: var(--high-fill);
+  --color-border: var(--border-subtle);
+  --color-input: var(--border-control);
+  --color-ring: var(--accent);
+
+  /* NOW type scale: size / line height in rem, so --type-scale on <html> (Shift+T) scales everything.
+     Content the medic acts on stays >= 20 px (critical); supporting text is smaller and quieter. */
+  --text-meta: 0.8125rem;      --text-meta--line-height: 1.125rem;
+  --text-label: 0.8125rem;     --text-label--line-height: 1.125rem;
+  --text-body: 0.9375rem;      --text-body--line-height: 1.375rem;
+  --text-title: 0.9375rem;     --text-title--line-height: 1.25rem;
+  --text-critical: 1.25rem;    --text-critical--line-height: 1.75rem;   /* 20 px: >= 16 arcmin at 0.7 m (§2.5) */
+  --text-value: 1.25rem;       --text-value--line-height: 1.75rem;
+  --text-button: 0.9375rem;    --text-button--line-height: 1.25rem;
+  --text-clock: 1.5rem;        --text-clock--line-height: 2rem;
+  --text-kpi: 1.875rem;        --text-kpi--line-height: 2.25rem;
+  --text-hero: 1.25rem;        --text-hero--line-height: 1.75rem;
+
+  --radius-sm: var(--radius-chip);
+  --radius-md: var(--radius-control);
+  --radius-lg: var(--radius-card);
+  --radius-xl: var(--radius-sheet);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-padding-top: 88px; /* the sticky top bar: focus is never hidden under it (WCAG 2.4.11) */
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  * {
+    scrollbar-color: var(--border-control) transparent;
+    scrollbar-width: thin;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/* Every number that updates uses tabular figures, so digits don't shift width (§2.5). */
+@utility num {
+  font-variant-numeric: tabular-nums;
+}
+@utility label-caps {
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+/* A card: the one container on a page */
+@utility card {
+  background-color: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-2);
+}
+/* Hit area 8 px larger than the visual edge (UX_PLAN §2.7: "hit areas can extend past the visual edge"), so a
+   40 px button is a 48 px target. Neighbours keep >= 8 px apart so the extended areas never overlap. */
+@utility hit {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: inherit;
+  }
+}
+@utility tracking-display {
+  letter-spacing: -0.025em;
+}
+/* Checklist segment "awaiting tap": 45° hatch in --border-control over --surface-2 (§2.4). */
+@utility hatch {
+  background-image: repeating-linear-gradient(45deg, var(--medium-fg) 0 2px, transparent 2px 6px);
+  background-color: var(--medium-tint);
+}
+
+/* HIGH icon: square-wave opacity 1 / 0.15 at 2 Hz until acknowledged (UX_PLAN §2.8). Reduced motion: steady. */
+@keyframes herald-flash {
+  0%, 49.9% { opacity: 1; }
+  50%, 100% { opacity: 0.15; }
+}
+.flash-high {
+  animation: herald-flash 500ms steps(1, end) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .flash-high { animation: none; }
+}
+[data-reduced-motion="true"] .flash-high {
+  animation: none;
+}
