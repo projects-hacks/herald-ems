@@ -69,3 +69,13 @@ def test_row_confidence_follows_token_probabilities():
             ('["vitals.consciousness","C","m"]', math.log(0.6)), ("]}", 0.0)]
     a, b = row_confidences(content, toks)
     assert round(a, 2) == 0.99 and round(b, 2) == 0.60
+
+
+def test_a_record_is_scored_field_by_field_in_its_own_group():
+    from eval.bench_extract import atoms, group_of, score
+    gold = [("meds.given", {"drug": "aspirin", "dose": 324, "unit": "mg", "route": "PO"}, "medic")]
+    pred = [("meds.given", {"drug": "aspirin", "dose": 324, "unit": "mg", "route": "IV"}, "medic")]
+    g, p = atoms(gold), atoms(pred)
+    assert len(set(g) & set(p)) == 3 and len(set(p) - set(g)) == 1     # right drug, dose, unit; wrong route
+    assert group_of("meds.given") == "broad" and group_of("exam.gfast.facial") == "gfast"
+    assert score(gold, pred)[:3] == (0, 0, 0)                          # not in the headline F1

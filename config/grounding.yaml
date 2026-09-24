@@ -10,14 +10,25 @@ numbers_must_be_said:
 - vitals.spo2
 - vitals.glucose
 - transport.eta_min
+- vitals.gcs_eye
+- vitals.gcs_verbal
+- vitals.gcs_total
+- vitals.pain
+- vitals.etco2
+- patient.pregnancy_weeks
+- meds.given.dose                  # a record field: the dose of a medication given
+- meds.given.count
 # not listed: vitals.temp (converted from Fahrenheit), vitals.gcs_motor ("obeys commands" = 6), exam item scores
 # (derived from the findings described), patient.age ("in her seventies" is kept as the model reads it)
+# A zero is otherwise treated as invented for vitals; these can truly be 0 ("pain zero out of ten", EtCO2 in arrest).
+zero_allowed: [vitals.pain, vitals.etco2]
 spoken_numbers:
   units: {zero: 0, oh: 0, o: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9}
   teens: {ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
           eighteen: 18, nineteen: 19}
   tens: {twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90}
   hundred: [hundred]
+  thousand: [thousand]
   point: [point]
   joiners: [and]
   one: [a, an]                     # "a hundred and ten"
@@ -34,6 +45,9 @@ filler_values:
 - not mentioned
 - none stated
 - 'null'
+# A filler word that is a real answer for one key ("septic, no clear source" -> infection.suspected "unknown").
+filler_allowed_for:
+  infection.suspected: [unknown]
 vitals_digits_must_appear: true
 # A vital whose digits are not in the text is still grounded when the numbers were spoken as words
 # ("pressure one sixty over ninety" in an utterance that also says "72 year old").
@@ -54,3 +68,8 @@ key_requires_words:
   exam.gfast.speech: speak|speech|slur|aphasi|words|talk
   stroke.onset_witnessed: witness|saw (it|her|him)|in front of|found|woke|collapsed|watched
   vitals.gcs_motor: gcs|motor|obey|command|localiz|withdraw|flex|extens
+  vitals.gcs_eye: gcs|glasgow|\be ?\d|eye
+  vitals.gcs_verbal: gcs|glasgow|\bv ?\d|verbal
+  vitals.gcs_total: gcs|glasgow|coma scale
+  vitals.pain: pain|hurt|out of (10|ten)|/10|scale|rat(ing|es?) it
+  vitals.etco2: etco2|et co2|end.?tidal|capno|co2

@@ -23,6 +23,7 @@ extractor's job (LABELING_GUIDE §4).
 """
 import argparse
 import json
+import yaml
 import os
 import statistics
 import sys
@@ -83,17 +84,36 @@ def norm(key, v):
 
 # Free-text keys can't be scored by exact string match (paraphrase is not an error). They are scored
 # separately by key presence; the headline F1 covers structured keys only.
-FREE_TEXT = {"complaint.chief", "stroke.deficits", "transport.destination", "scene.notes"}
-# Scored separately against their own gold files (eval/gold_v*_gfast.jsonl, --gfast-gold), so the headline F1
-# stays comparable with every number published before these keys existed.
+FREE_TEXT = {"complaint.chief", "stroke.deficits", "transport.destination", "scene.notes", "trauma.mechanism",
+             "trauma.injuries"}
+# Scored separately against their own gold files (eval/scoring.yaml; --group-gold, --gfast-gold), so the headline
+# F1 stays comparable with every number published before these keys existed.
 SEPARATE_PREFIX = "exam.gfast."
+GROUPS = yaml.safe_load(open(Path(__file__).resolve().parent / "scoring.yaml"))["groups"]
+
+
+def group_of(key: str) -> str | None:
+    for name, g in GROUPS.items():
+        if key in g.get("keys", []) or any(key.startswith(p) for p in g.get("prefixes", [])):
+            return name
+    return None
 
 
 def atoms(facts) -> dict:
     """(key, normalized value) -> role, for facts given as (key, value, role). See the module docstring."""
     out = {}
     for k, v, r in facts:
-        if KEYS.get(k, {}).get("type") == "list":
+        if KEYS.get(k, {}).get("type") == "record" and isinstance(v, dict):
+            try:
+                v = default_vocabulary().coerce(k, v)       # the same field normalization as the app ("husband" -> family)
+            except ValueError:
+                pass
+            # one atom per stated field of the event, tied to its identity ("aspirin"): partial credit per field
+            ident = " ".join(str(v.get(KEYS[k]["identity"], "")).strip().lower().split())
+            for f, x in v.items():
+                if x not in (None, ""):
+                    out[(k, ident, f, norm_time(x) if f == "time" else norm(k, x))] = r
+        elif KEYS.get(k, {}).get("type") == "list":
             items = v if isinstance(v, list) else [v]
             if not items:
                 out[(k, "<none>")] = r
@@ -109,7 +129,7 @@ def score(gold, pred, free_text=False):
     if free_text:
         keep = lambda k: k in FREE_TEXT
     else:
-        keep = lambda k: k not in FREE_TEXT and not k.startswith(SEPARATE_PREFIX)
+        keep = lambda k: k not in FREE_TEXT and group_of(k) is None
     gold = [(k, v, r) for k, v, r in gold if keep(k)]
     pred = [(k, v, r) for k, v, r in pred if keep(k)]
     if free_text:   # presence only
@@ -121,6 +141,13 @@ def score(gold, pred, free_text=False):
     tp = set(g) & set(p)
     role_ok = sum(1 for x in tp if g[x] == p[x])
     return len(tp), len(p) - len(tp), len(g) - len(tp), role_ok, sorted(set(p) - set(g)), sorted(set(g) - set(p))
+
+
+def group_atoms(facts) -> dict:
+    """Atoms for a key group: free-text keys by presence (paraphrase is not an error), the rest exactly."""
+    out = atoms([f for f in facts if f[0] not in FREE_TEXT])
+    out.update({(k, "<present>"): r for k, v, r in facts if k in FREE_TEXT})
+    return out
 
 
 def build_extractor(kind: str, model: str | None):
@@ -144,7 +171,8 @@ def predict(a, rows):
         t0 = time.perf_counter()
         err = None
         try:
-            pred = ext.extract(r["text"], by, role, r.get("speaker"))
+            ctx = {"dispatch": r.get("dispatch")} if isinstance(ext, ModelExtractor) else {}   # run E sees it
+            pred = ext.extract(r["text"], by, role, r.get("speaker"), **ctx)
         except Exception as e:
             pred, err = [], f"{type(e).__name__}: {str(e)[:200]}"
         ms = (time.perf_counter() - t0) * 1000
@@ -171,6 +199,8 @@ def main():
     ap.add_argument("--rescore", default=None, help="score the predictions saved in this --dump file (no model calls)")
     ap.add_argument("--ids", default=None, help="score only these ids: a range like v1_001-v1_050")
     ap.add_argument("--gfast-gold", default=None, help="G.F.A.S.T. labels (eval/gold_v*_gfast.jsonl), scored separately")
+    ap.add_argument("--group-gold", action="append", default=[], metavar="GROUP=FILE",
+                    help="labels for a key group in eval/scoring.yaml (e.g. broad=eval/gold_v2_broad.jsonl)")
     a = ap.parse_args()
 
     rows = [json.loads(line) for line in open(a.gold) if line.strip()]
@@ -189,6 +219,11 @@ def main():
     FT = [0, 0, 0]
     gfast_gold = ({d["id"]: d["gfast"] for d in map(json.loads, open(a.gfast_gold))} if a.gfast_gold else None)
     GF = [0, 0, 0]
+    group_gold = {}
+    for spec in a.group_gold:
+        name, path = spec.split("=", 1)
+        group_gold[name] = {d["id"]: d.get("facts", d.get(name, [])) for d in map(json.loads, open(path))}
+    GG = {name: [0, 0, 0] for name in group_gold}
     dump = open(a.dump, "w") if a.dump else None
     lat, invalid, out_tokens = [], 0, []
     for r, pred, ms, tokens, err in items:
@@ -205,6 +240,11 @@ def main():
             g = atoms([tuple(x[:3]) for x in gfast_gold.get(r["id"], [])])
             p = atoms([x for x in pred if x[0].startswith(SEPARATE_PREFIX)])
             GF = [GF[0] + len(set(g) & set(p)), GF[1] + len(set(p) - set(g)), GF[2] + len(set(g) - set(p))]
+        for name, gold_g in group_gold.items():
+            g = group_atoms([tuple(x[:3]) for x in gold_g.get(r["id"], []) if group_of(x[0]) == name])
+            p = group_atoms([x for x in pred if group_of(x[0]) == name])
+            c = GG[name]
+            GG[name] = [c[0] + len(set(g) & set(p)), c[1] + len(set(p) - set(g)), c[2] + len(set(g) - set(p))]
         if dump:
             dump.write(json.dumps({"id": r["id"], "extractor": a.extractor, "label": label, "ms": round(ms),
                                    "tokens": tokens, "error": err, "pred": [list(x) for x in pred],
@@ -229,6 +269,10 @@ def main():
             "gfast_recall": round(GF[0] / (GF[0] + GF[2]), 3) if GF[0] + GF[2] else 0.0,
             "gfast_f1": round(2 * GF[0] / (2 * GF[0] + GF[1] + GF[2]), 3) if GF[0] else 0.0,
             "gfast_counts": {"tp": GF[0], "fp": GF[1], "fn": GF[2]}} if gfast_gold is not None else {}),
+        **({"groups": {n: {"precision": round(c[0] / (c[0] + c[1]), 3) if c[0] + c[1] else 0.0,
+                           "recall": round(c[0] / (c[0] + c[2]), 3) if c[0] + c[2] else 0.0,
+                           "f1": round(2 * c[0] / (2 * c[0] + c[1] + c[2]), 3) if c[0] else 0.0,
+                           "counts": {"tp": c[0], "fp": c[1], "fn": c[2]}} for n, c in GG.items()}} if GG else {}),
         "first_call_ms": round(lat[0]),
         "latency_ms_p50": round(statistics.median(lat)), "latency_ms_p95": round(lat_sorted[int(0.95 * (len(lat) - 1))]),
         "out_tokens_avg": round(statistics.mean(out_tokens), 1) if out_tokens else None,

@@ -37,7 +37,7 @@ def output_schema(vocab: Vocabulary) -> dict:
         "properties": {"f": {"type": "array", "maxItems": 16, "items": {
             "type": "array", "minItems": 3, "maxItems": 3,
             "prefixItems": [{"type": "string", "enum": list(vocab.keys)},
-                            {"anyOf": [{"type": "number"}, {"type": "boolean"},
+                            {"anyOf": [{"type": "number"}, {"type": "boolean"}, {"type": "object"},
                                        {"type": "string", "maxLength": 48},
                                        {"type": "array", "maxItems": 6, "items": {"type": "string", "maxLength": 40}}]},
                             {"type": "string", "maxLength": 24}],
@@ -49,7 +49,8 @@ class Prompts:
     """The general-model prompt: instructions with the key list, and worked examples."""
 
     def __init__(self, system: str, examples: list[tuple[str, str]], vocab: Vocabulary):
-        key_list = "; ".join(f"{k} [{v['type']}]" for k, v in vocab.keys.items())
+        key_list = "; ".join(f"{k} [{v['type']}" + (f": {', '.join(v['fields'])}" if v.get("fields") else "") + "]"
+                             for k, v in vocab.keys.items())
         self.system = system.replace("{keys}", key_list)
         self.examples = examples
 
@@ -90,11 +91,13 @@ class ModelExtractor:
         return self.prompts.system, self.prompts.examples, self.schema
 
     def extract(self, text: str, captured_by: CapturedBy = CapturedBy.medic, default_role: Role = Role.medic,
-                default_speaker: Optional[str] = None, audio_id: Optional[str] = None) -> list[FactIn]:
+                default_speaker: Optional[str] = None, audio_id: Optional[str] = None, *,
+                dispatch: Optional[str] = None) -> list[FactIn]:
+        """`dispatch` is the call's dispatch or working impression; profiles trained with it (run E) see it first."""
         usage: dict = {}
         label = self.model.model_name()
         system, examples, schema = self.request_for(label)
-        user = self.profiles.model_input(self.profiles.for_label(label), text, captured_by, default_speaker)
+        user = self.profiles.model_input(self.profiles.for_label(label), text, captured_by, default_speaker, dispatch)
         data = self.model.chat_json(system, user, schema=schema, max_tokens=MAX_TOKENS, usage=usage, examples=examples,
                                     logprobs=True,
                                     top_logprobs=self.top_logprobs if self.confidence_mode == "order_free" else 0)

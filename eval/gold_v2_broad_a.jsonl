@@ -1,0 +1,100 @@
+{"id": "v2_001", "facts": []}
+{"id": "v2_002", "facts": []}
+{"id": "v2_003", "facts": [["trauma.mechanism", "restrained driver, t-boned, heavy intrusion on the passenger side, both front airbags deployed", "medic", null], ["vitals.gcs_total", 15, "medic", null]]}
+{"id": "v2_004", "facts": []}
+{"id": "v2_005", "facts": []}
+{"id": "v2_006", "facts": [["procedures.done", {"procedure": "cpap", "detail": "10", "by": "crew"}, "medic", null]]}
+{"id": "v2_007", "facts": [["meds.given", {"drug": "dextrose", "dose": 25, "unit": "g", "by": "crew"}, "medic", null]]}
+{"id": "v2_008", "facts": []}
+{"id": "v2_009", "facts": [["meds.given", {"drug": "naloxone", "dose": 2, "route": "IN", "by": "crew"}, "medic", null]]}
+{"id": "v2_010", "facts": []}
+{"id": "v2_011", "facts": []}
+{"id": "v2_012", "facts": [["trauma.mechanism", "ground level fall, tripped over the dog and hit her head on the coffee table", "medic", null]]}
+{"id": "v2_013", "facts": []}
+{"id": "v2_014", "facts": []}
+{"id": "v2_015", "facts": [["meds.given", {"drug": "ipratropium-albuterol", "by": "crew"}, "medic", null]]}
+{"id": "v2_016", "facts": []}
+{"id": "v2_017", "facts": []}
+{"id": "v2_018", "facts": [["meds.given", {"drug": "aspirin", "dose": 324, "route": "PO", "by": "crew"}, "medic", null], ["meds.given", {"drug": "nitroglycerin", "dose": 1, "route": "SL", "by": "crew"}, "medic", null]]}
+{"id": "v2_019", "facts": [["trauma.mechanism", "truck turned left in front of him, went flying over the handlebars, no helmet", "bystander", "bystander"]]}
+{"id": "v2_020", "facts": []}
+{"id": "v2_021", "facts": []}
+{"id": "v2_022", "facts": []}
+{"id": "v2_023", "facts": []}
+{"id": "v2_024", "facts": []}
+{"id": "v2_025", "facts": []}
+{"id": "v2_026", "facts": []}
+{"id": "v2_027", "facts": [["trauma.mechanism", "jumped by two guys, kicked in the ribs", "patient", null]]}
+{"id": "v2_028", "facts": []}
+{"id": "v2_029", "facts": []}
+{"id": "v2_030", "facts": []}
+{"id": "v2_031", "facts": []}
+{"id": "v2_032", "facts": [["meds.given", {"drug": "epinephrine", "route": "IM", "by": "crew"}, "medic", null]]}
+{"id": "v2_033", "facts": []}
+{"id": "v2_034", "facts": [["trauma.mechanism", "fell 12 feet off a ladder, landed flat on his back on the driveway", "medic", null]]}
+{"id": "v2_035", "facts": []}
+{"id": "v2_036", "facts": []}
+{"id": "v2_037", "facts": []}
+{"id": "v2_038", "facts": []}
+{"id": "v2_039", "facts": []}
+{"id": "v2_040", "facts": []}
+{"id": "v2_041", "facts": []}
+{"id": "v2_042", "facts": [["trauma.mechanism", "fell off the monkey bars", "family", "mom"], ["trauma.injuries", ["arm bent the wrong way"], "family", "mom"]]}
+{"id": "v2_043", "facts": []}
+{"id": "v2_044", "facts": []}
+{"id": "v2_045", "facts": []}
+{"id": "v2_046", "facts": []}
+{"id": "v2_047", "facts": []}
+{"id": "v2_048", "facts": [["trauma.injuries", ["left leg shortened and externally rotated"], "medic", null]]}
+{"id": "v2_049", "facts": []}
+{"id": "v2_050", "facts": []}
+{"id": "v2_051", "facts": []}
+{"id": "v2_052", "facts": []}
+{"id": "v2_053", "facts": []}
+{"id": "v2_054", "facts": [["trauma.mechanism", "unrestrained rollover, ejected", "medic", null], ["vitals.gcs_total", 9, "medic", null]]}
+{"id": "v2_055", "facts": []}
+{"id": "v2_056", "facts": []}
+{"id": "v2_057", "facts": []}
+{"id": "v2_058", "facts": []}
+{"id": "v2_059", "facts": [["trauma.mechanism", "stab wound to the left flank", "medic", null], ["trauma.injuries", ["single stab wound to the left flank"], "medic", null]]}
+{"id": "v2_060", "facts": []}
+{"id": "v2_061", "facts": []}
+{"id": "v2_062", "facts": [["vitals.gcs_eye", 2, "medic", null], ["vitals.gcs_verbal", 2, "medic", null], ["vitals.gcs_total", 9, "medic", null]]}
+{"id": "v2_063", "facts": []}
+{"id": "v2_064", "facts": []}
+{"id": "v2_065", "facts": []}
+{"id": "v2_066", "facts": []}
+{"id": "v2_067", "facts": []}
+{"id": "v2_068", "facts": []}
+{"id": "v2_069", "facts": [["meds.given", {"drug": "glucose", "route": "PO", "by": "crew"}, "medic", null]]}
+{"id": "v2_070", "facts": []}
+{"id": "v2_071", "facts": []}
+{"id": "v2_072", "facts": [["trauma.mechanism", "found at the bottom of the basement stairs", "medic", null]]}
+{"id": "v2_073", "facts": []}
+{"id": "v2_074", "facts": []}
+{"id": "v2_075", "facts": []}
+{"id": "v2_076", "facts": []}
+{"id": "v2_077", "facts": []}
+{"id": "v2_078", "facts": []}
+{"id": "v2_079", "facts": []}
+{"id": "v2_080", "facts": []}
+{"id": "v2_081", "facts": []}
+{"id": "v2_082", "facts": [["meds.given", {"drug": "naloxone", "by": "bystander"}, "bystander", "neighbor"]]}
+{"id": "v2_083", "facts": [["trauma.injuries", ["unstable pelvis"], "medic", null]]}
+{"id": "v2_084", "facts": []}
+{"id": "v2_085", "facts": [["vitals.pain", 8, "medic", null], ["meds.given", {"drug": "fentanyl", "dose": 50, "unit": "mcg", "route": "IV", "time": "1510", "by": "crew"}, "medic", null]]}
+{"id": "v2_086", "facts": []}
+{"id": "v2_087", "facts": []}
+{"id": "v2_088", "facts": []}
+{"id": "v2_089", "facts": []}
+{"id": "v2_090", "facts": []}
+{"id": "v2_091", "facts": []}
+{"id": "v2_092", "facts": []}
+{"id": "v2_093", "facts": [["procedures.done", {"procedure": "heimlich maneuver", "detail": "it came out", "by": "bystander"}, "medic", null]]}
+{"id": "v2_094", "facts": [["trauma.mechanism", "ped struck at low speed, thrown onto the hood, starred windshield", "medic", null]]}
+{"id": "v2_095", "facts": []}
+{"id": "v2_096", "facts": []}
+{"id": "v2_097", "facts": []}
+{"id": "v2_098", "facts": [["trauma.mechanism", "two-car mvc, restrained driver", "medic", null], ["trauma.injuries", ["seatbelt mark across the lower abdomen"], "medic", null]]}
+{"id": "v2_099", "facts": []}
+{"id": "v2_100", "facts": []}

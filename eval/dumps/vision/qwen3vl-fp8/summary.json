@@ -1,0 +1,170 @@
+{
+ "model": "qwen3vl-fp8",
+ "runs": 3,
+ "tasks": [
+  "photos",
+  "flowchart",
+  "rerank"
+ ],
+ "inputs": {
+  "vision_prompt": "ba23b794d27a",
+  "figure_prompt": "4af37616fd6b",
+  "rerank_prompt": "34334535cbf0",
+  "lexicons": "f49acfc8e09e",
+  "photo_gold": "a4302d523ba6",
+  "flowchart_key": "adbe56e8debd",
+  "qa_gold": "998463ec1241"
+ },
+ "spread": {
+  "flowchart": {
+   "node_recall": {
+    "mean": 0.875,
+    "min": 0.875,
+    "max": 0.875,
+    "runs": 3
+   },
+   "edge_recall": {
+    "mean": 0.857,
+    "min": 0.857,
+    "max": 0.857,
+    "runs": 3
+   },
+   "edge_recall_with_source": {
+    "mean": 0.857,
+    "min": 0.857,
+    "max": 0.857,
+    "runs": 3
+   },
+   "unsupported_steps": {
+    "mean": 0,
+    "min": 0,
+    "max": 0,
+    "runs": 3
+   },
+   "added_word_rate": {
+    "mean": 0.0,
+    "min": 0.0,
+    "max": 0.0,
+    "runs": 3
+   },
+   "latency_ms": {
+    "mean": 3104,
+    "min": 2745,
+    "max": 3794,
+    "runs": 3
+   }
+  },
+  "photos": {
+   "f1": {
+    "mean": 0.989,
+    "min": 0.989,
+    "max": 0.989,
+    "runs": 3
+   },
+   "precision": {
+    "mean": 0.978,
+    "min": 0.978,
+    "max": 0.978,
+    "runs": 3
+   },
+   "recall": {
+    "mean": 1.0,
+    "min": 1.0,
+    "max": 1.0,
+    "runs": 3
+   },
+   "strict_f1": {
+    "mean": 0.921,
+    "min": 0.921,
+    "max": 0.921,
+    "runs": 3
+   },
+   "in_prompt_scope_f1": {
+    "mean": 0.989,
+    "min": 0.989,
+    "max": 0.989,
+    "runs": 3
+   },
+   "exact_image_acc": {
+    "mean": 0.956,
+    "min": 0.956,
+    "max": 0.956,
+    "runs": 3
+   },
+   "false_fact_images": {
+    "mean": 2,
+    "min": 2,
+    "max": 2,
+    "runs": 3
+   },
+   "json_invalid": {
+    "mean": 0,
+    "min": 0,
+    "max": 0,
+    "runs": 3
+   },
+   "latency_ms_p50": {
+    "mean": 1174,
+    "min": 1078,
+    "max": 1357,
+    "runs": 3
+   },
+   "latency_ms_p95": {
+    "mean": 5790,
+    "min": 5693,
+    "max": 5973,
+    "runs": 3
+   }
+  },
+  "rerank": {
+   "top1": {
+    "mean": 0.773,
+    "min": 0.773,
+    "max": 0.773,
+    "runs": 3
+   },
+   "top3": {
+    "mean": 0.864,
+    "min": 0.864,
+    "max": 0.864,
+    "runs": 3
+   },
+   "shown_top1": {
+    "mean": 0.773,
+    "min": 0.773,
+    "max": 0.773,
+    "runs": 3
+   },
+   "refusal_on_unanswerable": {
+    "mean": 0.778,
+    "min": 0.667,
+    "max": 1.0,
+    "runs": 3
+   },
+   "answerable_said_true": {
+    "mean": 0.955,
+    "min": 0.955,
+    "max": 0.955,
+    "runs": 3
+   },
+   "json_invalid": {
+    "mean": 0,
+    "min": 0,
+    "max": 0,
+    "runs": 3
+   },
+   "latency_ms_p50": {
+    "mean": 356.333,
+    "min": 313,
+    "max": 438,
+    "runs": 3
+   },
+   "latency_ms_p95": {
+    "mean": 448.333,
+    "min": 393,
+    "max": 531,
+    "runs": 3
+   }
+  }
+ }
+}

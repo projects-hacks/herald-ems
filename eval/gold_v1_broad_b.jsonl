@@ -1,0 +1,100 @@
+{"id": "v1_001", "facts": []}
+{"id": "v1_002", "facts": []}
+{"id": "v1_003", "facts": []}
+{"id": "v1_004", "facts": []}
+{"id": "v1_005", "facts": [["trauma.mechanism", "ground level fall", "medic", null]]}
+{"id": "v1_006", "facts": []}
+{"id": "v1_007", "facts": []}
+{"id": "v1_008", "facts": []}
+{"id": "v1_009", "facts": []}
+{"id": "v1_010", "facts": []}
+{"id": "v1_011", "facts": []}
+{"id": "v1_012", "facts": [["trauma.mechanism", "tripped over the dog and fell", "patient", null]]}
+{"id": "v1_013", "facts": []}
+{"id": "v1_014", "facts": []}
+{"id": "v1_015", "facts": []}
+{"id": "v1_016", "facts": []}
+{"id": "v1_017", "facts": []}
+{"id": "v1_018", "facts": []}
+{"id": "v1_019", "facts": [["trauma.injuries", ["obvious deformity to the right hip, shortened and externally rotated"], "medic", null]]}
+{"id": "v1_020", "facts": []}
+{"id": "v1_021", "facts": []}
+{"id": "v1_022", "facts": []}
+{"id": "v1_023", "facts": []}
+{"id": "v1_024", "facts": []}
+{"id": "v1_025", "facts": []}
+{"id": "v1_026", "facts": []}
+{"id": "v1_027", "facts": []}
+{"id": "v1_028", "facts": [["vitals.gcs_total", 14, "medic", null], ["vitals.gcs_eye", 4, "medic", null], ["vitals.gcs_verbal", 4, "medic", null], ["procedures.done", {"procedure": "spinal motion restriction", "detail": "c-collar", "by": "crew"}, "medic", null]]}
+{"id": "v1_029", "facts": []}
+{"id": "v1_030", "facts": []}
+{"id": "v1_031", "facts": []}
+{"id": "v1_032", "facts": []}
+{"id": "v1_033", "facts": [["trauma.mechanism", "tripped on the curb and fell, hit her head on the sidewalk", "bystander", "bystander"], ["trauma.criteria", ["low level fall with significant head impact"], "bystander", "bystander"]]}
+{"id": "v1_034", "facts": []}
+{"id": "v1_035", "facts": []}
+{"id": "v1_036", "facts": [["meds.given", {"drug": "dextrose", "by": "crew"}, "medic", null]]}
+{"id": "v1_037", "facts": []}
+{"id": "v1_038", "facts": []}
+{"id": "v1_039", "facts": []}
+{"id": "v1_040", "facts": []}
+{"id": "v1_041", "facts": [["procedures.done", {"procedure": "cpap", "detail": "10", "by": "crew"}, "medic", null]]}
+{"id": "v1_042", "facts": []}
+{"id": "v1_043", "facts": []}
+{"id": "v1_044", "facts": []}
+{"id": "v1_045", "facts": []}
+{"id": "v1_046", "facts": []}
+{"id": "v1_047", "facts": []}
+{"id": "v1_048", "facts": [["trauma.injuries", ["lac to the forehead"], "medic", null]]}
+{"id": "v1_049", "facts": []}
+{"id": "v1_050", "facts": [["trauma.mechanism", "fell getting out of the tub", "family", "husband"]]}
+{"id": "v1_051", "facts": []}
+{"id": "v1_052", "facts": []}
+{"id": "v1_053", "facts": []}
+{"id": "v1_054", "facts": []}
+{"id": "v1_055", "facts": []}
+{"id": "v1_056", "facts": [["trauma.mechanism", "fell off the ladder", "bystander", "witness"]]}
+{"id": "v1_057", "facts": []}
+{"id": "v1_058", "facts": []}
+{"id": "v1_059", "facts": []}
+{"id": "v1_060", "facts": []}
+{"id": "v1_061", "facts": []}
+{"id": "v1_062", "facts": []}
+{"id": "v1_063", "facts": []}
+{"id": "v1_064", "facts": [["vitals.pain", 8, "medic", null]]}
+{"id": "v1_065", "facts": [["trauma.mechanism", "mvc, restrained driver, moderate front end damage, airbags deployed", "medic", null]]}
+{"id": "v1_066", "facts": []}
+{"id": "v1_067", "facts": []}
+{"id": "v1_068", "facts": []}
+{"id": "v1_069", "facts": [["vitals.gcs_total", 3, "medic", null]]}
+{"id": "v1_070", "facts": []}
+{"id": "v1_071", "facts": [["trauma.mechanism", "hit her head on the nightstand", "family", "daughter"]]}
+{"id": "v1_072", "facts": []}
+{"id": "v1_073", "facts": []}
+{"id": "v1_074", "facts": []}
+{"id": "v1_075", "facts": []}
+{"id": "v1_076", "facts": []}
+{"id": "v1_077", "facts": []}
+{"id": "v1_078", "facts": []}
+{"id": "v1_079", "facts": []}
+{"id": "v1_080", "facts": []}
+{"id": "v1_081", "facts": []}
+{"id": "v1_082", "facts": []}
+{"id": "v1_083", "facts": [["trauma.mechanism", "fell off the porch steps", "bystander", "neighbor"]]}
+{"id": "v1_084", "facts": []}
+{"id": "v1_085", "facts": []}
+{"id": "v1_086", "facts": []}
+{"id": "v1_087", "facts": []}
+{"id": "v1_088", "facts": []}
+{"id": "v1_089", "facts": []}
+{"id": "v1_090", "facts": []}
+{"id": "v1_091", "facts": []}
+{"id": "v1_092", "facts": [["procedures.done", {"procedure": "spinal motion restriction", "detail": "c-collar", "by": "crew"}, "medic", null]]}
+{"id": "v1_093", "facts": []}
+{"id": "v1_094", "facts": []}
+{"id": "v1_095", "facts": [["meds.given", {"drug": "aspirin", "dose": 324, "route": "PO", "by": "crew"}, "medic", null], ["meds.given", {"drug": "nitroglycerin", "route": "SL", "by": "crew"}, "medic", null], ["vitals.pain", 5, "medic", null]]}
+{"id": "v1_096", "facts": []}
+{"id": "v1_097", "facts": []}
+{"id": "v1_098", "facts": []}
+{"id": "v1_099", "facts": []}
+{"id": "v1_100", "facts": []}

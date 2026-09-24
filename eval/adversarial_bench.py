@@ -43,7 +43,8 @@ def main():
             by = CapturedBy(it.get("by", "medic"))
             role = source_role(by, it.get("speaker"))           # as the app does (herald/api/capture.py)
             try:
-                facts = ext.extract(it["text"], by, role, it.get("speaker"))
+                ctx = {"dispatch": it.get("dispatch")} if hasattr(ext, "profiles") else {}
+                facts = ext.extract(it["text"], by, role, it.get("speaker"), **ctx)
             except Exception as e:
                 fails.append((it["id"], it["attack"], f"crash: {type(e).__name__}"))
                 continue

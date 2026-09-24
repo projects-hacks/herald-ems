@@ -32,37 +32,77 @@ class Vocabulary:
 
     def coerce(self, key: str, value: Any) -> Any:
         """Convert an extracted value to the key's declared type; ValueError if it can't be."""
-        t = self.keys[key]["type"]
+        meta = self.keys[key]
         if value is None:
             return None
-        try:
-            if t == "int":
-                return int(round(float(value)))
-            if t == "float":
-                return round(float(value), 1)
-            if t == "bool":
-                return value.strip().lower() in _TRUE_WORDS if isinstance(value, str) else bool(value)
-            if t == "list":
-                if isinstance(value, str):
-                    return [] if value.strip().lower() in _EMPTY_LIST_WORDS else [value.strip()]
-                return [str(x).strip() for x in value]
-            return str(value).strip()
-        except (TypeError, ValueError):
-            raise ValueError(f"cannot coerce {value!r} to {t} for {key}")
+        if meta["type"] == "record":
+            return self._record(key, meta, value)
+        v = _coerce(meta["type"], value, key)
+        if meta.get("enum"):                   # a controlled list: every item must be one of the declared values
+            allowed = {x.lower(): x for x in meta["enum"]}
+            items = v if isinstance(v, list) else [v]
+            bad = [x for x in items if str(x).strip().lower() not in allowed]
+            if bad:
+                raise ValueError(f"{key}: {bad} not in the allowed values")
+            v = [allowed[str(x).strip().lower()] for x in items] if isinstance(v, list) else allowed[str(v).strip().lower()]
+        return v
+
+    def _record(self, key: str, meta: dict, value: Any) -> dict:
+        """A structured event (e.g. one medication given): declared fields only, each coerced to its own type.
+        A bare string is read as the identity field ("aspirin" -> {"drug": "aspirin"})."""
+        fields: dict[str, str] = meta["fields"]
+        identity = meta["identity"]
+        if isinstance(value, str):
+            value = {identity: value}
+        if not isinstance(value, dict):
+            raise ValueError(f"cannot coerce {value!r} to a {key} record")
+        # record numbers keep their precision: a dose of 0.15 mg must not become 0.1 (pediatric epinephrine)
+        out = {f: _coerce(t, value[f], f"{key}.{f}", digits=4) for f, t in fields.items()
+               if value.get(f) not in (None, "", [])}
+        if not out.get(identity):
+            raise ValueError(f"{key} needs its {identity}")
+        for f, groups in (meta.get("field_synonyms") or {}).items():       # e.g. by: "husband" -> "family"
+            if isinstance(out.get(f), str):
+                word = out[f].strip().lower()
+                out[f] = next((canon for canon, words in groups.items() if word == canon or word in words), word)
+        return out
 
     def validate(self, key: str, value: Any) -> Any:
         """Coerce and check physical plausibility (a safety validator). Returns the coerced value."""
         if key not in self.keys:
             raise ValueError(f"unknown key {key}")
         v = self.coerce(key, value)
-        bounds = self.keys[key].get("range")
-        if bounds and v is not None and not (bounds[0] <= v <= bounds[1]):
-            raise ValueError(f"implausible {key} {v!r}: outside {bounds[0]}-{bounds[1]}")
+        meta = self.keys[key]
+        checks = [(key, v, meta.get("range"))]
+        if isinstance(v, dict):
+            checks = [(f"{key}.{f}", v.get(f), tuple(b)) for f, b in (meta.get("field_ranges") or {}).items()]
+        for name, x, bounds in checks:
+            if bounds and x is not None and not (bounds[0] <= x <= bounds[1]):
+                raise ValueError(f"implausible {name} {x!r}: outside {bounds[0]}-{bounds[1]}")
         return v
 
 
+def _coerce(t: str, value: Any, name: str, digits: int = 1) -> Any:
+    try:
+        if t == "int":
+            return int(round(float(value)))
+        if t == "float":
+            return round(float(value), digits)
+        if t == "bool":
+            return value.strip().lower() in _TRUE_WORDS if isinstance(value, str) else bool(value)
+        if t == "list":
+            if isinstance(value, str):
+                return [] if value.strip().lower() in _EMPTY_LIST_WORDS else [value.strip()]
+            return [str(x).strip() for x in value]
+        return str(value).strip()
+    except (TypeError, ValueError):
+        raise ValueError(f"cannot coerce {value!r} to {t} for {name}")
+
+
 def norm_value(v: Any) -> Any:
-    """Comparison form of a value: lists as sorted lowercase tuples, strings lowercase."""
+    """Comparison form of a value: lists as sorted lowercase tuples, strings lowercase, records field by field."""
+    if isinstance(v, dict):
+        return tuple(sorted((k, norm_value(x)) for k, x in v.items() if x is not None))
     if isinstance(v, list):
         return tuple(sorted(str(x).strip().lower() for x in v))
     if isinstance(v, str):

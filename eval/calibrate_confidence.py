@@ -76,7 +76,7 @@ def main():
             g["facts"] = g["facts"] + gfast.get(g["id"], [])
         if g.get("by", "medic") != "medic":
             continue
-        for f in x.extract(g["text"], CapturedBy.medic, Role.medic, g.get("speaker")):
+        for f in x.extract(g["text"], CapturedBy.medic, Role.medic, g.get("speaker"), dispatch=g.get("dispatch")):
             if vocab.meta(f.key).get("require_tap"):
                 continue                      # code status always waits for a tap
             if gfast is None and f.key.startswith("exam.gfast."):

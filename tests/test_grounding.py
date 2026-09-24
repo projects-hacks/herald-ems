@@ -35,3 +35,11 @@ def test_spoken_vitals_next_to_other_digits_are_kept():
 def test_derived_values_are_not_held_to_the_rule():
     assert G.supported("vitals.gcs_motor", 6, "obeys commands")
     assert G.supported("vitals.temp", 38.5, "temp 101.3")              # converted from Fahrenheit
+
+
+def test_thousands_and_unknown_source_and_rating_words():
+    assert 4000 in G.numbers_said("heparin four thousand units") and 1500 in G.numbers_said("one thousand five hundred")
+    assert G.supported("meds.given", {"drug": "heparin", "dose": 4000.0}, "heparin four thousand units IV")
+    assert G.supported("infection.suspected", "unknown", "looks septic, no clear source")
+    assert not G.supported("complaint.chief", "unknown", "unknown")
+    assert G.supported("vitals.pain", 8, "patient's still rating it an eight")

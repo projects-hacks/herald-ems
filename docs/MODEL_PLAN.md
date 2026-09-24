@@ -326,6 +326,26 @@ If output is garbage or UNK tokens: `VLLM_NVFP4_GEMM_BACKEND=marlin VLLM_USE_FLA
 - EXIF-rotate the image and resize the long side to about 1600 px.
 - Warm up before the demo: the first request compiles.
 
+### 2a. Vision bake-off: Nemotron-3-Nano-Omni vs Qwen3-VL (level, 2026-09-23 night PDT) and the switch
+The team lead asked for open-source models where possible and a **level** comparison. Both candidates are the publishers' official FP8 releases of the same size class (30B total, 3B active): `nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-FP8` (NVIDIA Open Model Agreement: open weights, commercial use allowed, not OSI) and `Qwen/Qwen3-VL-30B-A3B-Instruct-FP8` (Apache-2.0). Each was served alone by ZRT with the same arguments (GPU share 0.35, max length 16384, 2 images per prompt), with identical prompts and test sets (`eval/vision_bench.py` records their hashes; they matched), temperature 0, 3 runs each; all three runs were identical for both models. Live Omni (NVFP4) was unloaded for the window and reloaded afterwards.
+
+| Task (`eval/vision_bench.py`) | Omni-FP8 | **Qwen3-VL-FP8** |
+|---|---|---|
+| Photos (45 synthetic images, 31 degraded; `eval/photos/`): F1 / strict F1 | 0.978 / 0.910 | **0.989 / 0.921** |
+| Photos read exactly right | 42/45 | **43/45** |
+| Images with a made-up fact | 2 | 2 |
+| Photo latency p50 / p95 | 1.60 / 4.69 s | **1.17** / 5.79 s |
+| Flowchart (700-A13): boxes / arrows | 0.875 / 0.857 | 0.875 / 0.857 |
+| Protocol ranking (22 answerable): right passage first / in top 3 (ceiling 20) | 13 / 16 | **17 / 19** |
+| Out-of-scope questions refused (3) | 2 | 2–3 |
+| Ranking latency p50 | 0.64 s | **0.36 s** |
+
+- **Degradations** (blur, glare, tilt, low light, JPEG, occlusion) cost neither model an image. Both fail the same meaning cases: a glucometer showing "HI" (both wrote a number) and a POLST with only section B checked; Qwen3-VL also read a tilted CPR form that Omni missed.
+- **Ranking is the clearest difference** but not statistically proven: Qwen3-VL right where Omni was wrong on 5 questions, the reverse on 1 (exact McNemar p = 0.22, 22 questions).
+- **Public benchmarks** (each publisher's own harness, so only roughly comparable): OCRBench v2 English Omni 65.8–67.0 vs Qwen3-VL 63.2; chart reasoning (CharXiv) Omni 48–64 (the card reports both) vs 48.9; Qwen3-VL also reports DocVQA 95.0 and RealWorldQA 73.7. Roughly a tie. Omni's broader generality is audio, video and a reasoning mode, none of which Herald uses (speech goes to Whisper; reasoning is off for latency).
+- **Decision (team lead, 2026-09-23 night): switch the live vision model to Qwen3-VL-30B-A3B-Instruct-FP8** (`qwen3vl-fp8`, `scripts/serve_models.sh vision`). Omni stays in the ZRT cache for rollback (`scripts/serve_models.sh omni`, ~10 min). The flowchart transcription cache is keyed by vision model, so Qwen3-VL re-read it on the first start (no errors).
+- **Open risk:** the photo set is synthetic. Real photos of a monitor, a glucometer and pill bottles (no personal data) are the true test of both models on unseen material.
+
 ## 3. Speech-to-text and TTS
 | Model | Open ASR avg WER | Speed (RTFx) | Spanish | On this box |
 |---|---|---|---|---|

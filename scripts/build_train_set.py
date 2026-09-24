@@ -55,6 +55,10 @@ class SpokenOrder:
 
     def _where(self, text: str, key: str, value) -> int | None:
         low = text.lower()
+        if isinstance(value, dict):          # a record (a dose given): placed where its identity (the drug) is said
+            spots = [p for x in value.values() if isinstance(x, (str, int, float)) and not isinstance(x, bool)
+                     for p in [self._where(text, key, x)] if p is not None]
+            return min(spots) if spots else None
         if isinstance(value, (int, float)) and not isinstance(value, bool):
             spots = [m.start() for m in re.finditer(r"\d+(?:\.\d+)?", text) if abs(float(m.group()) - value) < 0.05]
             spots += [s for s, vals in self.numbers.spans(text) if any(abs(v - value) < 0.05 for v in vals)]
@@ -101,23 +105,62 @@ def word_runs(text: str, n: int = 8) -> set:
     return {tuple(w[i:i + n]) for i in range(len(w) - n + 1)}
 
 
-def model_input(profile_prefix: str | None, text: str, by: str, speaker) -> str:
+def model_input(profile_prefix: str | None, text: str, by: str, speaker, dispatch=None) -> str:
     profiles = default_profiles()
     profile = profiles.for_label(profile_prefix) if profile_prefix else None
-    return profiles.model_input(profile, text, by, speaker)
+    return profiles.model_input(profile, text, by, speaker, dispatch)
+
+
+class DispatchAssigner:
+    """A dispatch for a line written without one, consistent with how it was labeled (config/training.yaml)."""
+
+    def __init__(self, cfg: dict, cues: dict, rng: random.Random):
+        self.cfg, self.rng = cfg, rng
+        self.stroke_words = [cues[k] for k in cfg["stroke_words_keys"] if k in cues]
+        self.counts: Counter = Counter()
+
+    def __call__(self, text: str, rows: list) -> str:
+        c, rng = self.cfg, self.rng
+        if any(r[0].startswith(tuple(c["stroke_keys"])) for r in rows):
+            kind, d = "stroke-labeled", rng.choice(c["stroke"])
+        elif any(rx.search(text) for rx in self.stroke_words):
+            kind, d = "stroke-words, not labeled", rng.choice(c["other"])
+        elif rng.random() < c["unknown_share"]:
+            kind, d = "unknown", ""
+        else:
+            kind = "any"
+            d = rng.choice(c["stroke"] if rng.random() < c["stroke_share_for_other_lines"] else c["other"])
+        self.counts[kind] += 1
+        return d
+
+
+def collapse_repeats(facts: list) -> list:
+    """Identical records in one line ("nitro 0.4 SL times three" labeled three times) become one with a count
+    (LABELING_GUIDE §4e), when the key declares a `count` field."""
+    out: list = []
+    for f in facts:
+        k, v = f[0], f[1]
+        if isinstance(v, dict) and "count" in KEYS[k].get("fields", {}) and out:
+            same = next((x for x in out if x[0] == k and isinstance(x[1], dict)
+                         and {a: b for a, b in x[1].items() if a != "count"} == v and x[2:] == f[2:]), None)
+            if same is not None:
+                same[1] = {**same[1], "count": same[1].get("count", 1) + 1}
+                continue
+        out.append([k, dict(v) if isinstance(v, dict) else v, *f[2:]])
+    return out
 
 
 def annotated_row(r: dict) -> dict:
     out = []
-    for fact in r["facts"]:
+    for fact in collapse_repeats(r["facts"]):
         k, v, role = fact[0], fact[1], fact[2]
         source = fact[3] if len(fact) > 3 else None
         if k not in KEYS or role not in ("medic", "patient", "family", "bystander"):
             raise ValueError(f"bad key/role {k}/{role}")
-        VOCAB.coerce(k, v)
-        out.append([k, v, who_code(role, source, r.get("speaker"))])
+        coerced = VOCAB.coerce(k, v)
+        out.append([k, coerced if isinstance(coerced, dict) else v, who_code(role, source, r.get("speaker"))])
     return {"id": r["id"], "text": r["text"], "by": r.get("by", "medic"), "speaker": r.get("speaker"),
-            "source": "annotated", "rows": out}
+            "dispatch": r.get("dispatch"), "source": "annotated", "rows": out}
 
 
 def main():
@@ -132,16 +175,21 @@ def main():
     ap.add_argument("--decontaminate", default="", help="comma-separated gold files: drop any row sharing an "
                     "8-word run with them (the held-out sets must stay unseen)")
     ap.add_argument("--profile", default=None, help="served-label prefix whose input format to build (e.g. ems-d)")
+    ap.add_argument("--overlays", default="gfast", help="label overlays to merge: <name>_labels_*.jsonl (gfast,broad)")
+    ap.add_argument("--dispatch", action="store_true", help="give every line a dispatch (run E, config/training.yaml)")
+    ap.add_argument("--composed-exclude", action="store_true",
+                    help="leave out composed rows matching config/training.yaml composed_exclude")
     a = ap.parse_args()
     rng = random.Random(a.seed)
 
-    # Label overlays add keys labeled after a batch was written (e.g. G.F.A.S.T., LABELING_GUIDE §4d):
-    # gfast_labels_*.jsonl lines are {"id": ..., "gfast": [[key, value, role, source], ...]}.
+    # Label overlays add keys labeled after a batch was written (G.F.A.S.T., LABELING_GUIDE §4d; the every-call keys,
+    # §4e): <name>_labels_*.jsonl lines are {"id": ..., "<name>": [[key, value, role, source], ...]}.
     overlay: dict[str, list] = {}
-    for f in sorted(Path(a.annotated).glob("gfast_labels_*.jsonl")):
-        for line in open(f):
-            d = json.loads(line)
-            overlay.setdefault(d["id"], []).extend(d.get("gfast", []))
+    for name in filter(None, a.overlays.split(",")):
+        for f in sorted(Path(a.annotated).glob(f"{name}_labels_*.jsonl")):
+            for line in open(f):
+                d = json.loads(line)
+                overlay.setdefault(d["id"], []).extend(d.get(name, []))
     ann, dropped = [], Counter()
     for f in sorted(Path(a.annotated).glob("batch_*.jsonl")):
         for line in open(f):
@@ -168,17 +216,27 @@ def main():
         comp = [json.loads(l) for l in open(a.composed_file)]
         rng.shuffle(comp)
         comp = [r for r in comp if not (word_runs(r["text"]) & gold_grams)]
+        if a.composed_exclude:
+            rx = re.compile(load_yaml("training.yaml")["composed_exclude"], re.I)
+            n_before = len(comp)
+            comp = [r for r in comp if not rx.search(r["text"])]
+            dropped["composed: mentions drugs or procedures"] += n_before - len(comp)
         train += [{"id": f"c{i}", "text": r["text"], "by": r.get("by", "medic"), "speaker": r.get("speaker"),
                    "source": "composed", "rows": json.loads(r["completion"])["f"]}
                   for i, r in enumerate(comp[:a.composed])]
     rng.shuffle(train)
 
-    order = SpokenOrder(load_yaml("training.yaml")) if a.order == "spoken" else None
+    cfg = load_yaml("training.yaml")
+    order = SpokenOrder(cfg) if a.order == "spoken" else None
+    assign = DispatchAssigner(cfg["dispatch"], (order or SpokenOrder(cfg)).cues, random.Random(a.seed + 1)) \
+        if a.dispatch else None
     for r in train + dev:
         rows = order.sort(r["text"], r.pop("rows")) if order else r.pop("rows")
         r["completion"] = json.dumps({"f": rows}, separators=(",", ":"), ensure_ascii=False)
         r["raw_text"] = r["text"]
-        r["text"] = model_input(a.profile, r["text"], r["by"], r["speaker"])
+        if assign is not None and r.get("dispatch") is None:
+            r["dispatch"] = assign(r["text"], rows)
+        r["text"] = model_input(a.profile, r["text"], r["by"], r["speaker"], r.get("dispatch"))
 
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -187,7 +245,8 @@ def main():
     keys = Counter(f[0] for r in train for f in json.loads(r["completion"])["f"])
     print(json.dumps({"annotated": len(ann), "overlay_items": len(overlay), "train": len(train), "dev (annotated only)": len(dev),
                       "composed": sum(r["source"] == "composed" for r in train),
-                      "order": a.order, "profile": a.profile,
+                      "order": a.order, "profile": a.profile, "overlays": a.overlays,
+                      **({"dispatch_assigned": dict(assign.counts)} if assign else {}),
                       **({"facts_located": f"{order.located}/{order.total}", "targets_reordered": order.reordered}
                          if order else {}),
                       "dropped": dict(dropped), "keys_covered": f"{len(keys)}/{len(KEYS)}",

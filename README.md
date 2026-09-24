@@ -19,7 +19,7 @@ Every model runs on one HP ZGX Nano (NVIDIA GB10). **No cloud AI.**
 |---|---|
 | **Speech → facts** | Whisper large-v3-turbo on the GPU (a 10 s clip transcribes in about 0.3 s). Then a **fine-tuned Qwen3-4B extractor, trained on this box**, turns the words into typed facts: vitals, medications, allergies, last known well, stroke-exam items, code status. It is served in FP8, at about 1 s per utterance. |
 | **Who said it, and how sure** | Every fact records who it came from ("his wife says…" → family) and links back to the audio or photo. A fact confirms itself only when the paramedic said it and the model was sure of it (its own token probability, with the bar calibrated on a labeled dev set). Facts from other speakers, photos, codes such as DNR, and anything the model was less sure of start **unconfirmed**; one tap confirms. |
-| **Photos** | The local vision model (Nemotron-3-Nano-Omni) reads monitors, pill bottles, and POLST forms, with physical-plausibility checks. |
+| **Photos** | The local vision model (Qwen3-VL-30B-A3B, open source, chosen over Nemotron-3-Nano-Omni in a level bake-off) reads monitors, pill bottles, glucometers, and POLST forms, with physical-plausibility checks. |
 | **Gap-first screen** | The pre-alert checklist (the county's own) starts at 0 of 6, and the gaps close as the medic talks. |
 | **Published scores** | NEWS2, RACE, **G.F.A.S.T.** (Santa Clara County's stroke screen), and the 2021 national field-triage criteria. Plain code computes them from confirmed facts only, showing every input, what's missing, and the source. |
 | **County protocols** | Santa Clara County EMS Protocol 700-A13 (Stroke) drives the checklist and quotes the routing rule. On a positive G.F.A.S.T. screen: *"4 of 4: Comprehensive Stroke Center; closest Primary Stroke Center if transport to the closest Comprehensive Stroke Center is over 45 minutes (700-A13 §3.2, §3.2.1)"*. The county switches live. |
@@ -86,8 +86,8 @@ monitor panel       ─┘           trends · clocks · NEWS2 · RACE · G.F.A.
 ```bash
 # on the ZGX Nano, in the `zgx` conda env (torch 2.14 + CUDA 13)
 pip install -r requirements.txt
-scripts/serve_models.sh                       # omni (photos) + ems-d-fp8 (extraction) via HP Z Runtime on :8080
-HERALD_LLM_MODEL=ems-d-fp8 HERALD_VISION_MODEL=omni PORT=8100 scripts/run_dev.sh
+scripts/serve_models.sh                       # qwen3vl-fp8 (photos) + ems-d-fp8 (extraction) via HP Z Runtime on :8080
+HERALD_LLM_MODEL=ems-d-fp8 HERALD_VISION_MODEL=qwen3vl-fp8 PORT=8100 scripts/run_dev.sh
 ```
 
 Open `http://localhost:8100`. Browsers only allow the microphone on `localhost` or HTTPS, so from a laptop, forward the port first (`ssh -L 8100:localhost:8100 <user>@<nano>`). Hold **Space** to talk as the medic, and **F** for a patient or family member.

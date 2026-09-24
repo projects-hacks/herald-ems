@@ -1,5 +1,5 @@
 """Numbers said in words -> every value they can mean: "one sixty" 160, "one forty two" 142, "one oh two" 102,
-"a hundred and ten" 110, "ninety eight" 98, "thirty seven point one" 37.1. Grounding uses it to check that a
+"a hundred and ten" 110, "four thousand" 4000, "ninety eight" 98, "thirty seven point one" 37.1. Grounding uses it to check that a
 number the model wrote was actually said. The word tables are content (config/grounding.yaml)."""
 from __future__ import annotations
 
@@ -9,15 +9,17 @@ from typing import Optional
 
 class SpokenNumbers:
     def __init__(self, units: dict[str, int], teens: dict[str, int], tens: dict[str, int], hundred: list[str],
-                 point: list[str], joiners: list[str], one_words: list[str]):
+                 point: list[str], joiners: list[str], one_words: list[str], thousand: list[str] = ()):
         self.units, self.teens, self.tens = units, teens, tens
         self.hundred, self.point, self.joiners, self.one_words = set(hundred), set(point), set(joiners), set(one_words)
-        self.vocab = set(units) | set(teens) | set(tens) | self.hundred | self.point
+        self.thousand = set(thousand)
+        self.vocab = set(units) | set(teens) | set(tens) | self.hundred | self.point | self.thousand
         self.max_span = 7
 
     @classmethod
     def from_config(cls, c: dict) -> "SpokenNumbers":
-        return cls(c["units"], c["teens"], c["tens"], c["hundred"], c["point"], c["joiners"], c["one"])
+        return cls(c["units"], c["teens"], c["tens"], c["hundred"], c["point"], c["joiners"], c["one"],
+                   c.get("thousand", []))
 
     def values(self, text: str) -> set[float]:
         """All values any run of number words in `text` can mean (a support check, so every reading counts)."""
@@ -49,7 +51,7 @@ class SpokenNumbers:
         for k, w in enumerate(words):
             nxt = words[k + 1] if k + 1 < len(words) else ""
             if w in self.vocab or (w in self.joiners and cur and nxt in self.vocab) or \
-                    (w in self.one_words and nxt in self.hundred):
+                    (w in self.one_words and (nxt in self.hundred or nxt in self.thousand)):
                 cur.append(w)
             elif cur:
                 runs.append(cur)
@@ -78,7 +80,15 @@ class SpokenNumbers:
         return None
 
     def _arithmetic(self, toks: list[str]) -> Optional[float]:
-        """Standard reading: [one|a] hundred [and] [below 100]."""
+        """Standard reading: [n thousand] [and] [one|a] hundred [and] [below 100]."""
+        k = next((i for i, t in enumerate(toks) if t in self.thousand), None)
+        if k is not None:
+            left = self._arithmetic(toks[:k]) if k else None
+            if toks[:k] and all(t in self.one_words for t in toks[:k]):
+                left = 1.0
+            rest = [t for t in toks[k + 1:] if t not in self.joiners]
+            right = self._arithmetic(rest) if rest else 0.0
+            return None if left is None or right is None or right >= 1000 else left * 1000 + right
         toks = [t for t in toks if t not in self.joiners or t in self.one_words]
         if len(toks) >= 2 and toks[1] in self.hundred and (toks[0] in self.units or toks[0] in self.one_words):
             base = 100 * self.units.get(toks[0], 1)
@@ -92,7 +102,7 @@ class SpokenNumbers:
 
     def _grouped(self, toks: list[str]) -> Optional[float]:
         """Digit-group reading, as vitals and times are spoken: "one sixty" 160, "one oh two" 102."""
-        if len(toks) < 2 or any(t in self.hundred or t in self.joiners for t in toks):
+        if len(toks) < 2 or any(t in self.hundred or t in self.thousand or t in self.joiners for t in toks):
             return None
         s, k = "", 0
         while k < len(toks):

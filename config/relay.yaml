@@ -2,10 +2,12 @@
 # Derived keys: score.<id> (published scores), alert.readiness (checklist progress).
 tiers:
   - {tier: 1, why: the receiving team needs this before arrival,
-     keys: [alert.readiness, code_status, meds.anticoagulant, allergies, stroke.lkw, complaint.chief]}
+     keys: [alert.readiness, code_status, meds.anticoagulant, allergies, stroke.lkw, complaint.chief, meds.given,
+            trauma.mechanism, trauma.injuries, infection.suspected, patient.pregnancy_weeks]}
   - {tier: 2, why: deterioration / published score changed, keys: [score.news2, score.race, score.gfast]}
   - {tier: 3, why: latest vitals and exam,
-     keys: [vitals.sbp, vitals.dbp, vitals.hr, vitals.spo2, vitals.rr, vitals.glucose, vitals.consciousness, stroke.deficits]}
+     keys: [vitals.sbp, vitals.dbp, vitals.hr, vitals.spo2, vitals.rr, vitals.glucose, vitals.consciousness, stroke.deficits,
+            vitals.gcs_total, vitals.gcs_eye, vitals.gcs_verbal, vitals.gcs_motor, vitals.etco2, vitals.pain, procedures.done]}
   - {tier: 4, why: arrival logistics, keys: [transport.eta_min, transport.destination]}
   - {tier: 5, why: demographics and context,
      keys: [patient.age, patient.sex, stroke.onset_witnessed, vitals.temp, vitals.on_oxygen, meds.list, scene.notes]}

@@ -1,14 +1,19 @@
 # How each served extractor expects its input. A fine-tuned extractor must be called exactly as it was trained:
-# the same system prompt, and (from run D on) the input starting with the speaker line. Profiles match a served
-# label by prefix ("ems-d-fp8" matches "ems-d"); the first match wins. A label listed in HERALD_FINETUNED_MODELS
-# that matches no prefix takes the `default` profile. Anything else is a general model: the full prompt, worked
-# examples, and a strict output schema (config/prompts/extract_system.md).
+# the same system prompt and the same first lines. Profiles match a served label by prefix ("ems-e-fp8" matches
+# "ems-e"); the first match wins. A label listed in HERALD_FINETUNED_MODELS that matches no prefix takes the
+# `default` profile. Anything else is a general model: the full prompt, worked examples, and a strict output schema
+# (config/prompts/extract_system.md).
+#   speaker: the line saying who is talking (one mic; the talk button or diarization tells us), or none
+#   dispatch: the line with the call's dispatch / working impression (what the crew was sent on), or none
 finetuned:
-  - {label_prefix: ems-d, prompt: prompts/extract_finetuned_d.md, speaker_line: true}    # run D (MODEL_PLAN §0g)
-  - {label_prefix: ems, prompt: prompts/extract_finetuned.md, speaker_line: false, default: true}   # runs A-C
-# The first line of the input for profiles with speaker_line: whose mic the words came from. On the medic's mic the
-# words are the paramedic's; on anyone else's mic they are that person's own words (LABELING_GUIDE §5a).
-speaker_line:
-  medic: "[medic's mic]"
-  other: "[{speaker}'s mic]"
-  other_unknown: "[someone else's mic]"
+  - label_prefix: ems-e                                   # run E (MODEL_PLAN §0i): dispatch context + speaker
+    prompt: prompts/extract_finetuned_e.md
+    dispatch: "[dispatch: {dispatch}]"
+    dispatch_unknown: "[dispatch: unknown]"
+    speaker: {medic: "[paramedic speaking]", other: "[{speaker} speaking]", other_unknown: "[someone else speaking]"}
+  - label_prefix: ems-d                                   # run D (MODEL_PLAN §0h)
+    prompt: prompts/extract_finetuned_d.md
+    speaker: {medic: "[medic's mic]", other: "[{speaker}'s mic]", other_unknown: "[someone else's mic]"}
+  - label_prefix: ems                                     # runs A-C
+    prompt: prompts/extract_finetuned.md
+    default: true

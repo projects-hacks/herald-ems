@@ -78,7 +78,7 @@
 {"id": "b12_078", "text": "Pt states he took four baby aspirin before calling 911.", "by": "medic", "speaker": null, "facts": [["meds.list", ["aspirin"], "patient", null]], "phenomena": ["attribution", "spoken_numbers"]}
 {"id": "b12_079", "text": "we're giving 324 aspirin now, hold on, pt's on Brilinta, still giving it per protocol", "by": "medic", "speaker": null, "facts": [["meds.list", ["ticagrelor"], "medic", null]], "phenomena": ["brand_names", "spoken_numbers"]}
 {"id": "b12_080", "text": "gave eight of zofran, she's on coumadin at home", "by": "medic", "speaker": null, "facts": [["meds.anticoagulant", "warfarin", "medic", null], ["meds.list", ["warfarin"], "medic", null]], "phenomena": ["brand_names", "spoken_numbers", "asr_noise"]}
-{"id": "b12_081", "text": "nitro paste was put on at the nursing home before we arrived", "by": "medic", "speaker": null, "facts": [["meds.list", ["nitroglycerin"], "medic", null]], "phenomena": ["clean"]}
+{"id": "b12_081", "text": "nitro paste was put on at the nursing home before we arrived", "by": "medic", "speaker": null, "facts": [], "phenomena": ["clean"]}
 {"id": "b12_082", "text": "gave a duoneb, pt uses his albuterol inhaler at home, used it twice before we got there", "by": "medic", "speaker": null, "facts": [["meds.list", ["albuterol"], "medic", null]], "phenomena": ["shorthand"]}
 {"id": "b12_083", "text": "pushing four of morphine and two of versed", "by": "medic", "speaker": null, "facts": [], "phenomena": ["no_facts", "spoken_numbers"]}
 {"id": "b12_084", "text": "started him on a non rebreather at fifteen liters, gave the aspirin, twelve lead's next", "by": "medic", "speaker": null, "facts": [["vitals.on_oxygen", true, "medic", null]], "phenomena": ["spoken_numbers", "asr_noise"]}

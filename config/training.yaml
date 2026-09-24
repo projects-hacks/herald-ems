@@ -22,3 +22,20 @@ order_cues:
   vitals.glucose: 'glucose|sugar|bgl|cbg|d-?stick|accu'
   complaint.chief: 'complain|c/o|chief|pain|short(ness)? of breath|sob|fall|fell'
 same_place_order: [exam.gfast., exam.race., stroke.deficits, meds.anticoagulant, meds.list]
+
+# Run E: every training input starts with the call's dispatch (config/extraction.yaml, profile ems-e). Lines written
+# with a "dispatch" keep it. Older lines get one that agrees with how they were labeled (LABELING_GUIDE §4c): a line
+# labeled with stroke facts gets a stroke dispatch; a line that states last-known-well or onset words but was
+# labeled without stroke facts gets another dispatch; the rest get any dispatch, or "unknown", so the model also
+# works when the dispatch isn't known.
+dispatch:
+  stroke: [possible stroke, stroke alert, CVA, weakness one side, slurred speech per caller, facial droop per caller]
+  other: [fall, sick person, unknown problem, chest pain, breathing problem, diabetic problem, unconscious person,
+          seizure, traffic collision, overdose, lift assist, abdominal pain, syncope, assault, allergic reaction]
+  unknown_share: 0.25
+  stroke_share_for_other_lines: 0.15
+  stroke_keys: [stroke., exam.]
+  stroke_words_keys: [stroke.lkw, stroke.onset_witnessed]    # their order_cues mark lines a stroke dispatch would relabel
+# Template-composed rows that mention drugs or procedures were written before meds.given / procedures.done existed
+# and carry no labels for them; they are left out rather than taught as "nothing to extract".
+composed_exclude: '\b(gave|given|administer|pushed|narcan|naloxone|zofran|ondansetron|d10|d50|epi|albuterol|duoneb|fentanyl|morphine|iv|io|cpr|shock|splint|collar|tourniquet|cpap)\b'

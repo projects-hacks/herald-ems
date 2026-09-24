@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from functools import partial
 from typing import Awaitable, Callable, Optional
 
 from fastapi.concurrency import run_in_threadpool
@@ -100,8 +101,8 @@ class CaptureService:
         t0 = time.perf_counter()
         name = ctx.text_model.model_name()
         try:
-            facts_in = await run_in_threadpool(ctx.model_extractor.extract, text, captured_by, default_role,
-                                               speaker, audio_id)
+            facts_in = await run_in_threadpool(partial(ctx.model_extractor.extract, dispatch=self.inc.dispatch),
+                                               text, captured_by, default_role, speaker, audio_id)
             if hold:
                 self._hold(facts_in, hold)
             usage = ctx.model_extractor.last_usage or {}
