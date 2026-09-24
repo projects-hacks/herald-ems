@@ -1,0 +1,285 @@
+{"id": "v1_001", "key": "patient.age", "value": 68, "role": "medic", "conf": 0.9943, "correct": true}
+{"id": "v1_001", "key": "patient.sex", "value": "F", "role": "medic", "conf": 0.9936, "correct": true}
+{"id": "v1_001", "key": "stroke.deficits", "value": ["left-sided weakness"], "role": "medic", "conf": 0.6191, "correct": true}
+{"id": "v1_001", "key": "stroke.lkw", "value": "1:40", "role": "family", "conf": 0.4539, "correct": true}
+{"id": "v1_002", "key": "patient.age", "value": 58, "role": "medic", "conf": 0.9983, "correct": true}
+{"id": "v1_002", "key": "patient.sex", "value": "M", "role": "medic", "conf": 0.997, "correct": true}
+{"id": "v1_002", "key": "complaint.chief", "value": "crushing substernal chest pain radiating to the left arm", "role": "medic", "conf": 0.9129, "correct": true}
+{"id": "v1_002", "key": "symptom.onset", "value": "40 minutes ago", "role": "medic", "conf": 0.9023, "correct": true}
+{"id": "v1_003", "key": "transport.destination", "value": "Valley Medical", "role": "medic", "conf": 0.9975, "correct": true}
+{"id": "v1_003", "key": "transport.eta_min", "value": 8, "role": "medic", "conf": 0.9595, "correct": true}
+{"id": "v1_004", "key": "exam.gfast.facial", "value": 1, "role": "medic", "conf": 0.6249, "correct": true}
+{"id": "v1_004", "key": "exam.race.facial", "value": 1, "role": "medic", "conf": 0.6471, "correct": true}
+{"id": "v1_004", "key": "stroke.deficits", "value": ["mild right facial droop", "right arm drifts"], "role": "medic", "conf": 0.5143, "correct": true}
+{"id": "v1_004", "key": "exam.gfast.arm_leg", "value": 1, "role": "medic", "conf": 0.7716, "correct": true}
+{"id": "v1_004", "key": "exam.race.arm", "value": 1, "role": "medic", "conf": 0.9382, "correct": true}
+{"id": "v1_004", "key": "exam.race.leg", "value": 0, "role": "medic", "conf": 0.8648, "correct": true}
+{"id": "v1_004", "key": "exam.gfast.gaze", "value": 0, "role": "medic", "conf": 0.9622, "correct": true}
+{"id": "v1_004", "key": "exam.race.gaze", "value": 0, "role": "medic", "conf": 0.9262, "correct": true}
+{"id": "v1_004", "key": "exam.race.aphasia_agnosia", "value": 0, "role": "medic", "conf": 0.6509, "correct": true}
+{"id": "v1_005", "key": "patient.age", "value": 86, "role": "medic", "conf": 0.9974, "correct": true}
+{"id": "v1_005", "key": "patient.sex", "value": "F", "role": "medic", "conf": 0.9971, "correct": true}
+{"id": "v1_005", "key": "complaint.chief", "value": "ground level fall", "role": "medic", "conf": 0.5016, "correct": true}
+{"id": "v1_005", "key": "trauma.mechanism", "value": "ground level fall", "role": "medic", "conf": 0.5338, "correct": false}
+{"id": "v1_006", "key": "patient.age", "value": 67, "role": "medic", "conf": 0.9976, "correct": true}
+{"id": "v1_006", "key": "patient.sex", "value": "M", "role": "medic", "conf": 0.9868, "correct": true}
+{"id": "v1_006", "key": "vitals.spo2", "value": 84, "role": "medic", "conf": 0.4331, "correct": true}
+{"id": "v1_006", "key": "vitals.on_oxygen", "value": false, "role": "medic", "conf": 0.9882, "correct": true}
+{"id": "v1_006", "key": "vitals.rr", "value": 32, "role": "medic", "conf": 0.9095, "correct": true}
+{"id": "v1_008", "key": "vitals.glucose", "value": 38, "role": "medic", "conf": 0.9566, "correct": true}
+{"id": "v1_008", "key": "vitals.consciousness", "value": "V", "role": "medic", "conf": 0.9719, "correct": true}
+{"id": "v1_009", "key": "exam.gfast.facial", "value": 1, "role": "medic", "conf": 0.7514, "correct": true}
+{"id": "v1_009", "key": "exam.race.facial", "value": 2, "role": "medic", "conf": 0.8034, "correct": true}
+{"id": "v1_009", "key": "exam.gfast.arm_leg", "value": 1, "role": "medic", "conf": 0.7806, "correct": true}
+{"id": "v1_009", "key": "exam.race.arm", "value": 2, "role": "medic", "conf": 0.9781, "correct": true}
+{"id": "v1_009", "key": "exam.race.leg", "value": 1, "role": "medic", "conf": 0.8773, "correct": true}
+{"id": "v1_009", "key": "exam.gfast.gaze", "value": 1, "role": "medic", "conf": 0.9715, "correct": true}
+{"id": "v1_009", "key": "exam.race.gaze", "value": 1, "role": "medic", "conf": 0.9936, "correct": true}
+{"id": "v1_009", "key": "exam.gfast.speech", "value": 1, "role": "medic", "conf": 0.8582, "correct": true}
+{"id": "v1_009", "key": "exam.race.aphasia_agnosia", "value": 2, "role": "medic", "conf": 0.9365, "correct": true}
+{"id": "v1_012", "key": "complaint.chief", "value": "fall", "role": "patient", "conf": 0.2818, "correct": true}
+{"id": "v1_013", "key": "patient.age", "value": 74, "role": "medic", "conf": 0.9603, "correct": true}
+{"id": "v1_013", "key": "patient.sex", "value": "M", "role": "medic", "conf": 0.9917, "correct": true}
+{"id": "v1_013", "key": "stroke.deficits", "value": ["slurred speech", "right sided weakness"], "role": "medic", "conf": 0.845, "correct": true}
+{"id": "v1_013", "key": "exam.gfast.speech", "value": 1, "role": "medic", "conf": 0.5387, "correct": true}
+{"id": "v1_013", "key": "exam.gfast.arm_leg", "value": 1, "role": "medic", "conf": 0.5095, "correct": true}
+{"id": "v1_013", "key": "stroke.onset_witnessed", "value": false, "role": "family", "conf": 0.4445, "correct": true}
+{"id": "v1_014", "key": "patient.age", "value": 91, "role": "medic", "conf": 0.9608, "correct": true}
+{"id": "v1_014", "key": "patient.sex", "value": "F", "role": "medic", "conf": 0.9812, "correct": true}
+{"id": "v1_014", "key": "vitals.temp", "value": 38.8, "role": "medic", "conf": 0.9868, "correct": true}
+{"id": "v1_014", "key": "vitals.hr", "value": 118, "role": "medic", "conf": 0.9956, "correct": true}
+{"id": "v1_014", "key": "vitals.sbp", "value": 88, "role": "medic", "conf": 0.9782, "correct": true}
+{"id": "v1_014", "key": "vitals.dbp", "value": 50, "role": "medic", "conf": 0.999, "correct": true}
+{"id": "v1_014", "key": "vitals.rr", "value": 24, "role": "medic", "conf": 0.999, "correct": true}
+{"id": "v1_014", "key": "vitals.spo2", "value": 90, "role": "medic", "conf": 0.9978, "correct": true}
+{"id": "v1_014", "key": "vitals.on_oxygen", "value": true, "role": "medic", "conf": 0.9102, "correct": true}
+{"id": "v1_014", "key": "transport.destination", "value": "Mercy General", "role": "medic", "conf": 0.8622, "correct": true}
+{"id": "v1_014", "key": "transport.eta_min", "value": 12, "role": "medic", "conf": 0.861, "correct": true}
+{"id": "v1_016", "key": "vitals.sbp", "value": 142, "role": "medic", "conf": 0.8904, "correct": true}
+{"id": "v1_016", "key": "vitals.dbp", "value": 88, "role": "medic", "conf": 0.9941, "correct": true}
+{"id": "v1_016", "key": "vitals.hr", "value": 104, "role": "medic", "conf": 0.999, "correct": true}
+{"id": "v1_016", "key": "vitals.rr", "value": 20, "role": "medic", "conf": 0.999, "correct": true}
+{"id": "v1_016", "key": "vitals.spo2", "value": 96, "role": "medic", "conf": 0.9918, "correct": true}
+{"id": "v1_016", "key": "vitals.on_oxygen", "value": false, "role": "medic", "conf": 0.9883, "correct": true}
+{"id": "v1_017", "key": "patient.age", "value": 61, "role": "medic", "conf": 0.999, "correct": true}
+{"id": "v1_017", "key": "patient.sex", "value": "F", "role": "medic", "conf": 0.9907, "correct": true}
+{"id": "v1_017", "key": "complaint.chief", "value": "altered mental status", "role": "medic", "conf": 0.5321, "correct": true}
+{"id": "v1_017", "key": "vitals.consciousness", "value": "C", "role": "medic", "conf": 0.9756, "correct": true}
+{"id": "v1_017", "key": "vitals.glucose", "value": 122, "role": "medic", "conf": 0.5082, "correct": true}
+{"id": "v1_018", "key": "stroke.deficits", "value": ["left facial droop", "left arm drift", "eyes deviated to the right"], "role": "medic", "conf": 0.6392, "correct": true}
+{"id": "v1_018", "key": "exam.gfast.facial", "value": 1, "role": "medic", "conf": 0.9568, "correct": true}
+{"id": "v1_018", "key": "exam.race.facial", "value": 2, "role": "medic", "conf": 0.9348, "correct": true}
+{"id": "v1_018", "key": "exam.gfast.arm_leg", "value": 1, "role": "medic", "conf": 0.9417, "correct": true}
+{"id": "v1_018", "key": "exam.race.arm", "value": 1, "role": "medic", "conf": 0.9625, "correct": true}
+{"id": "v1_018", "key": "exam.gfast.gaze", "value": 1, "role": "medic", "conf": 0.9955, "correct": true}
+{"id": "v1_018", "key": "exam.race.gaze", "value": 1, "role": "medic", "conf": 0.9942, "correct": true}
+{"id": "v1_018", "key": "stroke.lkw", "value": "10 pm", "role": "family", "conf": 0.979, "correct": true}
+{"id": "v1_019", "key": "trauma.injuries", "value": ["obvious deformity to the right hip"], "role": "medic", "conf": 0.4236, "correct": false}
+{"id": "v1_019", "key": "trauma.criteria", "value": ["deformity"], "role": "medic", "conf": 0.1448, "correct": false}
+{"id": "v1_022", "key": "vitals.sbp", "value": 168, "role": "medic", "conf": 0.9218, "correct": true}
+{"id": "v1_022", "key": "vitals.dbp", "value": 94, "role": "medic", "conf": 0.9975, "correct": true}
+{"id": "v1_023", "key": "stroke.deficits", "value": ["weakness in the right arm and leg", "speech is kind of garbled"], "role": "medic", "conf": 0.2268, "correct": true}
+{"id": "v1_023", "key": "exam.gfast.arm_leg", "value": 1, "role": "medic", "conf": 0.8003, "correct": true}
+{"id": "v1_023", "key": "exam.gfast.speech", "value": 1, "role": "medic", "conf": 0.836, "correct": true}
+{"id": "v1_026", "key": "meds.anticoagulant", "value": "none", "role": "patient", "conf": 0.957, "correct": true}
+{"id": "v1_026", "key": "allergies", "value": [], "role": "patient", "conf": 0.5388, "correct": false}
+{"id": "v1_026", "key": "meds.list", "value": ["lisinopril", "atorvastatin"], "role": "medic", "conf": 0.7059, "correct": true}
+{"id": "v1_028", "key": "vitals.gcs_total", "value": 14, "role": "medic", "conf": 0.8498, "correct": false}
+{"id": "v1_028", "key": "vitals.gcs_eye", "value": 4, "role": "medic", "conf": 0.9866, "correct": false}
+{"id": "v1_028", "key": "vitals.gcs_verbal", "value": 4, "role": "medic", "conf": 0.9977, "correct": false}
+{"id": "v1_028", "key": "vitals.gcs_motor", "value": 6, "role": "medic", "conf": 0.9947, "correct": true}
+{"id": "v1_028", "key": "procedures.done", "value": {"procedure": "spinal motion restriction", "detail": "c-collar", "by": "crew"}, "role": "medic", "conf": 0.5461, "correct": false}
+{"id": "v1_029", "key": "exam.gfast.facial", "value": 1, "role": "medic", "conf": 0.776, "correct": true}
+{"id": "v1_029", "key": "exam.race.facial", "value": 1, "role": "medic", "conf": 0.8444, "correct": true}
+{"id": "v1_029", "key": "exam.gfast.arm_leg", "value": 1, "role": "medic", "conf": 0.7637, "correct": true}
+{"id": "v1_029", "key": "exam.race.arm", "value": 2, "role": "medic", "conf": 0.9752, "correct": true}
+{"id": "v1_029", "key": "exam.race.leg", "value": 1, "role": "medic", "conf": 0.9109, "correct": true}
+{"id": "v1_029", "key": "exam.gfast.gaze", "value": 0, "role": "medic", "conf": 0.9622, "correct": true}
+{"id": "v1_029", "key": "exam.race.gaze", "value": 0, "role": "medic", "conf": 0.9216, "correct": true}
+{"id": "v1_029", "key": "exam.gfast.speech", "value": 1, "role": "medic", "conf": 0.844, "correct": true}
+{"id": "v1_029", "key": "exam.race.aphasia_agnosia", "value": 1, "role": "medic", "conf": 0.9543, "correct": true}
+{"id": "v1_030", "key": "complaint.chief", "value": "short of breath", "role": "family", "conf": 0.6751, "correct": true}
+{"id": "v1_030", "key": "symptom.onset", "value": "3 days", "role": "family", "conf": 0.6971, "correct": true}
+{"id": "v1_030", "key": "meds.list", "value": ["oxygen"], "role": "family", "conf": 0.2325, "correct": false}
+{"id": "v1_032", "key": "vitals.sbp", "value": 201, "role": "medic", "conf": 0.8618, "correct": true}
+{"id": "v1_032", "key": "vitals.dbp", "value": 110, "role": "medic", "conf": 0.9984, "correct": true}
+{"id": "v1_032", "key": "vitals.hr", "value": 88, "role": "medic", "conf": 0.9978, "correct": true}
+{"id": "v1_032", "key": "vitals.glucose", "value": 132, "role": "medic", "conf": 0.9981, "correct": true}
+{"id": "v1_034", "key": "meds.list", "value": ["clopidogrel", "metoprolol", "atorvastatin"], "role": "medic", "conf": 0.9312, "correct": true}
+{"id": "v1_034", "key": "allergies", "value": ["morphine"], "role": "medic", "conf": 0.7482, "correct": true}
+{"id": "v1_035", "key": "stroke.lkw", "value": "2:30", "role": "family", "conf": 0.9146, "correct": true}
+{"id": "v1_035", "key": "meds.list", "value": ["apixaban"], "role": "family", "conf": 0.9167, "correct": true}
+{"id": "v1_035", "key": "meds.anticoagulant", "value": "apixaban", "role": "family", "conf": 0.9934, "correct": true}
+{"id": "v1_036", "key": "vitals.glucose", "value": 42, "role": "medic", "conf": 0.9963, "correct": true}
+{"id": "v1_036", "key": "vitals.glucose", "value": 156, "role": "medic", "conf": 0.6689, "correct": true}
+{"id": "v1_036", "key": "meds.given", "value": {"drug": "dextrose", "by": "crew"}, "role": "medic", "conf": 0.742, "correct": false}
+{"id": "v1_038", "key": "exam.gfast.arm_leg", "value": 1, "role": "medic", "conf": 0.3621, "correct": true}
+{"id": "v1_038", "key": "exam.race.arm", "value": 2, "role": "medic", "conf": 0.6727, "correct": true}
+{"id": "v1_038", "key": "stroke.deficits", "value": ["can't lift the right arm at all"], "role": "medic", "conf": 0.7241, "correct": true}
+{"id": "v1_038", "key": "exam.race.leg", "value": 1, "role": "medic", "conf": 0.9396, "correct": true}
+{"id": "v1_039", "key": "vitals.consciousness", "value": "C", "role": "family", "conf": 0.5929, "correct": true}
+{"id": "v1_039", "key": "symptom.onset", "value": "since yesterday", "role": "family", "conf": 0.4314, "correct": true}
+{"id": "v1_039", "key": "infection.suspected", "value": "urinary", "role": "family", "conf": 0.1805, "correct": false}
+{"id": "v1_040", "key": "vitals.sbp", "value": 102, "role": "medic", "conf": 0.8757, "correct": true}
+{"id": "v1_040", "key": "vitals.dbp", "value": 70, "role": "medic", "conf": 0.9925, "correct": true}
+{"id": "v1_040", "key": "vitals.hr", "value": 118, "role": "medic", "conf": 0.9029, "correct": true}
+{"id": "v1_041", "key": "procedures.done", "value": {"procedure": "cpap", "detail": "10", "by": "crew"}, "role": "medic", "conf": 0.5027, "correct": false}
+{"id": "v1_041", "key": "vitals.spo2", "value": 92, "role": "medic", "conf": 0.4189, "correct": true}
+{"id": "v1_043", "key": "patient.age", "value": 52, "role": "medic", "conf": 0.9985, "correct": true}
+{"id": "v1_043", "key": "patient.sex", "value": "F", "role": "medic", "conf": 0.989, "correct": true}
+{"id": "v1_043", "key": "complaint.chief", "value": "chest tightness and nausea", "role": "medic", "conf": 0.9653, "correct": true}
+{"id": "v1_043", "key": "symptom.onset", "value": "since 3 am", "role": "medic", "conf": 0.8407, "correct": true}
+{"id": "v1_044", "key": "complaint.chief", "value": "seizure", "role": "bystander", "conf": 0.7598, "correct": true}
+{"id": "v1_044", "key": "vitals.consciousness", "value": "V", "role": "medic", "conf": 0.9295, "correct": true}
+{"id": "v1_045", "key": "exam.gfast.facial", "value": 0, "role": "medic", "conf": 0.9234, "correct": true}
+{"id": "v1_045", "key": "exam.race.facial", "value": 0, "role": "medic", "conf": 0.9186, "correct": true}
+{"id": "v1_045", "key": "exam.gfast.arm_leg", "value": 0, "role": "medic", "conf": 0.914, "correct": true}
+{"id": "v1_045", "key": "exam.race.arm", "value": 0, "role": "medic", "conf": 0.9267, "correct": true}
+{"id": "v1_045", "key": "exam.race.leg", "value": 0, "role": "medic", "conf": 0.9701, "correct": true}
+{"id": "v1_045", "key": "exam.gfast.speech", "value": 0, "role": "medic", "conf": 0.9676, "correct": true}
+{"id": "v1_045", "key": "exam.gfast.gaze", "value": 0, "role": "medic", "conf": 0.6208, "correct": true}
+{"id": "v1_045", "key": "exam.race.gaze", "value": 0, "role": "medic", "conf": 0.9932, "correct": true}
+{"id": "v1_047", "key": "ecg.twelve_lead_time", "value": "14:32", "role": "medic", "conf": 0.2528, "correct": true}
+{"id": "v1_048", "key": "meds.list", "value": ["enoxaparin"], "role": "medic", "conf": 0.9186, "correct": true}
+{"id": "v1_048", "key": "meds.anticoagulant", "value": "enoxaparin", "role": "medic", "conf": 0.6744, "correct": true}
+{"id": "v1_049", "key": "transport.destination", "value": "St. Joseph's", "role": "medic", "conf": 0.9689, "correct": true}
+{"id": "v1_049", "key": "transport.eta_min", "value": 22, "role": "medic", "conf": 0.994, "correct": true}
+{"id": "v1_051", "key": "patient.age", "value": 81, "role": "medic", "conf": 0.9984, "correct": true}
+{"id": "v1_051", "key": "patient.sex", "value": "M", "role": "medic", "conf": 0.9973, "correct": true}
+{"id": "v1_051", "key": "stroke.lkw", "value": "0630", "role": "medic", "conf": 0.9867, "correct": true}
+{"id": "v1_051", "key": "meds.list", "value": ["apixaban"], "role": "family", "conf": 0.9532, "correct": true}
+{"id": "v1_051", "key": "meds.anticoagulant", "value": "apixaban", "role": "family", "conf": 0.9936, "correct": true}
+{"id": "v1_051", "key": "vitals.sbp", "value": 196, "role": "medic", "conf": 0.9493, "correct": true}
+{"id": "v1_051", "key": "vitals.dbp", "value": 104, "role": "medic", "conf": 0.9963, "correct": true}
+{"id": "v1_051", "key": "vitals.glucose", "value": 118, "role": "medic", "conf": 0.9979, "correct": true}
+{"id": "v1_051", "key": "transport.destination", "value": "Regional", "role": "medic", "conf": 0.995, "correct": true}
+{"id": "v1_051", "key": "transport.eta_min", "value": 14, "role": "medic", "conf": 0.8649, "correct": true}
+{"id": "v1_052", "key": "patient.age", "value": 7, "role": "medic", "conf": 0.9948, "correct": true}
+{"id": "v1_052", "key": "patient.sex", "value": "M", "role": "medic", "conf": 0.965, "correct": true}
+{"id": "v1_052", "key": "vitals.spo2", "value": 91, "role": "medic", "conf": 0.906, "correct": true}
+{"id": "v1_052", "key": "vitals.hr", "value": 140, "role": "medic", "conf": 0.6718, "correct": true}
+{"id": "v1_054", "key": "stroke.deficits", "value": ["right arm drifts down"], "role": "medic", "conf": 0.607, "correct": true}
+{"id": "v1_054", "key": "exam.gfast.arm_leg", "value": 1, "role": "medic", "conf": 0.8183, "correct": true}
+{"id": "v1_054", "key": "exam.race.arm", "value": 1, "role": "medic", "conf": 0.6186, "correct": true}
+{"id": "v1_055", "key": "vitals.hr", "value": 42, "role": "medic", "conf": 0.9928, "correct": true}
+{"id": "v1_055", "key": "vitals.sbp", "value": 84, "role": "medic", "conf": 0.895, "correct": true}
+{"id": "v1_055", "key": "vitals.dbp", "value": 50, "role": "medic", "conf": 0.9028, "correct": true}
+{"id": "v1_055", "key": "vitals.consciousness", "value": "A", "role": "medic", "conf": 0.8582, "correct": true}
+{"id": "v1_056", "key": "complaint.chief", "value": "fall from ladder", "role": "bystander", "conf": 0.1284, "correct": true}
+{"id": "v1_057", "key": "stroke.deficits", "value": ["can't lift the left leg off the bed"], "role": "medic", "conf": 0.5882, "correct": true}
+{"id": "v1_057", "key": "exam.gfast.arm_leg", "value": 1, "role": "medic", "conf": 0.3948, "correct": true}
+{"id": "v1_057", "key": "exam.race.leg", "value": 2, "role": "medic", "conf": 0.3288, "correct": true}
+{"id": "v1_057", "key": "exam.race.arm", "value": 2, "role": "medic", "conf": 0.6933, "correct": true}
+{"id": "v1_058", "key": "allergies", "value": ["sulfa", "codeine"], "role": "medic", "conf": 0.9794, "correct": true}
+{"id": "v1_059", "key": "vitals.rr", "value": 28, "role": "medic", "conf": 0.9943, "correct": true}
+{"id": "v1_059", "key": "vitals.spo2", "value": 89, "role": "medic", "conf": 0.9417, "correct": true}
+{"id": "v1_059", "key": "vitals.on_oxygen", "value": true, "role": "medic", "conf": 0.4849, "correct": true}
+{"id": "v1_060", "key": "exam.gfast.gaze", "value": 1, "role": "medic", "conf": 0.5339, "correct": true}
+{"id": "v1_060", "key": "exam.race.gaze", "value": 1, "role": "medic", "conf": 0.7846, "correct": true}
+{"id": "v1_060", "key": "stroke.deficits", "value": ["doesn't recognize her left arm"], "role": "medic", "conf": 0.7421, "correct": true}
+{"id": "v1_062", "key": "vitals.glucose", "value": 84, "role": "medic", "conf": 0.9948, "correct": true}
+{"id": "v1_063", "key": "patient.age", "value": 62, "role": "medic", "conf": 0.998, "correct": true}
+{"id": "v1_063", "key": "patient.sex", "value": "F", "role": "medic", "conf": 0.992, "correct": true}
+{"id": "v1_063", "key": "stroke.deficits", "value": ["phasic right arm is flaccid"], "role": "medic", "conf": 0.4065, "correct": true}
+{"id": "v1_064", "key": "complaint.chief", "value": "pressure", "role": "medic", "conf": 0.3556, "correct": false}
+{"id": "v1_064", "key": "vitals.pain", "value": 8, "role": "medic", "conf": 0.862, "correct": false}
+{"id": "v1_065", "key": "complaint.chief", "value": "MVC", "role": "medic", "conf": 0.6782, "correct": true}
+{"id": "v1_065", "key": "trauma.mechanism", "value": "MVC, restrained driver, moderate front end damage, airbags deployed", "role": "medic", "conf": 0.0871, "correct": false}
+{"id": "v1_066", "key": "vitals.temp", "value": 39.5, "role": "medic", "conf": 0.9478, "correct": true}
+{"id": "v1_066", "key": "vitals.hr", "value": 130, "role": "medic", "conf": 0.9939, "correct": true}
+{"id": "v1_066", "key": "vitals.sbp", "value": 90, "role": "medic", "conf": 0.8766, "correct": true}
+{"id": "v1_066", "key": "vitals.dbp", "value": 60, "role": "medic", "conf": 0.9929, "correct": true}
+{"id": "v1_067", "key": "stroke.onset_witnessed", "value": true, "role": "family", "conf": 0.7984, "correct": true}
+{"id": "v1_067", "key": "symptom.onset", "value": "7:15", "role": "family", "conf": 0.4431, "correct": true}
+{"id": "v1_067", "key": "stroke.deficits", "value": ["couldn't get a word out"], "role": "family", "conf": 0.7581, "correct": true}
+{"id": "v1_068", "key": "vitals.spo2", "value": 88, "role": "medic", "conf": 0.9417, "correct": true}
+{"id": "v1_068", "key": "vitals.on_oxygen", "value": true, "role": "medic", "conf": 0.986, "correct": true}
+{"id": "v1_069", "key": "vitals.consciousness", "value": "U", "role": "medic", "conf": 0.8476, "correct": true}
+{"id": "v1_069", "key": "vitals.gcs_total", "value": 3, "role": "medic", "conf": 0.9973, "correct": false}
+{"id": "v1_069", "key": "vitals.glucose", "value": 29, "role": "medic", "conf": 0.9896, "correct": true}
+{"id": "v1_070", "key": "stroke.deficits", "value": ["dragging her left leg", "dropping things with her left hand"], "role": "family", "conf": 0.7267, "correct": true}
+{"id": "v1_070", "key": "symptom.onset", "value": "since this morning", "role": "family", "conf": 0.8468, "correct": true}
+{"id": "v1_072", "key": "ecg.attached", "value": true, "role": "medic", "conf": 0.9161, "correct": true}
+{"id": "v1_072", "key": "ecg.twelve_lead_time", "value": "10:47", "role": "medic", "conf": 0.9832, "correct": true}
+{"id": "v1_073", "key": "allergies", "value": [], "role": "medic", "conf": 0.999, "correct": true}
+{"id": "v1_073", "key": "meds.list", "value": ["levothyroxine", "amlodipine", "aspirin"], "role": "medic", "conf": 0.8998, "correct": true}
+{"id": "v1_074", "key": "transport.eta_min", "value": 18, "role": "medic", "conf": 0.9539, "correct": true}
+{"id": "v1_075", "key": "patient.age", "value": 79, "role": "medic", "conf": 0.9885, "correct": true}
+{"id": "v1_075", "key": "patient.sex", "value": "F", "role": "medic", "conf": 0.9722, "correct": true}
+{"id": "v1_075", "key": "stroke.deficits", "value": ["right sided facial droop", "aphasia"], "role": "medic", "conf": 0.8786, "correct": true}
+{"id": "v1_075", "key": "exam.gfast.facial", "value": 1, "role": "medic", "conf": 0.888, "correct": true}
+{"id": "v1_075", "key": "exam.race.facial", "value": 2, "role": "medic", "conf": 0.6485, "correct": true}
+{"id": "v1_075", "key": "exam.gfast.speech", "value": 1, "role": "medic", "conf": 0.9608, "correct": true}
+{"id": "v1_075", "key": "exam.race.aphasia_agnosia", "value": 2, "role": "medic", "conf": 0.5481, "correct": true}
+{"id": "v1_075", "key": "meds.list", "value": ["warfarin"], "role": "medic", "conf": 0.7737, "correct": true}
+{"id": "v1_075", "key": "meds.anticoagulant", "value": "warfarin", "role": "medic", "conf": 0.9691, "correct": true}
+{"id": "v1_075", "key": "stroke.lkw", "value": "9:15", "role": "medic", "conf": 0.9648, "correct": true}
+{"id": "v1_076", "key": "vitals.temp", "value": 35.2, "role": "medic", "conf": 0.8747, "correct": true}
+{"id": "v1_076", "key": "vitals.on_oxygen", "value": false, "role": "medic", "conf": 0.457, "correct": true}
+{"id": "v1_077", "key": "patient.age", "value": 72, "role": "medic", "conf": 0.9699, "correct": true}
+{"id": "v1_077", "key": "patient.sex", "value": "M", "role": "medic", "conf": 0.9895, "correct": true}
+{"id": "v1_077", "key": "stroke.deficits", "value": ["right facial droop", "slurred speech"], "role": "medic", "conf": 0.6809, "correct": true}
+{"id": "v1_077", "key": "exam.gfast.facial", "value": 1, "role": "medic", "conf": 0.8902, "correct": true}
+{"id": "v1_077", "key": "exam.race.facial", "value": 2, "role": "medic", "conf": 0.8422, "correct": true}
+{"id": "v1_077", "key": "exam.gfast.speech", "value": 1, "role": "medic", "conf": 0.9367, "correct": true}
+{"id": "v1_079", "key": "complaint.chief", "value": "shortness of breath", "role": "medic", "conf": 0.9628, "correct": true}
+{"id": "v1_079", "key": "symptom.onset", "value": "an hour ago", "role": "medic", "conf": 0.9786, "correct": true}
+{"id": "v1_079", "key": "meds.list", "value": ["furosemide", "apixaban"], "role": "medic", "conf": 0.7638, "correct": true}
+{"id": "v1_079", "key": "meds.anticoagulant", "value": "apixaban", "role": "medic", "conf": 0.7501, "correct": true}
+{"id": "v1_080", "key": "vitals.consciousness", "value": "C", "role": "medic", "conf": 0.2828, "correct": true}
+{"id": "v1_081", "key": "patient.age", "value": 34, "role": "medic", "conf": 0.9957, "correct": true}
+{"id": "v1_081", "key": "patient.sex", "value": "F", "role": "medic", "conf": 0.9953, "correct": true}
+{"id": "v1_081", "key": "complaint.chief", "value": "lower right abdominal pain", "role": "medic", "conf": 0.986, "correct": true}
+{"id": "v1_081", "key": "symptom.onset", "value": "since yesterday", "role": "medic", "conf": 0.9954, "correct": true}
+{"id": "v1_081", "key": "vitals.temp", "value": 37.6, "role": "medic", "conf": 0.6873, "correct": true}
+{"id": "v1_082", "key": "stroke.deficits", "value": ["numbness and tingling in her right hand and face"], "role": "medic", "conf": 0.4626, "correct": true}
+{"id": "v1_082", "key": "symptom.onset", "value": "20 minutes ago", "role": "medic", "conf": 0.9598, "correct": true}
+{"id": "v1_083", "key": "complaint.chief", "value": "fall off porch steps", "role": "bystander", "conf": 0.1005, "correct": true}
+{"id": "v1_083", "key": "trauma.mechanism", "value": "fell off the porch steps", "role": "bystander", "conf": 0.3909, "correct": false}
+{"id": "v1_085", "key": "complaint.chief", "value": "found down", "role": "medic", "conf": 0.4212, "correct": false}
+{"id": "v1_085", "key": "stroke.lkw", "value": "10 pm", "role": "bystander", "conf": 0.8235, "correct": true}
+{"id": "v1_086", "key": "vitals.hr", "value": 110, "role": "medic", "conf": 0.8088, "correct": true}
+{"id": "v1_087", "key": "vitals.temp", "value": 39.1, "role": "medic", "conf": 0.9498, "correct": true}
+{"id": "v1_087", "key": "vitals.rr", "value": 26, "role": "medic", "conf": 0.9986, "correct": true}
+{"id": "v1_087", "key": "vitals.spo2", "value": 93, "role": "medic", "conf": 0.9975, "correct": true}
+{"id": "v1_087", "key": "vitals.on_oxygen", "value": false, "role": "medic", "conf": 0.5288, "correct": true}
+{"id": "v1_088", "key": "complaint.chief", "value": "vomiting", "role": "family", "conf": 0.9197, "correct": true}
+{"id": "v1_088", "key": "symptom.onset", "value": "2 days", "role": "family", "conf": 0.8664, "correct": true}
+{"id": "v1_088", "key": "vitals.consciousness", "value": "U", "role": "medic", "conf": 0.7806, "correct": true}
+{"id": "v1_089", "key": "complaint.chief", "value": "passed out", "role": "medic", "conf": 0.8749, "correct": true}
+{"id": "v1_090", "key": "exam.gfast.arm_leg", "value": 1, "role": "medic", "conf": 0.616, "correct": true}
+{"id": "v1_090", "key": "stroke.deficits", "value": ["weaker on the right"], "role": "medic", "conf": 0.3162, "correct": true}
+{"id": "v1_091", "key": "vitals.consciousness", "value": "A", "role": "medic", "conf": 0.9504, "correct": true}
+{"id": "v1_092", "key": "procedures.done", "value": {"procedure": "spinal motion restriction", "detail": "c-collar", "by": "crew"}, "role": "medic", "conf": 0.5832, "correct": false}
+{"id": "v1_092", "key": "vitals.spo2", "value": 98, "role": "medic", "conf": 0.967, "correct": true}
+{"id": "v1_092", "key": "vitals.on_oxygen", "value": true, "role": "medic", "conf": 0.9933, "correct": true}
+{"id": "v1_092", "key": "vitals.rr", "value": 24, "role": "medic", "conf": 0.9898, "correct": true}
+{"id": "v1_093", "key": "exam.gfast.facial", "value": 1, "role": "medic", "conf": 0.7818, "correct": true}
+{"id": "v1_093", "key": "exam.race.facial", "value": 1, "role": "medic", "conf": 0.7368, "correct": true}
+{"id": "v1_093", "key": "exam.gfast.arm_leg", "value": 0, "role": "medic", "conf": 0.7548, "correct": true}
+{"id": "v1_093", "key": "exam.race.arm", "value": 0, "role": "medic", "conf": 0.7474, "correct": true}
+{"id": "v1_093", "key": "exam.race.leg", "value": 0, "role": "medic", "conf": 0.9735, "correct": true}
+{"id": "v1_093", "key": "exam.gfast.gaze", "value": 0, "role": "medic", "conf": 0.9805, "correct": true}
+{"id": "v1_093", "key": "exam.gfast.speech", "value": 1, "role": "medic", "conf": 0.5562, "correct": true}
+{"id": "v1_093", "key": "meds.list", "value": ["dabigatran"], "role": "family", "conf": 0.7334, "correct": true}
+{"id": "v1_093", "key": "meds.anticoagulant", "value": "dabigatran", "role": "family", "conf": 0.9591, "correct": true}
+{"id": "v1_093", "key": "vitals.glucose", "value": 94, "role": "medic", "conf": 0.973, "correct": true}
+{"id": "v1_093", "key": "vitals.sbp", "value": 178, "role": "medic", "conf": 0.9342, "correct": true}
+{"id": "v1_093", "key": "vitals.dbp", "value": 90, "role": "medic", "conf": 0.9904, "correct": true}
+{"id": "v1_093", "key": "vitals.consciousness", "value": "A", "role": "medic", "conf": 0.9827, "correct": true}
+{"id": "v1_094", "key": "meds.list", "value": ["aspirin"], "role": "patient", "conf": 0.9362, "correct": true}
+{"id": "v1_095", "key": "meds.given", "value": {"drug": "aspirin", "dose": 324.0, "route": "PO", "by": "crew"}, "role": "medic", "conf": 0.6399, "correct": false}
+{"id": "v1_095", "key": "meds.given", "value": {"drug": "nitroglycerin", "route": "SL", "by": "crew"}, "role": "medic", "conf": 0.8826, "correct": false}
+{"id": "v1_095", "key": "vitals.pain", "value": 5, "role": "medic", "conf": 0.9293, "correct": false}
+{"id": "v1_096", "key": "stroke.lkw", "value": "2:15", "role": "family", "conf": 0.9717, "correct": true}
+{"id": "v1_098", "key": "transport.destination", "value": "Good Sam", "role": "medic", "conf": 0.6723, "correct": true}
+{"id": "v1_098", "key": "transport.eta_min", "value": 11, "role": "medic", "conf": 0.9851, "correct": true}
+{"id": "v1_099", "key": "exam.gfast.speech", "value": 0, "role": "medic", "conf": 0.7596, "correct": true}
+{"id": "v1_099", "key": "exam.race.aphasia_agnosia", "value": 0, "role": "medic", "conf": 0.8045, "correct": true}
+{"id": "v1_099", "key": "exam.gfast.facial", "value": 0, "role": "medic", "conf": 0.83, "correct": true}
+{"id": "v1_099", "key": "exam.race.facial", "value": 0, "role": "medic", "conf": 0.9001, "correct": true}
+{"id": "v1_099", "key": "exam.gfast.arm_leg", "value": 1, "role": "medic", "conf": 0.8226, "correct": true}
+{"id": "v1_099", "key": "exam.race.arm", "value": 0, "role": "medic", "conf": 0.9696, "correct": true}
+{"id": "v1_099", "key": "exam.race.leg", "value": 1, "role": "medic", "conf": 0.2462, "correct": true}
+{"id": "v1_100", "key": "transport.destination", "value": "Regional", "role": "medic", "conf": 0.9576, "correct": true}
+{"id": "v1_100", "key": "transport.eta_min", "value": 10, "role": "medic", "conf": 0.9582, "correct": true}

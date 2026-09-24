@@ -1,7 +1,7 @@
 # The AI stack in HP's ZGX console terms (GET /api/stack). Status is computed live per component.
 models:
   - {id: openai/whisper-large-v3-turbo, component: stt, role: speech-to-text}
-  - {id: rajeev-chaurasia/herald-extractor-lora-merged-d (Qwen3-4B-Instruct-2507 + LoRA, run D), served_as: ems-d-fp8,
+  - {id: rajeev-chaurasia/herald-extractor-lora-merged-e2 (Qwen3-4B-Instruct-2507 + LoRA, run E v2), served_as: ems-e-v2-fp8,
      component: text_model, role: speech-to-facts extraction (fine-tuned on this box, served in FP8)}
   - {id: Qwen/Qwen3-VL-30B-A3B-Instruct-FP8 (Apache-2.0), served_as: qwen3vl-fp8, component: vision_model,
      role: photo reading (monitors, pill bottles, forms)}

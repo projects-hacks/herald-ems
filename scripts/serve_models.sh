@@ -3,9 +3,9 @@
 # (OpenAI-compatible, localhost only). Needs the `zrt` group. One GPU: start them one at a time.
 #   qwen3vl-fp8  Qwen3-VL-30B-A3B-Instruct FP8 (Apache-2.0): photo reading, protocol-figure transcription, passage
 #                choice. Chosen over Nemotron-3-Nano-Omni in a level bake-off (MODEL_PLAN §2a); `omni` stays available.
-#   ems-d-fp8  the fine-tuned extractor, run D (Qwen3-4B + merged LoRA, private HF repo), FP8 weights: speech -> facts
+#   ems-e-v2-fp8  the fine-tuned extractor, run E v2 (every call type + the call's dispatch) (Qwen3-4B + merged LoRA, private HF repo), FP8 weights: speech -> facts
 # Measured on the GB10: qwen3vl-fp8 ~3 min warm; omni cold start ~23 min (kernel compile, cached), warm ~3-8 min;
-# ems-d-fp8 ~3 min. ZRT checks *free* memory, so drop the page cache of big files first if it refuses
+# ems-e-v2-fp8 ~3 min. ZRT checks *free* memory, so drop the page cache of big files first if it refuses
 # (scripts: see AGENTS.md pitfalls).
 set -euo pipefail
 [ -f ~/.config/herald/secrets.env ] && set -a && . ~/.config/herald/secrets.env && set +a
@@ -21,6 +21,6 @@ if [ "$what" = omni ]; then                 # the previous vision model, for com
     --extra '--max-model-len=16384' --extra '--trust-remote-code' --extra '--limit-mm-per-prompt={\"image\":2,\"video\":0,\"audio\":0}'"
 fi
 if [ "$what" = all ] || [ "$what" = ems ]; then
-  sg zrt -c "HF_TOKEN=$HF_TOKEN zrt serve hf:${HF_REPO_ID}-merged-d --label ems-d-fp8 --gpu-memory-fraction 0.12 \
+  sg zrt -c "HF_TOKEN=$HF_TOKEN zrt serve hf:${HF_REPO_ID}-merged-e2 --label ems-e-v2-fp8 --gpu-memory-fraction 0.12 \
     --extra '--max-model-len=4096' --extra '--quantization=fp8'"
 fi

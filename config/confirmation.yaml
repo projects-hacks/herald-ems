@@ -7,7 +7,13 @@ confidence:
                                    # means something for the measure it was calibrated with
   top_logprobs: 5                  # alternatives per token (order_free needs them)
 calibration:
-  model: ems-d-fp8                 # recalibrate when the extraction model changes (eval/calibrate_confidence.py)
+  model: ems-e-v2-fp8              # recalibrate when the extraction model changes (eval/calibrate_confidence.py)
+  run_e_v2:                        # live from 2026-09-24 (team lead's decision); MODEL_PLAN §0i. Judged with the
+                                   # every-call gold too (--extra-gold eval/gold_v*_broad.jsonl)
+    dev_gold_v1: {facts: 286, wrong_facts: 6, auroc: 0.958, at_0_8: {auto_confirmed: 193, wrong: 0, coverage: 0.675}}
+    heldout_gold_v2: {facts: 327, wrong_facts: 17, auroc: 0.804, at_0_8: {auto_confirmed: 173, wrong: 1, coverage: 0.529,
+                      note: "the one: a family member's 'since yesterday' credited to the medic (a role, not a value)"}}
+    run_d_same_method: {dev: {auto_confirmed: 167, wrong: 1}, heldout: {auto_confirmed: 162, wrong: 5, wrong_facts: 38}}
   confidence: joint probability of the tokens that wrote the fact (herald/extraction/confidence.py)
   run_d:                           # live from 2026-09-23 evening PDT (team lead's decision); MODEL_PLAN §0h
     dev_gold_v1: {facts: 288, auroc: 0.885, at_0_8: {auto_confirmed: 169, wrong: 1, coverage: 0.587}}

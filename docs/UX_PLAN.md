@@ -7,7 +7,7 @@
 
 The team lead decided on 2026-09-24: "If the model is down, whole app is down, we cannot compromise quality… there is nothing like an app without AI… no regex rules." The backend implements this now, in `herald/api/capture.py` (`CaptureService.text`, `_extract`, `_hold`), `herald/api/routes/capture.py`, `herald/api/routes/system.py`, `herald/core/confirmation.py`, `herald/extraction/model.py`, `config/confirmation.yaml`, and `config/guard.yaml`. It is covered by `tests/test_trace.py`. Every section below that described the old behavior has been rewritten. What changes for the UI team:
 
-1. **There is no rules extractor in the product any more.** The fine-tuned extraction model (served label `ems-d-fp8`) is the only thing that turns speech into facts. There is no "rules fallback", no "rules only" mode, no merge of rules and model results, and no rules-mode setting. The old rules extractor lives only in `eval/baselines/`, as an evaluation baseline. Every RULES card section, "rules only" chip, and "the rules result stands" line in earlier drafts of this document is gone (§2.3, §3.1.3, §4.3).
+1. **There is no rules extractor in the product any more.** The fine-tuned extraction model (served label `ems-e-v2-fp8`) is the only thing that turns speech into facts. There is no "rules fallback", no "rules only" mode, no merge of rules and model results, and no rules-mode setting. The old rules extractor lives only in `eval/baselines/`, as an evaluation baseline. Every RULES card section, "rules only" chip, and "the rules result stands" line in earlier drafts of this document is gone (§2.3, §3.1.3, §4.3).
 2. **Words first, facts second, on the same card.** A speech entry is appended at once with the words, and `trace.model.status` is one of `running`, `off`, `unavailable`, or `skipped`. With `running`, the model's facts arrive on the **same entry `id`** when it finishes (`done`), or the entry records `error`. Until then the card shows the words and no facts, and the checklist, scores, alerts, and relay don't move (§4.2, §4.3).
 3. **`trace.rules` stays in the entry shape, but it is empty for speech and photos.** Speech always has `{ms: 0, facts: [], rejected: []}`, and photos always have `{ms: 0, facts: []}`. It still carries the monitor panel's readings (`POST /api/facts`). `trace.model.agreed_with_rules` and `trace.model.overridden_by_rules` are **removed**. Values refused as implausible are listed in `trace.model.rejected[]` (§4.1, §5.6).
 4. **Model not running means nothing is extracted.** `POST /api/transcript` and `POST /api/audio` return **HTTP 503**, with the reason in `detail`, when the extraction model isn't being served. The entry is still kept, because the words are evidence, and it carries `model.status = "unavailable"`. `GET /api/health` now has `llm_available` and `vision_available`: whether the model server is actually serving that label right now (checked against the server's model list, cached for about 5 s). `llm_model` is still the configured label even when it isn't served, so the header can name the missing model. The header's model chip uses `llm_available`, not `llm_model == null`, and "Extraction model not running" is a HIGH state, because nothing gets extracted (§2.3, §3.1.3, new §3.1.14).
@@ -66,7 +66,7 @@ Herald now works on trauma, sepsis and STEMI calls with the county's own criteri
 | Capture page | The phone camera page, `capture.html`. |
 | Fact | One typed, timestamped piece of patient information with provenance (`schema.Fact`). In the snapshot it is a `FactView`, which adds `label` and `unit`. |
 | F | The compact fact inside a trace card: `{id,key,label,value,role,speaker,status,confidence,extractor,code,relay,hold_reason}` (`TraceRecorder.fact_view` in `herald/api/trace.py`). |
-| Extraction model | The fine-tuned model that turns speech into facts, served by ZRT on this box under the label `ems-d-fp8` (`HERALD_LLM_MODEL`). It is the **only** speech extractor: there is no rules extractor in the product (change note, 2026-09-24). Photos are read by a separate vision model (`omni`, `HERALD_VISION_MODEL`). |
+| Extraction model | The fine-tuned model that turns speech into facts, served by ZRT on this box under the label `ems-e-v2-fp8` (`HERALD_LLM_MODEL`). It is the **only** speech extractor: there is no rules extractor in the product (change note, 2026-09-24). Photos are read by a separate vision model (`omni`, `HERALD_VISION_MODEL`). |
 | Confidence | For a model fact: the model's own probability for that fact, from 0 to 1, taken from the model server's token probabilities (`herald/extraction/confidence.py`). It says how sure the model was of what it wrote down, not whether the information is clinically true. For a photo fact: the vision model's own estimate. The exact measure is being re-calibrated, so the UI treats it only as "a number from 0 to 1 compared with the threshold". |
 | Auto-confirm threshold | The calibrated confidence at or above which a fact from the paramedic's own mic confirms itself. The value lives in `config/confirmation.yaml` (the team lead chose it; recalibrated whenever the extraction model changes) and is echoed on every finished speech entry as `trace.model.auto_confirm_threshold`. `HERALD_AUTO_CONFIRM` overrides it for testing. The UI never hard-codes it. |
 | Confirmed / unconfirmed / rejected | `schema.Status`, decided by `ConfirmationPolicy` (`herald/core/confirmation.py`). A fact confirms itself only if **all** of these hold: it came from the paramedic's own mic (`captured_by: "medic"`); its confidence is at or above the auto-confirm threshold; its key doesn't always need a tap (`require_tap` in `config/vocabulary.yaml`: code status); it doesn't contradict an earlier value of a contradiction key; and the guard didn't hold it. Everything else starts `unconfirmed` and needs one tap: other speakers, photos, code status, contradictions, held facts, and facts the model was less sure of. Monitor-panel readings (`captured_by: "device"`, confidence 0.99) confirm themselves. |
@@ -358,8 +358,8 @@ This principle turns existing team decisions into a design rule.
 - The capture page states its limits: "Reads digits, drug labels, checked boxes. Does not interpret ECGs."
 - Telemetry says "GPU power", not "SoC power", because only GPU power is readable on this box (§6).
 
-**Good:** `Model: ems-d-fp8 ✓ · Photos ✓ · Speech ✓ · Cloud AI calls 0 · ED link: weak (emulated)` · `▲ Extraction model not running (ems-d-fp8)`
-**Bad:** A green "AI ✓" that stays green when the model is down. A chip that says "Model: ems-d-fp8 ✓" because `llm_model` is set while the server doesn't serve it. "Model off · rules only" (there is no rules extractor). Telemetry labelled "SoC power" when it is GPU-only.
+**Good:** `Model: ems-e-v2-fp8 ✓ · Photos ✓ · Speech ✓ · Cloud AI calls 0 · ED link: weak (emulated)` · `▲ Extraction model not running (ems-e-v2-fp8)`
+**Bad:** A green "AI ✓" that stays green when the model is down. A chip that says "Model: ems-e-v2-fp8 ✓" because `llm_model` is set while the server doesn't serve it. "Model off · rules only" (there is no rules extractor). Telemetry labelled "SoC power" when it is GPU-only.
 
 ---
 ## 2. Visual system
@@ -770,7 +770,7 @@ Legend for the wireframes:
 
 ```
 +-----------------------------------------------------------------------------------------------------------------+
-| HERALD  Incident ...8f3a · started 14:12  Speech (v)  Model: ems-d-fp8 (v)  Photos (v)  Cloud AI calls 0  (i) ED link: weak (emulated)  14:41:07 |
+| HERALD  Incident ...8f3a · started 14:12  Speech (v)  Model: ems-e-v2-fp8 (v)  Photos (v)  Cloud AI calls 0  (i) ED link: weak (emulated)  14:41:07 |
 | 68 F · sudden left-sided weakness · Dispatch: possible stroke        LKW 13:40 (husband) +01:01:07   ETA 00:09:12  Scene 00:29:07 |
 | STROKE ALERT  [#][#][#][#][/][ ]  4 of 6   missing: Glucose +1     Repeat vitals in 00:03:10   /!\ 1   (i) ED: 2 queued |
 |  (v) Last known well  (v) Stroke scale (RACE)  (?) Anticoagulants · needs tap  (v) Onset witnessed  (v) Deficits  (o) Glucose |
@@ -808,7 +808,7 @@ Legend for the wireframes:
 |      [ Confirm ] [ Reject ]         |     disagree                        | | 14:40:12 [mic] other · daughter  | |
 |  (o) Glucose                        |   husband  none     14:31 [>]       | |   2.1 s [>]                 done | |
 |  (o) Medications · not yet asked    |   daughter aspirin  14:40 [>]       | | HEARD "Mom's allergic to aspirin."| |
-|  Repeat vitals in 00:03:10          |  [Use "none"] [Use "aspirin"]       | | MODEL ems-d-fp8 · 842 ms · 1 fact| |
+|  Repeat vitals in 00:03:10          |  [Use "none"] [Use "aspirin"]       | | MODEL ems-e-v2-fp8 · 842 ms · 1 fact| |
 | SCORES                              +-------------------------------------+ |  (?) Allergies = aspirin  0.97   | |
 |  NEWS2 2 low                    >>  | [ER status] Patient picture Trends  | |      daughter (family) · other   | |
 |  RACE 6 screen positive (>=5)   >>  |  [S] Pre-alert  Stroke alert 4/6 #6 | |      speaker: needs your tap     | |
@@ -841,7 +841,7 @@ ED offline (Shift+D)
 | ER STATUS footer: Local AI keeps working. Updates wait on this vehicle and send when the link returns.          |
 
 Extraction model not running (/api/health.llm_available == false, or a 503 from /api/transcript or /api/audio; §3.1.14)
-| header chip: [!] Extraction model not running (ems-d-fp8)                                                        |
+| header chip: [!] Extraction model not running (ems-e-v2-fp8)                                                        |
 | TICKER: [!] Extraction model not running · your words are saved on each card, nothing is extracted   [ Seen ]    |
 | NEEDS ATTENTION, SCORES, ALERT, ER STATUS: unchanged (existing facts stay; nothing new arrives)                  |
 
@@ -1228,7 +1228,7 @@ The interval comes from `HERALD_REASSESS_MIN` (default 10) and appears in the `r
 - Before extracting, `CaptureService.text` asks whether the extraction model is actually served (`TextModel.available()`: the pinned label must be in the model server's `/v1/models` list, cached for about 5 s; any label counts when none is pinned).
 - If it isn't, the entry is still appended, with the words, the audio (voice), and `trace.model = {status: "unavailable", reason: "the extraction model is not running: nothing extracted from these words (check `zrt status`)"}`. `fact_ids` is empty and `effects` lists nothing. The server broadcasts it on `/ws`.
 - `POST /api/transcript` and `POST /api/audio` then return **HTTP 503** with `{"detail": "<the same reason>"}`. The response body is not the entry: the card arrives through `/ws`, like every card.
-- `GET /api/health` reports `llm_available: false`. `llm_model` still names the configured label (e.g. `ems-d-fp8`), so the screen can say which model is missing.
+- `GET /api/health` reports `llm_available: false`. `llm_model` still names the configured label (e.g. `ems-e-v2-fp8`), so the screen can say which model is missing.
 - Nothing is extracted later. When the model comes back, the words already saved are not re-read: an `unavailable` entry never changes (§4.7). Anything that matters has to be said again, or typed in the presenter bar.
 
 **What the NOW screen shows** (HIGH, §2.3; team lead's decision: the app without the model is down):
@@ -1484,7 +1484,7 @@ This is TASKS P6.
 | 3 | Judge | Reads the card | The meter follows the judge's voice | ~2 s |
 | 4 | Presenter | Releases | "Transcribing… 0.3 s" | STT round trip 0.47 s for a 10.4 s clip (team measurement, TASKS checkpoint) |
 | 5 | — | — | Caption toast for 4 s (32 px on stage): Daughter: "Mom's allergic to aspirin." The new trace card appears at once with the words and "model checking…"; no fact exists yet. | < 1 s |
-| 6 | — | — | The model finishes on the same card: Allergies = aspirin, attributed to "daughter (family)", needs your tap. The alert slot pulses three times: `<>` CHECK "Allergies: sources disagree", with both sources and times | When the model finishes: `ems-d-fp8` p50 about 1.0 s, p95 about 2.5 s on the held-out set (team measurement, MODEL_PLAN §0h) |
+| 6 | — | — | The model finishes on the same card: Allergies = aspirin, attributed to "daughter (family)", needs your tap. The alert slot pulses three times: `<>` CHECK "Allergies: sources disagree", with both sources and times | When the model finishes: `ems-e-v2-fp8` p50 about 1.0 s, p95 about 2.5 s on the held-out set (team measurement, MODEL_PLAN §0h) |
 | 7 | Presenter | Taps `[ > Play ]` on the daughter row | The judge's own audio plays from the Nano | — |
 | 8 | Presenter | Says: "Your voice stays on this box and is deleted after the demo." | — | — |
 | 9 | Presenter | Taps `[ Use "aspirin" · daughter ]` | ER row: "Allergies: aspirin · Queued", then "Sent · #n". The ED screen shows "Allergies aspirin" with the "new" highlight. | ≤ 2 s on a good link |
@@ -1575,7 +1575,7 @@ Every entry in `state.transcripts[]` (the snapshot keeps the last 20) has these 
 |---|---|
 | `status` | One of six values (table below). Set when the entry is created; only `running` ever changes (to `done` or `error`). |
 | `reason` | Why the model did not extract. Present on `off`, `unavailable`, and `skipped`, and on monitor-panel `off` entries. Backend wording, shown in explain mode only; the card uses its own copy (§4.3). |
-| `name` | The served label, e.g. `ems-d-fp8` for speech or `omni` for photos. Present on `running`, `done`, and `error`. **Absent on `off`, `unavailable`, and `skipped`**: for `unavailable`, take the name from `/api/health.llm_model`. |
+| `name` | The served label, e.g. `ems-e-v2-fp8` for speech or `omni` for photos. Present on `running`, `done`, and `error`. **Absent on `off`, `unavailable`, and `skipped`**: for `unavailable`, take the name from `/api/health.llm_model`. |
 | `ms` | Model time, on `done` and `error` |
 | `tokens` | Completion tokens (speech `done` only; may be null) |
 | `proposed` | Speech `done` only. How many rows the model returned that passed the vocabulary and grounding checks. `proposed = facts.length + rejected.length`. Rows dropped before this count are **not listed anywhere** in the trace (they are not `rejected[]`): an unknown key, a null or filler value ("unknown", "n/a"), a key whose required words weren't said (e.g. a RACE item from "sudden left-sided weakness"), or, for SBP, DBP, HR, RR, SpO2, glucose, and ETA, a number that wasn't actually said, as digits or as spoken words ("one sixty over ninety" → 160, 90). Rules in `config/grounding.yaml`, code in `herald/extraction/grounding.py`. |
@@ -1640,8 +1640,8 @@ Live relay state comes from `state.ed_sync[key]` (`sent` or `queued`) and `state
    - `skipped`: only with `guard_policy = skip_model` and instruction-shaped words.
    The server broadcasts at once, so the card appears immediately, with no facts. For `running`, `off`, and `skipped` the POST returns 200 `{transcript: <entry>, facts: []}`: the response never carries facts, because they arrive later on `/ws`.
 5. For `running`, the model runs in the background. It is the only extractor, so **no fact from these words exists until it finishes**: the checklist, scores, alerts, and relay don't change before then.
-   - `ems-d-fp8` (the live extraction model) on the held-out gold set: p50 about 1.0 s, p95 2.45–2.58 s (team measurement, MODEL_PLAN §0h, 3 runs).
-   - For reference, **measured on this box** with `zrt metrics display` on 2026-09-23 for `omni` (which extracted speech then and reads photos now; all requests since service start, including benchmarks): end-to-end p50 0.79 s, p90 1.98 s, p99 4.53 s. The same measurement for `ems-d-fp8` on the live server has not been taken (**unverified** on this box).
+   - `ems-e-v2-fp8` (the live extraction model) on the held-out gold set: p50 about 1.0 s, p95 2.45–2.58 s (team measurement, MODEL_PLAN §0h, 3 runs).
+   - For reference, **measured on this box** with `zrt metrics display` on 2026-09-23 for `omni` (which extracted speech then and reads photos now; all requests since service start, including benchmarks): end-to-end p50 0.79 s, p90 1.98 s, p99 4.53 s. The same measurement for `ems-e-v2-fp8` on the live server has not been taken (**unverified** on this box).
 6. The same entry (same `id`) is updated to `done` (facts, `effects`, `auto_confirm_threshold`) or `error` (nothing extracted), and the server broadcasts again. Each fact's status is decided by the confirmation policy as it is ingested (§4.4a).
 
 **Typed or replay text** (`POST /api/transcript`, as used by the presenter bar and `scripts/replay.py`): the same as voice, but without `audio_id` or `stt`. `scripts/replay.py --no-llm` posts `use_llm: false`, which now gives `off` entries with **no facts at all**, because there is no other extractor. (The script's help text still says "rules extractor only"; that is out of date.)
@@ -1675,7 +1675,7 @@ Live relay state comes from `state.ed_sync[key]` (`sent` or `queued`) and `state
 |       [ > Play ] 2.1 s             model checking… |
 | HEARD                                              |
 |  "Mom's allergic to aspirin."                      |
-| MODEL  ems-d-fp8 · checking… 0.9 s                 |
+| MODEL  ems-e-v2-fp8 · checking… 0.9 s                 |
 |        No facts yet: nothing from these words      |
 |        counts until the model finishes.            |
 | CHECKED  waiting for the model                     |
@@ -1686,13 +1686,13 @@ Live relay state comes from `state.ed_sync[key]` (`sent` or `queued`) and `state
 
 **b) Voice, model done, facts added** (the medic's own mic: one fact confirmed itself, one waits)
 ```
-| MODEL  ems-d-fp8 · 842 ms · 38 tokens · 2 facts    |
+| MODEL  ems-e-v2-fp8 · 842 ms · 38 tokens · 2 facts    |
 |  (v) Deficits described = left arm, left leg       |
-|      medic · Model (ems-d-fp8) · 0.97 · confirmed  |
+|      medic · Model (ems-e-v2-fp8) · 0.97 · confirmed  |
 |      [S] Sent to the ED · packet #6 · 419 B ·      |
 |          acked in 212 ms                           |
 |  (?) Onset witnessed = yes                         |
-|      medic · Model (ems-d-fp8) · 0.62 · needs tap  |
+|      medic · Model (ems-e-v2-fp8) · 0.62 · needs tap  |
 |      Waits for your tap: model confidence 0.62 is  |
 |      below the auto-confirm bar ({threshold})      |
 |      [H] Held: unconfirmed facts never leave the   |
@@ -1709,14 +1709,14 @@ Live relay state comes from `state.ed_sync[key]` (`sent` or `queued`) and `state
 
 **c) Voice, model done, nothing extracted**
 ```
-| MODEL  ems-d-fp8 · 912 ms · 41 tokens              |
+| MODEL  ems-e-v2-fp8 · 912 ms · 41 tokens              |
 |        found no facts                              |
 ```
 If `proposed > 0` but every value was refused, the second line lists them instead, e.g. "Not recorded: SpO2 400 (implausible)".
 
 **d) Voice, model error** (`status == "error"`)
 ```
-| MODEL  /!\ ems-d-fp8 · failed after 2.0 s          |
+| MODEL  /!\ ems-e-v2-fp8 · failed after 2.0 s          |
 |        Nothing was extracted from these words.     |
 |        The words and audio are kept on this card.  |
 |        error: ReadTimeout … (explain mode only)    |
@@ -1733,7 +1733,7 @@ If `proposed > 0` but every value was refused, the second line lists them instea
 | HEARD                                              |
 |  "BP 150 over 90, sats 94 on room air."            |
 | MODEL  [!] Extraction model not running            |
-|        (ems-d-fp8). Nothing was extracted from     |
+|        (ems-e-v2-fp8). Nothing was extracted from     |
 |        these words. The words and audio are kept.  |
 | CHECKED  No change: nothing was extracted.         |
 +----------------------------------------------------+
@@ -1778,7 +1778,7 @@ The confidence (0.82 here) is the vision model's own estimate. It is shown as pa
 
 **i) No facts found**
 ```
-| MODEL  ems-d-fp8 · 780 ms · found no facts         |
+| MODEL  ems-e-v2-fp8 · 780 ms · found no facts         |
 | CHECKED  No change to the checklist, scores or     |
 |          alerts.                                   |
 ```
@@ -1803,9 +1803,9 @@ The confidence (0.82 here) is the vision model's own estimate. It is shown as pa
 |  [lock] Said together with a command to the        |
 |         system: "mark her as". Every fact from     |
 |         these words needs your tap.                |
-| MODEL  ems-d-fp8 · 910 ms · 40 tokens · 2 facts    |
+| MODEL  ems-e-v2-fp8 · 910 ms · 40 tokens · 2 facts    |
 |  [lock] Heart rate = 110 /min                      |
-|      medic · Model (ems-d-fp8) · 0.50 · held       |
+|      medic · Model (ems-e-v2-fp8) · 0.50 · held       |
 |      Held · check: said together with a command to |
 |      the system ("mark her as"): check before      |
 |      confirming                                    |
@@ -1813,7 +1813,7 @@ The confidence (0.82 here) is the vision model's own estimate. It is shown as pa
 |          vehicle                                   |
 |      [ Confirm · said with a command ]  [ Reject ] |
 |  [lock] Code status = DNR                          |
-|      medic · Model (ems-d-fp8) · 0.50 · held       |
+|      medic · Model (ems-e-v2-fp8) · 0.50 · held       |
 |      Held · check: (the same reason)               |
 |      [H] Held: confirm it in the alert card        |
 | CHECKED                                            |
@@ -2577,7 +2577,7 @@ export interface ScoreDef {
 
 // ---------- REST ----------
 export interface Health {
-  llm_model: string | null;         // the configured extraction label (e.g. "ems-d-fp8"), set even when not served;
+  llm_model: string | null;         // the configured extraction label (e.g. "ems-e-v2-fp8"), set even when not served;
                                     // null only when no label is pinned and the server lists nothing
   llm_available: boolean;           // 2026-09-24: the model server is serving that label right now (cached ~5 s)
   vision_model: string | null;      // the photo model label (e.g. "omni")
@@ -3506,7 +3506,7 @@ Every task ships. There is no cut list: the build order below sequences the work
 
 **T−60 min: the system**
 - [ ] ZRT model shows **Ready** in `sg zrt -c "zrt status"`. Don't restart it: the first start takes about 23 min (AGENTS.md pitfall).
-- [ ] The header shows "Model: ems-d-fp8 ✓" and "Photos ✓" (`/api/health`: `llm_available` and `vision_available` both true). There is no fallback extractor: if the model isn't served, nothing said on stage becomes a fact.
+- [ ] The header shows "Model: ems-e-v2-fp8 ✓" and "Photos ✓" (`/api/health`: `llm_available` and `vision_available` both true). There is no fallback extractor: if the model isn't served, nothing said on stage becomes a fact.
 - [ ] Send one warm-up extraction: a typed "BP 120 over 80" in the presenter bar. The trace shows MODEL "done", and the facts confirm themselves (medic, confident).
 - [ ] Speech is loaded: the header shows "Speech ✓".
 - [ ] Toxiproxy is up (`scripts/link.sh start …`). Presenter bar → Link → Good. The ED screen answers `/ping`.

@@ -38,11 +38,13 @@ The extraction gold set (gold v2) is 100 utterances and 320 facts, written and l
 | hand-written rules | 0.444 | 0.80 | 0.31 | 0.83 | — | <1 ms |
 | Nemotron-3-Nano-Omni 30B-A3B (prompted) | 0.661 | 0.69 | 0.63 | 0.84 | — | 0.95 / 1.9 s |
 | fine-tuned Qwen3-4B, run C | 0.885 | 0.90 | 0.88 | 0.96 | 0.79 | 1.0 / 2.3 s |
-| **fine-tuned Qwen3-4B, run D, FP8 (live)** | **0.916** | **0.93** | **0.90** | **0.96** | **0.92** | 1.0 / 2.6 s |
+| fine-tuned Qwen3-4B, run D | 0.916 | 0.93 | 0.90 | 0.96 | 0.92 | 1.0 / 2.6 s |
+| **fine-tuned Qwen3-4B, run E v2, FP8 (live)** | **0.950** | **0.96** | **0.94** | **0.97** | **0.96** | 1.1–1.5 / 2.4–3.1 s |
 
 - **Adversarial speech:** 40 unseen attacks (instruction injection, role spoofing, advice stuffing, garbage input). The fine-tuned extractor passes 24/40 (run C: 25/40); no other extractor tested passes more. Facts said together with a command to the system are held for the medic's tap, with the reason shown.
-- **Confidence:** a fact confirms itself only at the model's own probability ≥ 0.8. On held-out data that is 162 of 324 medic facts (50%), 5 of them wrong; one of those is clinically meaningful (a subtle facial droop scored RACE 2 instead of 1). The rest wait for one tap.
+- **Confidence:** a fact confirms itself only at the model's own probability ≥ 0.8. On held-out data that is 173 of 327 medic facts (53%), 1 of them wrong (a role, not a value). The rest wait for one tap.
 - **Drug names → RxNorm:** brands, retired brands, misspellings and combinations are coded to RxNorm on the box (class allergies such as "sulfa" to ICD-10-CM). Held-out gold v2, live model, same predictions with and without coding: drug-name precision 0.933 → 0.956, recall 0.850 → 0.871; 200 facts fixed and 0 lost across 42 saved runs. A name matched only by spelling or sound waits for a tap (MODEL_PLAN §0j).
+- **Every call type:** medications given, procedures, pain, GCS, EtCO2, trauma mechanism/injuries/criteria, suspected infection and 12-lead findings: F1 0.84 on a held-out every-call set (100 utterances, two blind annotators).
 - **Local only:** every model runs on the box and loads from local folders; a running server makes no outbound connections (checked). The only network use is the county protocol sync and the ED relay, when a link exists.
 - **Protocol lookup** (the county's 32 current documents: stroke, sepsis, trauma, shock, chest pain, overdose, falls, hemorrhage control, pediatrics, destinations, radio reports and center standards):
   - all 1,746 numbered sections recovered, none spurious, against an answer key built with CPU tools only;
@@ -89,8 +91,8 @@ monitor panel       ─┘           trends · clocks · NEWS2 · RACE · G.F.A.
 # on the ZGX Nano, in the `zgx` conda env (torch 2.14 + CUDA 13)
 pip install -r requirements.txt
 python scripts/build_rxnorm_index.py         # RxNorm drug-name index (public NLM download + RxNav brand names) -> data/terminology/
-scripts/serve_models.sh                       # qwen3vl-fp8 (photos) + ems-d-fp8 (extraction) via HP Z Runtime on :8080
-HERALD_LLM_MODEL=ems-d-fp8 HERALD_VISION_MODEL=qwen3vl-fp8 PORT=8100 scripts/run_dev.sh
+scripts/serve_models.sh                       # qwen3vl-fp8 (photos) + ems-e-v2-fp8 (extraction) via HP Z Runtime on :8080
+HERALD_LLM_MODEL=ems-e-v2-fp8 HERALD_VISION_MODEL=qwen3vl-fp8 PORT=8100 scripts/run_dev.sh
 ```
 
 Open `http://localhost:8100`. Browsers only allow the microphone on `localhost` or HTTPS, so from a laptop, forward the port first (`ssh -L 8100:localhost:8100 <user>@<nano>`). Hold **Space** to talk as the medic, and **F** for a patient or family member.

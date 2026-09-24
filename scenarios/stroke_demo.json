@@ -1,53 +1,58 @@
 {
-  "name": "Stroke demo (matches the pitch script)",
-  "note": "Replace LKW_TIME with a time about 60-70 minutes before the run; replay.py does this automatically. Santa Clara County (700-A13): the exam line states all four G.F.A.S.T. findings; the medic confirms them (model-only facts need a tap); 4 of 4 routes to a Comprehensive Stroke Center, and Regional (RSJ) is one in Policy 602 Table B.",
-  "steps": [
-    {
-      "incident": "possible stroke",
-      "pause": 3
-    },
-    {
-      "say": "68-year-old female, sudden left-sided weakness, husband says she was fine at LKW_TIME.",
-      "pause": 4
-    },
-    {
-      "say": "Mild left facial droop, left arm and leg can't lift, eyes deviated to the right, speech is slurred, no agnosia.",
-      "pause": 4
-    },
-    {
-      "confirm": "exam.gfast.",
-      "pause": 2,
-      "note": "the medic taps the four G.F.A.S.T. items the model heard"
-    },
-    {
-      "say": "Onset was witnessed. BP 182 over 104, pulse 92, SpO2 95 on room air, respirations 18, temp 37.1, alert.",
-      "pause": 4
-    },
-    {
-      "say": "She takes warfarin.",
-      "pause": 3
-    },
-    {
-      "say": "Glucose 142.",
-      "pause": 4
-    },
-    {
-      "say": "Husband says no allergies.",
-      "pause": 3
-    },
-    {
-      "say": "Mom is allergic to aspirin.",
-      "by": "other",
-      "speaker": "daughter",
-      "pause": 4
-    },
-    {
-      "say": "Pulse 104, breathing 22, sat 94, temp 38.4.",
-      "pause": 4
-    },
-    {
-      "say": "Transporting to Regional, ETA 12 minutes.",
-      "pause": 1
-    }
-  ]
+ "name": "Stroke demo (matches the pitch script)",
+ "note": "Replace LKW_TIME with a time about 60-70 minutes before the run; replay.py does this automatically. Santa Clara County (700-A13): the exam line states all four G.F.A.S.T. findings; the medic confirms them (model-only facts need a tap); 4 of 4 routes to a Comprehensive Stroke Center, and Regional (RSJ) is one in Policy 602 Table B. With run E v2 every stroke-alert item is extracted; the ones below the confidence bar get the scripted taps.",
+ "steps": [
+  {
+   "incident": "possible stroke",
+   "pause": 3
+  },
+  {
+   "say": "68-year-old female, sudden left-sided weakness, husband says she was fine at LKW_TIME.",
+   "pause": 4
+  },
+  {
+   "say": "Mild left facial droop, left arm and leg can't lift, eyes deviated to the right, speech is slurred, no agnosia.",
+   "pause": 4
+  },
+  {
+   "confirm": "exam.gfast.",
+   "pause": 2,
+   "note": "the medic taps the four G.F.A.S.T. items the model heard"
+  },
+  {
+   "say": "Onset was witnessed. BP 182 over 104, pulse 92, SpO2 95 on room air, respirations 18, temp 37.1, alert.",
+   "pause": 4
+  },
+  {
+   "confirm": "stroke.",
+   "pause": 2,
+   "note": "the medic taps last known well, onset witnessed and deficits (the model held them below the 0.8 bar)"
+  },
+  {
+   "say": "She takes warfarin.",
+   "pause": 3
+  },
+  {
+   "say": "Glucose 142.",
+   "pause": 4
+  },
+  {
+   "say": "Husband says no allergies.",
+   "pause": 3
+  },
+  {
+   "say": "Mom is allergic to aspirin.",
+   "by": "other",
+   "speaker": "daughter",
+   "pause": 4
+  },
+  {
+   "say": "Pulse 104, breathing 22, sat 94, temp 38.4.",
+   "pause": 4
+  },
+  {
+   "say": "Transporting to Regional, ETA 12 minutes.",
+   "pause": 1
+  }
+ ]
 }

@@ -273,6 +273,58 @@ Apache-2.0 vision alternatives exist (Qwen3-VL-8B-Instruct, Qwen3-VL-30B-A3B-Ins
 2. **Next run gives the model the call context** (the dispatch / working impression, as the app already knows it), with new annotated lines in stroke and non-stroke contexts, instead of relaxing the labeling rule or rephrasing the demo.
 3. For the vision comparison, the extraction model we don't keep is unloaded to free GPU memory.
 
+## 0i. Run E: every call type and the call's dispatch (Thu 2026-09-24, night PDT)
+
+**Why.** The team lead set the scope to a copilot for every EMS call, not only strokes (TASKS decisions). Run D missed "Onset was witnessed" in the pitch scenario because the labeling rule "stroke facts only for stroke-like presentations" was applied one utterance at a time, and the model can't know it is a stroke call. Run E gives the model the call's dispatch (the first input line, `[dispatch: possible stroke]`, from the incident) and "who is speaking" (`[paramedic speaking]`), and teaches the every-call fact types.
+
+**What changed** (details in LABELING_GUIDE §4c "From run E on", §4e, §5b):
+- Vocabulary: records for events (`meds.given` with drug, dose, unit, route, time, who, count; `procedures.done`), pain, GCS eye/verbal/total, EtCO2, pregnancy weeks, trauma mechanism, injuries and criteria (a controlled list mapped to Policy 605), suspected infection, 12-lead reads STEMI and transmitted. 49 keys (was 35).
+- Data: batches 16–20 (750 lines: stroke dispatch without symptom words, other-dispatch contrasts, medical, trauma, handoffs), labels for the new keys on 228 older lines and trauma/ECG labels on 110, all from independent annotators who saw only the guide and the vocabulary. 3,340 training rows after dropping 55 that share an 8-word run with any gold set.
+- Gold for measuring it: the new keys on v1/v2 (two blind annotators, agreement 0.986/0.993), gold v3 (100 utterances, every call type, 31 dispatch kinds; agreement 0.993 main / 0.955 new keys) and gold_ctx (60 utterances testing the dispatch rule; agreement 1.000). `eval/README_broad_gold.md`.
+- Tooling: the trainer now refuses to offload layers to disk and reclaims the GB10's page cache first (`--reclaim-gib`); the first attempt had loaded part of the model onto disk because the new vision model's files filled the cache.
+
+**Run E v1 results** (3 runs each; v1/v2 have no dispatch, so they run as "unknown"):
+
+| | Run D (live) | Run E v1 |
+|---|---|---|
+| held-out v2: F1 / P / R | **0.916** / 0.926 / 0.905 | 0.907 / **0.947** / 0.871 |
+| held-out v2: G.F.A.S.T. F1 | **0.923** | 0.873 |
+| held-out v2: new keys F1 | — | 0.68–0.69 |
+| dev v1: F1 / G.F.A.S.T. | **0.941–0.945** / **0.937** | 0.923 / 0.883 |
+| every-call v3: F1 / new keys / G.F.A.S.T. | 0.911 / 0.02 / **0.873** | **0.923 / 0.848** / 0.83–0.85 |
+| dispatch set: F1 / G.F.A.S.T. / new keys | 0.903 / 0.788 / 0 | 0.904 / **0.862** / **0.929** |
+| dispatch set, onset + LKW with a stroke dispatch and no symptom words (26) | 14 right, 2 wrong | **17 right, 1 wrong** |
+| dispatch set, stroke facts wrongly given on other-dispatch "tempting" lines | 6 | **0** |
+
+**The flaw, found on the dev set.** Run E v1 dropped stroke-exam items when the dispatch was unknown: "RACE is face two, arm two, leg one…" lost every RACE item with no dispatch, and kept them under "possible stroke" or even "fall". Cause: the data builder gave every older stroke-labeled line a stroke dispatch and gave "unknown" only to non-stroke lines, so the model learned "unknown dispatch → no stroke facts". The rule is the opposite: stroke signs described in the words count under any dispatch. Genuine, not noise (identical over 3 runs; confirmed directly on single utterances), and a flaw in our data, not the model.
+
+**Fix (run E v2):** older stroke-labeled lines get a mix of dispatches (stroke 50%, unknown 25%, other 25%; `config/training.yaml` `stroke_labeled_mix`): 337 / 166 / 163 of 666. Lines written for a stroke dispatch keep theirs. Same recipe; dev loss 0.172 → 0.095, no NaN, 22.9 GiB peak. Served as `ems-e-v2-fp8`.
+
+**Run E v2 results** (3 runs each; P(worse) from a paired bootstrap over utterances, 5,000 resamples, the scorer's own counts):
+
+| | Run D | **Run E v2 (live)** |
+|---|---|---|
+| **held-out v2: F1** / P / R / who said it | 0.916 / 0.926 / 0.905 / 0.958 | **0.948–0.952** / 0.961–0.965 / 0.936–0.939 / 0.972–0.976 |
+| held-out v2: difference in F1 | | **+0.032, 95% CI [+0.013, +0.053], P = 0.001** |
+| held-out v2: G.F.A.S.T. F1 | 0.923 | **0.961** (+0.038, CI [0.000, +0.119]) |
+| held-out v2: new keys F1 | — | 0.718 |
+| dev v1: F1 / G.F.A.S.T. / new keys | 0.945 / 0.937 / — | **0.967 / 0.950 / 0.879** |
+| every-call v3: F1 / new keys / G.F.A.S.T. | 0.911 / 0.02 / 0.873 | **0.922–0.928 / 0.84 /** 0.83–0.87 |
+| dispatch set: F1 / G.F.A.S.T. / new keys | 0.903 / 0.788 / 0 | **0.918 / 0.896 / 0.963** |
+| confidence at 0.8, held-out (judged with the new-key gold too) | 162 of 322 auto-confirmed, 5 wrong; 38 wrong facts in all | **173 of 327, 1 wrong** (a role); **17** wrong facts in all |
+| confidence at 0.8, dev | 167 of 287, 1 wrong | **193 of 286, 0 wrong**; AUROC 0.958 |
+| adversarial v1 / v2 | 22/25 · 24/40 | 19/25 · 24/40 |
+| latency p50 / p95: held-out · every-call | 1.03 / 2.58 s · 1.83 / 3.56 s | 1.14–1.46 / 2.35–3.10 s · 2.52–2.83 / 3.53–5.18 s |
+
+- **Genuine:** the held-out gain is significant and matches dev; the fix did what it was meant to (RACE items kept with no dispatch).
+- **Costs:**
+  - Median latency on long multi-fact lines rises by about 0.7 s, because it writes more facts (108 vs 86 output tokens on v3).
+  - Three adversarial items regress: two injected "DNR"s, and a bystander's "give her 325 aspirin" recorded as a dose given. In the app all three still wait for a tap (code status always does; bystander facts always do; the guard holds instruction-shaped speech). The aspirin one is a real understanding error to fix with data.
+- **Measurement flaw found and fixed:** the first calibration counted correct new-key facts ("GCS 14, E4 V4 M6") as wrong, because it judged only against the main gold. `eval/calibrate_confidence.py --extra-gold` now adds the every-call gold. All numbers above use it, for both models.
+- **Pitch scenario:** every stroke-alert item is extracted, "Onset was witnessed" included (run D never got it). Last known well, onset and deficits come in below the 0.8 bar, so the script has a tap step: Stroke alert 6/6, NEWS2 5, RACE 6, G.F.A.S.T. 4 of 4.
+
+**Decision (team lead, 2026-09-24): run E v2 is live** (`ems-e-v2-fp8` on :8100; `scripts/serve_models.sh`; `config/confirmation.yaml`). Run D stays cached and loaded for rollback and for teammates' clones.
+
 ## 0j. Medication and allergy coding with RxNorm (S6 / B4, 2026-09-24; contract UX_PLAN §5.9d)
 Drug and allergen names are coded to RxNorm, replacing the hand-typed anticoagulant word list. Class allergies are coded to ICD-10-CM.
 - **Code:** `herald/terminology/` (`rxnorm.py`, `allergy.py`, `coding.py`, `factory.py`).

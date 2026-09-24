@@ -31,8 +31,8 @@ THRESHOLDS = [0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.93, 0.95, 0.97, 0.98, 0.99]
 
 def correct(f, gold_facts) -> bool:
     if f.key in FREE_TEXT:
-        return any(k == f.key and r == f.role.value for k, v, r in gold_facts)
-    g = atoms([tuple(x) for x in gold_facts if x[0] == f.key])
+        return any(x[0] == f.key and x[2] == f.role.value for x in gold_facts)
+    g = atoms([tuple(x[:3]) for x in gold_facts if x[0] == f.key])
     mine = atoms([(f.key, f.value, f.role.value)])
     return bool(mine) and all(a in g and g[a] == r for a, r in mine.items())
 
@@ -67,6 +67,9 @@ def main():
     ap.add_argument("--threshold", type=float, default=None, help="report this threshold (held-out verification)")
     ap.add_argument("--dump", default=None)
     ap.add_argument("--gfast-gold", default=None, help="G.F.A.S.T. labels for the same set (they live in a separate file)")
+    ap.add_argument("--extra-gold", action="append", default=[], metavar="FILE",
+                    help="more labels for the same set in {id, facts} files (e.g. eval/gold_v2_broad.jsonl); a fact the "
+                         "model gets right for a key labeled only there must not count as wrong")
     ap.add_argument("--mode", default="joint", choices=["joint", "value", "order_free", "min", "mean"])
     a = ap.parse_args()
     if not a.model and not a.rescore:
@@ -91,11 +94,16 @@ def main():
             return x.extract(g["text"], CapturedBy.medic, Role.medic, g.get("speaker"), dispatch=g.get("dispatch"))
     gfast = ({d["id"]: [x[:3] for x in d["gfast"]] for d in map(json.loads, open(a.gfast_gold))}
              if a.gfast_gold else None)
+    extra: dict = {}
+    for path in a.extra_gold:
+        for d in map(json.loads, open(path)):
+            extra.setdefault(d["id"], []).extend(x[:3] for x in d.get("facts", []))
     records = []
     for line in open(a.gold):
         g = json.loads(line)
         if gfast is not None:
             g["facts"] = g["facts"] + gfast.get(g["id"], [])
+        g["facts"] = [x[:3] for x in g["facts"]] + extra.get(g["id"], [])
         if g.get("by", "medic") != "medic":
             continue
         for f in extract(g):
