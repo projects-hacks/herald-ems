@@ -13,6 +13,9 @@ calibration:
     dev_gold_v1: {facts: 288, auroc: 0.885, at_0_8: {auto_confirmed: 169, wrong: 1, coverage: 0.587}}
     heldout_gold_v2: {facts: 324, auroc: 0.829, at_0_8: {auto_confirmed: 162, wrong: 5, coverage: 0.500,
                       note: "one clinically meaningful: a 'pretty subtle' facial droop scored RACE 2 (should be 1); the others a plural spelling, a role, a family-reported screen item, and 93.2 F as 33.9 C instead of 34.0 C"}}
+  # Drug coding (RxNorm, MODEL_PLAN §0j) re-checked on the same saved facts (--rescore --terminology on): dev 290 facts,
+  # 169 auto / 1 wrong; held-out 324, 162 / 5. Unchanged: run D writes generic names, so no fact is held for a match.
+  drug_coding_recheck: {dev_gold_v1: {auto_confirmed: 169, wrong: 1}, heldout_gold_v2: {auto_confirmed: 162, wrong: 5}}
   run_c:                           # the previous model, kept for comparison
   dev_gold_v1: {auroc: 0.848, at_0_8: {auto_confirmed: 126, wrong: 1, coverage: 0.442}}
   heldout_gold_v2: {auroc: 0.809, at_0_8: {auto_confirmed: 134, wrong: 3, coverage: 0.419,
