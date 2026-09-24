@@ -236,6 +236,43 @@ Apache-2.0 vision alternatives exist (Qwen3-VL-8B-Instruct, Qwen3-VL-30B-A3B-Ins
 3. **Speaker-aware input:** the channel (medic mic, or who is on the other mic) goes into the user message, so `who` is learned rather than overridden.
 4. **Same recipe** (LoRA r16, 2 epochs, BF16; about 15 min of training), merged and served in FP8 as `ems-d-fp8` beside `ems-c-fp8`. Judged on dev v1 and held-out v2 (3 runs), G.F.A.S.T., adversarial v1/v2, and a re-calibration. **Live swap only on the team lead's approval.**
 
+## 0h. Run D: results and decision (Wed 2026-09-23, 9 PM PDT)
+
+**What changed from run C** (§0g "Run D"): every training target lists facts in the order they were said; the input starts with a line saying whose mic it was (`config/extraction.yaml` profile `ems-d`); 780 new annotated lines in six targeted batches (stroke-scale anchors, onset and timing, medications, vitals and spoken numbers, other speakers, full-call lines and distractors); 15 rows dropped for sharing an 8-word run with a gold set. Same recipe as run C (LoRA r16, 2 epochs, BF16): 2,704 training rows, dev loss 0.150 → 0.107 → 0.092 → 0.090, no NaN, 22 min on the GB10, peak 33.9 GiB. Merged, pushed to the private repo (`…-merged-d`), served in FP8 as `ems-d-fp8`.
+
+| 3 runs each | Run C (`ems-c-fp8`) | **Run D (`ems-d-fp8`)** |
+|---|---|---|
+| dev gold v1: F1 / P / R / who said it | 0.929 / 0.950 / 0.909 / 0.981 | **0.941–0.945** / 0.951–0.952 / 0.930–0.939 / 0.986 |
+| dev G.F.A.S.T. F1 | 0.897 | **0.937** |
+| **held-out gold v2: F1 / P / R / who said it** | 0.885 / 0.895 / 0.875 / 0.961 | **0.912–0.916** / 0.926 / 0.898–0.905 / 0.958 |
+| held-out G.F.A.S.T. F1 (P / R) | 0.789 (0.903 / 0.700) | **0.923** (0.947 / 0.900) |
+| free-text presence F1, held-out | 0.822 | 0.839 |
+| p50 / p95 latency, held-out | 1.01 / 2.29 s | 1.02–1.03 / 2.45–2.58 s |
+| confidence AUROC, dev / held-out | 0.834 / 0.812 | **0.885 / 0.829** |
+| auto-confirmed at 0.8, dev | 125 of 282 (44%), 1 wrong | **169 of 288 (59%)**, 1 wrong |
+| auto-confirmed at 0.8, held-out | 134 of 317 (42%), 3 wrong | **162 of 324 (50%)**, 5 wrong |
+| adversarial v1 (seen) / v2 (unseen) | 21/25 · 25/40 | 22/25 · 24/40 |
+
+**Genuine or noise** (paired bootstrap over utterances, 5,000 resamples, the scorer's own per-utterance counts):
+- held-out main F1 **+0.031**, 95% CI [−0.007, +0.071], P(run D ≤ run C) = 0.059; dev +0.016, CI [−0.009, +0.041]. Same direction on both sets; likely real, not proven at 100 utterances.
+- held-out G.F.A.S.T. F1 **+0.134**, CI [0.000, +0.306], P = 0.025: significant.
+- Run D is not fully deterministic: run 1 differed slightly from runs 2–3 on both sets (F1 0.941 vs 0.945; 0.912 vs 0.916); runs 2 and 3 were identical. Reported as ranges.
+- (A first bootstrap attempt counted free-text and G.F.A.S.T. atoms and did not reproduce the scorer's F1; it was discarded.)
+
+**Run D's wrong auto-confirmed facts on held-out** (checked for reporting only; nothing was tuned on them): "peanuts" vs "peanut"; onset not witnessed credited to the medic instead of the wife; a G.F.A.S.T. arm item taken from the wife's report; 93.2 °F converted to 33.9 °C (34.0); and **one clinically meaningful: "pretty subtle" facial droop scored RACE 2 instead of 1** (RACE ≥ 5 is the large-vessel threshold).
+
+**Adversarial changes** are a wash: run D now passes adv02, adv18, adv2_06, adv2_23 and newly fails adv24, adv2_01, adv2_34, adv2_36. The new failures are facts attributed to family or bystanders, which always start unconfirmed in the app.
+
+**The pitch scenario on run D** (replayed on a separate server):
+- fixed: every vital confirms itself (0.87–1.00; run C 0.28–0.77), so NEWS2 is complete (5, medium); warfarin as anticoagulant confirms itself (0.97); "mild droop" → RACE facial 1 and "no agnosia" → 0, both now correct;
+- not fixed: "Onset was witnessed." is still not extracted (run D writes a chief complaint "witnessed" at 0.11, held for a tap), and "husband says she was fine at 2:28" fell to 0.40. Stroke alert 3/6, 5/6 after two taps.
+- Probing both models with onset phrasings shows the concept is weak and inconsistent in both ("Husband witnessed the onset": run C 0.61, run D missed). **Cause:** the labeling rule "stroke keys only for stroke-like presentations" is applied per utterance, and the model sees one utterance at a time, so a sentence with no stroke signs teaches it to hold back. A paramedic knows the call type from dispatch and the earlier sentences.
+
+**Decisions (team lead, 2026-09-23 evening):**
+1. **Run D is live** (`HERALD_LLM_MODEL=ems-d-fp8` on :8100, `scripts/serve_models.sh`, `config/confirmation.yaml`). Run C stays in the private repo and ZRT cache for rollback.
+2. **Next run gives the model the call context** (the dispatch / working impression, as the app already knows it), with new annotated lines in stroke and non-stroke contexts, instead of relaxing the labeling rule or rephrasing the demo.
+3. For the vision comparison, the extraction model we don't keep is unloaded to free GPU memory.
+
 ## 1. Text model (live extraction)
 | Rank | Model | Active | Decode on GB10 (measured by others) | 150-tok latency (est.) | Instruction-following evidence | vLLM 0.26 status |
 |---|---|---|---|---|---|---|
