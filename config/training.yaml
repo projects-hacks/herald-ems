@@ -24,15 +24,17 @@ order_cues:
 same_place_order: [exam.gfast., exam.race., stroke.deficits, meds.anticoagulant, meds.list]
 
 # Run E: every training input starts with the call's dispatch (config/extraction.yaml, profile ems-e). Lines written
-# with a "dispatch" keep it. Older lines get one that agrees with how they were labeled (LABELING_GUIDE §4c): a line
-# labeled with stroke facts gets a stroke dispatch; a line that states last-known-well or onset words but was
-# labeled without stroke facts gets another dispatch; the rest get any dispatch, or "unknown", so the model also
-# works when the dispatch isn't known.
+# with a "dispatch" keep it. Older lines get one that agrees with how they were labeled (LABELING_GUIDE §4c): older
+# lines were labeled with stroke facts only when their words describe stroke-like signs, which count under ANY
+# dispatch, so they get a mix (stroke, unknown, other: stroke_labeled_mix). Giving them only stroke dispatches
+# taught run E that "unknown" means "no stroke facts" (MODEL_PLAN §0i). A line that states last-known-well or onset
+# words but was labeled without stroke facts gets a non-stroke dispatch; the rest get any dispatch, or "unknown".
 dispatch:
   stroke: [possible stroke, stroke alert, CVA, weakness one side, slurred speech per caller, facial droop per caller]
   other: [fall, sick person, unknown problem, chest pain, breathing problem, diabetic problem, unconscious person,
           seizure, traffic collision, overdose, lift assist, abdominal pain, syncope, assault, allergic reaction]
   unknown_share: 0.25
+  stroke_labeled_mix: {stroke: 0.5, unknown: 0.25, other: 0.25}
   stroke_share_for_other_lines: 0.15
   stroke_keys: [stroke., exam.]
   stroke_words_keys: [stroke.lkw, stroke.onset_witnessed]    # their order_cues mark lines a stroke dispatch would relabel

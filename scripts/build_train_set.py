@@ -125,7 +125,11 @@ class DispatchAssigner:
     def __call__(self, text: str, rows: list) -> str:
         c, rng = self.cfg, self.rng
         if any(r[0].startswith(tuple(c["stroke_keys"])) for r in rows):
-            kind, d = "stroke-labeled", rng.choice(c["stroke"])
+            mix = c.get("stroke_labeled_mix") or {"stroke": 1.0}
+            pick = rng.choices(list(mix), weights=list(mix.values()))[0]
+            kind = f"stroke-labeled, {pick} dispatch"
+            d = {"stroke": lambda: rng.choice(c["stroke"]), "unknown": lambda: "",
+                 "other": lambda: rng.choice(c["other"])}[pick]()
         elif any(rx.search(text) for rx in self.stroke_words):
             kind, d = "stroke-words, not labeled", rng.choice(c["other"])
         elif rng.random() < c["unknown_share"]:

@@ -130,8 +130,9 @@ def score(gold, pred, free_text=False):
         keep = lambda k: k in FREE_TEXT
     else:
         keep = lambda k: k not in FREE_TEXT and group_of(k) is None
-    gold = [(k, v, r) for k, v, r in gold if keep(k)]
-    pred = [(k, v, r) for k, v, r in pred if keep(k)]
+    # gold rows may carry a 4th element (the source's relation, LABELING_GUIDE §3); scoring uses key, value, role
+    gold = [(f[0], f[1], f[2]) for f in gold if keep(f[0])]
+    pred = [(f[0], f[1], f[2]) for f in pred if keep(f[0])]
     if free_text:   # presence only
         g = {(k, None): r for k, v, r in gold}
         p = {(k, None): r for k, v, r in pred}

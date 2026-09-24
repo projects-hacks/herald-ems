@@ -788,6 +788,15 @@ Existing and sufficient (in `config/vocabulary.yaml` as of 2026-09-24): `patient
 
 ## 11. Notes for indexing these documents (county config `documents`)
 
+**Status 2026-09-24: done.** Every current file in `archive/` is indexed (32 documents with 605; the two change memos are
+reference only), with the effective dates, figure pages, county URLs and archive captures from `SOURCES.md` (`mirror_url` stays null, as for
+the first five: the county site returns 403 to scripts, so updates come from a configured mirror); details, answer key
+and retrieval numbers are in `eval/protocols/README.md` §3b-§5. Differences from the notes below: four more figure pages
+(700-A14 p. 3, 700-A18 p. 4, and 700-P07 pp. 5-6, whose flowcharts are drawn in a font with no character map); Policy 410
+needed a new `nested` heading style (`i. > 1. > a.` below `a.`); several 700-series protocols print the same text on two
+pages, which the running-header filter used to delete; the facility-standards policies were indexed as well. The Table B
+audit rows (below) are a `destinations` change and were not part of this.
+
 - **Effective-date parsing:** `config/knowledge.yaml` `effective_pattern` is `Effective:\s+([A-Z][a-z]+ \d{1,2}, \d{4})`.
   Policy 302 and Policy 410 print "Effective Date: 1/1/2026", which does not match. The superseded 700-A11 prints "January
   1,2025" (no space), which does not match either.

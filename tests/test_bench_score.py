@@ -79,3 +79,10 @@ def test_a_record_is_scored_field_by_field_in_its_own_group():
     assert len(set(g) & set(p)) == 3 and len(set(p) - set(g)) == 1     # right drug, dose, unit; wrong route
     assert group_of("meds.given") == "broad" and group_of("exam.gfast.facial") == "gfast"
     assert score(gold, pred)[:3] == (0, 0, 0)                          # not in the headline F1
+
+
+def test_gold_rows_with_a_source_element_are_scored():
+    from eval.bench_extract import score
+    gold = [["allergies", ["aspirin"], "family", "daughter"], ["vitals.hr", 92, "medic"]]
+    pred = [("allergies", ["aspirin"], "family"), ("vitals.hr", 92, "medic")]
+    assert score(gold, pred)[:3] == (2, 0, 0)

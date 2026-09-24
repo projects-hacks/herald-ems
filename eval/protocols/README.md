@@ -1,7 +1,9 @@
 # Protocol-parser bake-off: answer keys
 
 This folder holds the gold-standard answer keys that document parsers are scored against. It covers
-five archived Santa Clara County EMS PDFs in `data/protocols/santa_clara/archive/`. The keys were
+the Santa Clara County EMS PDFs in `data/protocols/santa_clara/archive/` that Herald indexes: five keyed
+on 2026-09-23, and 26 more (32 documents in all, because AO 2025-005 holds Policies 602 and 605) keyed on
+2026-09-24 (§3b, §4). The keys were
 built by hand, using only CPU tools: poppler-utils (`pdftotext`, `pdftoppm`, `pdffonts`,
 `pdfinfo`, `pdfimages`, `pdftohtml -xml`) plus Python (Pillow/numpy for pixel checks). No model,
 OCR engine or GPU was used, so no parser output can have leaked into the keys.
@@ -10,8 +12,10 @@ OCR engine or GPU was used, so no parser output can have leaked into the keys.
 |---|---|---|
 | `table_b_key.json` | Policy 602 "Table B: Approved In-County Services" (hospital x service grid of check marks) | 12 facilities x 14 service levels = 168 cells, 84 checked |
 | `flowchart_700a13_key.json` | 700-A13 page 3 "Stroke Center Transport Determination Flow Chart" (raster image) as a graph | 8 nodes, 7 edges |
-| `sections_key.jsonl` | Every numbered section/outline item in the 5 PDFs, plus a few unnumbered headings flagged by `kind` | 600 lines (568 numbered sections + 32 unnumbered title/caption/subhead/box rows) |
-| `qa_gold.jsonl` | 25 paramedic-style lookup questions with an exact quote and a citation | 22 answerable + 3 unanswerable |
+| `sections_key.jsonl` | Every numbered section/outline item in the 31 PDFs, plus unnumbered headings and figure pages flagged by `kind` | 1,990 lines: 1,921 numbered sections + 69 other rows (35 `doc_title`, 12 `table_caption`, 9 `unnumbered_heading`, 8 `figure`, 5 `box_item`). The 2026-09-23 part is the first 600 lines plus one `figure` row; §3b has the rest |
+| `qa_gold.jsonl` | 59 paramedic-style lookup questions with an exact quote and a citation | 52 answerable + 7 unanswerable (qa01-qa25 on the first five documents, qa26-qa59 on the documents added 2026-09-24) |
+
+`../bench_protocols.py` scores retrieval alone (no model) over `qa_gold.jsonl`; results are in §5.
 
 ## Source documents and their currency
 
@@ -47,7 +51,17 @@ printed "Page 9 of 10".
 amend Policy 602 and are not in the archive. These keys are exact for the documents as archived,
 not for the policy currently in force. Do not use them clinically.
 
-`2026-policy-protocol-changes-summary.pdf` in the archive folder is out of scope and has no key.
+The two change memos in the archive folder (`2025-policy-protocol-changes-summary.pdf`,
+`2026-policy-protocol-changes-summary.pdf`) are out of scope and have no key. They describe what changed
+between protocol versions ("changed X to Y"), so they are reference reading, not protocol text, and Herald
+does not index them: a lookup that returned a memo line would present a past change as a current rule (the
+2025 memo describes a cycle that the 2026 revisions superseded again, e.g. 700-A04). The superseded copies in
+`archive/previous/` (700-A02, 700-A07, 700-A11 and 700-S04, all effective 2025-01-01) are not indexed or keyed
+either; `tests/test_knowledge.py` checks both.
+
+The 26 PDFs added on 2026-09-24 (county URL, Wayback capture, effective date, sha256) are listed in
+`../../data/protocols/santa_clara/archive/SOURCES.md`; each one's document entry is in
+`config/counties/santa_clara.json` (`documents`).
 
 ---
 
@@ -221,15 +235,18 @@ Required fields, as requested: `doc`, `number`, `title`, `page`, `level`. Extra 
 | Field | Meaning |
 |---|---|
 | `label` | The enumerator exactly as printed (`"2.1.1."`, `"VI."`, `"c."`), or `null` for unnumbered entries |
-| `kind` | `section` (a numbered or lettered outline item). The others are included so scorers can filter them: `doc_title` (the big centred document title), `table_caption` (Table A-E captions in Policy 602), `unnumbered_heading` (the 4 bold criteria subheads in Policy 605), `box_item` (the 5 G.F.A.S.T. box rows in 700-A13) |
+| `kind` | `section` (a numbered or lettered outline item). The others are included so scorers can filter them: `doc_title` (the big centred document title), `table_caption` (Table A-E captions in Policy 602; two table captions in Policy 410), `unnumbered_heading` (the 4 bold criteria subheads in Policy 605; "Patient Eligibility" in 700-M17), `box_item` (the 5 G.F.A.S.T. box rows in 700-A13), `figure` (a page whose content, or part of it, exists only as an image or as a chart drawn in a font without a character map; §3b) |
 | `part` | AO file only: which embedded document the entry belongs to (see the page map above) |
-| `parent`, `score_as_printed`, `text_layer`, `text_layer_error` | `box_item` rows only (see "Text-layer errors") |
+| `parent`, `score_as_printed`, `text_layer`, `text_layer_error` | `box_item` rows (see "Text-layer errors"); `parent` also on the Policy 410 table captions; `text_layer`/`text_layer_error` also on 700-A18 6.1.2-6.1.3 (Symbol-font ≥) |
+| `text_layer`, `figure` | `figure` rows: `text_layer` is `none` (the page has only its heading as text), `partial` (text and images) or `garbled` (symbol runs); `figure` says what the image shows. `number` is the section the figure belongs to, `level` is `null` |
 
 **`number` format.**
-- Decimal protocols (700-A13, 700-S04): the printed number without its trailing period, e.g.
-  `"3.2.1"`. `level` is the number of components (1 = the grey-bar headings "1." ... "11.",
-  2 = "x.y", 3 = "x.y.z").
-- Outline policies (501, 440, 602, 605, AO memo): the full hierarchical path joined with dots, e.g.
+- Decimal protocols (the 700 series): the printed number without its trailing period, e.g.
+  `"3.2.1"`. `level` is the number of components (1 = the grey-bar headings "1." ... "15.",
+  2 = "x.y", 3 = "x.y.z", 4 = "x.y.z.w").
+- Policy 410 (a deeper outline, `I. > A. > 1. > a. > i. > 1. > a.`): the full path joined with dots,
+  e.g. `"IV.B.1.b.i.1.a"`; `level` is the depth (1-7), read from the indentation columns (§3b).
+- Outline policies (302, 420, 430, 440, 500, 501, 602, 605, AO memo): the full hierarchical path joined with dots, e.g.
   `"VI.E.1.c"`. The printed enumerator alone is in `label`. `level` follows the enumerator type:
   1 = Roman (I., II.), 2 = capital letter (A.), 3 = arabic numeral (1.), 4 = lower-case letter (a.).
   Single letters that could be Roman numerals (I, V, X, L, C, D, M) were resolved from the sequence.
@@ -250,6 +267,13 @@ Required fields, as requested: `doc`, `number`, `title`, `page`, `level`. Extra 
   memo's III ("Execution").
 - Typography is kept as printed: curly quotes, en dashes ("Routine Medical Care – Adult (700-S04)")
   and typos ("chief compliant" in 501 III.A.2).
+- Documents added on 2026-09-24: in 302 and 410 a level-1 heading is followed by its text on the same line
+  ("I. Purpose: The purpose of ..."), so the title is the heading up to its colon ("Purpose:"). Standalone
+  heading lines followed by a paragraph: 420 VI.C.1-6, 430 VII.B.1-4 (VII.B.3 "Clinical STEMI Team" sits at the
+  foot of page 4 with its paragraph on page 5). The rendered text is used where the text layer is wrong: 700-A18
+  6.1.2-6.1.3 "≥" (with `text_layer` "³"), 700-M02 3.1.1-3.1.2 "2nd or 3rd" / "4th or 5th" (superscript ordinals
+  on a raised baseline), 700-M02 3.3 "90º" as printed. 700-P10 3.3.1.3 holds only a dose table, so its title is
+  the table's first words.
 
 ### Counts
 
@@ -330,28 +354,173 @@ whether a parser repairs them.
 
 ---
 
-## 4. `qa_gold.jsonl`: 25 lookup questions
+## 3b. Documents added on 2026-09-24
+
+The 26 PDFs archived on 2026-09-24 (every current file in `archive/` except the two change memos), plus
+Policy 605 as its own document (AO 2025-005 pages 25-27, already keyed above as "Policy 605 (clean copy)";
+no new 605 rows). Rows are appended after the first 600 lines, one document after another, in reading
+order; `doc` is the file name, as above.
+
+### Counts
+
+| Document | `section` rows | By level | Other rows |
+|---|---|---|---|
+| 700-A03 Hypoglycemia | 24 | L1 5, L2 14, L3 5 | 1 doc_title |
+| 700-A04 Sepsis | 31 | L1 5, L2 15, L3 11 | 1 doc_title |
+| 700-A08 Chest Pain - Suspected Cardiac Ischemia | 43 | L1 8, L2 22, L3 10, L4 3 | 1 doc_title, 1 figure |
+| 700-A10 Shock | 32 | L1 5, L2 17, L3 8, L4 2 | 1 doc_title |
+| 700-A14 Tachycardia with Pulses | 63 | L1 13, L2 32, L3 18 | 1 doc_title, 1 figure |
+| 700-A15 Poisoning and Overdose | 47 | L1 12, L2 30, L3 4, L4 1 | 1 doc_title |
+| 700-A16 Trauma Care | 44 | L1 6, L2 25, L3 11, L4 2 | 1 doc_title |
+| 700-A18 Gynecological and Obstetrical Emergencies | 77 | L1 13, L2 41, L3 19, L4 4 | 1 doc_title, 1 figure |
+| 700-A20 Behavioral Emergency - Combative | 78 | L1 7, L2 31, L3 40 | 1 doc_title |
+| 700-M02 Pleural Decompression | 24 | L1 4, L2 7, L3 6, L4 7 | 1 doc_title |
+| 700-M09 12-Lead Electrocardiogram | 40 | L1 4, L2 13, L3 21, L4 2 | 1 doc_title, 1 figure |
+| 700-M17 Traumatic Hemorrhage Control | 21 | L1 3, L2 11, L3 7 | 1 doc_title, 1 unnumbered_heading |
+| 700-P02 Pediatric Seizure | 37 | L1 5, L2 23, L3 9 | 1 doc_title |
+| 700-P03 Pediatric Hypoglycemia | 27 | L1 6, L2 16, L3 5 | 1 doc_title |
+| 700-P07 Pediatric Cardiac Arrest | 114 | L1 15, L2 61, L3 32, L4 6 | 1 doc_title, 2 figure |
+| 700-P10 Pediatric Shock | 32 | L1 5, L2 16, L3 8, L4 3 | 1 doc_title |
+| 700-P11 Pediatric Respiratory Distress | 41 | L1 8, L2 25, L3 8 | 1 doc_title |
+| 700-P15 Pediatric Poisoning and Overdose | 45 | L1 12, L2 28, L3 5 | 1 doc_title |
+| 700-P16 Pediatric Trauma Care | 41 | L1 6, L2 26, L3 9 | 1 doc_title |
+| 700-S05 Routine Medical Care Pediatric | 65 | L1 11, L2 34, L3 16, L4 4 | 1 doc_title |
+| 700-S06 Falls | 31 | L1 4, L2 18, L3 9 | 1 doc_title, 1 figure |
+| 302 Prehospital Care Asset - Minimum Inventory Requirements | 32 | L1 6, L2 26 | 1 doc_title |
+| 410 Pediatric Receiving Center Standards | 99 | L1 7, L2 9, L3 8, L4 20, L5 23, L6 25, L7 7 | 1 doc_title, 2 table_caption |
+| 420 Trauma Center Standards | 98 | L1 8, L2 16, L3 68, L4 6 | 1 doc_title |
+| 430 STEMI Center Standards | 74 | L1 9, L2 21, L3 39, L4 5 | 1 doc_title |
+| 500 Electronic Patient Care Record (ePCR) Documentation | 93 | L1 8, L2 33, L3 43, L4 9 | 1 doc_title |
+| **Total** | **1,353** | | 26 doc_title, 7 figure, 2 table_caption, 1 unnumbered_heading (1,389 rows) |
+
+One more `figure` row was added to the 2026-09-23 part: 700-A13 page 3 (the stroke flowchart, keyed as a
+graph in `flowchart_700a13_key.json`), placed after its section 7 row.
+
+### Figure pages (`kind: "figure"`)
+
+| Document, page | Section | `text_layer` | What is on the page |
+|---|---|---|---|
+| 700-A13 p3 | 7 | none | stroke center transport flowchart, one raster image (1330x2009) |
+| 700-A08 p3 | 8 | none | chest pain treatment flowchart, one raster image (1275x1650) |
+| 700-A14 p3 | 13 | none | tachycardia treatment flowchart, one raster image (1867x1268) |
+| 700-A18 p4 | 13 | none | pre-eclampsia/eclampsia flowchart, one raster image (1024x768) |
+| 700-S06 p2 | 4 | partial | fall flowchart, one raster image (962x757); items 3.4.1-3.4.2 above it are text |
+| 700-M09 p2 | 4.10 | partial | lead-placement photo (445x578), 12-lead strip (995x283) and the "STEMI Location Interpretation" region table (642x103) as raster images; items 4.5-4.9.1.2 are text |
+| 700-P07 p5 | 15 | garbled | cardiac arrest flowchart drawn as vector boxes; the box text is in a font without a character map, so the text layer reads `!"#$%"&G(##)*+` |
+| 700-P07 p6 | 15 | garbled | traumatic cardiac arrest flowchart, same construction |
+
+The research notes (`docs/research/county_protocols_2026-09.md` §11) listed three image-only pages
+(700-A08 p3, 700-S06 p2, 700-M09 p2). The CPU checks found four more: 700-A14 p3 and 700-A18 p4 (raster
+flowcharts, 35-37 words of text on the page), and 700-P07 p5-6 (vector flowcharts whose words are symbol
+runs). Each figure page has a `figures` entry in the county config, so the vision model transcribes it once per
+document version and model; 700-M09's chart uses `config/prompts/figure_transcribe_chart.md` because it is a
+labeled chart, not a flowchart. `tests/test_knowledge.py` checks that the configured figures equal these rows.
+
+### How it was built
+
+1. `pdftotext -bbox-layout` word boxes for every page, grouped into visual lines by vertical centre (3 pt
+   tolerance), with the right-margin side tab (x of 560 pt or more) removed. The header and footer bands were
+   read from each document's word boxes: 700 series header y < 70 pt and footer y ≥ 720 pt; 420 and 430
+   60/735; 500 70/745; 302 and 410 65/765, and on their page 1 the signature block from 725 pt.
+2. A line is an item if its first word is an enumerator: `^\d{1,2}(\.\d{1,2})*\.$` in the 700 series;
+   `I.`-style Roman numerals, `A.`, `1.`, `a.` and (410 only) `i.`-style lower-case Roman numerals in the
+   policies. Every printed label ends with a period; no decimal label without one exists in these files
+   (checked with a grep over the `pdftotext -layout` text).
+3. Levels: decimal components in the 700 series; enumerator type in 302, 420, 430 and 500 (Roman 1, capital
+   2, digit 3, lower case 4; a single letter that could be a Roman numeral is a numeral only when it is the
+   next one in sequence, so 302's "I." and "V." under III are letters). Policy 410 nests a second list type
+   under lower-case Roman numerals (`i. > 1. > a.`), so its levels come from the indentation columns in the
+   word boxes: Roman I-V right-aligned at 40-48 pt, `A.` at 64.8, `1.` at 79.2, `a.` at 90, `i.`-`viii.`
+   right-aligned at 92-103, nested `1.` at 112.5, nested `a.` at 126. Its Roman numbering restarts at
+   "I. References:" after V., keyed as printed.
+4. Titles by the rules in §3, including the corrections listed there.
+5. Checks: every decimal item follows its predecessor (a sibling increment or a first child); every outline
+   path is in sequence. Figure pages were found from `pdfimages -list` (raster images of 700 px or more on a
+   side), the word count of each page, and the text layer (symbol runs), then looked at in renders.
+6. The key was built from word boxes, independently of Herald's splitter (`herald/knowledge/sections.py`
+   reads `pdftotext -layout` lines). After the fixes below, the splitter reproduces it exactly for all 32
+   documents: 1,746 numbered sections with the same number, page and level, none missing and none extra
+   (`test_every_numbered_section_in_the_key_is_found_and_nothing_else`). Every disagreement found on the way
+   was settled from the PDF. The key was changed in only four titles, all key-builder artifacts (700-M02
+   3.1-3.1.2 superscripts, 430 VII.B.3 heading at a page break); everything else that disagreed was a
+   splitter defect:
+   - **Repeated body text read as a running header.** 700-A14 prints the SVT definition in §5.1 (page 1) and
+     §7.1 (page 2) word for word; 700-A20 repeats the sedation criteria (§4.2.1-3 and §5.1.1-4) and the
+     post-sedation care list (§4.4.x and §5.3.x); 700-A18 repeats "Inclusion Criteria:" (§6.1, §7.1) and
+     "Secondary Impression – Pregnancy complication" (§12.3.2, §12.5.2, §12.7.2). A line repeated on 2 of 3
+     pages passed the old share-only test and was deleted, with its continuation lines ("than 0.12 seconds,
+     and absent P waves"). 29 items and their text were lost. A running line must now also sit among the
+     first 5 or last 13 non-empty lines of its page in most occurrences, and a numbered line is never one
+     (`running_line_band` in `config/knowledge.yaml`). This also keeps 302's table column headers
+     ("Minimum Quantities Required", "Transport Non-Transport").
+   - **Items indented more than 12 spaces** (700-A10 3.3.1.1-2, 700-P10 3.3.1.1-3, 700-P02 3.1.4) and
+     **an item holding only a table** (700-P10 3.3.1.3) were missed. The decimal pattern now allows 24
+     spaces and an empty title, and requires the label's trailing period, which is what tells an item from a
+     wrapped line that starts with a number ("90 mmHg", "2.5 mg; not to exceed").
+   - **Items that start with a dose** (700-A10 3.2 "500 ml Normal Saline", 700-A16 3.3.2, 700-P03 4.2 "3 ml/kg",
+     700-P16 3.2.1 "20 ml/kg") were rejected by a dose-word exclusion in the splitter. Across all 32 documents
+     that exclusion never rejected a non-item line, so it was removed.
+   - **Policy 410's deep outline** needed the new `nested` heading style (the level comes from the label
+     sequence: the next label of an open list continues it, the first label of a kind opens a list one level
+     down, a Roman `I.` starts a new top-level section).
+   - **Policy 605 prints "II." twice.** The second one ("II. Trauma Alert – Ambulance Transport") was folded
+     into II.X.7. A repeated Roman numeral of two or more letters (which can't be a letter) is now a heading.
+
+### Numbering and text quirks in the added documents (keyed as printed)
+
+- 700-P02 3.1.4 is printed indented as if under 3.1.3; keyed at level 3 by its number.
+- 700-M09 4.1 reads "Endotracheal Obtain first ECG prior to leaving scene" (a stray word); 4.8 is a hyperlink.
+- 700-M17 opens with an unnumbered "Patient Eligibility" paragraph before "1." (`unnumbered_heading`). The
+  splitter keeps it in the document's preamble section `0`.
+- 700-S06 starts at "1. Routine Treatment" (no Patient Care Goals section).
+- 700-P11's footer reads "Protocol # 700-A11" on both pages (a source typo; removed as a running line).
+- 302 runs its letters A.-X. under III.; 420 VII. has items 1.-4. with no letter level (`VII.1`-`VII.4`, level 3).
+- 302 prints its title as "... INVENTORY REQUIRMENTS" (typo kept in the `doc_title` row).
+
+### Text-layer errors in the added documents
+
+| Where | Text layer says | Correct (rendered) text | Cause | What Herald does |
+|---|---|---|---|---|
+| 700-A18 p1 6.1.2-6.1.3 | `SBP ³ 140 mmHg or DBP ³ 90 mmHg` | SBP ≥ 140 mmHg or DBP ≥ 90 mmHg | SymbolMT glyph 0xB3 (≥) reported as U+00B3 through the WinAnsi encoding | superscripts are no longer NFKC-folded (which read "SBP 3 140"); the section is flagged `text_layer_uncertain`, so the page image is offered |
+| 700-M02 p1 3.3 | `90º` | 90° | masculine ordinal used as a degree sign | kept as printed (NFKC would give "90o") |
+| 700-M02 p1 3.1.1-3.1.2 | `2`, `nd` on a raised baseline | 2nd | superscript ordinals set as raised text | `pdftotext -layout` joins them correctly |
+| 700-P07 p5-6 | runs such as `!"#$%"&G(##)*+` | the flowchart box text | chart words in a font with no character map | section 15 flagged `text_layer_uncertain`; the flowchart is read by the vision model |
+| 410 p5 I.A | `pedsready.org` | (correct) | a URL matches the ligature check | flagged `text_layer_uncertain` (harmless false positive in the references) |
+
+---
+
+## 4. `qa_gold.jsonl`: 59 lookup questions
 
 ### Schema
 
 `{"id", "q", "answer_quote", "doc", "section", "page", ...}` plus `category`, `answer_type`, and where
 relevant `alt_pages`, `note`, `answer_set`, `answer_set_full_names` and `answer_cells`.
 
-- `answer_type: "quote"` (19 questions): `answer_quote` is an exact contiguous span of the document.
-  It was checked automatically against the cited page's text layer after whitespace collapsing and
-  NFKC. The one exception is qa02 (the G.F.A.S.T. box), whose quote uses the correct rendered spelling
-  (see below). qa06 is quoted from the flowchart image, which has no text layer.
+- `answer_type: "quote"` (49 questions: 19 in qa01-qa25, all 30 answerable ones in qa26-qa59):
+  `answer_quote` is an exact contiguous span of the document. It was checked automatically against the cited
+  page's text layer after whitespace collapsing and NFKC. The one exception is qa02 (the G.F.A.S.T. box), whose
+  quote uses the correct rendered spelling (see below). qa06 is quoted from the flowchart image, which has no
+  text layer. For qa26-qa59 the quote was also checked against the text of the cited section as Herald indexes
+  it, and `tests/test_knowledge.py` now checks every quoted answer that way (the cited section and its sub-items;
+  figure pages and flagged text layers excepted).
 - `answer_type: "table_lookup"` (3 questions, qa19-qa21): the answer comes from Table B cells, so
   there is no prose to quote. `answer_quote` is a canonical rendering such as
   `"Comprehensive Stroke Center: ECH, GSH, KSC, RSJ, SUH"`. **Score these with `answer_set`** (a set of
   abbreviations; `answer_set_full_names` gives the Table A names) **or `answer_cells`**. `page` is 20
   (clean copy), and `alt_pages: [10]` is the identical redline copy.
-- `answer_type: "unanswerable"` (3 questions, qa23-qa25): `answer_quote`, `doc`, `section` and `page`
-  are all `null`. The right behaviour is to refuse or say the documents do not cover it. Each was
-  checked with a grep over all five text layers.
+- `answer_type: "unanswerable"` (7 questions, qa23-qa25 and qa56-qa59): `answer_quote`, `doc`, `section` and
+  `page` are all `null`. The right behaviour is to refuse or say the documents do not cover it. qa23-qa25 were
+  checked with a grep over the first five text layers; qa56-qa59 over all 31 indexed PDFs (e.g. no "ketamine",
+  "cyanide" or "hydroxocobalamin" anywhere). qa23-qa25 were re-checked against the 26 added documents and
+  still have no answer.
 - `section` uses the same `number` format as `sections_key.jsonl` ("3.2.1", "VI.E.1.c", "III.A.1"),
   plus "7" for the flowchart and "Table B" for table lookups.
 - `page` is the physical PDF page. `alt_pages` lists duplicate copies in the AO file (redline versus clean).
+  The AO file holds two indexed documents, so a question's document is the one whose page range holds `page`
+  (602: pages 12-21, 605: pages 25-27; `herald.knowledge.document_for_page`).
+- The questions were written from the PDFs, in the words a paramedic would use on a call ("heads-up",
+  "the lungs still sound clear", "Viagra last night"), not in the protocol's wording, so keyword overlap alone
+  does not answer them.
 
 ### Coverage
 
@@ -367,6 +536,17 @@ relevant `alt_pages`, `note`, `answer_set`, `answer_set_full_names` and `answer_
 | Table B stroke destinations (CSC list, PSC list, a negative cell) | qa19, qa20, qa21 |
 | Stroke center levels (Policy 440 definitions) | qa22 |
 | Unanswerable: tPA dose, stroke BP target, ringdown channel number | qa23, qa24, qa25 |
+| Sepsis (700-A04): pre-notification rule, the EtCO2 SIRS criterion, the blood pressure goal | qa26, qa27, qa28 |
+| Shock (700-A10): repeat fluid bolus | qa29 |
+| Trauma (700-A16): care en route for a Trauma Alert, target scene time, the TXA injury-age limit | qa30, qa31, qa32 |
+| Trauma Alert criteria and burns (Policy 605): fall height, age-65 SBP, major burn destination | qa33, qa34, qa35 |
+| Chest pain / STEMI (700-A08, 700-M09): 12-lead timing, transmission, aspirin time, PDE-5 inhibitors, ST-elevation criteria | qa36-qa40 |
+| Overdose (700-A15): charcoal contraindication, TCA QRS threshold | qa41, qa42 |
+| Falls (700-S06): fall more than 72 hours ago, hip fracture destination, non-transport advice | qa43, qa44, qa45 |
+| Hemorrhage control (700-M17): tourniquet over two hours, tourniquet placement, truncal hemorrhage | qa46, qa47, qa48 |
+| Pediatrics (700-P10, P07, P02, S05, P03): shock bolus, drowning arrest destination, status epilepticus, age-based hypotension (table row), ROSC destination, neonatal hypoglycemia | qa49-qa54 |
+| Documentation (Policy 500): 12-lead waveforms in the ePCR | qa55 |
+| Unanswerable: ketamine dose, CPAP pressure, adult cardiac arrest termination, cyanide antidote | qa56-qa59 |
 
 ### Notes on specific items
 
@@ -384,12 +564,60 @@ relevant `alt_pages`, `note`, `answer_set`, `answer_set_full_names` and `answer_
 - **qa24/qa25** are near misses on purpose: nearby text exists (700-S04 BP measurement, a morphine SBP
   threshold, 605 trauma SBP cut-offs, 501 "designated hospital ringdown channel"), but nothing answers
   the question.
+- **qa27** ("Does a low end-tidal CO2 count toward sepsis?"): the answer is the criterion 1.3.4; 1.4 (two or
+  more criteria) is the neighbouring rule.
+- **qa32**: the question gives a four-hour-old injury; the county text only states the limit ("Injury is
+  less than 3 hours old"), and the medic draws the conclusion.
+- **qa33/qa34**: Policy 605 criteria restart their lettering under II.B, so II.W and II.N.3 are the printed
+  paths (see the 605 quirks above).
+- **qa37**: the quote stops before "(700-M09)", which the PDF breaks across a line as "(700-" / "M09)".
+- **qa52** is a table-row lookup (700-S05 §11, "≥ 4 yr – 6 yr ... <70 + (age in yr x 2)"). The same threshold is
+  also printed in 700-P07 12.1.1 (post-ROSC) and Policy 605 II.N.1 (trauma triage), in other contexts; strict
+  scoring accepts only §11.
+- **qa56-qa59** are near misses on purpose: 700-A16 3.5 sends pain to 700-S04 (no ketamine), 700-S04 4.4 points
+  to 700-M12 for CPAP (not archived), 700-P07 5.2 is the pediatric termination rule while the adult protocol
+  700-A07 is only in `archive/previous/` (superseded, not indexed), and 700-A15 covers other toxins.
 
 ### Suggested scoring normalisation
 
 Collapse whitespace, apply Unicode NFKC, and treat curly and straight quotes and the en dash and hyphen
 as equal. Match quotes by containment or a token-overlap threshold, not strict equality. The gold quotes
 are short spans, and a correct answer may quote more around them.
+
+---
+
+## 5. Retrieval without the reranker (`eval/bench_protocols.py`)
+
+`python eval/bench_protocols.py --runs 3` runs every question through `KnowledgeBase.search` (the app's
+retrieval: 32 documents, 1,804 passages) in two modes: `bm25` (keyword only) and `hybrid` (BM25 plus
+`BAAI/bge-base-en-v1.5` on the CPU, reciprocal-rank fusion, as the app ranks before the local model reranks).
+A hit is the cited (document, section). Measured 2026-09-24:
+
+| Mode | Questions | top-1 | top-3 | top-5 | in the 8 the reranker sees | right document first |
+|---|---|---|---|---|---|---|
+| bm25 | all 52 answerable | 18 (0.346) | 29 (0.558) | 34 (0.654) | 40 (0.769) | 30 (0.577) |
+| bm25 | qa01-qa25 (22) | 7 | 13 | 16 | 16 | 12 |
+| bm25 | qa26-qa55 (30) | 11 | 16 | 18 | 24 | 18 |
+| hybrid | all 52 answerable | 26 (0.500) | 37 (0.712) | 41 (0.788) | 43 (0.827) | 38 (0.731) |
+| hybrid | qa01-qa25 (22) | 9 | 15 | 16 | 18 | 15 |
+| hybrid | qa26-qa55 (30) | 17 | 22 | 25 | 25 | 23 |
+
+- **Genuine, not noise:** both modes are deterministic on the CPU (3 runs each, identical ranks). The sample is
+  small: one question is about 2 points on the full set and 3-5 points on a subset.
+- **More documents, more distractors:** scored against the 5-document index, the original 22 questions got
+  10 / 17 / 19 (hybrid top-1 / top-3 / in 8) and 7 / 12 / 16 (bm25). With 32 documents: 9 / 15 / 18 and
+  7 / 13 / 16. Six of the 22 moved (hybrid rank, 5 → 32 documents): the glucose questions lost ground to the
+  new hypoglycemia protocols (qa10 1 → 2 behind 700-A03 2.1; qa08 6 → beyond 8, 700-A13 2.2 pushed out by
+  glucose items), qa03 fell 3 → 6 and qa21 3 → 4, and qa02 and qa17 rose 3 → 2 (BM25 term weights change
+  with a larger corpus).
+- **Where the hybrid misses (not in the top 3):** right document, neighbouring section (qa27 EtCO2 → 1 / 4 /
+  1.4 of 700-A04; qa51 → 700-P02 §3); the answer in a figure (qa06, text only after the vision model reads the
+  flowchart); a label limit (qa52: 700-P07 12.1.1 and 605 II.N.1 state the same threshold); and genuine
+  vocabulary misses: qa26 ("heads-up" for a sepsis patient ranks Policy 605/602 notification text first),
+  qa30 (care on scene for a Trauma Alert ranks 602/605 alert definitions first), qa05 and qa08 (stroke routing and
+  glucose, pulled to Policy 602 and 700-S04), qa14 (the historian's phone number, pulled to Policy 440).
+- The reranker (`vision_bench.py --tasks rerank`) chooses from the 8 passages above, so 43 of 52 is its ceiling
+  on this set. Unanswerable questions need its refusal and are not scored here.
 
 ---
 
@@ -419,6 +647,17 @@ are short spans, and a correct answer may quote more around them.
    Score with `answer_set`/`answer_cells`.
 10. **Currency**: the archive predates AO 2025-006 and AO 2025-007, which amend Policy 602. Table B in
     force today may differ from this key.
+11. **Added documents, currency**: 700-A08, A03, A15, P03, P11, P15 and P16 are the 2025-01-01 versions (not
+    revised for 2026), 700-M09 is 2024-01-01 and was read from the pre-migration county site, and Policy 500
+    is 2020-01-01; see `docs/research/county_protocols_2026-09.md` §2 for how "current" was established.
+12. **Policy 410 levels** come from indentation (the only outline keyed that way); the enumerator sequence
+    gives the same tree (the splitter uses the sequence, and the two agree on all 99 items).
+13. **Figure rows** record where image content is, not what it says. Only 700-A13's flowchart has a content
+    key (`flowchart_700a13_key.json`); the seven new figures have none yet.
+14. **700-A18 "≥"**: judged from the font (SymbolMT, code 0xB3 = greaterequal) and the printed words
+    "(greater than or equal to)" next to the first one.
+15. **Standalone headings at a page break** (430 VII.B.3) were keyed as heading-only titles by eye; the rule in
+    §3 looks at the same page only.
 
 ## Reproducing
 
@@ -431,6 +670,8 @@ pdftotext -bbox-layout -f N -l N <pdf> out.html   # word boxes for glyph/outline
 pdftohtml -xml -i -f N -l N -stdout <pdf>         # per-run font + colour (R glyph font, blue insertions)
 pdftoppm -r 100..200 [-gray] [-x -y -W -H] -f N -l N -png <pdf> out  # renders/crops for visual checks
 pdfimages -list | -png -f 3 -l 3 <700-A13 pdf> out                   # raster flowchart at native res
+pdfimages -list <pdf>; pdftotext -layout -f N -l N <pdf> - | wc -w   # figure pages (2026-09-24 part)
+python eval/bench_protocols.py --runs 3                              # §5 (CPU only)
 ```
 
 Pillow/numpy (already in the `zgx` env; nothing was installed) were used only to composite the

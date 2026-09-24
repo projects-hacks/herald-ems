@@ -43,11 +43,11 @@ The extraction gold set (gold v2) is 100 utterances and 320 facts, written and l
 - **Adversarial speech:** 40 unseen attacks (instruction injection, role spoofing, advice stuffing, garbage input). The fine-tuned extractor passes 24/40 (run C: 25/40); no other extractor tested passes more. Facts said together with a command to the system are held for the medic's tap, with the reason shown.
 - **Confidence:** a fact confirms itself only at the model's own probability ≥ 0.8. On held-out data that is 162 of 324 medic facts (50%), 5 of them wrong; one of those is clinically meaningful (a subtle facial droop scored RACE 2 instead of 1). The rest wait for one tap.
 - **Local only:** every model runs on the box and loads from local folders; a running server makes no outbound connections (checked). The only network use is the county protocol sync and the ED relay, when a link exists.
-- **Protocol lookup** (the county's 5 documents; 22 answerable questions + 3 out of scope):
-  - all 338 numbered sections recovered;
+- **Protocol lookup** (the county's 32 current documents: stroke, sepsis, trauma, shock, chest pain, overdose, falls, hemorrhage control, pediatrics, destinations, radio reports and center standards):
+  - all 1,746 numbered sections recovered, none spurious, against an answer key built with CPU tools only;
   - Table B's 168 cells read exactly;
-  - the right passage first for 14/22 questions, in the top 3 for 19/22;
-  - 2/3 out-of-scope questions refused.
+  - retrieval alone (keyword + embeddings on the CPU) ranks the right passage first for 26/52 questions and in the top 3 for 37/52;
+  - with the local model reranking, the right passage first for 14/22 and in the top 3 for 19/22, and 2/3 out-of-scope questions refused (measured on the first 22 + 3 questions, before 27 documents were added; to be re-measured on all 59).
 - **Honest limits:**
   - The gold sets are synthetic, so accuracy on real speech is expected to be lower. A field evaluation with real speakers is in progress.
   - The county documents are archived copies, pending verification against the in-force manual.

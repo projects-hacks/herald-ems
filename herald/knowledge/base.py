@@ -7,6 +7,7 @@ import json
 import numpy as np
 import re
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -15,6 +16,17 @@ from .index import BM25Index
 from .pdf import page_texts, render_page
 from .sections import Section, SectionSplitter
 from .tables import read_check_table, read_column_table
+
+
+def document_for_page(county: dict, file_name: str, page: int) -> Optional[str]:
+    """The county document that holds this page of this file. One PDF can hold several documents, each with its own
+    page range (AO 2025-005 holds Policy 602 on pages 12-21 and Policy 605 on pages 25-27); None for pages that no
+    document covers (a redline copy, a cover memo)."""
+    for d in county.get("documents", []):
+        first, last = d.get("pages") or (1, float("inf"))
+        if Path(d["file"]).name == file_name and first <= page <= last:
+            return d["id"]
+    return None
 
 
 class KnowledgeBase:
@@ -28,7 +40,7 @@ class KnowledgeBase:
         self.county = county
         self.dir = protocols_dir / county["id"]
         self.splitter = SectionSplitter(self.cfg["heading_styles"], self.cfg["running_line_share"],
-                                        self.cfg["glyph_error_pattern"])
+                                        self.cfg["glyph_error_pattern"], self.cfg.get("running_line_band"))
         self.sections: list[Section] = []
         self.versions: dict[str, dict] = {}
         self.missing: list[str] = []
@@ -64,6 +76,7 @@ class KnowledgeBase:
             versions[doc["id"]] = {"id": doc["id"], "title": doc.get("title"), "file": str(path.relative_to(self.dir)),
                                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest()[:16],
                                    "effective_in_file": m.group(1) if m else None,
+                                   "effective_date": self._calendar_date(m.group(1)) if m else None,
                                    "effective_reviewed": doc.get("effective"),
                                    "pages": doc.get("pages")}
         self.sections, self.versions, self.missing = sections, versions, missing
@@ -89,6 +102,15 @@ class KnowledgeBase:
                 np.save(f, vec)
             parts.append(vec)
         return np.concatenate(parts)
+
+    def _calendar_date(self, printed: str) -> Optional[str]:
+        """The printed effective date as YYYY-MM-DD ("January 1, 2026" and "1/1/2026" are the same date)."""
+        for fmt in self.cfg.get("effective_formats", []):
+            try:
+                return datetime.strptime(" ".join(printed.split()), fmt).date().isoformat()
+            except ValueError:
+                continue
+        return None
 
     @staticmethod
     def _passage(s: Section) -> str:
@@ -121,7 +143,8 @@ class KnowledgeBase:
     def _attach_figures(self, doc: dict, path: Path, sections: list[Section]) -> None:
         """Charts that exist only as images: the local vision model transcribes each once per document version
         (cached per document version and vision model, so switching models re-reads the figure), and the text joins
-        its section, labeled as read from the image. The numbered text governs."""
+        its section, labeled as read from the image. The numbered text governs. A figure that is not a flowchart names
+        its own prompt (`prompt` in the county's document entry)."""
         reader = re.sub(r"[^A-Za-z0-9]+", "-", (self.vision.model_name() if self.vision is not None else None) or "none")
         for fig in doc.get("figures", []):
             sha = hashlib.sha256(path.read_bytes()).hexdigest()[:16]
@@ -133,7 +156,7 @@ class KnowledgeBase:
                     import base64
                     png = render_page(path, fig["page"], cache.parent / f"{doc['id']}_{sha}_p{fig['page']}.png", dpi=150)
                     data = self.vision.chat_json("You transcribe protocol figures. Output strict JSON only.",
-                                                 load_text("prompts/figure_transcribe.md"),
+                                                 load_text(fig.get("prompt", "prompts/figure_transcribe.md")),
                                                  image_b64=base64.b64encode(png.read_bytes()).decode(), max_tokens=500)
                     steps = [str(x) for x in data.get("steps", [])][:30]
                     cache.write_text(json.dumps({"steps": steps, "page": fig["page"]}, indent=1))

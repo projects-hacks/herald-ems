@@ -32,6 +32,18 @@ def system_prompt(profile_prefix: str) -> str:
     return profile.prompt
 
 
+def reclaim_unified_memory(gib: float) -> None:
+    """On the GB10, CPU and GPU share memory and the kernel's page cache counts as used until something allocates.
+    Allocating (then freeing) `gib` makes the kernel drop clean cache, so the loader sees the real headroom."""
+    before, _ = torch.cuda.mem_get_info()
+    x = torch.empty(int(gib * 2**30), dtype=torch.uint8, device="cuda")
+    x.fill_(0)
+    del x
+    torch.cuda.empty_cache()
+    after, _ = torch.cuda.mem_get_info()
+    print(json.dumps({"reclaimed_gib": round((after - before) / 2**30, 1), "free_gib": round(after / 2**30, 1)}))
+
+
 def rows(path, system: str, limit=None):
     out = []
     for line in open(path):
@@ -54,6 +66,9 @@ def main():
     ap.add_argument("--batch", type=int, default=8)
     ap.add_argument("--accum", type=int, default=2)
     ap.add_argument("--smoke", action="store_true")
+    ap.add_argument("--reclaim-gib", type=float, default=0.0,
+                    help="GB10 unified memory: touch this much GPU memory first so the page cache is reclaimed and the "
+                         "loader sees it (the cache is only given back when something allocates)")
     ap.add_argument("--profile", default="ems", help="served-label prefix whose prompt to train with (ems-d for run D)")
     a = ap.parse_args()
 
@@ -62,6 +77,8 @@ def main():
     from transformers import AutoTokenizer
     from trl import SFTConfig, SFTTrainer
 
+    if a.reclaim_gib:
+        reclaim_unified_memory(a.reclaim_gib)
     limit = 64 if a.smoke else None
     system = system_prompt(a.profile)
     train = Dataset.from_list(rows(Path(a.data) / "train.jsonl", system, limit))
@@ -76,7 +93,9 @@ def main():
         save_strategy="no" if a.smoke else "steps", save_steps=max(1, int(len(train) / (a.batch * a.accum) / 2)),
         load_best_model_at_end=not a.smoke, metric_for_best_model="eval_loss",
         max_length=512, packing=False, gradient_checkpointing=False, report_to=[],
-        model_init_kwargs={"dtype": torch.bfloat16, "attn_implementation": "sdpa"},
+        # the whole model on the GPU: if memory is short this fails loudly instead of offloading layers to disk
+        # (a disk-offloaded model can't be trained; run E's first attempt, 2026-09-24)
+        model_init_kwargs={"dtype": torch.bfloat16, "attn_implementation": "sdpa", "device_map": {"": 0}},
     )
     lora = LoraConfig(r=a.rank, lora_alpha=2 * a.rank, lora_dropout=0.05, target_modules="all-linear", task_type="CAUSAL_LM")
     trainer = SFTTrainer(model=a.base, args=cfg, train_dataset=train, eval_dataset=dev, processing_class=tok, peft_config=lora)

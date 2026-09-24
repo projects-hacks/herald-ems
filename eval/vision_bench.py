@@ -13,8 +13,9 @@ Tasks:
              per mode, per degradation, per key, no-fact images with a false fact, JSON-invalid, latency p50/p95.
   flowchart  the 700-A13 stroke flowchart through the product's figure transcription (uncached), scored
              against eval/protocols/flowchart_700a13_key.json (nodes, edges, unsupported steps, added words).
-  rerank     eval/protocols/qa_gold.jsonl through KnowledgeBase.answer with LLMReranker: top-1 / top-3 on the 22
-             answerable questions, refusal on the 3 unanswerable ones, over identical retrieval candidates.
+  rerank     eval/protocols/qa_gold.jsonl through KnowledgeBase.answer with LLMReranker: top-1 / top-3 on the
+             answerable questions, refusal on the unanswerable ones (52 and 7 since 2026-09-24; 22 and 3 before),
+             over identical retrieval candidates. Retrieval alone (no model): eval/bench_protocols.py.
 
 One summary line per run and task is appended to --out (eval/results.jsonl, like the other benches), each with
 the hashes of the prompts and test sets (`inputs`), so a comparison is level only if those match. Per-item

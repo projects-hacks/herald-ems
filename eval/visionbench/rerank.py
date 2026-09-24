@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Optional
 
 from herald.config import Settings, load_json, load_yaml
-from herald.knowledge import KnowledgeBase
+from herald.knowledge import KnowledgeBase, document_for_page
 from herald.knowledge.rerank import LLMReranker
 
 from .common import ROOT, RecordingModel, is_json_error, latency, token_stats
@@ -47,11 +47,11 @@ def build_kb(settings: Settings) -> KnowledgeBase:
 
 
 def gold_target(q: dict, county: dict) -> Optional[tuple[str, str]]:
-    """(doc id, section) of the answer, mapping the key's file name to the county's document id."""
+    """(doc id, section) of the answer: the county document that holds the cited page of the key's file (one PDF
+    can hold two documents, e.g. Policies 602 and 605 in AO 2025-005)."""
     if not q.get("doc"):
         return None
-    ids = {Path(d["file"]).name: d["id"] for d in county["documents"]}
-    return ids[q["doc"]], q["section"]
+    return document_for_page(county, q["doc"], q["page"]), q["section"]
 
 
 def _hit(p: dict, target) -> bool:
