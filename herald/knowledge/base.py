@@ -71,18 +71,21 @@ class KnowledgeBase:
         self.vectors = self._embed_cached(sections) if self.embedder and sections else None
 
     def _embed_cached(self, sections: list[Section]) -> np.ndarray:
-        """Vectors per document version, cached on disk (index/<doc>_<sha>_<model>.npy)."""
+        """Vectors per document version, cached on disk (index/<doc>_<sha>_<model>_<text hash>.npy). The key includes
+        the passages' text, so a changed figure transcription or splitter re-embeds instead of reusing stale vectors."""
         cache = self.dir / "index"
         cache.mkdir(parents=True, exist_ok=True)
         model = re.sub(r"[^A-Za-z0-9]+", "-", self.cfg["embedding"]["model"])
         parts = []
         for doc_id, v in self.versions.items():
             secs = [s for s in sections if s.doc_id == doc_id]
-            f = cache / f"{doc_id}_{v['sha256']}_{model}_{len(secs)}.npy"
+            passages = [self._passage(s) for s in secs]
+            text_key = hashlib.sha256("\n\x00".join(passages).encode()).hexdigest()[:12]
+            f = cache / f"{doc_id}_{v['sha256']}_{model}_{text_key}.npy"
             if f.exists():
                 vec = np.load(f)
             else:
-                vec = self.embedder.embed([self._passage(s) for s in secs])
+                vec = self.embedder.embed(passages)
                 np.save(f, vec)
             parts.append(vec)
         return np.concatenate(parts)
@@ -117,10 +120,12 @@ class KnowledgeBase:
 
     def _attach_figures(self, doc: dict, path: Path, sections: list[Section]) -> None:
         """Charts that exist only as images: the local vision model transcribes each once per document version
-        (cached), and the text joins its section, labeled as read from the image. The numbered text governs."""
+        (cached per document version and vision model, so switching models re-reads the figure), and the text joins
+        its section, labeled as read from the image. The numbered text governs."""
+        reader = re.sub(r"[^A-Za-z0-9]+", "-", (self.vision.model_name() if self.vision is not None else None) or "none")
         for fig in doc.get("figures", []):
             sha = hashlib.sha256(path.read_bytes()).hexdigest()[:16]
-            cache = self.dir / "index" / f"{doc['id']}_{sha}_figure_p{fig['page']}.json"
+            cache = self.dir / "index" / f"{doc['id']}_{sha}_figure_p{fig['page']}_{reader}.json"
             cache.parent.mkdir(parents=True, exist_ok=True)
             steps = json.loads(cache.read_text())["steps"] if cache.exists() else None
             if steps is None and self.vision is not None:

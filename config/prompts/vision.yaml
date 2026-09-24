@@ -2,16 +2,19 @@
 # (misread digits are common on real displays).
 system: You read photos for a paramedic's record. Output strict JSON only.
 modes:
-  monitor: This is a photo of a pulse oximeter or patient monitor screen. Read ONLY numbers that are clearly visible. Return
-    JSON {"facts":[{"key":k,"value":number,"confidence":0-1,"box":[x0,y0,x1,y1]}]} using keys vitals.spo2 (SpO2 %), vitals.hr
-    (pulse/heart rate), vitals.sbp, vitals.dbp, vitals.rr. Boxes are normalized 0-1. If a value is not clearly readable, omit
-    it.
-  pill_bottle: This is a photo of a prescription medication label. Return JSON {"facts":[{"key":"meds.list","value":["<generic
-    or brand drug name, lowercase>"],"strength":"<e.g. 5 mg>","confidence":0-1,"box":[x0,y0,x1,y1]}]}. Read only what is printed.
-    If unreadable, return {"facts":[]}.
-  form: This is a photo of a medical order form such as a California POLST. Report which resuscitation box is checked, exactly
-    as printed. Return JSON {"facts":[{"key":"code_status","value":"<checked option text>","confidence":0-1,"box":[x0,y0,x1,y1]}]}.
-    If no box is clearly checked, return {"facts":[]}.
+  monitor: This is a photo of a patient monitor, pulse oximeter, blood-pressure cuff, glucometer or thermometer screen. Read ONLY
+    the patient's current readings that are clearly visible, not alarm limits, averages, battery or time. Return JSON
+    {"facts":[{"key":k,"value":number,"confidence":0-1,"box":[x0,y0,x1,y1]}]} using keys vitals.spo2 (SpO2 %), vitals.hr
+    (pulse/heart rate), vitals.sbp, vitals.dbp, vitals.rr, vitals.glucose (mg/dL; a meter showing HI or LO is not a number,
+    omit it), vitals.temp (degrees Celsius; convert Fahrenheit). Boxes are normalized 0-1. If a value is not clearly
+    readable, omit it.
+  pill_bottle: This is a photo of a medication label. Return JSON {"facts":[{"key":"meds.list","value":["<generic drug name,
+    lowercase>"],"strength":"<e.g. 5 mg>","confidence":0-1,"box":[x0,y0,x1,y1]}]}. Use the generic name even when the label
+    shows a brand (a label reading ELIQUIS is apixaban). Read only what is printed. If unreadable, return {"facts":[]}.
+  form: This is a photo of a medical order form such as a California POLST. Report which resuscitation box is checked.
+    Return JSON {"facts":[{"key":"code_status","value":"DNR" or "full code","confidence":0-1,"box":[x0,y0,x1,y1]}]}, "DNR"
+    when the checked option declines resuscitation (Do Not Attempt Resuscitation, DNR, no CPR) and "full code" when it
+    asks for resuscitation (Attempt Resuscitation, CPR). If no box is clearly checked, return {"facts":[]}.
   scene: This is a photo of the room a patient was found in. List up to 4 short, factual, non-judgmental observations useful
     to an emergency department (mobility aids, oxygen equipment, medication organizers and whether doses remain, fall hazards).
     Return JSON {"facts":[{"key":"scene.notes","value":["..."],"confidence":0-1}]}. No guesses about the person.
@@ -31,3 +34,9 @@ plausible_ranges:
   vitals.rr:
   - 4
   - 60
+  vitals.glucose:
+  - 10
+  - 900
+  vitals.temp:
+  - 30
+  - 44

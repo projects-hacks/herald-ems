@@ -1,0 +1,371 @@
+# Synthetic photo test set for the vision-model bake-off: what each image shows.
+#
+# `python eval/photos/make_photos.py` renders every item below into eval/photos/<id>.jpg and writes
+# eval/photos/gold.jsonl. The gold facts come ONLY from these rendering parameters (never from a model):
+#   - `values` are canonical vocabulary keys (config/vocabulary.yaml) with values normalized as in
+#     docs/LABELING_GUIDE.md §4 (integers; temperature in Celsius with one decimal);
+#   - a field hidden by an `occlusion` degradation is removed from the gold, because it is not in the image;
+#   - pill labels give meds.list = [generic] and, for anticoagulants, meds.anticoagulant = generic (§4, §5a:
+#     antiplatelets are not anticoagulants); the printed names are accepted aliases (the photo prompt asks for
+#     "generic or brand drug name");
+#   - forms give code_status "DNR" / "full code" (§4); the printed option text is an accepted alias (the photo
+#     prompt asks for the option "exactly as printed").
+# Everything is fictitious: no real patient, prescriber, pharmacy, or prescription number.
+#
+# Degradations (applied in this order by make_photos.py): occlusion, glare, perspective, rotation, blur,
+# motion_blur, low_light, jpeg. Parameters are fixed here so the set is reproducible.
+
+seed: 20260924
+canvas: [1024, 768]
+jpeg_quality: 90
+
+# Printed option text on the synthetic POLST-style form, and the canonical value each one means.
+forms:
+  polst:
+    title: PHYSICIAN ORDERS FOR LIFE-SUSTAINING TREATMENT
+    section_a:
+      heading: "A  CARDIOPULMONARY RESUSCITATION (CPR): if the patient has no pulse and is not breathing"
+      options:
+        cpr: {text: "YES CPR: Attempt Resuscitation, including mechanical ventilation", canonical: full code}
+        dnr: {text: "NO CPR: Do Not Attempt Resuscitation", canonical: DNR}
+    section_b:
+      heading: "B  INITIAL TREATMENT ORDERS: if the patient has a pulse and/or is breathing"
+      options:
+        full: "Full Treatment"
+        selective: "Selective Treatment"
+        comfort: "Comfort-Focused Treatment"
+
+items:
+  # ---------------- bedside / defibrillator monitors (mode: monitor) ----------------
+  - id: monitor_01_dark
+    device: bedside_monitor
+    style: dark
+    mode: monitor
+    values: {vitals.hr: 88, vitals.spo2: 97, vitals.sbp: 132, vitals.dbp: 84, vitals.rr: 16, vitals.temp: 37.1}
+    temp_unit: C
+    degrade: []
+  - id: monitor_02_dark_tilt
+    device: bedside_monitor
+    style: dark
+    mode: monitor
+    values: {vitals.hr: 132, vitals.spo2: 91, vitals.sbp: 94, vitals.dbp: 58, vitals.rr: 24}
+    degrade: [{kind: perspective, strength: 0.18}]
+  - id: monitor_03_defib_glare
+    device: defib_monitor
+    mode: monitor
+    values: {vitals.hr: 58, vitals.spo2: 99, vitals.sbp: 188, vitals.dbp: 104, vitals.rr: 14}
+    etco2: 35
+    degrade: [{kind: glare, at: [0.30, 0.25], size: 0.28, strength: 0.75}]
+  - id: monitor_04_dark_blur
+    device: bedside_monitor
+    style: dark
+    mode: monitor
+    values: {vitals.hr: 104, vitals.spo2: 84, vitals.sbp: 146, vitals.dbp: 92, vitals.rr: 28, vitals.temp: 38.9}
+    temp_unit: C
+    degrade: [{kind: blur, radius: 2.2}]
+  - id: monitor_05_light_dim
+    device: bedside_monitor
+    style: light
+    mode: monitor
+    values: {vitals.hr: 76, vitals.spo2: 95, vitals.sbp: 118, vitals.dbp: 76, vitals.rr: 18}
+    degrade: [{kind: low_light, level: 0.35}, {kind: jpeg, quality: 18}]
+  - id: monitor_06_defib_thumb
+    device: defib_monitor
+    mode: monitor
+    values: {vitals.hr: 44, vitals.spo2: 93, vitals.sbp: 82, vitals.dbp: 48, vitals.rr: 10}
+    etco2: 41
+    degrade: [{kind: occlusion, field: vitals.rr}]
+  - id: monitor_07_dark_rotated_f
+    device: bedside_monitor
+    style: dark
+    mode: monitor
+    values: {vitals.hr: 96, vitals.spo2: 98, vitals.sbp: 164, vitals.dbp: 98, vitals.rr: 20, vitals.temp: 38.5}
+    temp_unit: F
+    degrade: [{kind: rotation, angle: 12}]
+  - id: monitor_08_light_shake
+    device: bedside_monitor
+    style: light
+    mode: monitor
+    values: {vitals.hr: 118, vitals.spo2: 89, vitals.sbp: 102, vitals.dbp: 64, vitals.rr: 30}
+    degrade: [{kind: perspective, strength: 0.12}, {kind: motion_blur, length: 9}]
+
+  # ---------------- fingertip pulse oximeters (mode: monitor) ----------------
+  - id: pulseox_01
+    device: fingertip_oximeter
+    mode: monitor
+    values: {vitals.spo2: 96, vitals.hr: 72}
+    pi: 3.4
+    degrade: []
+  - id: pulseox_02_rot90
+    device: fingertip_oximeter
+    mode: monitor
+    values: {vitals.spo2: 88, vitals.hr: 118}
+    pi: 1.2
+    degrade: [{kind: rotation, angle: 90}]
+  - id: pulseox_03_glare
+    device: fingertip_oximeter
+    mode: monitor
+    values: {vitals.spo2: 99, vitals.hr: 61}
+    pi: 6.8
+    degrade: [{kind: glare, at: [0.62, 0.40], size: 0.22, strength: 0.7}]
+  - id: pulseox_04_dim
+    device: fingertip_oximeter
+    mode: monitor
+    values: {vitals.spo2: 92, vitals.hr: 134}
+    pi: 0.9
+    degrade: [{kind: low_light, level: 0.30}]
+  - id: pulseox_05_blur_jpeg
+    device: fingertip_oximeter
+    mode: monitor
+    values: {vitals.spo2: 85, vitals.hr: 52}
+    pi: 2.1
+    degrade: [{kind: blur, radius: 1.8}, {kind: jpeg, quality: 15}]
+
+  # ---------------- home blood-pressure cuffs, LCD (mode: monitor) ----------------
+  - id: bpcuff_01
+    device: bp_cuff
+    mode: monitor
+    values: {vitals.sbp: 158, vitals.dbp: 94, vitals.hr: 82}
+    degrade: []
+  - id: bpcuff_02_tilt
+    device: bp_cuff
+    mode: monitor
+    values: {vitals.sbp: 112, vitals.dbp: 70, vitals.hr: 66}
+    degrade: [{kind: perspective, strength: 0.2}]
+  - id: bpcuff_03_glare_jpeg
+    device: bp_cuff
+    mode: monitor
+    values: {vitals.sbp: 196, vitals.dbp: 112, vitals.hr: 104}
+    degrade: [{kind: glare, at: [0.70, 0.30], size: 0.25, strength: 0.65}, {kind: jpeg, quality: 20}]
+
+  # ---------------- glucometers, LCD (mode: monitor; glucose is not named in the monitor prompt) ----------------
+  - id: glucometer_01_48
+    device: glucometer
+    mode: monitor
+    reading: "48"
+    values: {vitals.glucose: 48}
+    degrade: []
+  - id: glucometer_02_156_blur
+    device: glucometer
+    mode: monitor
+    reading: "156"
+    values: {vitals.glucose: 156}
+    degrade: [{kind: blur, radius: 1.6}]
+  - id: glucometer_03_312_dim_tilt
+    device: glucometer
+    mode: monitor
+    reading: "312"
+    values: {vitals.glucose: 312}
+    degrade: [{kind: perspective, strength: 0.15}, {kind: low_light, level: 0.40}]
+  - id: glucometer_04_hi
+    device: glucometer
+    mode: monitor
+    reading: "HI"
+    values: {}
+    notes: "'HI' is above the meter's range and prints no number: no glucose fact (a number here is a hallucination)."
+    degrade: []
+
+  # ---------------- prescription labels (mode: pill_bottle) ----------------
+  - id: pill_01_apixaban
+    device: pill_label
+    mode: pill_bottle
+    printed_name: APIXABAN
+    generic_for: ELIQUIS
+    strength: 5 MG
+    dose_form: TABLETS
+    generic: apixaban
+    anticoagulant: apixaban
+    degrade: []
+  - id: pill_02_eliquis_tilt
+    device: pill_label
+    mode: pill_bottle
+    printed_name: ELIQUIS
+    strength: 2.5 MG
+    dose_form: TABLETS
+    generic: apixaban
+    anticoagulant: apixaban
+    degrade: [{kind: perspective, strength: 0.2}]
+  - id: pill_03_xarelto_glare
+    device: pill_label
+    mode: pill_bottle
+    printed_name: XARELTO
+    printed_generic: RIVAROXABAN
+    strength: 20 MG
+    dose_form: TABLETS
+    generic: rivaroxaban
+    anticoagulant: rivaroxaban
+    degrade: [{kind: glare, at: [0.75, 0.30], size: 0.22, strength: 0.7}]
+  - id: pill_04_dabigatran_rot
+    device: pill_label
+    mode: pill_bottle
+    printed_name: DABIGATRAN ETEXILATE
+    generic_for: PRADAXA
+    strength: 150 MG
+    dose_form: CAPSULES
+    generic: dabigatran
+    anticoagulant: dabigatran
+    degrade: [{kind: rotation, angle: -17}]
+  - id: pill_05_jantoven_dim
+    device: pill_label
+    mode: pill_bottle
+    printed_name: JANTOVEN
+    printed_generic: WARFARIN SODIUM
+    strength: 5 MG
+    dose_form: TABLETS
+    generic: warfarin
+    anticoagulant: warfarin
+    degrade: [{kind: low_light, level: 0.35}]
+  - id: pill_06_metformin
+    device: pill_label
+    mode: pill_bottle
+    printed_name: METFORMIN HCL
+    generic_for: GLUCOPHAGE
+    strength: 500 MG
+    dose_form: TABLETS
+    generic: metformin
+    degrade: []
+  - id: pill_07_clopidogrel_blur
+    device: pill_label
+    mode: pill_bottle
+    printed_name: CLOPIDOGREL
+    generic_for: PLAVIX
+    strength: 75 MG
+    dose_form: TABLETS
+    generic: clopidogrel
+    notes: antiplatelet, not an anticoagulant (LABELING_GUIDE §5a)
+    degrade: [{kind: blur, radius: 1.8}]
+  - id: pill_08_atorvastatin_jpeg
+    device: pill_label
+    mode: pill_bottle
+    printed_name: ATORVASTATIN CALCIUM
+    generic_for: LIPITOR
+    strength: 40 MG
+    dose_form: TABLETS
+    generic: atorvastatin
+    degrade: [{kind: jpeg, quality: 12}]
+  - id: pill_09_metoprolol_thumb
+    device: pill_label
+    mode: pill_bottle
+    printed_name: METOPROLOL TARTRATE
+    strength: 25 MG
+    dose_form: TABLETS
+    generic: metoprolol
+    notes: the thumb covers the pharmacy header, not the drug line
+    degrade: [{kind: occlusion, field: header}]
+  - id: pill_10_lisinopril_shake
+    device: pill_label
+    mode: pill_bottle
+    printed_name: LISINOPRIL
+    generic_for: ZESTRIL
+    strength: 10 MG
+    dose_form: TABLETS
+    generic: lisinopril
+    degrade: [{kind: perspective, strength: 0.15}, {kind: motion_blur, length: 7}]
+  - id: pill_11_aspirin_otc
+    device: otc_bottle
+    mode: pill_bottle
+    printed_name: LOW DOSE ASPIRIN
+    printed_generic: ASPIRIN
+    strength: 81 MG
+    dose_form: DELAYED RELEASE TABLETS
+    generic: aspirin
+    notes: over-the-counter bottle; antiplatelet, not an anticoagulant
+    degrade: []
+
+  # ---------------- POLST-style forms (mode: form) ----------------
+  - id: form_01_dnr
+    device: polst
+    mode: form
+    section_a: dnr
+    section_b: selective
+    mark: check
+    degrade: []
+  - id: form_02_cpr_tilt
+    device: polst
+    mode: form
+    section_a: cpr
+    section_b: full
+    mark: x
+    degrade: [{kind: perspective, strength: 0.16}]
+  - id: form_03_dnr_glare_dim
+    device: polst
+    mode: form
+    section_a: dnr
+    section_b: comfort
+    mark: x
+    degrade: [{kind: glare, at: [0.70, 0.60], size: 0.25, strength: 0.6}, {kind: low_light, level: 0.45}]
+  - id: form_04_only_b_checked
+    device: polst
+    mode: form
+    section_a: null
+    section_b: comfort
+    mark: check
+    notes: section A (resuscitation) is blank; only section B is marked, so no code status can be read
+    degrade: []
+  - id: form_05_dnr_rot_jpeg
+    device: polst
+    mode: form
+    section_a: dnr
+    section_b: null
+    mark: check
+    degrade: [{kind: rotation, angle: 8}, {kind: jpeg, quality: 18}]
+
+  # ---------------- scene photos (mode: scene; free text, scored by key presence) ----------------
+  - id: scene_01_pill_organizer
+    device: pill_organizer
+    mode: scene
+    full_days: [THU, FRI, SAT, SUN]
+    values: {scene.notes: ["pill organizer with Thursday to Sunday doses still in it"]}
+    degrade: []
+  - id: scene_02_oxygen_dim
+    device: oxygen_cylinder
+    mode: scene
+    values: {scene.notes: ["home oxygen cylinder with nasal cannula"]}
+    degrade: [{kind: low_light, level: 0.45}]
+
+  # ---------------- distractors: no patient fact in the image ----------------
+  - id: distractor_01_thermostat
+    device: thermostat
+    mode: monitor
+    reading: "72"
+    setpoint: "70"
+    notes: room thermostat; the number is not a patient vital
+    degrade: []
+  - id: distractor_02_clock
+    device: alarm_clock
+    mode: monitor
+    reading: "10:42"
+    notes: bedside clock
+    degrade: [{kind: low_light, level: 0.5}]
+  - id: distractor_03_receipt
+    device: receipt
+    mode: pill_bottle
+    lines: [["BANANAS", "1.29"], ["WHOLE MILK 1 GAL", "4.49"], ["BREAD WHEAT", "3.19"], ["EGGS LARGE 12CT", "5.99"], ["COFFEE 12 OZ", "8.99"]]
+    notes: grocery receipt, no medication
+    degrade: [{kind: rotation, angle: -6}]
+  - id: distractor_04_sticky_note
+    device: sticky_note
+    mode: monitor
+    text: ["Dentist Tue 9:30", "call 555-0142", "trash day THU"]
+    notes: handwritten note with numbers that are not vitals
+    degrade: []
+  - id: distractor_05_visitor_form
+    device: visitor_form
+    mode: form
+    notes: a visitor sign-in sheet with checked boxes, not a resuscitation order
+    degrade: [{kind: perspective, strength: 0.12}]
+
+# Images already in eval/photos/ before this set existed (kept; their values are what is printed on them).
+existing:
+  - file: synthetic_pill_warfarin.jpg
+    mode: pill_bottle
+    facts: [[meds.list, [warfarin]], [meds.anticoagulant, warfarin]]
+    aliases: {meds.list: [warfarin sodium, coumadin]}
+    strength: 5 MG
+    degradations: [rotation]
+    notes: pre-existing image; WARFARIN SODIUM 5 MG, generic for COUMADIN
+  - file: synthetic_pulseox_94_104.jpg
+    mode: monitor
+    facts: [[vitals.spo2, 94], [vitals.hr, 104]]
+    degradations: []
+    notes: pre-existing image; SpO2 94, PR 104

@@ -96,3 +96,28 @@ def test_protocol_endpoints():
     assert ans["results"][0]["section"] == "3.1"
     assert c.get("/api/protocols/700-A13/page/1").headers["content-type"] == "image/png"
     assert "protocols" in c.get("/api/state").json()
+
+
+class _Reader:
+    """A vision model stand-in that counts figure transcriptions."""
+
+    def __init__(self, name):
+        self.name, self.calls = name, 0
+
+    def model_name(self):
+        return self.name
+
+    def chat_json(self, system, user, **kw):
+        self.calls += 1
+        return {"steps": [f"step read by {self.name}"]}
+
+
+def test_figure_transcription_is_cached_per_vision_model(tmp_path):
+    """Switching vision models must re-read the flowchart, not reuse the other model's transcription."""
+    shutil.copytree(ARCHIVE, tmp_path / "santa_clara" / "archive")
+    a, b = _Reader("omni"), _Reader("qwen3vl-fp8")
+    KnowledgeBase(COUNTY, tmp_path, vision=a)
+    KnowledgeBase(COUNTY, tmp_path, vision=a)          # cached: no second call
+    kb = KnowledgeBase(COUNTY, tmp_path, vision=b)
+    assert (a.calls, b.calls) == (1, 1)
+    assert any("step read by qwen3vl-fp8" in s.text for s in kb.sections)
