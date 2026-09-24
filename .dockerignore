@@ -1,0 +1,15 @@
+.git
+data/
+runs/
+runs_*.log
+*.log
+eval/
+tests/
+docs/
+scenarios/
+.pytest_cache/
+__pycache__/
+*.pyc
+ui/node_modules/
+node_modules/
+ed_receiver/__pycache__/

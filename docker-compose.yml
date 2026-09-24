@@ -1,0 +1,59 @@
+# Herald, containerized (docs/TASK_SPECS.md S2). See Dockerfile for why the split is what it is:
+#   herald      the FastAPI app + STT/embeddings. Needs the GPU and ZRT on the HOST (network_mode: host reaches
+#               ZRT at 127.0.0.1:8080, same address scripts/run_dev.sh uses). Start ZRT yourself first
+#               (scripts/serve_models.sh) -- this compose file deliberately never starts model servers.
+#   ed-receiver everything AI-free about the mock ED screen. No GPU, any arch. Realistically you'd run this
+#               profile on a teammate's laptop, not this box, so the link between them is real (ed_receiver/app.py).
+#   ui-build    a one-shot container that builds ui/dist on the host bind mount, for hosts without node >= 22.
+#               `docker compose --profile ui-build run --rm ui-build`, then `docker compose up herald`.
+#
+# Quick start (Nano, ZRT already serving on :8080):
+#   docker compose up --build herald
+#   curl http://localhost:8100/api/health
+#
+# Full loop, two containers, emulated weak link (needs scripts/link.sh start 127.0.0.1:8200 on the host first):
+#   docker compose --profile full up --build
+
+services:
+  herald:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: host   # reaches ZRT at 127.0.0.1:8080 and (if used) Toxiproxy at 127.0.0.1:9000, like run_dev.sh
+    gpus: all
+    environment:
+      PORT: "8100"
+      HERALD_LLM_URL: http://127.0.0.1:8080/v1
+      HERALD_LLM_MODEL: ${HERALD_LLM_MODEL:-}
+      HERALD_VISION_MODEL: ${HERALD_VISION_MODEL:-qwen3vl-fp8}
+      HERALD_ED_URL: ${HERALD_ED_URL:-}
+      HERALD_TZ: ${HERALD_TZ:-America/Los_Angeles}
+      HERALD_COUNTY: ${HERALD_COUNTY:-santa_clara}
+    volumes:
+      - ./data:/app/data                                  # captured audio/photos persist across container restarts
+      - ~/.cache/huggingface:/root/.cache/huggingface:ro   # Whisper/embedding weights (herald/models/weights.py)
+      - ./ui/dist:/app/ui/dist:ro                          # rebuild with `docker compose --profile ui-build run --rm ui-build`
+    restart: unless-stopped
+
+  ed-receiver:
+    build:
+      context: .
+      dockerfile: ed_receiver/Dockerfile
+    ports:
+      - "8200:8200"
+    environment:
+      PORT: "8200"
+    profiles: ["full", "ed-receiver"]
+    restart: unless-stopped
+
+  ui-build:
+    build:
+      context: ui
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    volumes:
+      - ./ui:/app
+      - /app/node_modules   # anonymous volume: keep the container's node_modules, don't let the bind mount hide it
+    profiles: ["ui-build"]
