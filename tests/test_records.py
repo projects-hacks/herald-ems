@@ -55,3 +55,12 @@ def test_who_gave_it_is_a_category():
     assert V.validate("meds.given", {"drug": "naloxone", "by": "Engine"})["by"] == "fire"
     assert V.validate("procedures.done", {"procedure": "cpr", "by": "coworker"})["by"] == "bystander"
     assert V.validate("meds.given", {"drug": "aspirin", "by": "crew"})["by"] == "crew"
+
+
+def test_every_dose_given_is_in_the_snapshot_not_only_the_latest():
+    inc = Incident()
+    for v in ({"drug": "aspirin", "dose": 324}, {"drug": "nitroglycerin", "dose": 0.4, "route": "SL"}):
+        inc.ingest(FactIn(key="meds.given", value=v, role=Role.medic, captured_by=CapturedBy.medic, confidence=0.99))
+    snap = inc.snapshot()
+    assert [e["value"]["drug"] for e in snap["events"]["meds.given"]] == ["aspirin", "nitroglycerin"]
+    assert snap["facts"]["meds.given"]["value"]["drug"] == "nitroglycerin"

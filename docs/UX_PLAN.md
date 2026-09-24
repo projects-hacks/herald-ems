@@ -2554,6 +2554,7 @@ export interface Snapshot {
   alerts: Alert[];
   clocks: Clock[];
   facts: Record<string, FactView>;                        // latest non-rejected fact per key
+  events: Record<string, FactView[]>;                     // event keys (meds.given, procedures.done): every event in order; show these as a list (a timeline of doses and procedures), not only facts[key]
   timeline: FactView[];                                   // last 60 facts, all statuses
   transcripts: TranscriptEntry[];                         // last 20
   ed_sync: Record<string, "sent" | "queued">;             // = relay.sync

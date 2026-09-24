@@ -62,6 +62,10 @@ class Projector:
             if "patient.sex" in all_vals:
                 summary = f"{summary} {str(all_vals['patient.sex']).upper()[:1]}".strip()
             latest = {f.key: self.fact_view(f) for f in inc.facts if f.status != Status.rejected}
+            # event keys (vocabulary merge "each": a dose given, a procedure) keep every event, in order; `facts`
+            # still holds the latest one per key for screens that show one value
+            events = {k: [self.fact_view(f) for f in inc.facts if f.key == k and f.status != Status.rejected]
+                      for k, m in self.vocab.keys.items() if m.get("merge") == "each"}
             return {
                 "incident": {"id": inc.id, "dispatch": inc.dispatch, "started": inc.started.isoformat()},
                 "summary": summary + (f" · {complaint}" if complaint else ""),
@@ -75,6 +79,7 @@ class Projector:
                 "alerts": alerts,
                 "clocks": self._clocks(inc, now, county),
                 "facts": latest,
+                "events": {k: v for k, v in events.items() if v},
                 "timeline": [self.fact_view(f) for f in inc.facts[-60:]],
                 "transcripts": inc.transcripts[-20:],
                 "ed_sync": inc.ed_sync,
