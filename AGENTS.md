@@ -99,6 +99,7 @@ Presenter link hotkeys on the NOW screen: Shift+G good, Shift+W weak, Shift+D do
 - **ZRT needs the `zrt` group**: run via `sg zrt -c "zrt …"` in old shells. The API is `127.0.0.1:8080/v1`, with auth and TLS off, localhost only.
 - **vLLM kernel JIT needs Python headers.** `python3.12-dev` is now installed system-wide (2026-09-23), which fixes it. The older workaround (`C_INCLUDE_PATH=CPLUS_INCLUDE_PATH=~/miniforge3/envs/zgx/include/python3.12` before `zrt serve`) is harmless if you see it in scripts.
 - **The JIT compile can OOM the box** (one `cicc` per core, about 4.5 GB each). Export `MAX_JOBS=3 NVCC_THREADS=1` before `zrt serve`.
+- **ZRT counts only *free* memory, not reclaimable file cache.** After reading large weight files, `zrt serve` can refuse ("Free memory is less than desired fraction") while `MemAvailable` is ample. Without root, drop the cache of files you own with `posix_fadvise(DONTNEED)`: a 20-line script reads each large file and advises it away (freed 37 GB on 2026-09-23; running models are unaffected).
 - **Always cap vLLM memory**: `--gpu-memory-fraction 0.35` or lower. Whisper and the app share the same 121 GiB.
 - **One GPU-heavy job at a time.** Fine-tuning and model swaps get announced to the team.
 - **Never `pkill -f uvicorn…`**: it matches your own shell. Kill by anchored `pgrep -f "^/home/hp18/miniforge3/envs/zgx/bin/python -m uvicorn herald.app"`.

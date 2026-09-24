@@ -5,7 +5,39 @@ Deadline **Fri 2026-09-25, 8:00 PM**. Internal target: submit by 6:00 PM. Featur
 Where decisions live: product spec and pitch → `/home/hp18/Documents/team-last-minute/.agent/ideas/herald-ems-copilot.md` (Nano only) · models → `docs/MODEL_PLAN.md` · UI → `docs/UX_PLAN.md` · hackathon rules and history → `/home/hp18/Documents/team-last-minute/.agent/context.md` (Nano only). The full document map is in `AGENTS.md`.
 Status: ✅ done · 🔄 in progress · ⏳ todo · ⛔ blocked. Update this file in the same PR as the work.
 
-## Checkpoint: Wed 2026-09-23, 22:15 (verified)
+## Checkpoint: Thu 2026-09-24, 00:50 UTC (Wed 17:50 PDT) (verified)
+**Live on port 8100:**
+- `ems-c-fp8` (fine-tuned extractor) for speech and `omni` for photos, with protocol lookup ready (371 sections, destination audit OK).
+- County config Santa Clara: G.F.A.S.T. beside RACE, routing rule quoted from 700-A13.
+- Tests: 97 pass.
+
+**Held-out results (gold v2, 3 runs):**
+- extraction F1: rules 0.444 · Omni 0.661 · rules + Omni 0.693 · run B 0.861 · **run C FP8 0.871**;
+- G.F.A.S.T. F1 **0.789** (precision 0.90);
+- p50 about 1.0 s;
+- unseen adversarial attacks: run C alone 25/40 (best).
+
+Everything is in `docs/MODEL_PLAN.md` §0e, §0f and §5.
+
+**Done since the last checkpoint:**
+- modular restructure (AGENTS rule 4);
+- clinical citations verified against publishers (RACE evidence corrected);
+- county config with G.F.A.S.T.;
+- plausibility validation;
+- FP8 serving;
+- run C with G.F.A.S.T.;
+- protocol lookup with online sync (real two-version demo);
+- the lanes rebalanced into full-stack slices with complete specs (`docs/TASK_SPECS.md`);
+- README rewritten for judges;
+- model card on the private HF repo.
+
+**Decisions waiting for Rajeev** (human in the loop):
+1. **Injection guard policy.** With the fine-tuned model, skipping it on flagged utterances loses legitimate facts (rules + run C 22/40 vs run C alone 25/40). Proposal: always run the model, and let flagged utterances produce only unconfirmed facts (MODEL_PLAN §0f).
+2. **Rules extractor's role.** On held-out data it adds nothing on top of run C (0.854 vs 0.861 for run B) and lowers who-said-it accuracy. Production systems use model extraction + validation + human confirmation, not phrase lists. Proposal: rules run only when no model is served.
+3. **County PDFs.** Download the current versions into `data/protocols/santa_clara/` (links in chat). Protocol lookup works on archived copies until then.
+4. **For Collaborator 2's specs:** accept the pyannote model terms on Hugging Face (S4) and `sudo apt install espeak-ng` (S3).
+
+## Earlier checkpoint: Wed 2026-09-23, 22:15 UTC
 **Since 20:15**
 - ✅ **Held-out gold v1 (100 items)**: two independent annotators, fact F1 0.993 before adjudication; 3 disagreements settled and written into `docs/LABELING_GUIDE.md` §3/§4/§4b.
 - ✅ **Scorer v2** (atomic facts: per list item, unioned list facts, normalized time phrasing), unit-tested. Effect on saved predictions: ±0.01.
