@@ -4,10 +4,12 @@ import asyncio
 import json
 import random
 
-from herald.extraction.rules import extract
+from fakes import rules_extractor
 from herald.relay import Relay
 from herald.core.schema import CapturedBy, Role
 from herald.core.incident import Incident
+
+extract = rules_extractor().extract
 
 
 class FakeED:

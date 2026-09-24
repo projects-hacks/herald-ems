@@ -21,3 +21,6 @@ data/protocols/*/manifest.json
 data/train_*/
 data/protocols/_pages/
 data/protocols/demo_mirror/
+
+# RxNorm download and derived index (scripts/build_rxnorm_index.py)
+data/terminology/

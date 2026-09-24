@@ -45,6 +45,8 @@ class Settings(BaseModel):
     # protocol lookup (P9): build the county knowledge base (embeddings on CPU, cached per document version)
     knowledge: bool = True
     protocol_mirror: Optional[str] = None        # base URL of a document mirror: <mirror>/<county>/<doc_id>.pdf
+    # drug and allergen names -> RxNorm (S6); the index is built by scripts/build_rxnorm_index.py
+    terminology: bool = True
     # cost-comparison overrides (defaults in config/telemetry.yaml)
     price_overrides: dict[str, float] = {}
 
@@ -81,6 +83,10 @@ class Settings(BaseModel):
     def photo_dir(self) -> Path:
         return (self.data_dir or self.root / "data") / "photos"
 
+    @property
+    def terminology_index(self) -> Path:
+        return (self.data_dir or self.root / "data") / "terminology" / "rxnorm_index.json"
+
     @classmethod
     def from_env(cls, env: Optional[dict] = None) -> "Settings":
         e = dict(os.environ if env is None else env)
@@ -113,6 +119,7 @@ class Settings(BaseModel):
             data_dir=Path(e["HERALD_DATA_DIR"]) if e.get("HERALD_DATA_DIR") else None,
             knowledge=e.get("HERALD_KNOWLEDGE", "1") == "1",
             protocol_mirror=opt("HERALD_PROTOCOL_MIRROR"),
+            terminology=e.get("HERALD_TERMINOLOGY", "1") == "1",
             price_overrides=prices,
         )
         return cls(**fields)

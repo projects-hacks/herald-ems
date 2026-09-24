@@ -14,7 +14,8 @@ router = APIRouter(prefix="/api")
 async def health(c=Depends(get_ctx)):
     return {"llm_model": c.text_model.model_name(), "vision_model": c.vision_model.model_name(),
             "stt_model": c.stt.model, "stt_loaded": c.stt.ready(),
-            "incident": c.incident.id, "county": c.counties.active["id"], "cloud_ai_calls": 0}
+            "incident": c.incident.id, "county": c.counties.active["id"], "cloud_ai_calls": 0,
+            "terminology": {"rxnorm_release": c.coder.release} if c.coder else None}
 
 
 @router.get("/telemetry")

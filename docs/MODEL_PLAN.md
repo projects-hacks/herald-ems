@@ -118,6 +118,48 @@ First, check with `pdffonts` / `pdftotext -bbox` whether Table B's check marks a
 - The guard's "skip the model for a flagged utterance" now **loses** legitimate facts said next to an injection (spoken vitals the rules can't parse) and lets rules-extracted injected values through.
 - **Decided (team lead, 2026-09-24), now the default:** the model reads every utterance ("the model decides what the facts are; the paramedic decides what counts"). When the guard flags an utterance, every fact from it is held for a tap, with a visible `hold_reason`. `HERALD_GUARD_POLICY=skip_model` restores the previous behavior.
 
+## 0g. Medication and allergy normalization with RxNorm (S6 / B4, 2026-09-24)
+Drug and allergen names are mapped to RxNorm ingredient names with their RxCUI, replacing the hand-typed anticoagulant word list. Code: `herald/terminology/`. Content: `config/terminology.yaml` (source, release, thresholds), `config/terminology/anticoagulants.yaml` (the class, by WHO ATC B01A), `config/terminology/supplement.yaml`. Index: `scripts/build_rxnorm_index.py` → `data/terminology/rxnorm_index.json` (not in git; 4 s to build, 5 MB, 0.03 s to load, ~0.1 ms per name).
+
+- **Data:** RxNorm Current Prescribable Content, release 2026-09-08 (public domain, no UMLS licence or login): 5,844 ingredients, 69,192 names.
+- **Supplement:** Coumadin is an active RxNorm concept (202421 → warfarin) but is absent from the prescribable subset, because the brand left the U.S. market. `supplement.yaml` adds it, checked against RxNav. It is the only entry.
+- **Matching:** exact (casefold, then without a trailing strength: "warfarin 5 mg") → fuzzy (rapidfuzz ratio ≥ 90, names ≥ 5 characters) → phonetic (Metaphone, a single candidate, Levenshtein similarity ≥ 0.6).
+  - `jellyfish` has no Double Metaphone (the spec's choice), so this uses Metaphone plus the spelling floor.
+- **Never guesses:**
+  - A candidate more specific than what was said is rejected ("penicillin" never becomes "penicillin g").
+  - A word RxNorm already uses is never fuzzy- or sound-matched ("insulin" is not a misspelling of "inulin"; "nitro" not of nitisinone).
+  - Ambiguous names stay unresolved. Unresolved items keep the spoken text with a `None` code.
+- **Where it runs:** inside each extractor (rules, model, vision), injected from the composition root. The live capture path calls the rules and model extractors separately, so a pipeline-only step would have missed it. Rules and model facts are therefore compared after normalization when merged.
+- **Anticoagulants:**
+  - An anticoagulant is both `meds.anticoagulant` and a `meds.list` item, as the labeling guide labels it. Either fact gives the other.
+  - A drug outside the class (Plavix → clopidogrel, an antiplatelet) is recorded as a medication, never as the anticoagulant.
+  - The rules fallback takes its anticoagulant names (brand and generic) from RxNorm.
+
+**Tuning, on gold v1 (dev) and hand-made name lists only:**
+- The first cut matched "insulin" → inulin, "nitro" → nitisinone, and the allergen "peanuts" → mesalamine (via the brand Pentasa, phonetic). The first two were fixed by the known-word rule.
+- "peanuts" was fixed by the Levenshtein floor, which separates it (0.43) from every true misspelling tested (0.57–0.86; e.g. "xeralto" → Xarelto 0.71, "plavicks" → Plavix 0.63). Also tested: 50 misspellings, 49 fixed, 0 mapped to a wrong drug; 85 non-drug allergens and drug-class words, none mapped.
+- **Known limitation:** "stent" → Sutent (sunitinib), 1 letter apart. A 6-letter minimum would also lose "zanax", "zolof", and "kepra", and "stent" is not a value the extractors put in these keys.
+- On v1 the only regression is v1_093 (below). ems-a, an obsolete run, hallucinated warfarin from "not sure if he's on blood thinners" (v1_056); the derivation copies that error into `meds.list`, so 1 wrong atom becomes 2.
+
+**Held-out `gold_v2`, measured once after tuning was frozen.** Each extractor's saved predictions (`eval/dumps/gold_v2/`, 3 runs) are scored with and without coding (`--rescore … --terminology off|on`). Rules are run live with the new code (`rules_rxnorm.jsonl`). All lines are in `eval/results.jsonl`. Drug keys = `meds.list`, `meds.anticoagulant`, `allergies` (`--keys`). Mean ± half the range over 3 runs:
+
+| Extractor | Drug-key precision | Drug-key recall | Drug-key F1 | Overall F1 |
+|---|---|---|---|---|
+| rules (1 run, deterministic) | 0.800 → 0.800 | 0.327 → 0.327 | 0.464 → 0.464 | 0.444 → 0.444 |
+| Omni p3 | 0.450 ±0.013 → **0.778** ±0.015 | 0.524 ±0.011 → **0.952** ±0.010 | 0.484 → **0.856** | 0.661 ±0.014 → **0.740** ±0.013 |
+| rules + Omni p3 | 0.474 ±0.027 → **0.750** ±0.020 | 0.612 ±0.021 → **0.939** ±0.020 | 0.535 → **0.834** | 0.693 ±0.004 → **0.755** ±0.006 |
+| run B (`ems-b`) | 0.872 → 0.891 | 0.837 → 0.837 | 0.854 → 0.863 | 0.861 → 0.863 |
+| rules + run B | 0.808 → 0.824 | 0.857 → 0.857 | 0.832 → 0.840 | 0.854 → 0.856 |
+| run B FP8 | 0.889 → 0.911 | 0.816 → 0.837 | 0.851 → 0.872 | 0.858 → 0.862 |
+| **run C FP8 (`ems-c-fp8`, live)** | 0.849 → **0.865** | 0.918 → 0.918 | 0.882 → **0.891** | 0.871 → **0.873** |
+
+- **Verdict: genuine.** Each comparison uses identical predictions, so the only difference is the coding (no model run-to-run noise).
+  - Omni: +0.43 recall and +0.33 precision on drug keys, against spreads ≤ 0.02. It says brand names ("Lipitor", "ProAir"); the fine-tuned models were trained to write generics.
+  - Fine-tuned models: precision +0.016 to +0.022, recall +0 to +0.021. Small (1–2 of the 49 gold drug-key atoms), but deterministic.
+  - Across all 19 saved v2 prediction files: 114 atoms fixed, 0 lost. Coding caused no new errors on v2. The 20 atoms that look new are existing model errors renamed to their generic, 5 distinct: EMS-given Narcan → naloxone; "ipratropium bromide" → ipratropium; overdose bottles Seroquel and Xanax → quetiapine and alprazolam; an uncertain "I think it's Synthroid?" → levothyroxine.
+- **Acceptance (S6):** drug-key precision rises for every model extractor. Recall rises for Omni and run B FP8 and is flat for run C: its remaining misses are extraction misses that normalization cannot fix.
+- **Label vs standard, for the labeling guide's owner:** RxNorm links Pradaxa to the ingredient "dabigatran etexilate" (1037042). RxNorm also has "dabigatran" (1546356). The guide writes "dabigatran". This costs 2 atoms per Pradaxa mention (v1_093; no v2 item) and is the whole of the rules' v1 change (F1 0.571 → 0.560). The fix is a labeling decision (RxNorm ingredient names as the label standard), not a lookup table.
+
 ## 1. Text model (live extraction)
 | Rank | Model | Active | Decode on GB10 (measured by others) | 150-tok latency (est.) | Instruction-following evidence | vLLM 0.26 status |
 |---|---|---|---|---|---|---|

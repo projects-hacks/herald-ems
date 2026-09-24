@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Optional
 
 from ..config import load_jsonl, load_text
-from ..core.ports import TextModel
+from ..core.ports import FactCoder, TextModel
 from ..core.schema import CapturedBy, FactIn, Provenance, Role
 from ..core.vocabulary import Vocabulary, default_vocabulary
 from .grounding import Grounding, default_grounding
@@ -60,8 +60,9 @@ class ModelExtractor:
 
     def __init__(self, model: TextModel, *, vocabulary: Optional[Vocabulary] = None,
                  grounding: Optional[Grounding] = None, prompts: Optional[Prompts] = None,
-                 finetuned_labels: tuple[str, ...] = ("ems",)):
+                 finetuned_labels: tuple[str, ...] = ("ems",), coder: Optional[FactCoder] = None):
         self.model = model
+        self.coder = coder
         self.vocab = vocabulary or default_vocabulary()
         self.grounding = grounding or default_grounding()
         self.prompts = prompts or Prompts.from_config(self.vocab)
@@ -107,4 +108,4 @@ class ModelExtractor:
             out.append(FactIn(key=key, value=value, role=role, speaker=speaker, captured_by=captured_by,
                               confidence=0.9, provenance=Provenance(audio_id=audio_id, text=text,
                                                                     extractor=f"llm:{label}")))
-        return out
+        return self.coder.code(out) if self.coder else out

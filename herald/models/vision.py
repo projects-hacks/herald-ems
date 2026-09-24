@@ -2,27 +2,27 @@
 
 Every fact from a photo starts unconfirmed; the medic taps to confirm. Reading only: no ECG interpretation, no
 advice. Readings outside the (tighter) photo plausibility ranges are dropped, and an SBP at or below its DBP
-drops the pair."""
+drops the pair. Drug names on a label are normalized to RxNorm by the injected `FactCoder`."""
 from __future__ import annotations
 
 import base64
 from typing import Optional
 
 from ..config import load_yaml
-from ..core.ports import TextModel
+from ..core.ports import FactCoder, TextModel
 from ..core.schema import CapturedBy, FactIn, Provenance, Role
 
 
 class VisionReader:
     """The `PhotoReader` interface over a local vision-capable `TextModel`."""
 
-    def __init__(self, model: TextModel):
+    def __init__(self, model: TextModel, coder: Optional[FactCoder] = None):
         cfg = load_yaml("prompts/vision.yaml")
         self.model = model
+        self.coder = coder
         self.system = cfg["system"]
         self.prompts: dict[str, str] = cfg["modes"]
         self.ranges = {k: tuple(v) for k, v in cfg["plausible_ranges"].items()}
-        self.anticoagulants: dict[str, str] = load_yaml("lexicons.yaml")["anticoagulants"]
         self.modes = tuple(self.prompts)
 
     def read(self, image_bytes: bytes, mode: str, photo_id: Optional[str] = None) -> list[FactIn]:
@@ -41,16 +41,11 @@ class VisionReader:
             common = dict(role=Role.photo, speaker=mode.replace("_", " "), captured_by=CapturedBy.camera,
                           confidence=float(f.get("confidence", 0.8)), provenance=prov)
             out.append(FactIn(key=key, value=value, **common))
-            if key == "meds.list":
-                for n in (value if isinstance(value, list) else [value]):
-                    canon = self.anticoagulants.get(str(n).lower().split()[0])
-                    if canon:
-                        out.append(FactIn(key="meds.anticoagulant", value=canon, **common))
         sbp = next((f.value for f in out if f.key == "vitals.sbp"), None)
         dbp = next((f.value for f in out if f.key == "vitals.dbp"), None)
         if sbp is not None and dbp is not None and float(dbp) >= float(sbp):
             out = [f for f in out if f.key not in ("vitals.sbp", "vitals.dbp")]
-        return out
+        return self.coder.code(out) if self.coder else out
 
     def _plausible(self, key: str, value) -> bool:
         if key not in self.ranges:

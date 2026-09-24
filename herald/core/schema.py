@@ -8,9 +8,10 @@ The vocabulary of keys is content, in config/vocabulary.yaml (core/vocabulary.py
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -56,6 +57,7 @@ class Provenance(BaseModel):
     crop: Optional[list[float]] = None  # [x0, y0, x1, y1] normalized
     extractor: Optional[str] = None     # "rules", "llm:<model>", "vision:<model>", "manual"
     hold_reason: Optional[str] = None   # why this fact waits for the medic's tap (shown on screen), e.g. the guard
+    normalized: Optional[list[dict]] = None   # drug names: [{said, value, code, method, score}] per item
 
 
 class FactIn(BaseModel):
@@ -68,6 +70,22 @@ class FactIn(BaseModel):
     captured_by: CapturedBy = CapturedBy.medic
     confidence: float = 0.9
     provenance: Provenance = Field(default_factory=Provenance)
+    # RxNorm RxCUI of a drug value; for list keys, one entry per item in order. None (or a None entry) = unresolved.
+    code: Optional[Union[str, list[Optional[str]]]] = None
+
+
+@dataclass(frozen=True)
+class NormalizedValue:
+    """A drug or allergen name mapped to its standard generic name, or kept as said when nothing matched."""
+    value: str                          # ingredient name(s), lowercase; the spoken text when unresolved
+    code: Optional[str]                 # RxCUI of the ingredient (or of the multi-ingredient concept)
+    score: float                        # 100 for exact; the similarity for fuzzy and phonetic matches
+    method: str                         # exact | fuzzy | phonetic | unresolved | ambiguous
+    ingredients: tuple[str, ...] = ()
+
+    @property
+    def resolved(self) -> bool:
+        return self.method in ("exact", "fuzzy", "phonetic")
 
 
 class Fact(FactIn):

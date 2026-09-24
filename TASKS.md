@@ -114,6 +114,7 @@ Everything is in `docs/MODEL_PLAN.md` §0e, §0f and §5.
   - `POST /api/protocols/sync` runs a sync now; `POST /api/protocols/{doc}/reviewed` clears a review flag.
   - The snapshot has a `protocols` block (`ready`, `review_required`, `destination_audit_ok`, documents).
 - **G.F.A.S.T. from speech:** the live model (`ems-c-fp8`) extracts `exam.gfast.*`. They arrive unconfirmed; the medic's taps complete the screen.
+- **Drug coding (RxNorm, S6; on branch `feat/rxnorm`, not yet on 8100):** drug and allergen values are RxNorm ingredient names; every fact has `code` (RxCUI; per item for lists; `null` = unresolved) and `provenance.normalized[]` (as said → coded); trace facts carry `code`; `GET /api/health` has `terminology.rxnorm_release`. UX_PLAN §5.9c.
 - **Also already live:** WebSocket ping → pong, `GET /api/meta`, `trace.heard.stt.ms`, the failed-photo and monitor-panel trace entries, ED `last_contact_at`, and `/classic/`.
 
 ### Rajeev Chaurasia (@rajeev-chaurasia): lead + backend, models, eval, infra (claimed)
@@ -124,7 +125,7 @@ Docs: `docs/MODEL_PLAN.md`, `docs/LABELING_GUIDE.md`, `eval/`.
 | B1 | Final held-out numbers on gold v2 for every extractor (rules, Omni p3, fine-tuned run B; alone and with rules), 3 runs, contamination check | ✅ Rajeev: final 3-run table in MODEL_PLAN §5 (rules 0.444 · Omni 0.661 · rules + Omni 0.693 · **run B 0.861** · rules + run B 0.854) | table in MODEL_PLAN §5; the deck uses only these |
 | B2 | Modular restructure (AGENTS rule 4): packages by responsibility, interfaces, all clinical content in `config/` | ✅ Rajeev: merged to `main`, 90 tests pass, smoke-tested live | merged; live app on 8100 runs it |
 | B3 | Grounded extraction: each model fact carries its transcript quote + assertion (present/absent/uncertain) + subject; the deterministic quote check drops ungrounded facts (research: Abridge/Nabla/Corti pattern) | ⏳ Rajeev (next after B1) | precision up on gold v2 with no recall loss beyond the spread |
-| B4 | Medication normalization with RxNorm | ➡️ moved to Collaborator 3 (C3.7, spec S6) | brand names and ASR misspellings map to generics on gold v2 |
+| B4 | Medication normalization with RxNorm | ➡️ moved to Collaborator 3 (C3.7, spec S6); 🔄 in review | brand names and ASR misspellings map to generics on gold v2 |
 | B5 | G.F.A.S.T. extraction: labeling-guide rules, annotated training data, run C fine-tune, gold G.F.A.S.T. labels (two annotators) | ✅ Rajeev: labeling rules (§4d), gold G.F.A.S.T. labels (two annotators, 99–100% identical), training data, **run C: held-out G.F.A.S.T. F1 0.789 (P 0.90), main F1 0.871**; live as `ems-c-fp8` | G.F.A.S.T. items extracted from speech; measured |
 | B6 | Latency: fine-tuned model p95 ≤ 2 s (FP8 serving or the 1.7B run B) | ✅ Rajeev: FP8 serving halves latency at equal accuracy (p50 ~1.0 s, p95 2.24 s with G.F.A.S.T. facts) | p50/p95 measured 3× |
 | B7 | P9 protocol lookup + online sync (document-parser bake-off on the county PDFs, local index, cited sections, version on screen, review flag on update) | 🔄 Rajeev: `herald/knowledge/` built and tested: sections 338/338, Table B 168/168 from the text layer, flowchart read by the local vision model, hybrid search + model reranking (top-1 14/22, top-3 19/22, refusals 2/3), sync on good link with review flags, destination audit. Pending: current county PDFs (Rajeev downloads), UI panel, demo mirror | "open the stroke protocol" shows 700-A13 §3.2 with its effective date |
@@ -167,7 +168,7 @@ Docs: `docs/UX_PLAN.md` §3.4 (ED screen), §3.5 (presenter), §3.6 (phone captu
 | C3.4 | **U15 strip:** telemetry strip (tokens/s, GPU W, Wh, $ vs cloud with the stated rates and sources, cloud AI calls 0) | 1.5 | C1.3 | the UX_PLAN §5.9 contract rendered; honest labels |
 | C3.5 | **P4.3:** show field-triage criteria only on trauma or fall dispatches | 0.5 | C1.3 | hidden on stroke |
 | C3.6 | **Mass-casualty mode (P11)**: patient roster, `triage.category`, relay across patients by triage rank, patient strip + ED list. **Spec S5** | 5 | C3.2 | two patients on a weak link: the immediate one's update goes first |
-| C3.7 | **Medication normalization with RxNorm (B4)**: local RxNorm index, exact/fuzzy/phonetic match, RxCUI on facts, replaces the anticoagulant word list. **Spec S6** | 3.5 | — | med/allergy recall up on gold v2 with no precision loss beyond the spread |
+| C3.7 | 🔄 in review (`feat/rxnorm`) **Medication normalization with RxNorm (B4)**: local RxNorm index, exact/fuzzy/phonetic match, RxCUI on facts, replaces the anticoagulant word list. **Spec S6**. Gold v2 drug keys: Omni P 0.45 → 0.78, R 0.52 → 0.95; run C P 0.85 → 0.87, R flat at 0.92; 0 atoms lost (MODEL_PLAN §0g). Rajeev: rebuild the index on 8100 after merge; decide the "dabigatran etexilate" label | 3.5 | — | med/allergy recall up on gold v2 with no precision loss beyond the spread |
 | C3.8 | **30-minute soak test + pre-demo runbook (M5)**: `scripts/soak.py`, MARLIN check, `docs/RUNBOOK.md`. **Spec S7** | 1 | — | 30 min, 0 errors, no drift; runbook rehearsed |
 
 ### Collaborator 4: pitch, field evaluation, and deliverables

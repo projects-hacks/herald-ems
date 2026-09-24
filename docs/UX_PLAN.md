@@ -2034,15 +2034,21 @@ export type FactStatus = "unconfirmed" | "confirmed" | "rejected";
 export type FactValue = string | number | boolean | string[] | null;
 
 // ---------- facts ----------
+export interface Normalized {                  // one drug or allergen name, as said and as coded (§5.9c)
+  said: string; value: string; code: string | null;
+  method: "exact" | "fuzzy" | "phonetic" | "unresolved" | "ambiguous"; score: number;
+}
 export interface Provenance {
   audio_id: string | null; t_start: number | null; t_end: number | null; text: string | null;
   photo_id: string | null; crop: [number, number, number, number] | null; extractor: string | null;
+  normalized: Normalized[] | null;             // drug keys only: one entry per name said
 }
+export type RxCode = string | (string | null)[] | null;   // RxCUI; list keys: one per item, null = unresolved
 export interface FactView {                    // state._fact_view(): Fact.model_dump + label + unit
   id: string; key: string; value: FactValue; unit: string | null; label: string;
   role: Role; speaker: string | null; captured_by: CapturedBy; confidence: number;
   provenance: Provenance; ts: string; status: FactStatus;
-  previous_value: FactValue; previous_ts: string | null;
+  previous_value: FactValue; previous_ts: string | null; code: RxCode;
 }
 
 // ---------- checklists, gaps, trends ----------
@@ -2091,7 +2097,7 @@ export type RelayAtCapture =
   | "stays on the vehicle (not in the ED set)";
 export interface TraceFact {
   id: string; key: string; label: string; value: FactValue; role: Role; speaker: string | null;
-  status: FactStatus; confidence: number; extractor: string | null; relay: RelayAtCapture;
+  status: FactStatus; confidence: number; extractor: string | null; code: RxCode; relay: RelayAtCapture;
 }
 export interface SttInfo { seconds: number; chunks: { text: string; t: [number | null, number | null] }[]; ms?: number }
 export interface RejectedFact { key: string; value: FactValue; reason: string }  // implausible or malformed
@@ -2155,7 +2161,10 @@ export interface Snapshot {
 export type NowMessage = { type: "state"; state: Snapshot } | { type: "pong"; t: string };
 
 // ---------- REST ----------
-export interface Health { llm_model: string | null; stt_model: string; stt_loaded: boolean; incident: string; cloud_ai_calls: number }
+export interface Health {
+  llm_model: string | null; stt_model: string; stt_loaded: boolean; incident: string; cloud_ai_calls: number;
+  terminology: { rxnorm_release: string } | null;   // null: the RxNorm index isn't built, drug names stay as said
+}
 
 // ---------- ED receiver (ed_receiver/app.py view()) ----------
 export interface EdIncident {
@@ -2360,6 +2369,14 @@ GET /api/telemetry  →  200
 - `GET /api/protocols/{doc}/page/{n}` → PNG of the printed page.
 - `POST /api/protocols/sync` → `{checked, updated[], errors[], at}`. `POST /api/protocols/{doc}/reviewed` clears the review flag after a person checks the county config.
 - The snapshot's `protocols` block is the same shape as `GET /api/protocols` without the audit detail. Show "Protocol updated: review county settings" while `review_required` is non-empty.
+
+### 5.9c Medication and allergy coding contract (backend, S6, 2026-09-24)
+- Values of `meds.list`, `meds.anticoagulant` and `allergies` are RxNorm ingredient names, lowercase ("Eliquis" → "apixaban"; a multi-ingredient brand → "acetaminophen / oxycodone"). A name that matched nothing keeps the spoken text.
+- `code` on every fact (`FactView`, `TraceFact`): the RxCUI. For list keys, one entry per item in the same order. `null` (or a `null` entry) means unresolved. Non-drug keys always have `null`.
+- `provenance.normalized[]`: what was said, the coded value, the method and the score, per name.
+- Fact details show, e.g., "Eliquis → apixaban · RxNorm 1364430". An unresolved name shows as said, with "not found in RxNorm". Never show a fuzzy or phonetic match as more certain than the fact's status.
+- An anticoagulant also appears in `meds.list`. A drug outside the anticoagulant class (e.g. clopidogrel) is never `meds.anticoagulant`.
+- `GET /api/health` → `terminology: {rxnorm_release}`, or `null` when the index isn't built. In that case, show "Drug names not coded" in the stack view.
 
 ### 5.10 Build and serving with FastAPI
 

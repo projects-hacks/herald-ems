@@ -4,6 +4,7 @@ Tests and tools pass their own Settings and fakes (e.g. a stub TextModel) to `bu
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -13,7 +14,7 @@ from ..config import Settings, get_settings
 from ..config.county import CountyRegistry
 from ..core.confirmation import ConfirmationPolicy
 from ..core.incident import Incident
-from ..core.ports import PhotoReader, SpeechToText, TextModel
+from ..core.ports import Normalizer, PhotoReader, SpeechToText, TextModel
 from ..core.snapshot import Projector
 from ..core.trends import TrendRules
 from ..core.vocabulary import Vocabulary, default_vocabulary
@@ -25,8 +26,11 @@ from ..models import LocalLLMClient, VisionReader, WhisperSTT
 from ..relay import LinkEmulator, Relay, RelayTiers, default_tiers
 from ..scoring import ScaleRegistry, default_scales
 from ..telemetry import Telemetry
+from ..terminology import MedicationCoder, RxNormNormalizer
 from .contract import UIContract
 from .trace import TraceRecorder
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -52,6 +56,7 @@ class AppContext:
     tracer: TraceRecorder
     contract: UIContract
     link: LinkEmulator
+    coder: Optional[MedicationCoder] = None
     relay: Optional[Relay] = None
     knowledge: Optional[KnowledgeService] = None
     incident: Optional[Incident] = None
@@ -74,7 +79,7 @@ class AppContext:
 def build_context(settings: Optional[Settings] = None, *, text_model: Optional[TextModel] = None,
                   vision_model: Optional[TextModel] = None, stt: Optional[SpeechToText] = None,
                   vision: Optional[PhotoReader] = None, telemetry: Optional[Telemetry] = None,
-                  embedder=None, protocol_fetch=None) -> AppContext:
+                  embedder=None, protocol_fetch=None, normalizer: Optional[Normalizer] = None) -> AppContext:
     s = settings or get_settings()
     vocab, scales, tiers, guard = default_vocabulary(), default_scales(), default_tiers(), default_guard()
     counties = CountyRegistry(s.county)
@@ -84,17 +89,18 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
     tel = telemetry or Telemetry(s.metrics_url, s.price_overrides)
     model = text_model or LocalLLMClient(s.llm_url, s.llm_model, usage=tel)
     seeing = vision_model or (text_model if text_model is not None else LocalLLMClient(s.llm_url, s.vision_model, usage=tel))
-    rules = RulesExtractor(guard)
-    model_extractor = ModelExtractor(model, vocabulary=vocab, finetuned_labels=s.finetuned_models)
+    coder = _coder(s, vocab, normalizer)
+    rules = RulesExtractor(guard, coder.anticoagulant_names() if coder else None, coder)
+    model_extractor = ModelExtractor(model, vocabulary=vocab, finetuned_labels=s.finetuned_models, coder=coder)
     ctx = AppContext(
         settings=s, vocab=vocab, scales=scales, counties=counties, checklists=checklists, projector=projector,
         policy=ConfirmationPolicy(vocab, s.auto_confirm), tiers=tiers, trends=trends, guard=guard, telemetry=tel,
         text_model=model, vision_model=seeing, stt=stt or WhisperSTT(s.stt_model, usage=tel),
-        vision=vision or VisionReader(seeing),
+        vision=vision or VisionReader(seeing, coder),
         rules=rules, model_extractor=model_extractor,
         pipeline=ExtractionPipeline(rules, model_extractor, guard, model_available=model.available),
         tracer=TraceRecorder(vocab, tiers), contract=UIContract(vocab, tiers, trends, checklists, counties),
-        link=LinkEmulator(s.toxiproxy_url))
+        link=LinkEmulator(s.toxiproxy_url), coder=coder)
     ctx.new_incident(s.dispatch)
     ctx.relay = Relay(lambda: ctx.incident, s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir)
     if s.knowledge:
@@ -107,3 +113,14 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
                                          embedder=embedder or None, reranker=LLMReranker(seeing), vision=seeing,
                                          fetch=protocol_fetch, mirror=s.protocol_mirror)
     return ctx
+
+
+def _coder(s: Settings, vocab: Vocabulary, normalizer: Optional[Normalizer]) -> Optional[MedicationCoder]:
+    """RxNorm coding for drug and allergen names. Tests inject a small in-memory normalizer."""
+    if normalizer is None and s.terminology:
+        if s.terminology_index.exists():
+            normalizer = RxNormNormalizer.load(s.terminology_index)
+        else:
+            log.warning("RxNorm index %s is missing: drug names stay as said and the rules record no anticoagulant. "
+                        "Build it with scripts/build_rxnorm_index.py", s.terminology_index)
+    return MedicationCoder.from_config(normalizer, vocab) if normalizer is not None else None

@@ -1,0 +1,23 @@
+# Medication and allergy normalization against RxNorm (herald/terminology/, docs/TASK_SPECS.md S6).
+# RxNorm is published by the U.S. National Library of Medicine. The Current Prescribable Content subset is public
+# domain and needs no UMLS licence or login. It is also the drug coding NEMSIS uses for medications and allergies.
+source:
+  name: RxNorm Current Prescribable Content
+  url: https://download.nlm.nih.gov/rxnorm/RxNorm_full_prescribe_current.zip
+  docs: https://www.nlm.nih.gov/research/umls/rxnorm/docs/prescribe.html
+  release: "2026-09-08"        # the release the index on the Nano was built from (its Readme's date)
+  rebuild: ~/miniforge3/envs/zgx/bin/python scripts/build_rxnorm_index.py   # writes data/terminology/ (not in git)
+
+# The keys whose values are drug or allergen names.
+keys:
+  list: [meds.list, allergies]
+  anticoagulant: meds.anticoagulant
+
+# Matching, in order, stopping at the first hit: exact (casefold) -> fuzzy -> phonetic. No match keeps the spoken
+# text, unresolved. Thresholds were tuned on gold v1 (dev) only.
+match:
+  min_length: 5            # fuzzy and phonetic matching only for names at least this long
+  fuzzy_min_ratio: 90      # rapidfuzz ratio (0-100) against ingredient, precise-ingredient and brand names
+  # A Metaphone match must also be the only candidate and this similar in spelling (normalized Levenshtein, 0-1).
+  # Misspellings sit at 0.57-0.86 ("xeralto" 0.71, "plavicks" 0.63); "peanuts" -> Pentasa (mesalamine) is 0.43.
+  phonetic_min_similarity: 0.6

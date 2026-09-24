@@ -6,6 +6,8 @@
   python eval/bench_extract.py --extractor llm --model omni --gold eval/gold_v0.jsonl --out eval/results.jsonl
 
   python eval/bench_extract.py --rescore dump.jsonl --gold eval/gold_v1.jsonl  # re-score saved predictions
+  python eval/bench_extract.py --rescore dump.jsonl --terminology on           # ... after RxNorm coding (S6)
+  python eval/bench_extract.py --rescore dump.jsonl --keys meds.list,meds.anticoagulant,allergies  # these keys only
 
 Scores atomic facts: precision / recall / F1, role accuracy on matched facts, JSON validity, and
 per-utterance latency. Numbers go straight into the deck.
@@ -19,7 +21,8 @@ What an atomic fact is (scorer v2, 2026-09-23; v1 scored whole facts):
   ago" == "15 minutes ago", "06:30" == "0630");
 - free-text keys (FREE_TEXT): presence only, reported separately.
 Drug names are NOT normalized by the scorer: mapping brands and misspellings to generic names is the
-extractor's job (LABELING_GUIDE §4).
+extractor's job (LABELING_GUIDE §4), done by RxNorm coding (herald/terminology/) as the app wires it.
+`--terminology on` applies that coding to saved predictions, so its effect is measured on identical model output.
 """
 import argparse
 import json
@@ -32,10 +35,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from herald.config import Settings  # noqa: E402
-from herald.core.schema import CapturedBy, Role  # noqa: E402
+from herald.core.schema import CapturedBy, FactIn, Role  # noqa: E402
 from herald.core.vocabulary import default_vocabulary  # noqa: E402
 from herald.extraction import ExtractionPipeline, ModelExtractor, RulesExtractor  # noqa: E402
 from herald.models import LocalLLMClient  # noqa: E402
+from herald.terminology import MedicationCoder, RxNormNormalizer  # noqa: E402
 
 KEYS = default_vocabulary().keys
 
@@ -119,20 +123,35 @@ def score(gold, pred, free_text=False):
     return len(tp), len(p) - len(tp), len(g) - len(tp), role_ok, sorted(set(p) - set(g)), sorted(set(g) - set(p))
 
 
-def build_extractor(kind: str, model: str | None):
+def build_coder(on: bool):
+    if not on:
+        return None
+    s = Settings.from_env()
+    if not s.terminology_index.exists():
+        sys.exit(f"--terminology on needs {s.terminology_index}: run scripts/build_rxnorm_index.py")
+    return MedicationCoder.from_config(RxNormNormalizer.load(s.terminology_index), default_vocabulary())
+
+
+def code_pred(coder, pred):
+    """Apply RxNorm coding to saved (key, value, role) predictions, as the extractors do live."""
+    facts = coder.code([FactIn(key=k, value=v, role=Role(r)) for k, v, r in pred])
+    return [(f.key, f.value, f.role.value) for f in facts]
+
+
+def build_extractor(kind: str, model: str | None, coder=None):
     """The same extractors the app wires (herald/api/context.py), for one served model label."""
     s = Settings.from_env()
     client = LocalLLMClient(s.llm_url, model or s.llm_model)
-    rules = RulesExtractor()
-    model_x = ModelExtractor(client, finetuned_labels=s.finetuned_models)
+    rules = RulesExtractor(anticoagulant_names=coder.anticoagulant_names() if coder else (), coder=coder)
+    model_x = ModelExtractor(client, finetuned_labels=s.finetuned_models, coder=coder)
     ext = {"rules": rules, "llm": model_x,
            "pipeline": ExtractionPipeline(rules, model_x, model_available=client.available)}[kind]
     return ext, model_x, client
 
 
-def predict(a, rows):
+def predict(a, rows, coder):
     """Run the extractor on every row. Yields (row, pred as (key, value, role) tuples, ms, tokens, error)."""
-    ext, model_x, _ = build_extractor(a.extractor, a.model)
+    ext, model_x, _ = build_extractor(a.extractor, a.model, coder)
     for r in rows:
         by = CapturedBy(r.get("by", "medic"))
         role = Role.family if by == CapturedBy.other else Role.medic
@@ -148,12 +167,13 @@ def predict(a, rows):
         yield r, [(f.key, f.value, f.role.value) for f in pred], ms, tokens, err
 
 
-def replay(path, rows):
-    """Saved predictions from a --dump file, in gold order."""
+def replay(path, rows, coder=None):
+    """Saved predictions from a --dump file, in gold order (RxNorm-coded first when a coder is given)."""
     saved = {d["id"]: d for d in map(json.loads, open(path))}
     for r in rows:
         d = saved[r["id"]]
-        yield r, [tuple(x) for x in d["pred"]], d["ms"], d.get("tokens"), d.get("error")
+        pred = [tuple(x) for x in d["pred"]]
+        yield r, code_pred(coder, pred) if coder else pred, d["ms"], d.get("tokens"), d.get("error")
 
 
 def main():
@@ -167,7 +187,13 @@ def main():
     ap.add_argument("--rescore", default=None, help="score the predictions saved in this --dump file (no model calls)")
     ap.add_argument("--ids", default=None, help="score only these ids: a range like v1_001-v1_050")
     ap.add_argument("--gfast-gold", default=None, help="G.F.A.S.T. labels (eval/gold_v*_gfast.jsonl), scored separately")
+    ap.add_argument("--terminology", choices=["on", "off"], default=None,
+                    help="RxNorm coding of drug names (default: on for live runs, as the app wires it; "
+                         "off for --rescore, which replays saved predictions as they were)")
+    ap.add_argument("--keys", default=None, help="score only these keys (comma-separated), e.g. the drug keys")
     a = ap.parse_args()
+    only = set(a.keys.split(",")) if a.keys else None
+    coder = build_coder((a.terminology or ("off" if a.rescore else "on")) == "on")
 
     rows = [json.loads(line) for line in open(a.gold) if line.strip()]
     if a.ids:
@@ -176,11 +202,11 @@ def main():
     if a.rescore:
         first = json.loads(open(a.rescore).readline())
         label = first.get("label") or first["extractor"]
-        items = replay(a.rescore, rows)
+        items = replay(a.rescore, rows, coder)
     else:
         name = a.model or build_extractor("rules", None)[2].model_name()
         label = {"rules": "rules", "llm": f"llm:{name}", "pipeline": f"rules+llm:{name}"}[a.extractor]
-        items = predict(a, rows)
+        items = predict(a, rows, coder)
     TP = FP = FN = ROLE = 0
     FT = [0, 0, 0]
     gfast_gold = ({d["id"]: d["gfast"] for d in map(json.loads, open(a.gfast_gold))} if a.gfast_gold else None)
@@ -188,6 +214,9 @@ def main():
     dump = open(a.dump, "w") if a.dump else None
     lat, invalid, out_tokens = [], 0, []
     for r, pred, ms, tokens, err in items:
+        if only:
+            r = {**r, "facts": [x for x in r["facts"] if x[0] in only]}
+            pred = [x for x in pred if x[0] in only]
         lat.append(ms)
         invalid += err is not None
         if tokens is not None:
@@ -217,7 +246,8 @@ def main():
     ft_f1 = (2 * ftp / (2 * ftp + ffp + ffn)) if (ftp + ffp + ffn) else 0.0
     res = {
         "extractor": label, "gold": a.gold + (f"[{a.ids}]" if a.ids else ""), "scorer": "v2",
-        "rescored_from": a.rescore, "n": len(rows),
+        "rescored_from": a.rescore, "n": len(rows), "terminology": coder.release if coder else None,
+        **({"keys": sorted(only)} if only else {}),
         "precision": round(P, 3), "recall": round(R, 3), "f1": round(F1, 3),
         "role_acc": round(ROLE / TP, 3) if TP else 0.0, "json_invalid": invalid,
         "free_text_presence_f1": round(ft_f1, 3),

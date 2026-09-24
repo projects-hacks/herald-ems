@@ -216,6 +216,13 @@ Everything runs locally.
 
 **Acceptance:** the unit tests pass; med and allergy recall on gold v2 improves with no precision loss beyond the run-to-run spread; the word list is gone.
 
+**As built (2026-09-24; results in MODEL_PLAN §0g):**
+- `jellyfish` has no Double Metaphone, so the phonetic step uses Metaphone plus a Levenshtein spelling floor.
+- Coding runs inside each extractor rather than only in `ExtractionPipeline`, because the live capture path calls the rules and model extractors directly.
+- `FactIn.code` is a list for list keys (one RxCUI per item).
+- `config/terminology/supplement.yaml` adds Coumadin, which is missing from the prescribable subset.
+- The anticoagulant class also lists fondaparinux (B01AX05), pending review.
+
 ---
 
 ## S7. 30-minute soak test and the pre-demo warm-up runbook (M5 → Collaborator 3)

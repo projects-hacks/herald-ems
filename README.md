@@ -73,6 +73,7 @@ monitor panel       ─┘           trends · clocks · NEWS2 · RACE · G.F.A.
 | `herald/extraction/` | Speech → facts: the model extractor, grounding and injection guards, the rules fallback |
 | `herald/models/` | Adapters to the local model servers (localhost only), Whisper, photo reading, embeddings |
 | `herald/knowledge/` | Protocol lookup: sections, tables, figures, hybrid search, sync with review flags |
+| `herald/terminology/` | Drug and allergen names → RxNorm (brands, misspellings, generics), with the RxCUI on each fact |
 | `herald/relay/` | Weak-link relay to the emergency department |
 | `herald/telemetry/` | Tokens, GPU power, energy, cost vs a cloud equivalent |
 | `herald/api/` | FastAPI app, WebSocket hub, composition root |
@@ -83,6 +84,7 @@ monitor panel       ─┘           trends · clocks · NEWS2 · RACE · G.F.A.
 ```bash
 # on the ZGX Nano, in the `zgx` conda env (torch 2.14 + CUDA 13)
 pip install -r requirements.txt
+python scripts/build_rxnorm_index.py         # RxNorm drug-name index (public NLM download, ~71 MB) -> data/terminology/
 scripts/serve_models.sh                       # omni (photos) + ems-c-fp8 (extraction) via HP Z Runtime on :8080
 HERALD_LLM_MODEL=ems-c-fp8 HERALD_VISION_MODEL=omni PORT=8100 scripts/run_dev.sh
 ```
