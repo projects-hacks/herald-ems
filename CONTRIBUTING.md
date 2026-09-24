@@ -45,4 +45,4 @@ Work on `feat/<area>` branches and merge to `main` through short PRs. `main` mus
 | State + relay backend | TBD |
 | Frontend: NOW screen, phone capture page, ED screen | TBD |
 | Data + eval | TBD |
-| Pitch + integration | TBD |
+| Pitch + integration, field evaluation | Jenil Savalia (@Jenil133) |

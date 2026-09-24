@@ -128,7 +128,7 @@ Docs: `docs/MODEL_PLAN.md`, `docs/LABELING_GUIDE.md`, `eval/`.
 | B5 | G.F.A.S.T. extraction: labeling-guide rules, annotated training data, run C fine-tune, gold G.F.A.S.T. labels (two annotators) | ✅ Rajeev: labeling rules (§4d), gold G.F.A.S.T. labels (two annotators, 99–100% identical), training data, **run C: held-out G.F.A.S.T. F1 0.789 (P 0.90), main F1 0.871**; live as `ems-c-fp8` | G.F.A.S.T. items extracted from speech; measured |
 | B6 | Latency: fine-tuned model p95 ≤ 2 s (FP8 serving or the 1.7B run B) | ✅ Rajeev: FP8 serving halves latency at equal accuracy (p50 ~1.0 s, p95 2.24 s with G.F.A.S.T. facts) | p50/p95 measured 3× |
 | B7 | P9 protocol lookup + online sync (document-parser bake-off on the county PDFs, local index, cited sections, version on screen, review flag on update) | 🔄 Rajeev: `herald/knowledge/` built and tested: Table B 168/168 from the text layer, flowchart read by the local vision model, hybrid search + model reranking (top-1 14/22, top-3 19/22, refusals 2/3 on the first 25 questions), sync on good link with review flags, destination audit. **2026-09-24: 32 documents indexed** (the 27 new current files incl. Policy 605, sepsis, trauma, shock, chest pain, overdose, falls, hemorrhage, pediatrics, 302/410/420/430/500; 1,804 passages): numbered sections 1,746/1,746 against the CPU answer key with none extra, every effective date read from its file, 8 figure pages configured; qa_gold 59 questions; retrieval without the reranker (hybrid, 52 answerable, deterministic): top-1 26, top-3 37, in the reranker's 8: 43 (`eval/bench_protocols.py`, `eval/protocols/README.md` §5). Pending: 700-A02/A05/A07/A11 and other files no archive holds (Rajeev downloads), transcribing the 7 new figures (next vision-model start), rerank bench on the 59 questions, UI panel, demo mirror | "open the stroke protocol" shows 700-A13 §3.2 with its effective date |
-| B8 | Field robustness eval (real people, own words, noise) | ➡️ moved to Collaborator 4 (C4.9, spec S8) | per-key precision/recall with confidence intervals |
+| B8 | Field robustness eval (real people, own words, noise) | ➡️ moved to Jenil (C4.9, spec S8) | per-key precision/recall with confidence intervals |
 | B9 | UI fixtures | ➡️ moved to Collaborator 1 (C1.5, spec S1) | the frontend can build every state without the Nano |
 | B10 | P11, P8, M8, M5, I2 | ➡️ moved: P8 + M8 → Collaborator 2 (S3, S4); P11 + M5 → Collaborator 3 (S5, S7); I2 → Collaborator 1 (S2). Rajeev reviews their `herald/` PRs | see the rows below |
 
@@ -170,7 +170,7 @@ Docs: `docs/UX_PLAN.md` §3.4 (ED screen), §3.5 (presenter), §3.6 (phone captu
 | C3.7 | **Medication normalization with RxNorm (B4)**: local RxNorm index, exact/fuzzy/phonetic match, RxCUI on facts, replaces the anticoagulant word list. **Spec S6** | 3.5 | — | med/allergy recall up on gold v2 with no precision loss beyond the spread |
 | C3.8 | **30-minute soak test + pre-demo runbook (M5)**: `scripts/soak.py`, MARLIN check, `docs/RUNBOOK.md`. **Spec S7** | 1 | — | 30 min, 0 errors, no drift; runbook rehearsed |
 
-### Collaborator 4: pitch, field evaluation, and deliverables
+### Jenil Savalia (@Jenil133): pitch, field evaluation, and deliverables (claimed)
 Docs: the product spec on the Nano (`/home/hp18/Documents/team-last-minute/.agent/ideas/herald-ems-copilot.md` §10–§14), `.agent/context.md` (judging criteria), `docs/UX_PLAN.md` U11/U14/U16/U17.
 
 | # | Task | Hours | Needs | Done when |
@@ -182,14 +182,14 @@ Docs: the product spec on the Nano (`/home/hp18/Documents/team-last-minute/.agen
 | C4.5 | **Rehearsals:** link hotkeys ×5 (P2.4), the judge beat with a stranger (P6.2, U14 script), the mic test on a real laptop (P1.5) | 2 | C2.4, C3.1 | no stumble in 3 full runs |
 | C4.6 | **D4 + U16:** ask the organizers whether the overall prize depends on track (Community Impact recommended), and ask HP about registering on the ZGX console | 0.5 | — | answers recorded in `.agent/context.md` |
 | C4.7 | **D1:** interactive deck: problem → solution → architecture → held-out benchmarks (B1 numbers only) → impact | 3 | B1 | reviewed by Rajeev |
-| C4.9 | **Field robustness eval (B8)**: 30 fact cards, ≥5 people in their own words, quiet + road noise, ≥100 clips; scored with confidence intervals. **Spec S8** | 3 | — | numbers in MODEL_PLAN §5 and a slide |
+| C4.9 | **Field robustness eval (B8)**: 30 fact cards, ≥5 people in their own words, quiet + road noise, ≥100 clips; scored with confidence intervals. **Spec S8**. 🔄 Jenil (`feat/c4-field-eval`): tooling done and tested: blind-written cards (`eval/field_cards_v1.jsonl`, 30 cards / 169 facts; second blind labeler agrees 30/30, F1 1.000 — an upper bound, see `eval/field/README.md`), the recording station (`eval/field/recorder.py`, port 8103: consent, counterbalanced quiet/noise blocks, withdraw & delete), `eval/field_bench.py` (Whisper → live extractor → the gold-v2 scorer; 3 runs; intervals over clips and speakers; paired quiet − noise; omission review), session guide `eval/field/README.md`. **Next: recordings with ≥5 consenting people** | 3 | — | numbers in MODEL_PLAN §5 and a slide |
 | C4.8 | **U17 / D2:** 2-minute video (`scripts/replay.py` for the screen capture) and **D3:** socials tagging sponsors | 3 | all | uploaded, linked in the README |
 
 **Requests to backend** (any lane adds rows; Rajeev triages):
 
 | From | Request | Status |
 |---|---|---|
-| — | — | — |
+| @Jenil133 | **A speaker on the other mic who is a neighbor, friend, coworker or other non-relative is recorded as `family`.** `herald/core/schema.source_role` maps any speaker label that isn't a role name to `family`, and `ModelExtractor` uses that role for every fact on someone else's mic, but LABELING_GUIDE §3 makes a neighbor a bystander. `config/vocabulary.yaml` already groups these words (`field_synonyms.by`: family / facility / bystander …), so the same groups could decide the source role. Found while writing the field cards (fc28, a neighbor on the mic, will show it) | ⏳ |
 
 ## P1: Speech → patient picture → NOW screen, gap-first
 | ID | Task | Owner | Status | Done when |

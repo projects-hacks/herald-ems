@@ -21,3 +21,6 @@ data/protocols/*/manifest.json
 data/train_*/
 data/protocols/_pages/
 data/protocols/demo_mirror/
+
+# field robustness evaluation (docs/TASK_SPECS.md S8): voices, their transcripts and consent log are personal data
+data/field_audio/
