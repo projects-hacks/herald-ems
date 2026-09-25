@@ -1,4 +1,4 @@
-import { join, wav } from "./pcm";
+import { join, wav } from "@/features/capture/pcm";
 
 export interface AmbientStatus { listening: boolean; starting: boolean; queued: number; level: number; message: string; error: boolean }
 export const initialAmbient: AmbientStatus = { listening: false, starting: false, queued: 0, level: 0, message: "Microphone off", error: false };

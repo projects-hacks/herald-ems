@@ -49,7 +49,7 @@ export function CaptureBar({ allowVoice = true }: { allowVoice?: boolean }) {
         onKeyUp={(e) => { if ([" ", "Enter"].includes(e.key)) { e.preventDefault(); void recorder.stop(); } }}>
         Hold to talk · {source}{keyboard ? source === "medic" ? " (Space)" : " (F)" : ""}</Button>)}
       <label className="text-meta">Other speaker<input className="ml-2 min-h-12 w-36 rounded-lg border border-border-control bg-surface-2 px-3" value={speaker} onChange={(e) => setSpeaker(e.target.value)} placeholder="Name or role" /></label>
-      <a href="/classic/capture.html" className="inline-flex min-h-12 items-center px-3 text-herald-accent">Take a photo ↗</a>
+      <a href="/capture.html" className="inline-flex min-h-12 items-center px-3 text-herald-accent">Take a photo ↗</a>
       <span role="status" className="text-meta">{recorder.status || "Mic off · clips limited to 30 seconds"}</span>
     </div>
     <details className="mt-2"><summary className="min-h-12 cursor-pointer py-3 text-body">Type a note or enter a monitor reading</summary>

@@ -1,4 +1,4 @@
-// ED handoff (UX_PLAN §3.1.9): authorizing the pre-alert, what the receiving team has (sent), what waits for the link
+// ED handoff (docs/API_CONTRACT.md): authorizing the pre-alert, what the receiving team has (sent), what waits for the link
 // (queued), and what is held on the vehicle (needs a tap or a choice); the packet log. Held and queued rows are
 // prominent, sent rows quiet. Used by the overview's pre-alert card (summary) and the ED handoff page (everything).
 import { ChevronDown, ChevronRight, CircleCheck, Hourglass, Lock, RefreshCw, WifiOff } from "lucide-react";
@@ -6,7 +6,7 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { label, useContract } from "@/lib/contract";
 import { clockTime, factValue } from "@/lib/format";
-import { activeSync, erRows, reconciled, type ErRow } from "@/lib/selectors";
+import { activeSync, erRows, type ErRow } from "@/lib/selectors";
 import type { Snapshot } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ActionButton } from "@/components/ActionButton";
@@ -44,32 +44,12 @@ export function useHandoff(s: Snapshot | null) {
   };
 }
 
-/** The tint behind a figure tile, from its number's text tone (the presentation screen's tri-tile treatment). */
-const FIGURE_TINT: Record<string, string> = {
-  "text-ok-fg": "bg-ok-tint", "text-low-fg": "bg-low-tint", "text-medium-fg": "bg-medium-tint",
-};
-
-/** A figure as a tinted tile: a big rounded number over a gray label, on the tone's tint (sent / queued / held). */
-export function Figure({ n, label: l, tone, big = false, className }: { n: number | string; label: string; tone: string; big?: boolean; className?: string }) {
-  return (
-    <div className={cn("flex min-w-0 flex-col items-center rounded-[16px] p-2.5 text-center", FIGURE_TINT[tone] ?? "bg-surface-2", className)}>
-      <span className={cn("rounded-num", big ? "text-kpi" : "text-value leading-7", tone)}>{n}</span>
-      <span className="truncate text-meta text-text-muted">{l}</span>
-    </div>
-  );
-}
-
 export function LinkDownNote() {
   return (
     <p className="flex items-start gap-2 rounded-[14px] bg-low-tint px-3.5 py-2.5 text-body text-low-fg">
       <WifiOff size={18} aria-hidden className="mt-0.5 shrink-0" />The receiving link is offline. Confirmed updates wait on this vehicle and send when the link returns.
     </p>
   );
-}
-
-export function ReconciledLine({ s }: { s: Snapshot }) {
-  if (!reconciled(s)) return null;
-  return <p className="flex items-center gap-1.5 text-meta font-semibold text-ok-fg"><CircleCheck size={16} aria-hidden />Confirmed updates delivered · clinician receipt unknown</p>;
 }
 
 export function SyncTable({ s, rows }: { s: Snapshot; rows: ErRow[] }) {

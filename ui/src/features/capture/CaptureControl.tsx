@@ -32,7 +32,7 @@ export function CaptureControl({ compact = false, stopOnly = false, onSetup }: {
     </div>
     <div className="connected-camera-setup">
       <div><h2>Connect a camera source</h2><p>Open setup on the camera device to start its feed and select the monitor area. Keep that page visible while capturing.</p></div>
-      {disabled ? <button className="cabin-button" disabled>Open camera setup<ExternalLink size={17} aria-hidden /></button> : <a className="cabin-button" href="/classic/capture.html" target="_blank" rel="noreferrer">Open camera setup<ExternalLink size={17} aria-hidden /></a>}
+      {disabled ? <button className="cabin-button" disabled>Open camera setup<ExternalLink size={17} aria-hidden /></button> : <a className="cabin-button" href="/capture.html" target="_blank" rel="noreferrer">Open camera setup<ExternalLink size={17} aria-hidden /></a>}
     </div>
     {disabled && <p className="capture-notice">{replay ? "Camera controls are unavailable in a recorded demo." : "Reconnect to the vehicle to control its camera."}</p>}
     <div className="connected-camera-controls">

@@ -35,10 +35,9 @@ COPY config/ config/
 COPY web/ web/
 COPY scripts/run_dev.sh scripts/run_dev.sh
 COPY ui/dist/ ui/dist/
-# ui/dist/ may not exist yet at build time (it's a build artifact of ui/, not committed): the app falls back to
-# web/ at / when it's absent (herald/api/app.py). Run `scripts/build_ui.sh` or `docker compose --profile ui build`
-# first if you want the React UI baked into the image; docker-compose.yml's default volume mount also works and
-# needs no rebuild.
+# Build ui/dist before building this image: (cd ui && npm ci && npm run build), or
+# docker compose --profile ui-build run --rm ui-build. It is required build output,
+# not committed source. The compose volume allows rebuilding it without rebuilding Python.
 
 ENV HERALD_MODELS_OFFLINE=1 \
     HERALD_LLM_URL=http://127.0.0.1:8080/v1 \

@@ -1,4 +1,4 @@
-// The contract between the Herald server and the screens (docs/UX_PLAN.md §5.6). Derived from
+// The contract between the Herald server and the screens (docs/API_CONTRACT.md). Derived from
 // herald/core/snapshot.py (Projector.snapshot), herald/relay/relay.py status(), herald/api/trace.py,
 // herald/api/capture.py and herald/api/context.py full_state(), checked against a live snapshot on 2026-09-24.
 // When the backend changes a field, change it here in the same PR.
@@ -10,15 +10,16 @@ export type FactStatus = "unconfirmed" | "confirmed" | "rejected";
 /** A record is one event (a medication given, a procedure): only the fields said are present (config/vocabulary.yaml). */
 export type FactRecord = Record<string, string | number | boolean>;
 export type FactValue = string | number | boolean | string[] | FactRecord | null;
-/** A code from a terminology (RxNorm, or ICD-10-CM for a class allergy); a list per item for list keys (UX_PLAN §5.9d). */
+/** A code from a terminology (RxNorm, or ICD-10-CM for a class allergy); a list per item for list keys (docs/API_CONTRACT.md). */
 export interface Coding { system: string; code: string }
 
 // ---------- facts ----------
 export interface Provenance {
   trigger?: string | null; frame_id?: string | null; auto?: boolean;
+  observed_at?: string | null;
   audio_id: string | null; t_start: number | null; t_end: number | null; text: string | null;
   photo_id: string | null; crop: [number, number, number, number] | null; extractor: string | null;
-  hold_reason: string | null;       // why this fact waits for the medic's tap (UX_PLAN §5.9a)
+  hold_reason: string | null;       // why this fact waits for the medic's tap (docs/API_CONTRACT.md)
   normalized?: { said: string; coded: string; method: string }[];   // drug names as said → coded (§5.9d)
 }
 export interface FactView {
@@ -117,7 +118,7 @@ export interface TranscriptEntry {
   stt?: SttInfo | null; trace: Trace;
 }
 
-// ---------- mass-casualty patient roster (TASK_SPECS S5) ----------
+// ---------- mass-casualty patient roster (patient roster) ----------
 export type TriageCategory = "immediate" | "delayed" | "minimal" | "expectant" | "dead";
 export interface PatientSummary {
   id: string; label: string; triage: TriageCategory | null; summary: string;
@@ -142,7 +143,7 @@ export interface RelayStatus {
   log: RelayLogEntry[];
 }
 
-// ---------- protocol lookup (UX_PLAN §5.9b) ----------
+// ---------- protocol lookup (docs/API_CONTRACT.md) ----------
 export interface ProtocolStatus {
   ready: boolean; county: string; sections: number; missing: string[]; review_required: string[];
   last_sync: string | null; destination_audit_ok: boolean;

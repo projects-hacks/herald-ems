@@ -145,13 +145,34 @@ def test_failed_photo_leaves_a_trace_entry(tmp_path):
     assert c.get(f"/api/photo/{e['photo_id']}").status_code == 200   # the photo is kept for retry
 
 
-def test_classic_page_is_served_with_relative_assets():
+def test_old_dashboard_redirects_to_the_single_medic_app():
     c, _ = make_client()
-    page = c.get("/classic/")
-    assert page.status_code == 200 and 'src="app.js"' in page.text
-    assert page.text.index('src="wav.js"') < page.text.index('src="app.js"')    # push-to-talk's WAV encoder, shared
-    assert c.get("/classic/app.js").status_code == 200 and c.get("/classic/wav.js").status_code == 200
-    assert c.get("/classic/style.css").status_code == 200
+    page = c.get("/classic/", follow_redirects=False)
+    assert page.status_code == 308 and page.headers["location"] == "/"
+    assert c.get("/classic/app.js").status_code == 404
+    assert c.get("/capture.html").status_code == 200
+    assert c.get("/capture-assets/continuous.js").status_code == 200
+    assert c.get("/capture-assets/continuous.css").status_code == 200
+
+
+def test_missing_ui_build_is_explicit_and_never_falls_back(tmp_path):
+    from fastapi import FastAPI
+    from herald.api.frontend import mount_frontend
+    app = FastAPI()
+    mount_frontend(app, tmp_path)
+    response = TestClient(app).get("/")
+    assert response.status_code == 503 and "npm run build" in response.text
+
+
+def test_built_medic_app_is_served_from_dist(tmp_path):
+    from fastapi import FastAPI
+    from herald.api.frontend import mount_frontend
+    dist = tmp_path / "ui" / "dist"
+    dist.mkdir(parents=True)
+    (dist / "index.html").write_text("<h1>Medic workspace</h1>")
+    app = FastAPI()
+    mount_frontend(app, tmp_path)
+    assert TestClient(app).get("/").text == "<h1>Medic workspace</h1>"
 
 
 def test_ed_receiver_heartbeat_and_last_contact():

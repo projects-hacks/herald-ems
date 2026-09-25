@@ -1,4 +1,4 @@
-"""Field robustness evaluation (eval/field/, eval/field_bench.py; docs/TASK_SPECS.md S8): cards, the recording
+"""Field robustness evaluation (eval/field/, eval/field_bench.py; eval/field/README.md): cards, the recording
 station, per-clip scoring, the statistics, and the benchmark end to end with fakes (no model, no microphone)."""
 import io
 import json

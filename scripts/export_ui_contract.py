@@ -3,7 +3,7 @@
 Run from the repo root:  python scripts/export_ui_contract.py [--out ui/public/contract]
 The same data is live at GET /api/meta. Re-run after changing config/vocabulary.yaml, config/relay.yaml,
 config/trends.yaml, config/checklists.yaml, config/scores/*.yaml or a county's checklists (config/counties/*.json);
-scripts/build_ui.sh does this on every build. Files: keys.json, relay_tiers.json, change_rules.json,
+Run this after changing the vocabulary, scores or relay configuration. Files: keys.json, relay_tiers.json, change_rules.json,
 checklists.json (the default county's), scores.json.
 """
 from __future__ import annotations

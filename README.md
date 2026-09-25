@@ -3,12 +3,14 @@
 **The patient's story arrives before the doors open.**
 
 Herald is an offline AI copilot for the back of the ambulance. While the paramedic works, it:
-- listens to the call and reads what the medic points the phone at;
+- listens in the background and selects useful frames from a camera aimed at the equipment;
 - keeps a live, evidence-backed picture of the patient: what's known, what changed, what's still missing, which clock is running, and whether a stroke or heart-attack pre-alert is ready;
 - looks up the county's own protocols, with citations;
 - sends the emergency department the smallest critical update the connection can carry.
 
 Every model runs on one HP ZGX Nano (NVIDIA GB10). **No cloud AI.**
+
+The product addresses missed information and repeated chart entry during care: observe, extract, reconcile, highlight changes, and send the confirmed journey to the receiving team. Field validation is still pending; [TASKS.md](TASKS.md) lists the remaining work.
 
 > Status: hackathon prototype (HP Edge AI SJSUHack, Sept 2026). **Not a medical device.** It never recommends
 > treatment. It shows published scores, the county's own protocol text, and what's missing; the paramedic decides.
@@ -16,6 +18,8 @@ Every model runs on one HP ZGX Nano (NVIDIA GB10). **No cloud AI.**
 ## What it does
 
 **Agentic capture (S9):** opt-in mounted-camera frames trigger selected still readings, proposed vitals, and spoken-drug/label checks; the medic confirms. [Setup, synthetic rehearsal, and pending real-model acceptance](docs/AGENTIC_CAPTURE.md).
+
+**Journey workflow:** start listening and monitor watch once, then use the overview for changing patient state, time windows and review. Confirmed observations and care events become the ED handoff. Camera selects stills rather than recording video; proposed readings remain held until review. The overview highlights confirmed changes and recent care events, and the ED receives that history alongside current values.
 
 | | |
 |---|---|
@@ -63,9 +67,9 @@ The details, including what was genuine, what was noise, and what was a flaw in 
 
 ```
 CAPTURE                          PATIENT STATE (deterministic)             OUTPUTS
-push-to-talk speech ─┐           append-only facts with provenance         NOW screen (gap-first)
-phone photos        ─┼─► facts ─► checklists · gaps · contradictions ────► protocol lookup (cited)
-monitor panel       ─┘           trends · clocks · NEWS2 · RACE · G.F.A.S.T. relay → ED screen
+ambient / PTT audio ─┐           append-only facts with provenance         NOW screen (changes and gaps)
+selected frames     ─┼─► facts ─► checklists · gaps · contradictions ────► protocol lookup (cited)
+manual observations ─┘           trends · clocks · NEWS2 · RACE · G.F.A.S.T. relay → ED journey
         │                        (content: config/, reviewed and cited)
   Whisper → fine-tuned extractor (the only extractor) · vision model for photos
 ```
@@ -87,11 +91,20 @@ monitor panel       ─┘           trends · clocks · NEWS2 · RACE · G.F.A.
 | `herald/api/` | FastAPI app, WebSocket hub, composition root |
 | `eval/` | Gold sets, benchmarks, adversarial sets, protocol answer keys, saved predictions; the hand-written rules extractor survives only here, as a baseline |
 
+## Interface layout
+
+There is one medic application: `ui/src/` is React source; `npm run build` writes ignored static files to `ui/dist/`, which Python serves at `/`. A missing build returns an explicit setup error. There is no legacy dashboard fallback or separate detailed medic mode.
+
+`ed_receiver/web/` serves the receiving hospital. `/capture.html` is an optional camera accessory on a second device. `/monitor.html` is synthetic equipment for capture tests. Presentation screens and pitch materials are outside this repository.
+
 ## Run it
+
+Coordinate model starts with the shared-machine owner; do not launch the application or models during a training reservation. Ordinary application startup can load model dependencies.
 
 ```bash
 # on the ZGX Nano, in the `zgx` conda env (torch 2.14 + CUDA 13)
 pip install -r requirements.txt
+(cd ui && npm ci && npm run build)             # required: builds the medic app into ignored ui/dist/
 python scripts/build_rxnorm_index.py         # RxNorm drug-name index (public NLM download + RxNav brand names) -> data/terminology/
 scripts/serve_models.sh                       # qwen3vl-fp8 (photos) + ems-e-v2-fp8 (extraction) via HP Z Runtime on :8080
 HERALD_LLM_MODEL=ems-e-v2-fp8 HERALD_VISION_MODEL=qwen3vl-fp8 PORT=8100 scripts/run_dev.sh
@@ -99,9 +112,13 @@ HERALD_LLM_MODEL=ems-e-v2-fp8 HERALD_VISION_MODEL=qwen3vl-fp8 PORT=8100 scripts/
 
 Open `http://localhost:8100`. Browsers only allow the microphone on `localhost` or HTTPS, so from a laptop, forward the port first (`ssh -L 8100:localhost:8100 <user>@<nano>`). Hold **Space** to talk as the medic, and **F** for a patient or family member.
 
-- **Relay demo:** `scripts/link.sh start 127.0.0.1:8200`, then run `ed_receiver` on port 8200 and set `HERALD_ED_URL=http://127.0.0.1:9000`. Shift+G/W/D switch the emulated link.
-- **Protocol-update demo** (two real versions of 700-S04): `scripts/demo_protocol_update.sh setup` and `HERALD_PROTOCOL_MIRROR=http://127.0.0.1:8300`.
-- **Tests:** `python -m pytest -q`.
+For continuous observation, choose **Start listening** and **Camera → Start monitor watch**, granting each device explicitly. Adjust the monitor region and return to the overview; camera capture continues across care pages. Hiding the browser tab, changing patient or losing the connection stops the camera. For a second-laptop equipment simulation, open `/monitor.html`, start its synthetic journey and point the observing camera at that display. It sends no facts directly to Herald. Real inference must use an approved serving instance; see the capture setup above.
+
+- **Relay test:** `scripts/link.sh start 127.0.0.1:8200`, then run `ed_receiver` on port 8200 and set `HERALD_ED_URL=http://127.0.0.1:9000`. In Settings, Shift+G/W/D switch the emulated link.
+- **Protocol-update test** (two real versions of 700-S04): `scripts/demo_protocol_update.sh setup` and `HERALD_PROTOCOL_MIRROR=http://127.0.0.1:8300`.
+- **Tests:** `python -m pytest -q`; in `ui/`, run `npm test`, `npx tsc --noEmit`, `npm run build`, and `npm run contrast`.
+- **No-model browser check:** in `ui/`, run `npm run dev` and open `/?fixture=stroke_demo&at=1`. Playback uses the normal medic workspace with writes disabled.
+- **API/snapshot reference:** [docs/API_CONTRACT.md](docs/API_CONTRACT.md).
 - **Benchmarks:** `eval/bench_extract.py`, `eval/adversarial_bench.py`.
 
 ### Unfinished-call recovery and retention

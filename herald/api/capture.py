@@ -228,7 +228,7 @@ class CaptureService:
         except IncidentEnded:
             raise
         except Exception as e:
-            # The photo is kept and the failure recorded, so the NOW screen shows it (UX_PLAN §4.3 g).
+            # The photo is kept and the failure recorded, so the NOW screen shows it (docs/API_CONTRACT.md).
             entry["trace"] = {"heard": heard, "rules": {"ms": 0, "facts": []},
                               "model": {"status": "error", "name": ctx.vision_model.model_name(), "error": str(e)[:200],
                                         "ms": round((time.perf_counter() - t0) * 1000)},

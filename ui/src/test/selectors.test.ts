@@ -13,7 +13,7 @@ const contract: Contract = {
   changeRules: JSON.parse(readFileSync("public/contract/change_rules.json", "utf8")),
 };
 
-describe("alert order (UX_PLAN §2.3)", () => {
+describe("alert order (docs/API_CONTRACT.md)", () => {
   const high: Alert = { type: "news2_rise", label: "NEWS2", from: 5, to: 8, band: "high" };
   const low: Alert = { type: "news2_rise", label: "NEWS2", from: 1, to: 3, band: "low" };
   const race: Alert = { type: "race_positive", label: "RACE", score: 6 };
@@ -35,9 +35,10 @@ describe("the attention queue (one list for alerts and taps)", () => {
     const a = attention(last, {});
     expect(a.choose.map((x) => x.type)).toEqual(["contradiction"]);
     expect(a.confirmFacts.length).toBeGreaterThan(0);
-    expect(a.review.map((x) => x.type).sort()).toEqual(["gfast_positive", "news2_rise", "race_positive"]);
+    expect(a.positiveScreens.map((x) => x.type).sort()).toEqual(["gfast_positive", "race_positive"]);
+    expect(a.review.map((x) => x.type)).toEqual(["news2_rise"]);
     expect(a.urgent).toEqual([]);
-    expect(a.count).toBe(a.choose.length + a.confirmAlerts.length + a.confirmFacts.length + a.review.length);
+    expect(a.count).toBe(a.positiveScreens.length + a.choose.length + a.confirmAlerts.length + a.confirmFacts.length + a.review.length);
   });
   it("HIGH is urgent until seen; seen findings move to acknowledged; a disagreement can't be seen away", () => {
     const contra = last.alerts.find((x) => x.type === "contradiction")!;
@@ -56,7 +57,7 @@ describe("the attention queue (one list for alerts and taps)", () => {
     const s = { ...last, alerts: [contra, race] };
     expect(attention(s, {}, arrival, 1).review).toEqual([]);          // RACE arrived after the press
     expect(attention(s, {}, arrival, 1).choose).toEqual([contra]);
-    expect(attention(s, {}, arrival, null).review).toEqual([race]);   // released
+    expect(attention(s, {}, arrival, null).positiveScreens).toEqual([race]);   // released
   });
   it("a code-status confirmation waits for a tap and is never dismissable", () => {
     const f = Object.values(last.facts)[0];

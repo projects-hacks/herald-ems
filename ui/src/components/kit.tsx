@@ -10,7 +10,7 @@ export type { Cat };
 
 // ---------- color vocabularies ----------
 
-/** Status tones (UX_PLAN §2.3–2.4): they carry meaning, always with an icon or a word. */
+/** Status tones (docs/API_CONTRACT.md): they carry meaning, always with an icon or a word. */
 export type Tone = "neutral" | "accent" | "ok" | "medium" | "high" | "low";
 /** Each category's glyph, for tiles and titles. */
 export const CAT_ICON: Record<Cat, LucideIcon> = {
@@ -162,10 +162,6 @@ export function Count({ n, tone = "neutral", className }: { n: number | string; 
     : <span className={cn("num text-body font-medium text-text-muted", className)}>{n}</span>;
 }
 
-export function Dot({ tone, className }: { tone: Tone; className?: string }) {
-  return <span className={cn("inline-block size-2 shrink-0 rounded-full", DOT[tone], className)} aria-hidden />;
-}
-
 /** iOS buttons: filled (the one primary action), gray (secondary), plain (blue text). */
 export function Button({ variant = "secondary", size = "md", className, ...rest }: React.ComponentProps<"button"> & {
   variant?: "primary" | "secondary" | "ghost"; size?: "sm" | "md" | "lg";
@@ -178,36 +174,6 @@ export function Button({ variant = "secondary", size = "md", className, ...rest 
       variant === "secondary" && "bg-surface-2 text-text-primary enabled:hover:bg-surface-3",
       variant === "ghost" && "text-herald-accent enabled:hover:bg-accent-tint",
       className)} />
-  );
-}
-
-/** A progress ring in the category color, Activity-ring style: a dim track and a rounded bright arc. */
-export function Ring({ done, total, cat = "check", size = 76, stroke = 10, children, label }: {
-  done: number; total: number; cat?: Cat; size?: number; stroke?: number; children?: React.ReactNode; label: string;
-}) {
-  const r = (size - stroke) / 2, c = 2 * Math.PI * r;
-  const frac = total ? Math.min(1, done / total) : 0;
-  const color = CAT_STROKE[cat];
-  return (
-    <span className="relative inline-grid shrink-0 place-items-center" style={{ width: size, height: size }} role="img" aria-label={label}>
-      <svg width={size} height={size} className="-rotate-90" aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeOpacity={0.2} strokeWidth={stroke} />
-        {frac > 0 && <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={c * (1 - frac)} className="transition-[stroke-dashoffset] duration-[var(--dur-medium1)]" />}
-      </svg>
-      <span className="absolute inset-0 grid place-items-center">{children}</span>
-    </span>
-  );
-}
-
-/** One bar per checklist item, colored by state (done / needs a tap / missing). */
-export function SegmentBar({ states, className }: { states: ("done" | "pending" | "missing")[]; className?: string }) {
-  return (
-    <span className={cn("flex h-1.5 w-full gap-1", className)} aria-hidden>
-      {states.map((st, i) => (
-        <span key={i} className={cn("h-full flex-1 rounded-full", st === "done" ? "bg-cat-check" : st === "pending" ? "hatch" : "bg-surface-3")} />
-      ))}
-    </span>
   );
 }
 

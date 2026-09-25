@@ -1,26 +1,24 @@
-// The one client store (UX_PLAN §5.7). The server's snapshot is replaced on every message; UI state (expanded cards,
+// The one client store (docs/API_CONTRACT.md). The server's snapshot is replaced on every message; UI state (expanded cards,
 // seen alerts, theme) lives beside it, so a card keeps its state when the server updates it.
 import { create } from "zustand";
 import { alertKey } from "./selectors";
 import type { Health, Snapshot } from "./types";
 
-export type Mode = "medic" | "explain";
 export type Theme = "dark" | "light";
 export type TypeScale = 1 | 1.25 | 1.5;
 export type IncidentPhase = "scene" | "transport" | "handoff";
 export type Pending = "pending" | "sent" | { error: string };
-export type Page = "overview" | "patient" | "trends" | "handoff" | "transcript";
-export const PAGES: Page[] = ["overview", "patient", "trends", "handoff", "transcript"];
+export type Page = "overview" | "patient" | "trends" | "handoff" | "transcript" | "review" | "camera" | "patients" | "settings" | "protocols";
+export const PAGES: Page[] = ["overview", "patient", "trends", "handoff", "transcript", "review", "camera", "patients", "settings", "protocols"];
 
 export interface UiState {
-  mode: Mode; theme: Theme; typeScale: TypeScale;
-  reducedMotion: boolean; keyboardPtt: boolean; presenterOpen: boolean;
-  followTrace: boolean; expanded: Record<string, boolean>;
+  theme: Theme; typeScale: TypeScale;
+  reducedMotion: boolean; keyboardPtt: boolean;
+  expanded: Record<string, boolean>;
   seenAlerts: Record<string, true>;
   /** Push-to-talk is held (U4 sets it): alerts that arrive meanwhile wait until release (§3.1.8, P4). */
   heldAlerts: boolean;
-  page: Page; sidebarCollapsed: boolean;
-  presentationMode: boolean;
+  page: Page;
   confirmNewIncident: boolean; confirmEndIncident: boolean;
   incidentPhase: IncidentPhase;
 }
@@ -40,7 +38,7 @@ export interface HeraldState {
   ui: UiState;
   pending: Record<string, Pending>;
   /** When each alert first appeared on this screen (an increasing counter): the server lists alerts by type,
-   *  not by time, so arrival order is tracked here for "newest first" (UX_PLAN §2.3). */
+   *  not by time, so arrival order is tracked here for "newest first" (docs/API_CONTRACT.md). */
   alertArrival: Record<string, number>;
   /** The arrival counter when push-to-talk was pressed; alerts that arrived later are held back. null = not held. */
   holdMark: number | null;
@@ -55,8 +53,8 @@ export interface HeraldState {
 
 // ---------- per-device preferences (localStorage can throw or be empty: never rely on it) ----------
 const PREFS = "herald.ui.v1";
-type Prefs = Pick<UiState, "theme" | "typeScale" | "reducedMotion" | "keyboardPtt" | "sidebarCollapsed">;
-const PREF_KEYS: (keyof Prefs)[] = ["theme", "typeScale", "reducedMotion", "keyboardPtt", "sidebarCollapsed"];
+type Prefs = Pick<UiState, "theme" | "typeScale" | "reducedMotion" | "keyboardPtt">;
+const PREF_KEYS: (keyof Prefs)[] = ["theme", "typeScale", "reducedMotion", "keyboardPtt"];
 
 function readPrefs(): Partial<Prefs> {
   try {
@@ -73,28 +71,21 @@ function writePrefs(p: Prefs) {
   }
 }
 
-/** URL parameters override stored preferences: ?theme=light|dark ?type=1.25 ?mode=explain ?page=handoff ?present=1 (UX_PLAN §3.0).
- *  The sidebar starts as an icon rail on screens narrower than the 1366 px target, until the medic chooses. */
+/** URL parameters select the page and override appearance preferences. Old explain links open the capture timeline. */
 export function initialUi(search = typeof location === "undefined" ? "" : location.search): UiState {
   const q = new URLSearchParams(search);
   const p = readPrefs();
   const t = Number(q.get("type"));
   const page = q.get("page") as Page | null;
-  const narrow = typeof innerWidth === "number" && innerWidth < 1360;
   return {
-    mode: q.get("mode") === "explain" ? "explain" : "medic",
     theme: q.get("theme") === "light" ? "light" : q.get("theme") === "dark" ? "dark" : (p.theme ?? "dark"),
     typeScale: t === 1.25 || t === 1.5 ? t : (p.typeScale ?? 1),
     reducedMotion: p.reducedMotion ?? false,
     keyboardPtt: p.keyboardPtt ?? true,
-    presenterOpen: false,
-    followTrace: true,
     expanded: {},
     seenAlerts: {},
     heldAlerts: false,
-    page: page && PAGES.includes(page) ? page : "overview",
-    sidebarCollapsed: p.sidebarCollapsed ?? narrow,
-    presentationMode: q.get("present") === "1",
+    page: page && PAGES.includes(page) ? page : q.get("mode") === "explain" ? "transcript" : "overview",
     confirmNewIncident: false,
     incidentPhase: "scene",
     confirmEndIncident: false,
@@ -127,13 +118,13 @@ export const useHerald = create<HeraldState>()((set, get) => ({
       if (!(k in arrival)) arrival[k] = ++next;
     }
     set({ snapshot: s, pending: switched ? {} : pending, alertArrival: arrival, lastStateAt: Date.now(),
-      ...(switched ? { ui: { ...get().ui, incidentPhase: "scene", seenAlerts: {}, expanded: {}, heldAlerts: false }, holdMark: null } : {}) });
+      ...(switched ? { ui: { ...get().ui, page: "overview", incidentPhase: "scene", seenAlerts: {}, expanded: {}, heldAlerts: false }, holdMark: null } : {}) });
   },
   setUi: (patch) => {
     const ui = { ...get().ui, ...patch };
     set({ ui });
     if (PREF_KEYS.some((k) => k in patch)) {
-      writePrefs({ theme: ui.theme, typeScale: ui.typeScale, reducedMotion: ui.reducedMotion, keyboardPtt: ui.keyboardPtt, sidebarCollapsed: ui.sidebarCollapsed });
+      writePrefs({ theme: ui.theme, typeScale: ui.typeScale, reducedMotion: ui.reducedMotion, keyboardPtt: ui.keyboardPtt });
     }
   },
   toggleExpanded: (id) => {

@@ -1,6 +1,6 @@
 # The written handoff report: what the paramedic reads to the receiving emergency department (radio or bedside) and
 # what the ED screen shows. Engine: herald/reporting/ (it assembles lines; it never writes free text and never
-# guesses). Contract: docs/UX_PLAN.md §5.9e.
+# guesses). Contract: docs/API_CONTRACT.md
 #
 # Sources
 # - Primary: Santa Clara County EMS Policy 501 Hospital Radio Reports (effective 2025-01-01; replaces 2023-02-27),
@@ -151,6 +151,7 @@ shared:
     keys: [vitals.sbp, vitals.hr, vitals.rr, vitals.spo2, vitals.gcs_total, vitals.pain, vitals.etco2,
            vitals.glucose, vitals.temp]
     template: "{label} {series}"
+    point_template: "{value} at {time}"
   # 501 §III.A.5: drugs given and procedures completed, every confirmed event in the order it was recorded. What was
   # given before this crew arrived (`before_arrival`, NEMSIS eMedications.02 / eProcedures.02 "prior to this unit's
   # EMS care") is its own section, never mixed into the crew's treatment.

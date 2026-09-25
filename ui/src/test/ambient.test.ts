@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AmbientCapture, type AmbientStatus } from "@/features/cabin/ambient";
-import { join, wav } from "@/features/cabin/pcm";
+import { join, wav } from "@/features/capture/pcm";
 
 describe("continuous capture", () => {
   let stop: ReturnType<typeof vi.fn>;

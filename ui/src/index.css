@@ -1,14 +1,12 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
 @import "./styles/tokens.css";
 
 /* Theme follows data-theme on <html> (§2.1), not a .dark class. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme inline {
-  /* Words in Inter (the closest open face to SF Pro); numbers in Nunito, standing in for SF Pro Rounded the way
-     Health sets its values. Nunito's digits all have the same width, so ticking clocks never shift. */
+  /* Text and values share Inter; elapsed clocks use a dedicated monospace face. */
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-rounded: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
@@ -89,7 +87,7 @@
   --text-critical: 1.25rem;    --text-critical--line-height: 1.75rem;   /* 20 px: >= 16 arcmin at 0.7 m (§2.5) */
   --text-value: 1.25rem;       --text-value--line-height: 1.75rem;
   --text-button: 0.9375rem;    --text-button--line-height: 1.25rem;
-  --text-clock: 1.5rem;        --text-clock--line-height: 2.25rem;
+  --text-clock: 2rem;          --text-clock--line-height: 2.5rem;
   --text-kpi: 2rem;            --text-kpi--line-height: 2.25rem;
   --text-hero: 1.25rem;        --text-hero--line-height: 1.75rem;
   --text-large-title: 1.75rem; --text-large-title--line-height: 2.125rem;   /* iOS large title, scaled for 1366 px */
@@ -147,7 +145,7 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
-/* Hit area 8 px larger than the visual edge (UX_PLAN §2.7: "hit areas can extend past the visual edge"), so a
+/* Hit area 8 px larger than the visual edge (docs/API_CONTRACT.md: "hit areas can extend past the visual edge"), so a
    40 px button is a 48 px target. Neighbours keep >= 8 px apart so the extended areas never overlap. */
 @utility hit {
   position: relative;
@@ -167,7 +165,7 @@
   background-color: var(--medium-tint);
 }
 
-/* HIGH icon: square-wave opacity 1 / 0.15 at 2 Hz until acknowledged (UX_PLAN §2.8). Reduced motion: steady. */
+/* HIGH icon: square-wave opacity 1 / 0.15 at 2 Hz until acknowledged (docs/API_CONTRACT.md). Reduced motion: steady. */
 @keyframes herald-flash {
   0%, 49.9% { opacity: 1; }
   50%, 100% { opacity: 0.15; }

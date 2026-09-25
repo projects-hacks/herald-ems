@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Field robustness benchmark (docs/TASK_SPECS.md S8): people's own-words recordings of the fact cards, through the
+"""Field robustness benchmark (eval/field/README.md): people's own-words recordings of the fact cards, through the
 product's speech-to-text (Whisper) and extractor, scored against the cards with the benchmark's atoms.
 
   python eval/field_bench.py --model ems-e-fp8 --runs 3

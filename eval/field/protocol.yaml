@@ -1,4 +1,4 @@
-# Field recording protocol (docs/TASK_SPECS.md S8): what the recording page shows and logs. The consent version is
+# Field recording protocol (eval/field/README.md): what the recording page shows and logs. The consent version is
 # stored with every speaker, so a changed wording never silently covers earlier recordings.
 consent_version: field-v1-2026-09-24
 consent_text: >-

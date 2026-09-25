@@ -2,7 +2,7 @@
 import type { Contract } from "./contract";
 import type { Alert, FactView, Snapshot, StrokeScale, StrokeScaleId } from "./types";
 
-// ---------- alert priority (UX_PLAN §2.3: IEC 60601-1-8 semantics, no sounds) ----------
+// ---------- alert priority (docs/API_CONTRACT.md: IEC 60601-1-8 semantics, no sounds) ----------
 export type Priority = "high" | "medium" | "low";
 const RANK: Record<Priority, number> = { high: 0, medium: 2, low: 3 };
 /** Score-positive screens (G.F.A.S.T., RACE) decide routing, so they get their own tier directly under the
@@ -46,7 +46,7 @@ export function alertTitle(a: Alert): string {
 export function dismissable(a: Alert): boolean {
   return a.type !== "contradiction" && a.type !== "confirm_required";
 }
-/** Alert order (UX_PLAN §2.3): HIGH before MEDIUM before LOW, then the newest first by arrival on this screen (the
+/** Alert order (docs/API_CONTRACT.md): HIGH before MEDIUM before LOW, then the newest first by arrival on this screen (the
  *  server lists alerts by type, not time; without arrival data the later list position counts as newer). */
 export function rankAlerts(alerts: Alert[], arrival: Record<string, number> = {}): Alert[] {
   return alerts.map((a, i) => ({ a, t: arrival[alertKey(a)] ?? i }))
@@ -67,7 +67,7 @@ export function needsTap(s: Snapshot): FactView[] {
  *  urgent (HIGH, until seen) · choose (sources disagree: data held on the vehicle, P10) · confirm (code status, then
  *  facts that need a tap) · review (informational findings, until seen). Seen alerts move to "acknowledged". */
 export interface Attention {
-  urgent: Alert[]; choose: Alert[]; confirmAlerts: Alert[]; confirmFacts: FactView[]; review: Alert[]; acknowledged: Alert[];
+  urgent: Alert[]; positiveScreens: Alert[]; choose: Alert[]; confirmAlerts: Alert[]; confirmFacts: FactView[]; review: Alert[]; acknowledged: Alert[];
   count: number;
 }
 export function attention(s: Snapshot, seen: Record<string, true>, arrival: Record<string, number> = {}, holdMark: number | null = null): Attention {
@@ -76,19 +76,17 @@ export function attention(s: Snapshot, seen: Record<string, true>, arrival: Reco
   const ranked = rankAlerts(shown, arrival);
   const isSeen = (a: Alert) => dismissable(a) && !!seen[alertKey(a)];
   const open = ranked.filter((a) => !isSeen(a));
+  const positiveScreen = (a: Alert) => a.type === "gfast_positive" || a.type === "race_positive";
   const out = {
     urgent: open.filter((a) => dismissable(a) && alertPriority(a) === "high"),
+    positiveScreens: open.filter(positiveScreen),
     choose: open.filter((a) => a.type === "contradiction"),
     confirmAlerts: open.filter((a) => a.type === "confirm_required"),
     confirmFacts: needsTap(s),
-    review: open.filter((a) => dismissable(a) && alertPriority(a) !== "high"),
+    review: open.filter((a) => dismissable(a) && alertPriority(a) !== "high" && !positiveScreen(a)),
     acknowledged: ranked.filter(isSeen),
   };
-  return { ...out, count: out.urgent.length + out.choose.length + out.confirmAlerts.length + out.confirmFacts.length + out.review.length };
-}
-/** The tone of the attention count: HIGH if anything urgent, CHECK if anything else, calm when empty. */
-export function attentionTone(a: Attention): Priority | null {
-  return a.urgent.length ? "high" : a.count ? "medium" : null;
+  return { ...out, count: out.urgent.length + out.positiveScreens.length + out.choose.length + out.confirmAlerts.length + out.confirmFacts.length + out.review.length };
 }
 
 // ---------- scores ----------
@@ -135,6 +133,11 @@ export function erRows(s: Snapshot, c: Contract | null): ErRow[] {
 }
 export function queuedCount(s: Snapshot): number {
   return Object.values(activeSync(s)).filter((v) => v === "queued").length;
+}
+export function clinicianReceipt(s: Snapshot): string {
+  const ack = s.relay.clinician_acknowledgements?.[s.active_patient ?? s.incident.id]?.at(-1);
+  if (!ack) return "clinician receipt unknown";
+  return ack.status === "received" ? "ED clinician recorded receipt" : "ED clinician recorded cath-lab activation";
 }
 /** The "reconciled" line shows only when everything confirmed has been acknowledged over a good link (§3.1.9). */
 export function reconciled(s: Snapshot): boolean {

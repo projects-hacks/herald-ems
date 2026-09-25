@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rebuild Herald from a clean clone (docs/TASK_SPECS.md S2). The Nano is wiped after the event, so this is
+# Rebuild Herald from a clean clone (README.md). The Nano is wiped after the event, so this is
 # how anyone (teammate, judge, or a future box) gets from `git clone` to a running server.
 #
 #   scripts/setup.sh                 # everything below
@@ -152,7 +152,7 @@ elif [ -d ui ]; then
         exit 1
       fi
       if npm run build --silent; then
-        echo "  OK   ui/dist built (served at / when HERALD_UI=new, the default)"
+        echo "  OK   ui/dist built (the medic application served at /)"
       else
         echo "  !!   npm run build failed"
         exit 1

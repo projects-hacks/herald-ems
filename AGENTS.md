@@ -17,7 +17,7 @@ Read this before changing anything. Then pick a task from `TASKS.md`.
    - **Open for extension, closed for modification.** A new score, checklist, county, prompt, or extractor is added by adding a data file or a registered class. It is never added by editing an `if/elif` chain inside an engine.
    - **Clinical and product content is versioned data, never Python literals.** That covers score tables and thresholds with their sources, checklists, relay tiers, change rules, the key vocabulary, county rules and destinations, model prompts and worked examples, and cost rates. It all lives under `config/`, carries its source citation, and is reviewed like code. The Python is the engine; `config/` is the content. Tests load the same files.
    - **Settings come from one settings object** (`herald/config/settings.py`, environment variables). No scattered `os.getenv`.
-   - **The public API is a contract.** `/api/*`, `/ws`, and the snapshot shape change only through `herald/api`, and every change is recorded in `docs/UX_PLAN.md` §5 in the same PR.
+   - **The public API is a contract.** `/api/*`, `/ws`, and the snapshot shape change only through `herald/api`, and every change is recorded in `docs/API_CONTRACT.md` in the same PR.
    - Every engine and every data file has tests, and `python -m pytest -q` passes before any commit.
 
 ## Document map: read these before you start
@@ -25,19 +25,16 @@ Read this before changing anything. Then pick a task from `TASKS.md`.
 Every decision in this project was researched and written down. Before proposing a change, check the doc that owns that topic, and follow the decisions recorded there unless you have new evidence. If you change a decision, update the owning doc in the same PR.
 
 ### In this repo (public; committed)
-| Doc | What's in it | Read it when | Kept current by |
-|---|---|---|---|
-| [`README.md`](README.md) | Public overview for judges: what Herald does, how to run it, architecture, the evidence behind the scores. | You need the 2-minute picture, or you're changing anything user-visible about setup. | pitch + integration |
-| [`AGENTS.md`](AGENTS.md) (this file) | Hard rules, invariants, layout, run commands, pitfalls already hit on this box, the doc map. | Always, first. | everyone |
-| [`TASKS.md`](TASKS.md) | The task board: verified checkpoint, protect order P1–P10, model tasks M*, UI tasks U*, infra and deliverables, owners, done-criteria. | Before picking work; after finishing work (update the status in the same PR). | everyone |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Per-person git setup on the shared `hp18` login, shared secrets (HF token), branches, ports, GPU etiquette, owners. | Your first session; before your first commit. | lead |
-| [`docs/MODEL_PLAN.md`](docs/MODEL_PLAN.md) | Why each model was chosen (published benchmarks + measured GB10 throughput, with sources); exact serve flags; the audited bake-off (3 runs each, what's genuine vs noise vs test flaws); the complete fine-tuning plan with go/no-go checks; what NOT to do. | Before touching `herald/llm.py`, `extract_llm.py`, `vision.py`, `stt.py`, ZRT, or any training. | ML lead |
-| [`docs/UX_PLAN.md`](docs/UX_PLAN.md) | Evidence-based UI plan: principles tied to IEC 60601-1-8 alarm priorities, WCAG 2.2, human-AI interaction guidelines, FDA CDS guidance; color tokens and type scale; screen specs (NOW, "Herald thinking" trace, phone capture, ED screen, presenter controls); stack decision (React + TS + Vite + Tailwind + shadcn/ui) with a fallback gate; what HP/NVIDIA provide on the ZGX; U-task list. | Before any frontend work, and before adding any alert, color, or animation. | frontend lead |
-| [`eval/`](eval/) | Gold sets (`gold_v0.jsonl` tuning, `gold_v1.jsonl` dev, `gold_v2*.jsonl` held-out: two blind annotators each), benchmark (`bench_extract.py`, scorer v2, `--rescore`), saved predictions (`dumps/`), agreement (`agreement.py`), adversarial suite, test photos, and result history (`results.jsonl`). | Before claiming any accuracy number. Claims are judged on the held-out set only. | data + eval |
-| [`docs/TASK_SPECS.md`](docs/TASK_SPECS.md) | Complete specs for handed-off tasks (S1–S8: fixtures, clean-clone setup, interpreter, diarization, mass-casualty mode, RxNorm normalization, soak test, field robustness): design against the package layout, steps, tests, acceptance, pitfalls, and what needs Rajeev. | Before starting any S-task from your lane in TASKS.md. | owner of each task + Rajeev |
-| [`docs/LABELING_GUIDE.md`](docs/LABELING_GUIDE.md) | How every gold utterance is labeled: roles, keys, normalization, corrections, negations, and the rules settled during adjudication (§4b). | Before writing or labeling any gold item. | data |
-| [`scenarios/`](scenarios/) + [`scripts/replay.py`](scripts/replay.py) | The stroke demo as a replayable script (rehearsal, video, regression). | Rehearsing, recording, or checking the demo still works after a change. | pitch |
-| [`docs/RUNBOOK.md`](docs/RUNBOOK.md) + [`scripts/soak.py`](scripts/soak.py) | Pre-demo warm-up, service/link checks, rehearsal, and the 30-minute stability soak. | Before rehearsal, recording, judging, or diagnosing demo drift. | integration |
+
+- `README.md`: product boundary, architecture, setup and test commands.
+- `TASKS.md`: unresolved work and acceptance checks.
+- `CONTRIBUTING.md`: shared-machine Git identity, ports and GPU coordination.
+- `docs/API_CONTRACT.md`: implemented API/snapshot contracts and interface constraints.
+- `docs/AGENTIC_CAPTURE.md`: capture configuration, privacy and pending physical/model acceptance.
+- `docs/MODEL_PLAN.md`, `docs/TRAINING_PLAN.md`: model evidence and active training work.
+- `docs/LABELING_GUIDE.md`, `eval/`: labeling rules, held-out sets and benchmark evidence.
+- `docs/RUNBOOK.md`, `docs/RELAY_BENCHMARK.md`: operational checks and measured relay results.
+- `config/`, `docs/research/`, `data/protocols/`: reviewed clinical content and sources.
 
 ### On the team Nano only (internal; NEVER commit, never copy into the repo)
 These live outside the repo because they contain pitch strategy, judge Q&A preparation, and ideation history. Everyone SSHes into the same machine, so the absolute paths work for every teammate and every agent.
@@ -79,9 +76,9 @@ An offline AI copilot for the back of the ambulance, running entirely on an HP Z
 | `herald/api/` | HTTP + WebSocket only | `app.py` (factory), `context.py` (**composition root**), `capture.py`, `trace.py`, `contract.py`, `hub.py`, `routes/` |
 | `herald/app.py` | ASGI entry point | `uvicorn herald.app:app` |
 | `ed_receiver/` | relay/frontend | mock ED service + screen (plain HTTP, no AI) |
-| `web/` | frontend (classic, served at `/classic/`) | NOW screen, phone capture page |
+| `ui/`, `web/` | medic UI and camera accessory | React source/build in `ui/`; standalone camera and field-recorder WAV utility in `web/` |
 | `eval/` | data + eval | gold sets, `bench_extract.py`, `adversarial_bench.py`, dumps |
-| `scenarios/`, `scripts/replay.py` | pitch | rehearsal replays |
+| `scenarios/`, `scripts/replay.py` | regression inputs | replayable synthetic journeys |
 | `tests/` | everyone | `fakes.py` holds test doubles for the interfaces in `herald/core/ports.py` |
 
 ## Run
@@ -97,7 +94,7 @@ $PY eval/bench_extract.py --extractor rules                # or: --extractor llm
 $PY scripts/build_rxnorm_index.py                          # once per clone: RxNorm index -> data/terminology/ (~10 min first time: RxNav)
 $PY -m pytest -q
 ```
-Presenter link hotkeys on the NOW screen: Shift+G good, Shift+W weak, Shift+D down.
+Link-test hotkeys while Settings is open: Shift+G good, Shift+W weak, Shift+D down.
 
 ## Pitfalls already hit on this box (don't rediscover them)
 - **ZRT needs the `zrt` group**: run via `sg zrt -c "zrt …"` in old shells. The API is `127.0.0.1:8080/v1`, with auth and TLS off, localhost only.
@@ -108,7 +105,7 @@ Presenter link hotkeys on the NOW screen: Shift+G good, Shift+W weak, Shift+D do
 - **One GPU-heavy job at a time.** Fine-tuning and model swaps get announced to the team.
 - **Never `pkill -f uvicorn…`**: it matches your own shell. Kill by anchored `pgrep -f "^/home/hp18/miniforge3/envs/zgx/bin/python -m uvicorn herald.app"`.
 - **The same self-match breaks wait loops and cleanup.** `until ! pgrep -f "bench_extract … ems"` never ends, because the loop's own command line contains the pattern, and `kill $(pgrep -f "<pattern>")` can kill the shell running it. Anchor the pattern to the interpreter path (`^/home/hp18/miniforge3/envs/zgx/bin/python eval/…`), wait on an output file instead, or kill by the PID you recorded.
-- **Browser mic needs a secure context**: open the NOW screen via `http://localhost:<port>` (port forward), not the LAN IP. The phone camera page works over plain HTTP.
+- **Browser mic needs a secure context**: open the NOW screen via `http://localhost:<port>` (port forward), not the LAN IP. Continuous camera also requires localhost or HTTPS; the one-shot file picker remains available.
 - **Nemotron-Omni is a reasoning model**: send `chat_template_kwargs: {"enable_thinking": false}` and strip `<think>` (already in `llm.py`).
 - **Omni's first start takes ~23 min** (kernel compile, cached in `~/.cache/flashinfer`, `~/.cache/vllm`). Don't restart it casually. Check `zrt status` before touching it; it serves everyone.
 - **Structured output must be typed and bounded.** An unbounded value type made the model ramble to `max_tokens` and truncate JSON. Keep the schema in `extract_llm.py` tight; `llm._salvage` keeps complete facts if it happens.

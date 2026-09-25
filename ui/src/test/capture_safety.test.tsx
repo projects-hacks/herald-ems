@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { TranscriptBar } from "@/layout/TranscriptBar";
+import { CaptureBar } from "@/features/capture/CaptureBar";
+import { ManualEntry } from "@/components/ManualEntry";
 import { initialUi, useHerald } from "@/lib/store";
 import { parseFixture } from "@/lib/ws";
 import type { Snapshot } from "@/lib/types";
@@ -20,7 +21,7 @@ describe("capture interaction safety", () => {
     const request = new Promise<MediaStream>((done) => { resolve = done; });
     Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: vi.fn(() => request) } });
     const stop = vi.fn();
-    render(<TranscriptBar />);
+    render(<><ManualEntry /><CaptureBar /></>);
     const button = screen.getByRole("button", { name: /Hold to talk · medic/ });
     fireEvent.pointerDown(button);
     fireEvent.pointerUp(button);
@@ -31,7 +32,7 @@ describe("capture interaction safety", () => {
   it("never starts background recording from Space on another button or a dialog", () => {
     const getUserMedia = vi.fn();
     Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia } });
-    render(<TranscriptBar />);
+    render(<><ManualEntry /><CaptureBar /></>);
     fireEvent.keyDown(screen.getByRole("button", { name: "Manual entry" }), { code: "Space", key: " " });
     expect(getUserMedia).not.toHaveBeenCalled();
     const dialog = document.createElement("div"); dialog.setAttribute("role", "dialog"); document.body.append(dialog);
@@ -40,7 +41,7 @@ describe("capture interaction safety", () => {
   });
   it("disables writes while disconnected", () => {
     useHerald.setState({ stale: true, conn: "closed" });
-    render(<TranscriptBar />);
+    render(<><ManualEntry /><CaptureBar /></>);
     expect((screen.getByRole("button", { name: /Hold to talk · medic/ }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole("button", { name: "Manual entry" }) as HTMLButtonElement).disabled).toBe(true);
   });

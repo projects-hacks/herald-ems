@@ -40,7 +40,6 @@ class Settings(BaseModel):
     ed_url: Optional[str] = None
     toxiproxy_url: str = "http://127.0.0.1:8474"
     # serving
-    ui: str = "new"                               # "classic" serves web/ at / as well
     capture_source: str = "off"
     capture_auto: bool = False
     capture_config: str = "capture.yaml"
@@ -130,7 +129,6 @@ class Settings(BaseModel):
             unit_id=opt("HERALD_UNIT_ID"),
             ed_url=opt("HERALD_ED_URL"),
             toxiproxy_url=e.get("TOXIPROXY_URL", cls.model_fields["toxiproxy_url"].default),
-            ui=e.get("HERALD_UI", "new"),
             capture_source=e.get("HERALD_CAPTURE_SOURCE", "off"),
             capture_auto=e.get("HERALD_CAPTURE_AUTO", "0") == "1",
             capture_config=e.get("HERALD_CAPTURE_CONFIG", "capture.yaml"),

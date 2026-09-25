@@ -1,5 +1,5 @@
 // Which category a fact belongs to, for its color and glyph (as Health colors Heart, Activity, Medications). The
-// category is identity only; status is always a separate badge, icon and word (UX_PLAN §2.3–2.4).
+// category is identity only; status is always a separate badge, icon and word (docs/API_CONTRACT.md).
 export type Cat = "attention" | "time" | "heart" | "neuro" | "ed" | "check" | "meds" | "patient" | "speech";
 
 export function catOf(key: string): Cat {

@@ -1,6 +1,6 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Herald · camera</title>
-<link rel="stylesheet" href="/classic/continuous.css">
+<link rel="stylesheet" href="/capture-assets/continuous.css">
 <style>
 body{margin:0;background:#0d1117;color:#e6edf3;font:18px/1.4 system-ui,sans-serif;padding:16px}
 h1{font-size:16px;letter-spacing:.12em;color:#8b949e;margin:0 0 14px}
@@ -35,7 +35,7 @@ input[type=file]{display:none}
 <label class="btn">📄 POLST / DNR form<small>reads the checked box; always needs your confirmation</small><input type="file" accept="image/*" capture="environment" data-mode="form"></label>
 <label class="btn">🏠 Scene<small>short factual notes for the ED</small><input type="file" accept="image/*" capture="environment" data-mode="scene"></label>
 <div id="out">Photos stay on the ambulance computer. Every reading shows up on the main screen for you to confirm.</div>
-<script type="module" src="/classic/continuous.js"></script>
+<script type="module" src="/capture-assets/continuous.js"></script>
 <script>
 async function shrink(file,max=1280){const img=await createImageBitmap(file);const s=Math.min(1,max/Math.max(img.width,img.height));
 const c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);

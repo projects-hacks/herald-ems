@@ -1,4 +1,4 @@
-// Vitals & trends (UX_PLAN §3.1.9), like Health's trend cards: NEWS2 over time, then each vital with two or more
+// Vitals & trends (docs/API_CONTRACT.md), like Health's trend cards: NEWS2 over time, then each vital with two or more
 // confirmed readings. Each card: the title in its category color, the latest value big and rounded with the change,
 // and a chart of the readings. A change past the configured rule is flagged "big change".
 import { ArrowDown, ArrowRight, ArrowUp, ChartLine, Gauge, TriangleAlert } from "lucide-react";

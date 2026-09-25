@@ -1,4 +1,4 @@
-"""Field robustness evaluation (docs/TASK_SPECS.md S8): real people say fact cards in their own words, in quiet and
+"""Field robustness evaluation (eval/field/README.md): real people say fact cards in their own words, in quiet and
 with road noise; the clips go through the product's speech-to-text and extractor and are scored against the card.
 
   cards.py      the fact cards (the gold) and which cards each speaker says

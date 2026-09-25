@@ -1,4 +1,4 @@
-// Clocks are HH:MM:SS everywhere (Pulsara's convention, UX_PLAN §3.0); numbers never tween.
+// Clocks are HH:MM:SS everywhere (Pulsara's convention, docs/API_CONTRACT.md); numbers never tween.
 import type { FactRecord, FactValue, FactView, Snapshot } from "./types";
 
 const pad = (n: number) => String(Math.floor(n)).padStart(2, "0");
@@ -15,10 +15,6 @@ export function hhmm(iso: string | null | undefined): string {
 export function clockTime(ms: number): string {
   const d = new Date(ms);
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-/** Seconds between an ISO time and now (positive when `iso` is in the past). */
-export function secondsSince(iso: string, nowMs: number): number {
-  return (nowMs - new Date(iso).getTime()) / 1000;
 }
 
 export function formatValue(v: FactValue, unit?: string | null): string {
@@ -43,9 +39,6 @@ export function factValue(f: Pick<FactView, "value" | "unit">): string {
 /** "husband", "daughter", or the role when no speaker was named. */
 export function sourceName(f: Pick<FactView, "speaker" | "role">): string {
   return f.speaker || f.role;
-}
-export function shortId(id: string): string {
-  return `…${id.slice(-4)}`;
 }
 
 /** A crew label is context, never a substitute for confirmed patient identity. */

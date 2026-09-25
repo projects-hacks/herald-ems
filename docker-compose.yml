@@ -1,4 +1,4 @@
-# Herald, containerized (docs/TASK_SPECS.md S2). See Dockerfile for why the split is what it is:
+# Herald, containerized (README.md). See Dockerfile for why the split is what it is:
 #   herald      the FastAPI app + STT/embeddings. Needs the GPU and ZRT on the HOST (network_mode: host reaches
 #               ZRT at 127.0.0.1:8080, same address scripts/run_dev.sh uses). Start ZRT yourself first
 #               (scripts/serve_models.sh) -- this compose file deliberately never starts model servers.

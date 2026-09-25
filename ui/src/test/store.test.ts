@@ -1,4 +1,4 @@
-// U2 acceptance tests (UX_PLAN §7.2): store continuity, stale detection, fixture timing.
+// U2 acceptance tests (docs/API_CONTRACT.md): store continuity, stale detection, fixture timing.
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
 import { initialUi, useHerald } from "@/lib/store";
@@ -33,10 +33,17 @@ describe("store", () => {
   });
 
   it("URL parameters override preferences", () => {
-    expect(initialUi("?theme=light&type=1.5&mode=explain&present=1")).toMatchObject({ theme: "light", typeScale: 1.5, mode: "explain", presentationMode: true });
+    expect(initialUi("?theme=light&type=1.5&mode=explain")).toMatchObject({ theme: "light", typeScale: 1.5, page: "transcript" });
     expect(initialUi("?type=3")).toMatchObject({ typeScale: 1 });
   });
 
+  it("preserves a direct page link on first connection and resets it only when changing patient", () => {
+    useHerald.setState({ ui: initialUi("?page=handoff") });
+    useHerald.getState().setSnapshot(states[0]);
+    expect(useHerald.getState().ui.page).toBe("handoff");
+    useHerald.getState().setSnapshot({ ...states[0], incident: { ...states[0].incident, id: "next" } });
+    expect(useHerald.getState().ui.page).toBe("overview");
+  });
   it("clears phase and patient-specific UI state when the incident changes", () => {
     useHerald.getState().setSnapshot(states[0]);
     useHerald.getState().setUi({ incidentPhase: "handoff", seenAlerts: { old: true } });

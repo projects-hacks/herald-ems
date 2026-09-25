@@ -11,22 +11,13 @@ const API = process.env.HERALD_API ?? "http://127.0.0.1:8101";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: { "@": resolve(import.meta.dirname, "src") } },
-  build: {
-    outDir: "dist",
-    rolldownOptions: {
-      // The ED screen (ed.html, UX_PLAN §3.4) is added here by U9.
-      input: {
-        now: resolve(import.meta.dirname, "index.html"),
-        deck: resolve(import.meta.dirname, "deck.html"),
-      },
-    },
-  },
   server: {
     host: "127.0.0.1",
     port: 5173,
     proxy: {
       "/api": API,
-      "/classic": API,
+      "/capture.html": API,
+      "/capture-assets": API,
       "/ws": { target: API.replace("http", "ws"), ws: true },
     },
   },

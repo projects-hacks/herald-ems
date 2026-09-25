@@ -1,13 +1,13 @@
 // The screens against a real snapshot captured from the server on 2026-09-24 (run E v2, every call type): a fall with
 // chest pain, medications given (records), two open checklists (STEMI and trauma), county scores. Guards the UI
-// against the contract as it is now, not as it was when the screens were written (UX_PLAN §5.6).
+// against the contract as it is now, not as it was when the screens were written (docs/API_CONTRACT.md).
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { formatRecord, formatValue } from "@/lib/format";
 import { initialUi, useHerald } from "@/lib/store";
 import type { Snapshot } from "@/lib/types";
-import { PreAlertCard } from "@/features/overview/PreAlertCard";
+import { CareSummary } from "@/features/cabin/CareSummary";
 import { TraceEntry } from "@/features/trace/trace";
 
 const live: Snapshot = JSON.parse(readFileSync("src/test/fixtures/live_every_call.json", "utf8"));
@@ -31,11 +31,12 @@ describe("screens on the live snapshot", () => {
 
   it("the pre-alert card switches between the open checklists", () => {
     useHerald.getState().setSnapshot(live);
-    render(<PreAlertCard />);
-    const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(live.readiness.map((r) => `${r.label} ${r.done}/${r.total}`));
-    fireEvent.click(tabs[1]);
-    expect(screen.getByText(live.readiness[1].label, { selector: "#pa-h, #pa-h *" })).toBeTruthy();
+    render(<CareSummary onReview={() => {}} />);
+    const picker = screen.getByRole("combobox", { name: "Pre-alert checklist" });
+    expect(Array.from(picker.querySelectorAll("option")).map((o) => o.textContent)).toEqual(live.readiness.map((r) => r.label));
+    fireEvent.change(picker, { target: { value: live.readiness[1].id } });
+    expect((picker as HTMLSelectElement).value).toBe(live.readiness[1].id);
+    expect(screen.getByText(live.readiness[1].items[0].label)).toBeTruthy();
   });
 
   it("trace cards show the model step only (no rules extractor), and records as text", () => {

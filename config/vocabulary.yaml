@@ -356,7 +356,7 @@ keys:
     type: str
     kind: history
   triage.category:
-    # SALT category for mass-casualty mode (TASK_SPECS S5): the medic's call, spoken or tapped, never Herald's.
+    # SALT category for mass-casualty mode (patient roster): the medic's call, spoken or tapped, never Herald's.
     # Colors are words the model maps ("red tag" -> immediate), not synonyms coded here.
     label: Triage category (SALT)
     type: str

@@ -1,4 +1,4 @@
-// Keep the screen awake while an incident is active (UX_PLAN §3.1.13). Browsers may refuse; that is fine.
+// Keep the screen awake while an incident is active (docs/API_CONTRACT.md). Browsers may refuse; that is fine.
 import { useEffect } from "react";
 
 export function useWakeLock(active: boolean) {

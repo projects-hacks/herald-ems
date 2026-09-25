@@ -1,8 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProtocolSearch } from "@/features/protocols/ProtocolSearch";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { Sidebar } from "@/layout/Sidebar";
+import { CabinApp } from "@/features/cabin/CabinApp";
 import { useHerald } from "@/lib/store";
 import type { ProtocolAnswer, ProtocolPassage } from "@/lib/types";
 
@@ -75,12 +74,12 @@ describe("ProtocolSearch", () => {
   });
 });
 
-describe("Sidebar protocols entry", () => {
+describe("Medic workspace protocols entry", () => {
   afterEach(cleanup);
   it("opens the county protocol search", () => {
     useHerald.setState({ source: "live", snapshot: null });
-    render(<TooltipProvider><Sidebar player={null} /></TooltipProvider>);
-    fireEvent.click(screen.getByRole("button", { name: /Protocols/ }));
+    render(<CabinApp />);
+    fireEvent.click(screen.getByRole("button", { name: "Protocols" }));
     expect(screen.getByRole("dialog", { name: "County protocols" })).toBeTruthy();
   });
 });

@@ -1,4 +1,4 @@
-// A hand-drawn SVG sparkline (no chart library, no animation: UX_PLAN §2.8).
+// A hand-drawn SVG sparkline (no chart library, no animation: docs/API_CONTRACT.md).
 export function Sparkline({ values, width = 120, height = 32, label, className = "text-text-secondary" }: {
   values: number[]; width?: number; height?: number; label: string; className?: string;
 }) {

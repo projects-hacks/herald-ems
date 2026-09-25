@@ -16,10 +16,11 @@ function closeDevices() {
   if (socket) { socket.onclose = null; socket.close(); socket = null; }
   video.srcObject = null; $("start-camera").disabled = false; $("stop-camera").disabled = true;
 }
-async function stop() {
+function stop() {
+  const wasActive = !!media || !!socket;
   closeDevices();
-  try { status = await request("/api/capture/auto", { on: false }); render(); }
-  catch (e) { error(`${e.message}. Camera is off locally.`); }
+  // The server releases capture only for the closing owner socket.
+  if (wasActive) $("capture-state").textContent = "Camera off · start explicitly to resume";
 }
 function render() {
   if (!status) return;

@@ -30,7 +30,8 @@ def received_report(patient_id: str, received: dict, format_id=None) -> dict:
         try:
             timestamp = datetime.fromisoformat(row["t"])
             fact = incident.ingest(FactIn(key=row["k"], value=row["v"], captured_by="device", role="device",
-                                          speaker="received confirmed relay", confidence=1), record=False)
+                                          speaker="received confirmed relay", confidence=1,
+                                          provenance={"observed_at": row.get("o")}), record=False)
             fact.ts = timestamp
             fact.status = Status.confirmed
         except (ValueError, TypeError):

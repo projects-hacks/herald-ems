@@ -1,4 +1,4 @@
-// Global keys (UX_PLAN §3.1.13). Ignored while typing in a field or while a dialog is open. Push-to-talk keys
+// Global keys (docs/API_CONTRACT.md). Ignored while typing in a field or while a dialog is open. Push-to-talk keys
 // (Space, F) belong to the capture bar (U4) and are not handled here.
 import { useEffect } from "react";
 import { api } from "@/lib/api";
@@ -19,16 +19,14 @@ export function useHotkeys() {
     const onKey = (e: KeyboardEvent) => {
       if (typing(e.target) || document.querySelector("[role=dialog][data-state=open]")) return;
       const { ui, setUi } = useHerald.getState();
-      if (e.key === "`") { setUi({ presenterOpen: !ui.presenterOpen }); return; }
       if (!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
       const k = e.key.toUpperCase();
-      if (k === "P") setUi({ presentationMode: !ui.presentationMode });
-      else if (k === "E") setUi({ mode: ui.mode === "medic" ? "explain" : "medic" });
+      if (k === "E") setUi({ page: "transcript" });
       else if (k === "T") setUi({ typeScale: NEXT_SCALE[ui.typeScale] });
       else if (k === "L") setUi({ theme: ui.theme === "dark" ? "light" : "dark" });
-      else if (k === "G") void changeLink("good");
-      else if (k === "W") void changeLink("weak");
-      else if (k === "D") void changeLink("down");
+      else if (ui.page === "settings" && k === "G") void changeLink("good");
+      else if (ui.page === "settings" && k === "W") void changeLink("weak");
+      else if (ui.page === "settings" && k === "D") void changeLink("down");
       else return;
       e.preventDefault();
     };

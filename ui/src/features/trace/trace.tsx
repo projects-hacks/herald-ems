@@ -1,4 +1,4 @@
-// What Herald heard and what it did with it (UX_PLAN §3.1.10): the one-line summary used by the bottom bar, and the
+// What Herald heard and what it did with it (docs/API_CONTRACT.md): the one-line summary used by the bottom bar, and the
 // trace entries used by the explain-mode panel and the Transcript page, until the Herald-thinking panel (U6).
 import { Camera, Cpu, Keyboard, ListChecks, Mic, Monitor } from "lucide-react";
 import { formatValue, hhmm } from "@/lib/format";

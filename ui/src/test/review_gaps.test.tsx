@@ -55,7 +55,7 @@ it("submits typed monitor readings as device facts and exposes failures", async 
 it("fixture capture controls are disabled and photo link resolves under classic", () => {
   useHerald.setState({ source: "fixture" }); render(<CaptureBar />);
   expect((screen.getByRole("button", { name: /Hold to talk · medic/ }) as HTMLButtonElement).disabled).toBe(true);
-  expect(screen.getByRole("link", { name: /Take a photo/ }).getAttribute("href")).toBe("/classic/capture.html");
+  expect(screen.getByRole("link", { name: /Take a photo/ }).getAttribute("href")).toBe("/capture.html");
   expect(fetch).not.toHaveBeenCalled();
 });
 it("clears unsent note and monitor drafts when the patient changes", () => {
@@ -107,6 +107,7 @@ it("exposes compact model-down and ED offline status", () => {
 });
 it("link hotkey failure creates a visible toast", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("offline"));
+  useHerald.getState().setUi({ page: "settings" });
   function Hotkeys() { useHotkeys(); return null; } render(<Hotkeys />);
   fireEvent.keyDown(window, { key: "D", shiftKey: true });
   await waitFor(() => expect(useHerald.getState().toast?.text).toContain("Link change failed"));

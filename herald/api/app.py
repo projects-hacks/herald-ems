@@ -9,11 +9,10 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, WebSocket
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 
 from .context import AppContext, build_context, wire_capture
 from .hub import Hub
+from .frontend import mount_frontend
 from .routes import capture as capture_routes
 from .routes import agentic_capture, handoff, incident, patients, protocols, relay, system
 
@@ -61,13 +60,5 @@ def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
     async def ws_endpoint(ws: WebSocket):
         await hub.serve(ws)
 
-    # The React build at / when it exists (HERALD_UI=classic switches back); the original screen stays at /classic/.
-    root = ctx.settings.root
-    @app.get("/capture.html", include_in_schema=False)
-    async def capture_page():
-        return FileResponse(root / "web" / "capture.html")
-    ui_dist = root / "ui" / "dist"
-    use_new_ui = ctx.settings.ui == "new" and (ui_dist / "index.html").exists()
-    app.mount("/classic", StaticFiles(directory=str(root / "web"), html=True), name="classic")
-    app.mount("/", StaticFiles(directory=str(ui_dist if use_new_ui else root / "web"), html=True), name="web")
+    mount_frontend(app, ctx.settings.root)
     return app

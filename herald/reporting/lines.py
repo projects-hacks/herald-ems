@@ -196,7 +196,8 @@ class TrendsLine:
     """Every listed key with two or more confirmed readings: the readings in order."""
 
     def problems(self, spec, vocabulary, scales, cfg) -> list[str]:
-        return _unknown_keys(spec.get("keys", []), vocabulary) + ([] if spec.get("template") else ["needs template"])
+        return (_unknown_keys(spec.get("keys", []), vocabulary) + ([] if spec.get("template") else ["needs template"])
+                + _bad_fields(spec.get("point_template", "{value}"), {"value", "time"}))
 
     def build(self, spec: dict, ctx: BuildContext) -> list[Line]:
         v, out = ctx.view, []
@@ -204,8 +205,14 @@ class TrendsLine:
             h = v.history(key)
             if len(h) < 2:
                 continue
-            series = ctx.config.words["arrow"].join(v.value_text(key, f.value, f.ts) for f in h)
-            series = v.with_unit(series, h[-1].unit or v.vocab.meta(key).get("unit"))
+            point = spec.get("point_template")
+            if point:
+                series = ctx.config.words["arrow"].join(point.format(
+                    value=v.with_unit(v.value_text(key, f.value, f.ts), f.unit or v.vocab.meta(key).get("unit")),
+                    time=(f.provenance.observed_at or f.ts).astimezone(v.tz).strftime("%H:%M:%S")) for f in h)
+            else:
+                series = ctx.config.words["arrow"].join(v.value_text(key, f.value, f.ts) for f in h)
+                series = v.with_unit(series, h[-1].unit or v.vocab.meta(key).get("unit"))
             out.append(Line("trend", spec["template"].format(label=v.vocab.label(key), series=series), keys=(key,),
                             facts=tuple(h)))
         return out

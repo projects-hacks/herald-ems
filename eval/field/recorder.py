@@ -1,4 +1,4 @@
-"""The recording station for the field evaluation (docs/TASK_SPECS.md S8).
+"""The recording station for the field evaluation (eval/field/README.md).
 
   ~/miniforge3/envs/zgx/bin/python -m eval.field.recorder --station <your name> --port 8105
   then open http://localhost:8105 (browsers allow the microphone only on localhost or https; VS Code and
@@ -174,7 +174,7 @@ def create_app(station: str, cards_path: Path = ROOT / "eval" / "field_cards_v1.
 
 
 def main(argv=None) -> None:
-    ap = argparse.ArgumentParser(description="Herald field recording station (docs/TASK_SPECS.md S8)")
+    ap = argparse.ArgumentParser(description="Herald field recording station (eval/field/README.md)")
     ap.add_argument("--station", required=True, help="who runs this station, e.g. jenil: speaker codes become jenil-s01")
     ap.add_argument("--port", type=int, default=8105, help="outside 8101-8104, the Herald dev servers (CONTRIBUTING.md)")
     ap.add_argument("--host", default="127.0.0.1")
