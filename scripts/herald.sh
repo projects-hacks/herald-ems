@@ -9,13 +9,14 @@
 # `up` does, in order, and skips any step that is already done:
 #   1. checks this checkout against origin/main (warns if it is behind; `up --pull` fast-forwards first)
 #   2. one-time data: the RxNorm drug index (~10 min, network) and the Whisper + embedding weights
-#   3. the shipped model stack on ZRT :8080 -- ems-e-v2-fp8 (speech -> facts) and qwen3vl-fp8 (photos, monitor,
-#      protocol reranking) -- served one at a time, each only if missing and only if memory allows
+#   3. the shipped model stack on ZRT :8080 -- ems-e-v2-fp8 (speech -> facts) and herald-f (photos, the monitor,
+#      protocol figures and reranking) -- served one at a time, each only if missing and only if memory allows.
+#      The untuned qwen3vl-fp8 is the baseline and the rollback: HERALD_VISION_MODEL=qwen3vl-fp8 switches back.
 #   4. the React UI build (npm ci / npm run build only when sources changed)
 #   5. the ED link emulator (Toxiproxy :9000 -> ED screen) and the ED screen (:8200)
 #   6. the Herald app (:8100) with Whisper preloaded, then waits until speech, extraction and vision all report ready
 #
-# Overrides: HERALD_PORT (8100) ED_PORT (8200) HERALD_LLM_MODEL (ems-e-v2-fp8) HERALD_VISION_MODEL (qwen3vl-fp8)
+# Overrides: HERALD_PORT (8100) ED_PORT (8200) HERALD_LLM_MODEL (ems-e-v2-fp8) HERALD_VISION_MODEL (herald-f)
 #            HERALD_BIND_HOST (127.0.0.1; 0.0.0.0 exposes the app to the LAN -- set HERALD_DEVICE_TOKEN too)
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -27,7 +28,7 @@ PORT="${HERALD_PORT:-8100}"
 ED_PORT="${ED_PORT:-8200}"
 LINK_PORT=9000
 LLM="${HERALD_LLM_MODEL:-ems-e-v2-fp8}"
-VISION="${HERALD_VISION_MODEL:-qwen3vl-fp8}"
+VISION="${HERALD_VISION_MODEL:-herald-f}"   # the shipping vision model (photos, monitor, figures, reranking)
 ZRT_URL="http://127.0.0.1:8080/v1"
 RUN="$ROOT/runs/stack"
 mkdir -p "$RUN"
@@ -95,6 +96,7 @@ EOF
 ensure_model() {   # label, serve_models.sh target, GB it needs
   local label="$1" target="$2" need="$3"
   if served "$label"; then ok "$label serving"; return; fi
+  [ -n "$target" ] || die "no serve_models.sh target known for label '$label': add it to serve_target_for()"
   local avail; avail="$(mem_avail_gb)"
   [ "$avail" -ge $((need + 16)) ] || die "$label is not served and only ${avail} GB is free (needs ~${need} GB + 16 GB headroom). Stop another model first: sg zrt -c 'zrt status'"
   warn "$label not served: starting it (${need} GB; first start can take several minutes)"
@@ -103,11 +105,26 @@ ensure_model() {   # label, serve_models.sh target, GB it needs
   die "$label did not become ready within 30 minutes: sg zrt -c 'zrt status'"
 }
 
+serve_target_for() {   # the scripts/serve_models.sh target that serves a given label
+  case "$1" in
+    ems-e-v2-fp8)   echo ems ;;
+    qwen3vl-fp8)    echo vision ;;
+    herald-f)       echo herald-f ;;
+    herald-f4b-fp8) echo f4b ;;
+    omni)           echo omni ;;
+    *)              echo "" ;;
+  esac
+}
+
 ensure_models() {
   say "Models (ZRT :8080)"
   sg zrt -c "zrt status" >/dev/null 2>&1 || die "ZRT is not reachable: is the zrt service running? (sg zrt -c 'zrt status')"
-  ensure_model "$LLM" ems 18      # one at a time: never load two big models at once (memory safety)
-  ensure_model "$VISION" vision 44
+  # The target is derived from the LABEL, not hardcoded per job. Before this, the vision job always ran
+  # `serve_models.sh vision`, which serves qwen3vl-fp8 -- so with HERALD_VISION_MODEL=herald-f (the shipping vision
+  # model since 2026-09-25) an unserved box would quietly start the WRONG model and then fail the readiness check
+  # against a label that was never asked for.
+  ensure_model "$LLM" "$(serve_target_for "$LLM")" 18      # one at a time: never load two big models at once
+  ensure_model "$VISION" "$(serve_target_for "$VISION")" 44
 }
 
 build_ui() {

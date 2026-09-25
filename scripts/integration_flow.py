@@ -54,13 +54,40 @@ def main() -> None:
     ap.add_argument("--ed", default="http://127.0.0.1:8200")
     a = ap.parse_args()
 
+    health = call(f"{a.url}/api/health")
+    print("=== health ===")
+    print(f"  stt={health.get('stt_loaded')} extraction={health.get('llm_model')} "
+          f"({health.get('llm_available')}) vision={health.get('vision_model')} ({health.get('vision_available')}) "
+          f"cloud_ai_calls={health.get('cloud_ai_calls')}")
+    if health.get("cloud_ai_calls"):
+        BUGS.append(f"cloud_ai_calls is {health['cloud_ai_calls']}, must be 0 (invariant 1: no cloud AI)")
+
     stack = call(f"{a.url}/api/stack")
-    print("=== stack as the screen shows it ===")
+    print("\n=== stack as the screen shows it ===")
+    # A model listed under `research` in config/stack.yaml is MEANT to read "not served" -- that is the baseline and
+    # rollback entry. Only a component the app is actually using may not be missing, so compare against /api/health.
+    serving = {health.get("llm_model"), health.get("vision_model")}
     for m in stack["models"]:
-        print(f"  {str(m.get('served_as')):16s} {m['status']}")
-        if "not served" in m["status"]:
-            BUGS.append(f"/api/stack shows {m.get('served_as')} as {m['status']!r}: config/stack.yaml has no "
-                        f"herald-f entry, so the AI-stack screen reports the shipped model as missing")
+        label = str(m.get("served_as"))
+        print(f"  {label:16s} {m['status']}")
+        if label in serving and "not served" in m["status"]:
+            BUGS.append(f"/api/stack shows {label} as {m['status']!r}, but the app is using it: "
+                        f"config/stack.yaml is missing the entry for the component it serves")
+        if label not in serving and m["status"] == "ready":
+            BUGS.append(f"/api/stack shows {label} ready, but the app is not using it (serving {serving})")
+
+    print("\n=== 0. egress allow-list (every outbound call goes through it) ===")
+    try:
+        eg = call(f"{a.url}/api/egress")
+        allowed = eg.get("allowed") or eg.get("allow") or eg.get("destinations") or eg
+        print(f"  {json.dumps(allowed)[:400]}")
+        denied = eg.get("denied") or eg.get("denials") or []
+        if denied:
+            print(f"  denied so far: {json.dumps(denied)[:300]}")
+            BUGS.append(f"egress already recorded {len(denied)} denial(s) before the relay ran: {denied!r:.200}")
+    except urllib.error.HTTPError as e:
+        print(f"  HTTP {e.code}: {e.read()[:200]!r}")
+        BUGS.append(f"/api/egress returned HTTP {e.code}")
 
     print("\n=== 1. speech -> facts (the app's own capture path) ===")
     line = ("Valley this is Medic 12, stroke alert. 71 year old female, last known well 0915, "
@@ -145,6 +172,67 @@ def main() -> None:
                         BUGS.append(f"{label} read {ok}/{len(g)} of gold")
                     break
 
+    print("\n=== 4b. one-tap reading confirm (POST /api/readings/{frame_id}/confirm) ===")
+    # One monitor frame yields HR/BP/SpO2/RR at once, so the medic confirms the reading as a set. Readings the
+    # corroboration rules flag -- a jump past the plausible step, a first reading, a held fact, a label mismatch --
+    # come back in `individual` and stay unconfirmed. That is the mechanism that contains an HR/SpO2 label swap
+    # (docs/RUN_F_REPORT.md §8, cam_07): a swap shows up as two implausible jumps and each is asked about separately.
+    snap = call(f"{a.url}/api/state")
+    groups = snap.get("capture_groups") or []
+    print(f"  capture_groups: {len(groups)}")
+    if not groups:
+        BUGS.append("no capture_groups in the snapshot after a monitor photo: the one-tap reading confirm has "
+                    "nothing to act on")
+    for g in groups[:2]:
+        print(f"    frame={g.get('frame_id')} trigger={g.get('trigger')} "
+              f"batchable={len(g.get('batch_fact_ids') or [])} individual={len(g.get('individual') or [])}")
+        for row in (g.get("individual") or [])[:6]:
+            print(f"      individual: {json.dumps(row)[:180]}")
+    if groups:
+        frame = groups[0]["frame_id"]
+        try:
+            res = call(f"{a.url}/api/readings/{frame}/confirm", "POST", {})
+            conf = res.get("confirmed") or []
+            indiv = res.get("individual") or []
+            print(f"  confirmed {len(conf)} in one tap, {len(indiv)} left for their own look")
+            for row in indiv[:6]:
+                print(f"    still unconfirmed: {json.dumps(row)[:180]}")
+            after = call(f"{a.url}/api/state")
+            ids = set(conf)
+            bad = [f for f in after["facts"].values() if f.get("id") in ids and f.get("status") != "confirmed"]
+            if bad:
+                BUGS.append(f"one-tap reading confirm reported {len(conf)} confirmed but {len(bad)} are still not "
+                            f"confirmed in the snapshot")
+            if not conf and not indiv:
+                BUGS.append("one-tap reading confirm returned neither confirmed nor individual rows")
+        except urllib.error.HTTPError as e:
+            print(f"  HTTP {e.code}: {e.read()[:200]!r}")
+            BUGS.append(f"POST /api/readings/{{frame_id}}/confirm returned HTTP {e.code}")
+
+    print("\n=== 4c. FHIR R4 export (GET /api/handoff/fhir) ===")
+    try:
+        fhir = call(f"{a.url}/api/handoff/fhir")
+        rt = fhir.get("resourceType")
+        entries = fhir.get("entry") or []
+        kinds = {}
+        for e in entries:
+            k = ((e.get("resource") or {}).get("resourceType")) or "?"
+            kinds[k] = kinds.get(k, 0) + 1
+        print(f"  resourceType={rt} entries={len(entries)} {kinds}")
+        if rt != "Bundle":
+            BUGS.append(f"/api/handoff/fhir returned resourceType {rt!r}, expected 'Bundle'")
+        if not entries:
+            BUGS.append("/api/handoff/fhir returned an empty bundle after facts were confirmed")
+        # Invariant 4: only confirmed facts leave the vehicle, and the export is a leaving path.
+        state = call(f"{a.url}/api/state")
+        n_conf = sum(1 for f in state["facts"].values() if f.get("status") == "confirmed")
+        print(f"  confirmed facts in the incident: {n_conf}")
+        if n_conf == 0 and entries:
+            BUGS.append("the FHIR bundle has entries while no fact is confirmed: only confirmed facts may leave")
+    except urllib.error.HTTPError as e:
+        print(f"  HTTP {e.code}: {e.read()[:200]!r}")
+        BUGS.append(f"/api/handoff/fhir returned HTTP {e.code}")
+
     print("\n=== 5. relay -> ED ===")
     try:
         auth = call(f"{a.url}/api/relay/authorize", "POST")
@@ -166,6 +254,16 @@ def main() -> None:
     else:
         print("  ED received nothing after 24 s")
         BUGS.append("relay authorized but the ED receiver got no incident")
+        # Since 2026-09-25 every outbound call goes through an allow-list, and a denied relay looks exactly like a
+        # dead link from the app's side. Name the difference instead of leaving it to guesswork.
+        try:
+            eg = call(f"{a.url}/api/egress")
+            print(f"  egress after the attempt: {json.dumps(eg)[:400]}")
+            if eg.get("denied") or eg.get("denials"):
+                BUGS.append("the relay was DENIED by the egress allow-list, not dropped by the link: set "
+                            "HERALD_ED_URL (allowed automatically) or list the destination in config/egress.yaml")
+        except urllib.error.HTTPError:
+            pass
 
     print("\n" + "=" * 70)
     if BUGS:
@@ -173,7 +271,8 @@ def main() -> None:
         for i, b in enumerate(BUGS, 1):
             print(f"  {i}. {b}")
     else:
-        print("NO INTEGRATION DEFECTS: speech, confirm, photo, POLST and relay all behaved.")
+        print("NO INTEGRATION DEFECTS: egress, speech, confirm, photo, POLST, one-tap reading confirm, "
+              "FHIR export and relay all behaved.")
 
 
 if __name__ == "__main__":
