@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 from fastapi.testclient import TestClient
+import pytest
 
 from ed_receiver import app as ed_mod
 from fakes import FakeModel, FakeSTT, FakeVision, make_client, test_settings as fake_settings
@@ -77,6 +78,60 @@ def test_structured_facts_are_all_or_nothing():
     assert r.status_code == 400
     s = c.get("/api/state").json()
     assert not s["facts"] and s["transcripts"] == []
+
+
+def test_medic_can_correct_a_fact_without_rewriting_history():
+    c, _ = make_client()
+    original = c.post("/api/facts", json=[{"key": "vitals.sbp", "value": 150, **MONITOR}]).json()[0]
+    r = c.post(f"/api/facts/{original['id']}/correct", json={"value": 138})
+    assert r.status_code == 200
+    state = c.get("/api/state").json()
+    assert state["facts"]["vitals.sbp"]["value"] == 138
+    old = next(f for f in state["timeline"] if f["id"] == original["id"])
+    assert old["status"] == "rejected"
+    corrected = state["facts"]["vitals.sbp"]
+    assert corrected["status"] == "confirmed"
+    assert corrected["provenance"]["extractor"] == "manual-correction"
+    assert "Corrected Systolic BP" in state["transcripts"][-1]["text"]
+    assert corrected["previous_value"] == 150
+
+
+@pytest.mark.parametrize("value", [None, "", "150", True, -1, 400, 120.5])
+def test_invalid_correction_does_not_change_original(value):
+    c, _ = make_client()
+    original = c.post("/api/facts", json=[{"key": "vitals.sbp", "value": 150, **MONITOR}]).json()[0]
+    assert c.post(f"/api/facts/{original['id']}/correct", json={"value": value}).status_code == 400
+    state = c.get("/api/state").json()
+    assert state["facts"]["vitals.sbp"]["id"] == original["id"]
+    assert len(state["timeline"]) == 1
+
+
+def test_stale_or_repeated_correction_is_not_applied_twice():
+    c, _ = make_client()
+    original = c.post("/api/facts", json=[{"key": "allergies", "value": ["aspirin"], **MONITOR}]).json()[0]
+    url = f"/api/facts/{original['id']}/correct"
+    assert c.post(url, json={"value": []}).status_code == 200
+    assert c.post(url, json={"value": ["penicillin"]}).status_code == 409
+    state = c.get("/api/state").json()
+    assert state["facts"]["allergies"]["value"] == []
+    assert len(state["timeline"]) == 2
+
+
+def test_correction_cannot_cross_incidents():
+    c, _ = make_client()
+    original = c.post("/api/facts", json=[{"key": "vitals.sbp", "value": 150, **MONITOR}]).json()[0]
+    c.post("/api/incident", json={"dispatch": "next patient"})
+    assert c.post(f"/api/facts/{original['id']}/correct", json={"value": 138}).status_code == 404
+    assert not c.get("/api/state").json()["facts"]
+
+
+def test_patient_identifiers_always_require_verification():
+    c, _ = make_client()
+    facts = c.post("/api/facts", json=[
+        {"key": "patient.name", "value": "Test Patient", **MONITOR},
+        {"key": "patient.identifier", "value": "DEMO-123", **MONITOR},
+    ]).json()
+    assert all(f["status"] == "unconfirmed" for f in facts)
 
 
 def test_failed_photo_leaves_a_trace_entry(tmp_path):

@@ -1,0 +1,9 @@
+{
+  "source": "Synthetic rehearsal inputs only. Monitor and POLST use the existing eval/photos renderers; no patient photos. Values are props, not clinical recommendations.",
+  "frames": [
+    {"id": "00_monitor", "kind": "monitor", "style": "dark", "values": {"vitals.hr": 95, "vitals.spo2": 98, "vitals.sbp": 120, "vitals.dbp": 80, "vitals.rr": 18, "vitals.temp": 37}},
+    {"id": "01_monitor_changed", "kind": "monitor", "style": "light", "values": {"vitals.hr": 110, "vitals.spo2": 94, "vitals.sbp": 110, "vitals.dbp": 70, "vitals.rr": 24, "vitals.temp": 37}},
+    {"id": "02_vial", "kind": "vial", "lines": ["SYNTHETIC TRAINING PROP", "ONDANSETRON", "Injection", "2 mg / mL", "NOT FOR CLINICAL USE"]},
+    {"id": "03_polst", "kind": "polst", "section_a": "dnr", "section_b": "selective", "mark": "check"}
+  ]
+}

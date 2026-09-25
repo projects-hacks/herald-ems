@@ -4,7 +4,7 @@
 // When the backend changes a field, change it here in the same PR.
 
 // ---------- enums (core/schema.py) ----------
-export type Role = "medic" | "patient" | "family" | "bystander" | "device" | "photo";
+export type Role = "medic" | "patient" | "family" | "bystander" | "device" | "photo" | "unknown";
 export type CapturedBy = "medic" | "other" | "device" | "camera";
 export type FactStatus = "unconfirmed" | "confirmed" | "rejected";
 /** A record is one event (a medication given, a procedure): only the fields said are present (config/vocabulary.yaml). */
@@ -15,6 +15,7 @@ export interface Coding { system: string; code: string }
 
 // ---------- facts ----------
 export interface Provenance {
+  trigger?: string | null; frame_id?: string | null; auto?: boolean;
   audio_id: string | null; t_start: number | null; t_end: number | null; text: string | null;
   photo_id: string | null; crop: [number, number, number, number] | null; extractor: string | null;
   hold_reason: string | null;       // why this fact waits for the medic's tap (UX_PLAN §5.9a)
@@ -26,6 +27,7 @@ export interface FactView {
   provenance: Provenance; ts: string; status: FactStatus;
   previous_value: FactValue; previous_ts: string | null;
   code?: Coding | (Coding | null)[] | null;
+  verify?: { status: "match" | "mismatch"; label_drug: string; photo_id: string | null; resolution: "kept" | "edited" | null } | null;
 }
 
 // ---------- checklists, gaps, trends ----------
@@ -38,13 +40,11 @@ export interface Changed {
 }
 
 // ---------- scores (herald/scoring, config/scores/*.yaml) ----------
-export type News2Band = "incomplete" | "not_applicable" | "low" | "low-medium" | "medium" | "high";
+export type News2Band = "incomplete" | "low" | "low-medium" | "medium" | "high";
 export interface News2 {
   name: string; score: number; complete: boolean; band: News2Band; any_single_3: boolean;
   parts: Record<string, { value: FactValue; points: number }>; missing: string[];
   thresholds: string; source: string; evidence: string;
-  applicability: "applicable" | "unknown" | "excluded";
-  applicability_reason: string | null; applicability_missing: string[];
 }
 export interface News2Point { ts: string; score: number; complete: boolean; band: News2Band }
 /** An item-sum stroke scale: RACE, G.F.A.S.T. */
@@ -63,6 +63,7 @@ export interface Scores {
 
 // ---------- alerts ----------
 export type Alert =
+  | { type: "trauma_alert_criteria" | "sepsis_prenotification"; label: string; level: string; score: string; criteria: string[]; county_rule?: string[]; county?: string }
   | { type: "contradiction"; key: string; label: string; confirm_fact_id: string; facts: FactView[] }
   | { type: "confirm_required"; key: string; label: string; confirm_fact_id: string; facts: FactView[] }
   | { type: "significant_change"; key: string; label: string; series: number[] }
@@ -89,7 +90,7 @@ export interface TraceFact {
 export interface SttInfo { seconds: number | null; chunks: { text: string; t: [number | null, number | null] }[]; ms?: number; error?: string }
 export interface RejectedFact { key: string; value: FactValue; reason: string }
 export interface Trace {
-  heard: { text: string; speaker?: string | null; audio_id?: string | null; photo_id?: string;
+  heard: { text: string; speaker?: string | null; audio_id?: string | null; photo_id?: string | null; frame_id?: string;
            stt?: SttInfo | null; source?: "structured" };
   rules: { ms: number; facts: TraceFact[]; rejected?: RejectedFact[] };
   model: {
@@ -107,6 +108,7 @@ export interface Trace {
   };
 }
 export interface TranscriptEntry {
+  trigger?: string; reason?: string; frame_id?: string;
   id: string; ts: string; text: string; captured_by: CapturedBy; speaker: string | null;
   audio_id: string | null; photo_id?: string; fact_ids: string[];
   extract: { rules: number; llm: number | null; ms: number };
@@ -123,15 +125,18 @@ export interface PatientSummary {
 // ---------- relay (relay/relay.py status()) ----------
 export type LinkState = "good" | "weak" | "down" | "unknown" | "not configured";
 export interface RelayLogEntry {
+  patient?: string;
   ts: string; seq: number; tier: "critical" | "full"; bytes: number; keys: string[]; why: string[];
-  removed: string[]; queued_after: number; result: "acked" | "failed"; rtt_ms?: number; error?: string;
+  queued_after: number; result: "acked" | "failed"; rtt_ms?: number; error?: string;
 }
 export interface RelayStatus {
+  patients?: Record<string, { triage: string | null; pending: number; sync: Record<string, "sent" | "queued"> }>;
   configured: boolean; ed_url: string | null;
   authorized: { destination: string; scope: string; at: string } | null;
-  link: LinkState; pending: { key: string; priority: number; why: string }[];
+  link: LinkState; pending: { patient?: string; key: string; priority: number; why: string }[];
   sync: Record<string, "sent" | "queued">; bytes_sent: number; local_bytes: number;
   kept_local_pct: number; packets_acked: number; retries: number; last_ack_at: string | null;
+  clinician_acknowledgements?: Record<string, { at: string; status: "received" | "cath_lab_activated"; note?: string | null }[]>;
   log: RelayLogEntry[];
 }
 
@@ -144,13 +149,11 @@ export interface ProtocolStatus {
 
 // ---------- the snapshot (api/context.py full_state()) ----------
 export interface Snapshot {
-  incident: {
-    id: string; dispatch: string | null; started: string; ended_at: string | null;
-    media_disposal: MediaDisposal | null;
-  };
+  capture?: CaptureStatus;
+  incident: { id: string; dispatch: string | null; started: string; ended_at?: string | null; media_disposal?: MediaDisposal | null };
   patients: PatientSummary[];
   active_patient: string;
-  restored: boolean;                     // unfinished call recovered after a server restart
+  restored?: boolean;
   summary: string;
   readiness: Readiness[];
   needs_attention: { missing: NeedItem[]; unknown: NeedItem[] };
@@ -162,8 +165,6 @@ export interface Snapshot {
   facts: Record<string, FactView>;       // latest non-rejected fact per key
   events?: Record<string, FactView[]>;   // event keys (meds.given, procedures.done): every event, in order
   timeline: FactView[];                  // last 60 facts, all statuses
-  audit: { at: string; action: "fact_status_changed"; actor: string; fact_id: string; key: string;
-           from: FactStatus; to: FactStatus }[];
   transcripts: TranscriptEntry[];        // last 20
   ed_sync: Record<string, "sent" | "queued">;
   counters: { facts: number; cloud_ai_calls: number };
@@ -171,12 +172,21 @@ export interface Snapshot {
   netem: "good" | "weak" | "down" | null;
   protocols?: ProtocolStatus;            // absent when protocol lookup is off
 }
+
 export interface MediaDisposal {
   at: string;
   deleted: { audio: string[]; photo: string[] };
   missing: { audio: string[]; photo: string[] };
   invalid: { audio: string[]; photo: string[] };
   patients?: Record<string, Omit<MediaDisposal, "patients">>;
+}
+
+export interface CaptureStatus {
+  auto: boolean; source: string; fps_in: number; incident_id: string; sees: "off" | "watching" | "reading";
+  roi: { x0: number; y0: number; x1: number; y1: number } | null;
+  last: { ts: number; trigger: string; mode: string; reason: string; facts: string[]; photo_id: string | null } | null;
+  counts: { frames: number; gated: number; captured: number; stored: number };
+  error: string | null; pending: number;
 }
 export type NowMessage = { type: "state"; state: Snapshot } | { type: "pong"; t: string };
 

@@ -5,6 +5,9 @@ import { api } from "@/lib/api";
 import { useHerald, type TypeScale } from "@/lib/store";
 
 const NEXT_SCALE: Record<number, TypeScale> = { 1: 1.25, 1.25: 1.5, 1.5: 1 };
+async function changeLink(mode: "good" | "weak" | "down") {
+  if (!await api.netem(mode)) useHerald.getState().showToast("Link change failed. The previous setting may still apply; check ED status.");
+}
 
 function typing(t: EventTarget | null): boolean {
   const el = t as HTMLElement | null;
@@ -19,12 +22,13 @@ export function useHotkeys() {
       if (e.key === "`") { setUi({ presenterOpen: !ui.presenterOpen }); return; }
       if (!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
       const k = e.key.toUpperCase();
-      if (k === "E") setUi({ mode: ui.mode === "medic" ? "explain" : "medic" });
+      if (k === "P") setUi({ presentationMode: !ui.presentationMode });
+      else if (k === "E") setUi({ mode: ui.mode === "medic" ? "explain" : "medic" });
       else if (k === "T") setUi({ typeScale: NEXT_SCALE[ui.typeScale] });
       else if (k === "L") setUi({ theme: ui.theme === "dark" ? "light" : "dark" });
-      else if (k === "G") void api.netem("good");
-      else if (k === "W") void api.netem("weak");
-      else if (k === "D") void api.netem("down");
+      else if (k === "G") void changeLink("good");
+      else if (k === "W") void changeLink("weak");
+      else if (k === "D") void changeLink("down");
       else return;
       e.preventDefault();
     };

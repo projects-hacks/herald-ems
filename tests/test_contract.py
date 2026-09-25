@@ -63,6 +63,12 @@ def test_export_script_writes_the_same_data(tmp_path):
         assert json.loads((tmp_path / name).read_text()) == json.loads(json.dumps(content)), name
 
 
+def test_bundled_keys_match_current_vocabulary():
+    bundled = json.loads((ROOT / "ui/public/contract/keys.json").read_text())
+    assert set(bundled) == set(default_vocabulary().keys)
+    assert all(bundled[key]["label"] == meta["label"] for key, meta in default_vocabulary().keys.items())
+
+
 def test_county_switch_is_live():
     c, _ = make_client()
     assert c.post("/api/county/generic").json()["primary_stroke_scale"] == "RACE"

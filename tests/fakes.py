@@ -23,7 +23,7 @@ TINY_INGREDIENTS = {"11289": "warfarin", "1364430": "apixaban", "1114195": "riva
 TINY_BRANDS = {"coumadin": "11289", "jantoven": "11289", "warfarin sodium": "11289", "eliquis": "1364430",
                "xarelto": "1114195", "lovenox": "67108", "pradaxa": "1037042", "plavix": "32968", "lipitor": "83367",
                "synthroid": "10582", "humalog": "86009", "lantus": "274783", "metoprolol succinate": "6918",
-               "percocet": "161+7804", "tylenol": "161", "narcan": "7242", "sutent": "357977",
+               "percocet": "161+7804", "tylenol": "161", "narcan": "7242", "naloxone hydrochloride": "7242", "sutent": "357977",
                "depakote": "40254", "combivent": "435+7213", "nitro-dur": "4917", "divalproex sodium": "40254"}
 TINY_PRODUCTS = {                                    # clinical and branded drug names: exact matches, and words
     "warfarin sodium 5 mg oral tablet": "11289", "nitroglycerin 0.4 mg sublingual tablet": "4917",

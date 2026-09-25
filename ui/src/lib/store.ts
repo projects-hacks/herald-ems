@@ -7,6 +7,7 @@ import type { Health, Snapshot } from "./types";
 export type Mode = "medic" | "explain";
 export type Theme = "dark" | "light";
 export type TypeScale = 1 | 1.25 | 1.5;
+export type IncidentPhase = "scene" | "transport" | "handoff";
 export type Pending = "pending" | "sent" | { error: string };
 export type Page = "overview" | "patient" | "trends" | "handoff" | "transcript";
 export const PAGES: Page[] = ["overview", "patient", "trends", "handoff", "transcript"];
@@ -19,7 +20,9 @@ export interface UiState {
   /** Push-to-talk is held (U4 sets it): alerts that arrive meanwhile wait until release (§3.1.8, P4). */
   heldAlerts: boolean;
   page: Page; sidebarCollapsed: boolean;
-  confirmNewIncident: boolean; confirmEndIncident: boolean;
+  presentationMode: boolean;
+  confirmNewIncident: boolean;
+  incidentPhase: IncidentPhase;
 }
 
 export interface FixtureState { name: string; index: number; total: number; playing: boolean; speed: number }
@@ -70,7 +73,7 @@ function writePrefs(p: Prefs) {
   }
 }
 
-/** URL parameters override stored preferences: ?theme=light|dark ?type=1.25 ?mode=explain ?page=handoff (UX_PLAN §3.0).
+/** URL parameters override stored preferences: ?theme=light|dark ?type=1.25 ?mode=explain ?page=handoff ?present=1 (UX_PLAN §3.0).
  *  The sidebar starts as an icon rail on screens narrower than the 1366 px target, until the medic chooses. */
 export function initialUi(search = typeof location === "undefined" ? "" : location.search): UiState {
   const q = new URLSearchParams(search);
@@ -91,8 +94,9 @@ export function initialUi(search = typeof location === "undefined" ? "" : locati
     heldAlerts: false,
     page: page && PAGES.includes(page) ? page : "overview",
     sidebarCollapsed: p.sidebarCollapsed ?? narrow,
+    presentationMode: q.get("present") === "1",
     confirmNewIncident: false,
-    confirmEndIncident: false,
+    incidentPhase: "scene",
   };
 }
 
@@ -112,15 +116,17 @@ export const useHerald = create<HeraldState>()((set, get) => ({
   holdMark: null,
   toast: null,
   setSnapshot: (s) => {
+    const switched = get().snapshot !== null && get().snapshot?.incident.id !== s.incident.id;
     // An action whose request succeeded stays pending until the next snapshot: no optimistic updates (§5.7).
     const pending = Object.fromEntries(Object.entries(get().pending).filter(([, v]) => v !== "sent"));
-    const arrival = { ...get().alertArrival };
+    const arrival = switched ? {} : { ...get().alertArrival };
     let next = Object.keys(arrival).length;
     for (const a of s.alerts) {
       const k = alertKey(a);
       if (!(k in arrival)) arrival[k] = ++next;
     }
-    set({ snapshot: s, pending, alertArrival: arrival, lastStateAt: Date.now() });
+    set({ snapshot: s, pending: switched ? {} : pending, alertArrival: arrival, lastStateAt: Date.now(),
+      ...(switched ? { ui: { ...get().ui, incidentPhase: "scene", seenAlerts: {}, expanded: {}, heldAlerts: false }, holdMark: null } : {}) });
   },
   setUi: (patch) => {
     const ui = { ...get().ui, ...patch };

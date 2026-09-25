@@ -26,6 +26,27 @@ class Acknowledgement(BaseModel):
     note: str | None = None
 
 
+@app.get("/api/meta")
+async def metadata():
+    from herald.config import load_yaml
+    from herald.core.vocabulary import default_vocabulary
+    from herald.scoring import default_scales
+    keys = {key: {"label": meta["label"]} for key, meta in default_vocabulary().keys.items()}
+    keys.update({f"score.{sid}": {"label": default_scales()[sid].name} for sid in default_scales().ids()})
+    return {"keys": keys, "display": load_yaml("ed_display.yaml")}
+
+
+@app.get("/api/handoff/{patient_id}")
+async def handoff(patient_id: str, format: str | None = None):
+    from .report import received_report
+    if patient_id not in INCIDENTS:
+        raise HTTPException(404, "No received patient with that ID")
+    try:
+        return received_report(patient_id, INCIDENTS[patient_id], format)
+    except KeyError:
+        raise HTTPException(400, "Unknown handoff format")
+
+
 def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 

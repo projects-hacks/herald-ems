@@ -1,9 +1,40 @@
 # TASKS.md: Herald task board
 
+## Tushar review follow-up (Fri 25 Sep)
+
+Owner-requested integration: `feat/c1-now-screen` + `feat/agentic-capture` + `feat/ui-review-gaps`, checked together on `feat/merge-tushar-work` before updating main. The ambulance workspace is the default medic screen; detailed and guided-demo views remain available. See [MERGE_VERIFICATION.md](docs/MERGE_VERIFICATION.md). This delivery does not waive real-model, physical-device or clinical acceptance gates.
+
+U1/U2/U3, U4/U5/U6/U7, U8 frontend, U10/U11 and X3 implemented, now integrated with the ambulance UI and C1 agentic capture at the owner's request. Combined checks: 465 backend tests passed, one skipped; 77 UI tests passed; build and contrast checks passed. Details in [UI_REVIEW_GAPS.md](docs/UI_REVIEW_GAPS.md). Physical mic/tablet/three-metre ED checks remain. U13 stays gated on model lock with Jenil; U8 startup default remains with Vineet; C1 real-model acceptance still needs Rajeev's serving approval.
+
 Deadline **Fri 2026-09-25, 8:00 PM**. Internal target: submit by 6:00 PM. Feature freeze Fri 11:00 AM.
 **Scope: the full product ships. Nothing is cut** (team lead, 2026-09-23). P1–P10 is the **build order** (dependencies and what gets hardened first), not a cut list. If something runs late, add people to it. The only things we never build are safety principles, not scope cuts: treatment/dose/eligibility advice, cloud AI inference, and self-trained clinical predictors. Rules for agents: `AGENTS.md`.
 Where decisions live: product spec and pitch → `/home/hp18/Documents/team-last-minute/.agent/ideas/herald-ems-copilot.md` (Nano only) · models → `docs/MODEL_PLAN.md` · UI → `docs/UX_PLAN.md` · hackathon rules and history → `/home/hp18/Documents/team-last-minute/.agent/context.md` (Nano only). The full document map is in `AGENTS.md`.
 Status: ✅ done · 🔄 in progress · ⏳ todo · ⛔ blocked. Update this file in the same PR as the work.
+
+## Medic experience implementation — 2026-09-25 (@tushar-fs clone)
+
+- ✅ Ambulance workspace replaces the default medic sidebar: stable latest-reading positions, persistent capture/priority controls, large view, in-place details, daylight/night themes.
+- ✅ Explicit-start continuous ambient audio with bounded local clip uploads, unverified-speaker confirmation holds, and incident-scoped delayed extraction.
+- ✅ Camera preview → freeze → zoom → local photo reading; file picker/drop alternative; visible background reading status and camera cleanup.
+- ✅ Research and interaction rationale in `docs/AMBULANCE_WORKSPACE.md`; field simulation, real-device rehearsal, streaming STT/diarization and durable capture remain open. Browser screenshot checks blocked by browser download timeout.
+- ✅ Cabin checkpoint: 117 backend tests, 44 frontend tests, production build, theme-token contrast and whitespace checks pass; updated bundle and AudioWorklet served on port 8101. No claim of hardware or clinical validation.
+
+- ✅ Persistent voice/typed/photo capture and vocabulary-driven manual entry in the modern UI; release/permission race and keyboard interaction regressions covered.
+- ✅ Workflow navigation, screen-local phases, explicit identity incompleteness, contextual score tiles, timestamped vitals, and clearer verification/change/gap sections.
+- ✅ Atomic validated fact correction with retained evidence, audit trace, stale-edit conflicts and explicit confirmation.
+- ✅ Nonblocking disconnected state with last-received data and writes paused; receiving-system delivery distinguished from clinician acknowledgment.
+- ✅ Confirmed-fact handoff draft with unresolved fields, text download and collapsed packet diagnostics.
+- 🔄 Full lifecycle, durable offline persistence, receiver human acknowledgment, administration-event schema, integration and real medic validation remain open. See `docs/MEDIC_UX_IMPLEMENTATION.md` for boundaries and verification limitations.
+
+## S9 agentic capture — Tushar, `feat/agentic-capture`
+
+| Scope | Status |
+|---|---|
+| Backend package, policy/gate/buffer/scheduler, RxNorm label verification, redacted used-frame storage | Implemented; fake-only regression tests |
+| API and UX_PLAN §5 contract, continuous browser camera + monitor ROI, NOW controls/trace/mismatch review | Implemented; automated UI tests; physical camera/ROI sign-off pending |
+| Synthetic timed replay and CPU-only integration rehearsal | Implemented; see [AGENTIC_CAPTURE.md](docs/AGENTIC_CAPTURE.md) |
+| Real-model acceptance, three-run timing/accuracy checks and 30-minute soak | Pending explicit Rajeev confirmation that `herald-f` is serving; no GPU/model loads authorized yet |
+| Delivery | PR to main requested Friday afternoon; S9 deadline Fri 11 PM PDT per handoff (supersedes the older board deadline for this task only) |
 
 ## Checkpoint: Thu 2026-09-24, 18:00 UTC (11:00 PDT) (verified: every line below checked against the repo and the live server)
 **Scope (team lead, 2026-09-24): a copilot for every EMS call, not a stroke tool.** Stroke stays the demo story.

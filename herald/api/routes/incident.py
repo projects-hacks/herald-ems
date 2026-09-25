@@ -1,13 +1,14 @@
-"""The incident: start one, read the state, confirm or reject a fact."""
+"""The incident: start one, read the state, confirm, reject or correct a fact."""
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from ...core.incident import IncidentEnded
 from ...core.schema import Status
+from ...core.incident import IncidentEnded
+from . import get_capture
 from . import get_ctx, get_hub
 
 router = APIRouter(prefix="/api")
@@ -16,6 +17,10 @@ ACTIONS = {"confirm": Status.confirmed, "reject": Status.rejected}
 
 class NewIncident(BaseModel):
     dispatch: Optional[str] = None
+
+
+class Correction(BaseModel):
+    value: Any
 
 
 class BulkConfirm(BaseModel):
@@ -44,6 +49,19 @@ async def get_state(c=Depends(get_ctx)):
     return c.full_state()
 
 
+@router.post("/facts/{fact_id}/correct")
+async def correct_fact(fact_id: str, body: Correction, cap=Depends(get_capture)):
+    """Replace a fact without rewriting history; the medic's save action is the explicit confirmation."""
+    try:
+        return await cap.correct(fact_id, body.value)
+    except KeyError:
+        raise HTTPException(404, "Fact not found in this incident")
+    except RuntimeError as e:
+        raise HTTPException(409, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 @router.post("/facts/{fact_id}/{action}")
 async def fact_action(fact_id: str, action: str, c=Depends(get_ctx), h=Depends(get_hub)):
     if action not in ACTIONS:
@@ -54,6 +72,8 @@ async def fact_action(fact_id: str, action: str, c=Depends(get_ctx), h=Depends(g
         raise HTTPException(409, str(e)) from None
     except KeyError:
         raise HTTPException(404)
+    except ValueError as e:
+        raise HTTPException(409, str(e))
     c.persist()
     await h.broadcast()
     return f.model_dump(mode="json")
@@ -63,9 +83,7 @@ async def fact_action(fact_id: str, action: str, c=Depends(get_ctx), h=Depends(g
 async def confirm_facts(body: BulkConfirm, c=Depends(get_ctx), h=Depends(get_hub)):
     """Confirm selected independent readings in one medic action.
 
-    Held values and unresolved contradictions deliberately remain individual decisions.
-    Unknown IDs are reported, rather than silently ignored, so a stale UI cannot imply
-    that a value reached the ED when it did not.
+    Held facts and unresolved contradictions stay individual decisions.
     """
     try:
         c.incident.ensure_open()

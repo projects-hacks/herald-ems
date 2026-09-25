@@ -12,45 +12,52 @@ import { api } from "@/lib/api";
 import { factValue, formatValue, hhmm, sourceName } from "@/lib/format";
 import { alertKey, alertPriority, type Priority } from "@/lib/selectors";
 import { useHerald } from "@/lib/store";
+import { MismatchCard } from "@/features/capture/MismatchCard";
 import type { Alert, FactView, NeedItem, Snapshot } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ActionButton, ActionNote, usePendingAction } from "@/components/ActionButton";
-import { Badge, Button, Card, CardHeader, Count, EmptyState, IconBadge, Section, type Tone } from "@/components/kit";
+import { AudioEvidence } from "@/components/AudioEvidence";
+import { activeSync } from "@/lib/selectors";
+import { CorrectFactDialog } from "@/components/CorrectFactDialog";
+import { catOf } from "@/lib/categories";
+import { Badge, Button, CAT_ICON, Card, CardHeader, Count, EmptyState, IconTile, Section, type Cat } from "@/components/kit";
 
 const NEWS2_SUFFIX = / \(for NEWS2\)$/;
 type Contradiction = Extract<Alert, { type: "contradiction" }>;
 type CodeStatus = Extract<Alert, { type: "confirm_required" }>;
 
-// ---------- one row ----------
+// ---------- one row: an iOS list row, with the separator inset past the tile ----------
 
-function Row({ icon, tone, title, badge, value, was, meta, actions, urgent, flash, children }: {
-  icon: LucideIcon; tone: Tone; title: React.ReactNode; badge?: React.ReactNode; value?: React.ReactNode; was?: string;
+function Row({ icon, cat, title, badge, value, was, meta, actions, urgent, flash, children }: {
+  icon?: LucideIcon; cat: Cat; title: React.ReactNode; badge?: React.ReactNode; value?: React.ReactNode; was?: string;
   meta?: React.ReactNode; actions?: React.ReactNode; urgent?: boolean; flash?: boolean; children?: React.ReactNode;
 }) {
   return (
-    <li className={cn("flex flex-wrap items-start gap-x-3 gap-y-2 px-5 py-3.5", urgent && "bg-high-tint")}>
-      <IconBadge icon={icon} tone={tone} iconClassName={flash ? "flash-high" : undefined} />
-      <div className="min-w-0 flex-1 basis-64">
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-body">
-          <span className="font-semibold text-text-primary">{title}</span>{badge}
-        </p>
-        {value !== undefined && (
-          <p className="mt-0.5 text-critical font-semibold leading-snug">
-            {value}{was && <span className="ml-2 text-body font-normal text-text-muted">was {was}</span>}
+    <li className={cn("group/row flex gap-3.5 pl-5", urgent && "bg-high-tint")}>
+      <IconTile icon={icon ?? CAT_ICON[cat]} cat={cat} size={34} className="mt-3.5" iconClassName={flash ? "flash-high" : undefined} />
+      <div className="flex min-w-0 flex-1 flex-wrap items-start gap-x-3 gap-y-2 border-t border-border-subtle py-3.5 pr-5 group-first/row:border-t-0">
+        <div className="min-w-0 flex-1 basis-64">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-body">
+            <span className="font-semibold text-text-primary">{title}</span>{badge}
           </p>
-        )}
-        {meta && <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-meta text-text-muted">{meta}</p>}
-        {children}
+          {value !== undefined && (
+            <p className="mt-0.5 text-critical font-semibold leading-snug">
+              {value}{was && <span className="ml-2 text-body font-normal text-text-muted">was {was}</span>}
+            </p>
+          )}
+          {meta && <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-meta text-text-muted">{meta}</p>}
+          {children}
+        </div>
+        {actions && <div className="ml-auto flex max-w-full flex-wrap items-center gap-2 self-center">{actions}</div>}
       </div>
-      {actions && <div className="ml-auto flex shrink-0 items-center gap-2 self-center">{actions}</div>}
     </li>
   );
 }
 
 function PriorityBadge({ p }: { p: Priority }) {
-  return p === "high" ? <Badge tone="high" variant="solid" icon={OctagonAlert} className="label-caps text-[0.6875rem]">High</Badge>
-    : p === "medium" ? <Badge tone="medium" className="label-caps text-[0.6875rem]">Check</Badge>
-    : <Badge tone="low" className="label-caps text-[0.6875rem]">Info</Badge>;
+  return p === "high" ? <Badge tone="high" variant="solid" icon={OctagonAlert} className="rounded-[6px] px-1.5 text-[0.6875rem] tracking-wide">HIGH</Badge>
+    : p === "medium" ? <Badge tone="medium" className="rounded-[6px] px-1.5 text-[0.6875rem] tracking-wide">CHECK</Badge>
+    : <Badge tone="low" className="rounded-[6px] px-1.5 text-[0.6875rem] tracking-wide">INFO</Badge>;
 }
 
 function sourceIconOf(f: FactView): LucideIcon {
@@ -65,37 +72,46 @@ function FactMeta({ f }: { f: FactView }) {
       <Icon size={13} aria-hidden />
       <span>{f.captured_by === "camera" ? `photo${f.speaker ? ` · ${f.speaker}` : ""}` : sourceName(f)}</span>
       <span aria-hidden>·</span><span className="num">{hhmm(f.ts)}</span>
-      {byModel && <><span aria-hidden>·</span><span className="inline-flex items-center gap-1 text-herald-accent"><Sparkles size={12} aria-hidden />local model</span></>}
+      {byModel && <><span aria-hidden>·</span><span className="inline-flex items-center gap-1 font-medium text-cat-neuro-fg"><Sparkles size={12} aria-hidden />local model</span></>}
       {f.provenance.hold_reason && <><span aria-hidden>·</span><span>{f.provenance.hold_reason}</span></>}
+      <AudioEvidence id={f.provenance.audio_id} />
     </>
   );
 }
 
 // ---------- the kinds of rows ----------
 
-function ConfirmActions({ id }: { id: string }) {
+function ConfirmActions({ fact }: { fact: FactView }) {
   return (
     <>
-      <ActionButton pendingKey={`confirm:${id}`} onClick={() => api.confirm(id)} busyText="Saving…" variant="primary">Confirm</ActionButton>
-      <ActionButton pendingKey={`reject:${id}`} onClick={() => api.reject(id)} busyText="Saving…">Reject</ActionButton>
+      <ActionButton pendingKey={`confirm:${fact.id}`} onClick={() => api.confirm(fact.id)} busyText="Saving…" variant="primary">Confirm</ActionButton>
+      <CorrectFactDialog fact={fact} />
+      <ActionButton pendingKey={`reject:${fact.id}`} onClick={() => api.reject(fact.id)} busyText="Saving…">Reject</ActionButton>
     </>
   );
 }
 
+function ConfirmEligible({ facts }: { facts: FactView[] }) {
+  const ids = facts.filter((fact) => fact.status === "unconfirmed" && !fact.provenance.hold_reason &&
+    !(fact.verify?.status === "mismatch" && !fact.verify.resolution)).map((fact) => fact.id);
+  if (ids.length < 2) return null;
+  return <Button size="sm" variant="ghost" onClick={() => api.confirmMany(ids)}>Confirm eligible ({ids.length})</Button>;
+}
+
 function TapRow({ f }: { f: FactView }) {
   return (
-    <Row icon={f.provenance.extractor?.startsWith("llm:") ? Sparkles : sourceIconOf(f)} tone="accent" title={f.label} value={factValue(f)}
+    <Row cat={catOf(f.key)} title={f.label} value={factValue(f)}
       was={f.previous_value !== null && f.previous_value !== undefined ? factValue({ value: f.previous_value, unit: f.unit }) : undefined}
-      meta={<FactMeta f={f} />} actions={<ConfirmActions id={f.id} />} />
+      meta={<FactMeta f={f} />} actions={<ConfirmActions fact={f} />} />
   );
 }
 
 function CodeStatusRow({ a }: { a: CodeStatus }) {
   const f = a.facts[0];
   return (
-    <Row icon={ShieldAlert} tone="medium" title={a.label} badge={<PriorityBadge p="medium" />} value={f ? factValue(f) : undefined}
+    <Row icon={ShieldAlert} cat="patient" title={a.label} badge={<PriorityBadge p="medium" />} value={f ? factValue(f) : undefined}
       meta={<>{f && <FactMeta f={f} />}<span aria-hidden>·</span><span>never sent until you confirm</span></>}
-      actions={<ConfirmActions id={a.confirm_fact_id} />} />
+      actions={<ConfirmActions fact={f} />} />
   );
 }
 
@@ -110,10 +126,10 @@ function Choice({ f, a, sentToEd }: { f: FactView; a: Contradiction; sentToEd: b
       <button type="button" disabled={p.disabled} title={p.replay ? "Replay: actions are off" : undefined}
         onClick={() => (isNewer ? api.confirm(a.confirm_fact_id) : api.reject(a.confirm_fact_id))}
         aria-label={`Use ${factValue(f)}, from ${sourceName(f)}`}
-        className="group flex min-h-20 w-full flex-col gap-0.5 rounded-[12px] border border-border-subtle bg-surface-2 px-3.5 py-2.5 text-left transition-colors duration-[var(--dur-short3)] enabled:hover:border-herald-accent disabled:cursor-not-allowed">
+        className="group flex min-h-20 w-full flex-col gap-0.5 rounded-[14px] bg-surface-2 px-3.5 py-2.5 text-left ring-herald-accent transition-shadow duration-[var(--dur-short3)] enabled:hover:ring-2 disabled:cursor-not-allowed">
         <span className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-meta text-text-muted">
           <span className="font-semibold text-text-secondary">{sourceName(f)}</span><span className="num">{hhmm(f.ts)}</span>
-          <span className="ml-auto">{isNewer ? <Badge tone="medium">new · held</Badge> : sentToEd ? <Badge tone="ok">ED has this</Badge> : <Badge>earlier</Badge>}</span>
+          <span className="ml-auto">{isNewer ? <Badge tone="medium">new · held</Badge> : sentToEd ? <Badge tone="ok">Earlier value delivered</Badge> : <Badge>earlier</Badge>}</span>
         </span>
         <span className="text-critical font-semibold">{factValue(f)}</span>
         <span className={cn("text-meta font-semibold", p.disabled ? "text-text-muted" : "text-herald-accent")}>{p.busy ? "Saving…" : "Use this"}</span>
@@ -125,11 +141,11 @@ function Choice({ f, a, sentToEd }: { f: FactView; a: Contradiction; sentToEd: b
 
 function ContradictionRow({ a, s }: { a: Contradiction; s: Snapshot }) {
   const [older, newer] = a.facts;
-  const sentToEd = older?.status === "confirmed" && s.relay.sync[a.key] === "sent";
+  const sentToEd = older?.status === "confirmed" && activeSync(s)[a.key] === "sent";
   return (
-    <Row icon={GitCompareArrows} tone="medium" title={<>{a.label}: sources disagree</>} badge={<PriorityBadge p="medium" />}
+    <Row icon={GitCompareArrows} cat={catOf(a.key)} title={<>{a.label}: sources disagree</>} badge={<PriorityBadge p="medium" />}
       meta={sentToEd && newer
-        ? <span>The ED has “{factValue(older)}”. “{factValue(newer)}” stays on the vehicle until you choose.</span>
+        ? <span>The receiving system has the earlier value “{factValue(older)}”. The newer value stays on the vehicle until you choose.</span>
         : <span>Neither value leaves the vehicle until you choose.</span>}>
       {older && newer && (
         <div className="mt-2.5 grid grid-cols-2 gap-2.5 max-sm:grid-cols-1">
@@ -142,29 +158,37 @@ function ContradictionRow({ a, s }: { a: Contradiction; s: Snapshot }) {
 
 function FindingRow({ a, s, onSeen }: { a: Alert; s: Snapshot; onSeen?: () => void }) {
   const p = alertPriority(a);
-  const tone: Tone = p === "high" ? "high" : p === "medium" ? "medium" : "low";
-  const seen = onSeen && <Button size="md" onClick={onSeen}>Got it</Button>;
+  const seen = onSeen && <Button size="md" onClick={onSeen}>Mark seen</Button>;
   switch (a.type) {
+    case "trauma_alert_criteria": case "sepsis_prenotification":
+      return <Row icon={ShieldAlert} cat="attention" urgent={p === "high" && !!onSeen} badge={<PriorityBadge p={p} />} title={a.label} actions={seen}>
+        <ul className="mt-2 space-y-2 text-body">{a.criteria.map((line, i) => <li key={i}>{line}</li>)}</ul>
+        {a.county_rule?.map((line, i) => <p key={i} className="mt-2 text-body">{a.county && <span>{a.county}: </span>}{line}</p>)}
+      </Row>;
     case "news2_rise": {
       const parts = Object.entries(s.scores.news2.parts).filter(([, v]) => v.points > 0).map(([k, v]) => `${k} ${formatValue(v.value)} (+${v.points})`);
-      return <Row icon={Gauge} tone={tone} urgent={p === "high" && !!onSeen} flash={p === "high" && !!onSeen} badge={<PriorityBadge p={p} />}
+      return <Row icon={Gauge} cat="heart" urgent={p === "high" && !!onSeen} flash={p === "high" && !!onSeen} badge={<PriorityBadge p={p} />}
         title={<>NEWS2 rose <span className="num">{a.from} → {a.to}</span> · {a.band} band</>} meta={parts.length ? <span>{parts.join(" · ")}</span> : undefined} actions={seen} />;
     }
     case "news2_high":
-      return <Row icon={Gauge} tone="high" urgent={!!onSeen} flash={!!onSeen} badge={<PriorityBadge p="high" />}
-        title={<>NEWS2 <span className="num">{a.score}</span> · high band</>} actions={seen} />;
+      return <Row icon={Gauge} cat="heart" urgent={p === "high" && !!onSeen} flash={p === "high" && !!onSeen}
+        badge={<PriorityBadge p="high" />} title={<>NEWS2 <span className="num">{a.score}</span>: high-risk band</>}
+        meta={<span>First high reading; review the confirmed inputs and notify the receiving team as appropriate.</span>} actions={seen} />;
     case "stemi_alert":
-      return <Row icon={ShieldAlert} tone="high" urgent={!!onSeen} flash={!!onSeen} badge={<PriorityBadge p="high" />}
-        title={<>STEMI Alert criteria met</>} meta={<span>{a.criteria.join(" · ")}</span>} actions={seen} />;
+      return <Row icon={ShieldAlert} cat="heart" urgent={p === "high" && !!onSeen} flash={p === "high" && !!onSeen}
+        badge={<PriorityBadge p="high" />} title={a.label} actions={seen}>
+        <ul className="mt-2 space-y-2 text-body">{a.criteria.map((line, i) => <li key={i}>{line}</li>)}</ul>
+        {a.county_rule?.map((line, i) => <p key={i} className="mt-2 text-body">{a.county && <span>{a.county}: </span>}{line}</p>)}
+      </Row>;
     case "race_positive":
-      return <Row icon={Brain} tone={tone} badge={<PriorityBadge p={p} />} title={<>RACE <span className="num">{a.score}</span> of 9: large-vessel screen positive</>}
+      return <Row icon={Brain} cat="neuro" badge={<PriorityBadge p={p} />} title={<>RACE <span className="num">{a.score}</span> of 9: large-vessel screen positive</>}
         meta={<span>Threshold ≥ 5. Parts and published accuracy are on the RACE tile.</span>} actions={seen} />;
     case "gfast_positive":
-      return <Row icon={Brain} tone={tone} badge={<PriorityBadge p={p} />} title={<>G.F.A.S.T. <span className="num">{a.score}</span> of 4: screen positive</>}
+      return <Row icon={Brain} cat="neuro" badge={<PriorityBadge p={p} />} title={<>G.F.A.S.T. <span className="num">{a.score}</span> of 4: screen positive</>}
         meta={<span>{a.county_rule}</span>} actions={seen} />;
     case "significant_change": {
       const d = a.series[a.series.length - 1] - a.series[0];
-      return <Row icon={TrendingUp} tone={tone} badge={<PriorityBadge p={p} />} title={<>{a.label} changed <span className="num">{a.series.join(" → ")}</span></>}
+      return <Row icon={TrendingUp} cat={catOf(a.key)} badge={<PriorityBadge p={p} />} title={<>{a.label} changed <span className="num">{a.series.join(" → ")}</span></>}
         meta={<span className="num">{d > 0 ? "+" : ""}{d} since the first reading</span>} actions={seen} />;
     }
     default:
@@ -194,7 +218,7 @@ function StillToCapture({ s }: { s: Snapshot }) {
   const unknown = s.needs_attention.unknown;
   if (!gaps.length && !news2.length && !unknown.length) return null;
   return (
-    <Section title="Still to capture" count={gaps.length + unknown.length + news2.length}>
+    <Section title="Missing for handoff" count={gaps.length + unknown.length + news2.length} className="border-t border-border-subtle pt-1">
       <div className="flex flex-col gap-3 px-5 pt-1 pb-4">
         {gaps.length > 0 && <div className="flex flex-col gap-1.5"><p className="text-meta text-text-muted">{s.readiness[0]?.label ?? "Pre-alert"} checklist</p><Chips items={gaps} /></div>}
         {unknown.length > 0 && <div className="flex flex-col gap-1.5"><p className="text-meta text-text-muted">Not asked yet</p><Chips items={unknown} /></div>}
@@ -230,38 +254,40 @@ export function AttentionQueue({ className }: { className?: string }) {
   const confirmCount = a ? a.confirmAlerts.length + a.confirmFacts.length : 0;
   return (
     <Card id="needs-attention" tabIndex={-1} aria-labelledby="na-h" className={cn("outline-none", className)}>
-      <CardHeader icon={Inbox} tone={a?.urgent.length ? "high" : a?.count ? "medium" : "ok"} title="Needs attention" id="na-h"
-        badge={a && a.count > 0 ? <Count n={a.count} tone={a.urgent.length ? "high" : "medium"} /> : undefined}
+      <CardHeader icon={Inbox} cat="attention" title="Needs Attention" id="na-h"
+        actions={a && a.count > 0 ? <Count n={a.count} tone={a.urgent.length ? "high" : "neutral"} /> : undefined}
         subtitle="Nothing unconfirmed leaves the vehicle." />
-      <div className="min-h-0 flex-1 overflow-y-auto border-t border-border-subtle pb-2">
+      <div className="min-h-0 flex-1 overflow-y-auto pb-2">
         {!s || !a ? <p className="px-5 py-4 text-critical text-text-muted">—</p> : <>
           {a.count === 0 && (
-            <EmptyState icon={CircleCheck} title="Nothing to confirm" className="py-5">
+            <EmptyState icon={CircleCheck} cat="check" title="Nothing to confirm" className="py-5">
               Anything Herald needs you to confirm, choose or acknowledge shows up here.
             </EmptyState>
           )}
           {a.urgent.length > 0 && (
-            <Section title="Urgent" count={a.urgent.length} tone="high">
-              <ul className="divide-y divide-border-subtle">{a.urgent.map((al) => <FindingRow key={alertKey(al)} a={al} s={s} onSeen={() => markSeen(alertKey(al))} />)}</ul>
+            <Section title="Clinical change" count={a.urgent.length}>
+              <ul>{a.urgent.map((al) => <FindingRow key={alertKey(al)} a={al} s={s} onSeen={() => markSeen(alertKey(al))} />)}</ul>
             </Section>
           )}
           {a.choose.length > 0 && (
-            <Section title="Choose a value" count={a.choose.length} tone="medium">
-              <ul className="divide-y divide-border-subtle">{a.choose.map((al) => <ContradictionRow key={alertKey(al)} a={al as Contradiction} s={s} />)}</ul>
+            <Section title="Resolve conflicting information" count={a.choose.length}>
+              <ul>{a.choose.map((al) => <ContradictionRow key={alertKey(al)} a={al as Contradiction} s={s} />)}</ul>
             </Section>
           )}
           {confirmCount > 0 && (
-            <Section title="Needs your tap" count={confirmCount} tone="accent">
-              <ul className="divide-y divide-border-subtle">
+            <Section title="Verify what Herald captured" count={confirmCount}
+              actions={<ConfirmEligible facts={a.confirmFacts} />}>
+              <ul>
                 {a.confirmAlerts.map((al) => <CodeStatusRow key={alertKey(al)} a={al as CodeStatus} />)}
-                {a.confirmFacts.map((f) => <TapRow key={f.id} f={f} />)}
+                {a.confirmFacts.map((f) => f.verify?.status === "mismatch" && !f.verify.resolution
+                  ? <MismatchCard key={f.id} fact={f} /> : <TapRow key={f.id} f={f} />)}
               </ul>
             </Section>
           )}
           {a.review.length > 0 && (
-            <Section title="New findings" count={a.review.length} tone="medium"
+            <Section title="Review patient change" count={a.review.length}
               actions={a.review.length > 1 && <Button size="sm" variant="ghost" onClick={() => markSeen(...a.review.map(alertKey))}>Mark all seen</Button>}>
-              <ul className="divide-y divide-border-subtle">{a.review.map((al) => <FindingRow key={alertKey(al)} a={al} s={s} onSeen={() => markSeen(alertKey(al))} />)}</ul>
+              <ul>{a.review.map((al) => <FindingRow key={alertKey(al)} a={al} s={s} onSeen={() => markSeen(alertKey(al))} />)}</ul>
             </Section>
           )}
           <StillToCapture s={s} />
@@ -271,7 +297,7 @@ export function AttentionQueue({ className }: { className?: string }) {
                 className="inline-flex min-h-10 items-center gap-1.5 text-meta font-semibold text-text-muted hover:text-text-primary">
                 {showSeen ? <ChevronDown size={15} aria-hidden /> : <ChevronRight size={15} aria-hidden />}Seen · {a.acknowledged.length}
               </button>
-              {showSeen && <ul className="-mx-5 divide-y divide-border-subtle opacity-75">{a.acknowledged.map((al) => <FindingRow key={alertKey(al)} a={al} s={s} />)}</ul>}
+              {showSeen && <ul className="-mx-5 opacity-75">{a.acknowledged.map((al) => <FindingRow key={alertKey(al)} a={al} s={s} />)}</ul>}
             </div>
           )}
         </>}

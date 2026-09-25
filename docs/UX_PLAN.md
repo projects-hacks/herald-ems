@@ -68,6 +68,15 @@ Herald now writes the handoff the paramedic reads to the ED, by radio or at the 
    - **DONE:** `last_contact_at` in `ed_receiver`, at the **top level** of the view (`{incidents, last_contact_at}`), because the link belongs to the ambulance, not to one incident. It is set by every `/ping` and `/ingest`, and cleared by `/reset`. It stays null until the medic authorizes a destination, because the rig contacts nobody before that (§3.4, U10).
    - **DONE:** U7 serving. `/classic/` serves `web/`; `/` serves `ui/dist` when `ui/dist/index.html` exists, otherwise `web/`; `HERALD_UI=classic` switches back. `web/index.html` now loads `style.css` and `app.js` relatively (§5.10).
 
+
+### Medic workflow update (2026-09-25)
+
+**Ambulance workspace revision:** the default medic view now uses a fixed-position cabin layout, in-place detail panels, large view, continuous ambient audio capture and deliberate camera freeze/review. This supersedes the sidebar and repeated push-to-talk interaction for the default medic view; the detailed/explain view retains the previous controls. Rationale, sources, implementation limits and validation plan: [AMBULANCE_WORKSPACE.md](AMBULANCE_WORKSPACE.md). Continuous listening never holds the alert queue. No clinical decision rules are changed.
+
+The primary clinical view now follows the incident workflow rather than the data model: Now, Capture, and Handoff are primary; Patient, Vitals, and Audit are secondary record views. Capture is persistent and supports medic voice, patient/bystander voice, typed speech, manual structured entry and camera input without leaving the React screen. A stale WebSocket never covers the last received patient picture; writes pause and the banner makes clear this memory-only view is not a backup. Detailed implementation boundaries are in `docs/MEDIC_UX_IMPLEMENTATION.md`.
+
+The public API adds `POST /api/facts/{fact_id}/correct` with `{ "value": ... }`. A correction rejects the original fact without deleting it, appends a confirmed medic-authored replacement with `manual-correction` provenance, emits an audit trace entry, and broadcasts the new snapshot. Only the current non-rejected fact may be corrected (409 otherwise); invalid values return 400 without mutation and absent facts return 404. Handoff copy distinguishes receiving-system delivery from human acknowledgment; the current contract does not claim viewed or acknowledged status.
+
 ## Glossary
 
 | Term | Meaning in this document |
@@ -2224,6 +2233,53 @@ These run against fixtures (§5.8) and live (U6).
 ---
 ## 5. Stack
 
+### UI review contract additions (2026-09-25)
+
+Integration with ambient capture and patient roster: both `X-Herald-Patient` and existing multipart `incident_id` guards remain supported. Request-scoped capture retains camera listeners and ambient confirmation holds. Roster changes clear automatic camera work and ROI. Generic fact correction returns409 for an unresolved medication-label mismatch; only the explicit capture verification endpoint resolves it. These additive checks also apply when using the ambulance workspace.
+
+- React text, audio and device-reading capture sends optional `X-Herald-Patient: <incident id>` to existing `/api/transcript`, `/api/audio`, `/api/facts` (and supported photo capture). Mismatch returns409 before processing. Each admitted request binds its capture service to the original patient throughout asynchronous extraction. This header is a race guard, not authentication.
+- Live label loading prefers `/api/meta`; bundled `/contract/*.json` stays the offline/fixture fallback. Numeric monitor controls accept vocabulary `int`/`float` types and use their labels/units.
+- React uses existing `/api/patients` add and `/{id}/activate` endpoints; `Snapshot.relay.patients[active_patient].sync` is authoritative in multi-patient mode. Packet log entries carry `patient?: string`; pending rows also carry `patient?: string`. Legacy single-patient snapshots fall back to `relay.sync`. No sent/queued badge is shown before authorization.
+- Trauma/sepsis alerts carry `{type:"trauma_alert_criteria"|"sepsis_prenotification", label:string, level:string, score:string, criteria:string[], county_rule?:string[], county?:string}`. Red trauma is HIGH; other listed criteria alerts are CHECK. Criteria and county text are displayed verbatim.
+- Vehicle read-aloud view uses existing `/api/handoff?format=<id>`; results are invalidated on patient change and hidden while stale. It is available independently of relay authorization.
+- **ED receiver only:** `GET /api/meta` returns `{keys: Record<string,{label:string}>, display:{critical_keys:string[],critical_px:number,body_px:number,highlight_ms:number,report_county:string,report_timezone:string}}` from reviewed vocabulary/scores and `config/ed_display.yaml`. `GET /api/handoff/{patient_id}?format=<id>` returns the existing report shape plus `scope:string`, computed solely from received confirmed fields/timeline. Missing patient →404; unknown format →400. It is explicitly a received-data projection, not the vehicle's full report; vehicle dispatch/county/timezone are not inferred. The receiver uses generic published scales and UTC, explicitly labeled, with no guessed county-local rule. Neither endpoint starts models or reaches the vehicle.
+### S9 agentic capture contract (2026-09-25)
+
+Camera capture is off by default. `HERALD_CAPTURE_SOURCE=off|browser|replay:<folder>` and `HERALD_CAPTURE_AUTO=0|1` configure initial state; `HERALD_CAPTURE_CONFIG` names reviewed content under `config/`. USB/local camera support remains optional and is not enabled. The policy, gate, intervals, storage limits and trigger keys live in `config/capture.yaml`.
+
+| Boundary | Contract |
+|---|---|
+| `WS /ws/frames` | One same-origin browser source per incident. Binary JPEG, longest side ≤1280 px and encoded size ≤1 MiB. Process/reply at most `fps_in` (default 1 Hz). Reply `{accepted, gate: {sharp, changed, bright, passed, reason, usable} | null, error?: string}`. Extra frames are dropped, never queued without a bound. Patient change requires explicit reconnect. |
+| `GET /api/capture/status` | `CaptureStatus` below. `watching` requires recent accepted input, not merely the switch being on. |
+| `POST /api/capture/auto` | `{on: boolean}`; returns status. Off invalidates pending work/results and clears frame buffers. A submitted model call cannot be preempted, but its result is discarded. Turning on an off source selects browser input. |
+| `POST /api/capture/roi` | `{x0,y0,x1,y1,target?: "monitor"}`, finite normalized coordinates with positive area. Returns status; invalid rectangle →422. ROI changes invalidate old buffered work. |
+| `DELETE /api/capture/roi` | Clears the incident's monitor ROI; monitor watch remains disabled without one. |
+| `POST /api/capture/now` | `{mode?: "monitor"|"pill_bottle"|"form"|"scene"}` →202 and status. Defaults to monitor with ROI, label otherwise. Queues best recent frame or next frame, expires after ten seconds. Bypasses quality and automatic rate limits, not single-flight or speech priority. |
+| `POST /api/capture/verify/{fact_id}` | `{action:"keep"}` or `{action:"edit",value:<complete dose record>}`. Returns fact view; 404 other incident/missing dose, 409 closed/invalid mismatch, 422 malformed request. Edits append a medic-confirmed replacement and reject the old event; Keep confirms the original explicitly. Both retain an audit trace. Generic `/facts/{id}/confirm` returns409 for unresolved mismatches. |
+
+```ts
+interface CaptureStatus {
+  auto: boolean; source: string; fps_in: number; incident_id: string;
+  sees: "off" | "watching" | "reading";
+  roi: {x0:number; y0:number; x1:number; y1:number} | null;
+  last: {ts:number; trigger:string; mode:string; reason:string; facts:string[]; photo_id:string|null} | null;
+  counts: {frames:number; gated:number; captured:number; stored:number};
+  error: string | null; pending: number;
+}
+interface Verification {
+  status: "match" | "mismatch"; label_drug: string; photo_id: string | null;
+  resolution: "kept" | "edited" | null;
+}
+```
+
+Snapshot gains `capture: CaptureStatus`. Fact views gain nullable `verify: Verification`; provenance gains optional `trigger`, `frame_id`, and `auto`. Selected-frame trace entries retain `captured_by="camera"` and add `trigger`, `reason`, `frame_id`, nullable `photo_id` and fact IDs. Stored evidence is retrieved through the existing `/api/photo/{photo_id}`; `auto_*` IDs resolve inside `photo_dir/auto`. No file exists when no usable fact/flag results or redaction fails. Old fixture snapshots omit the additive fields; the UI must tolerate this.
+
+Patient guard: `auto`, `roi` and `now` POST bodies accept optional `incident_id: string`; DELETE ROI accepts the same query parameter. The shipped UI always sends it. A stale identity returns409 without changing the new incident. Verification IDs are resolved only in the current incident. A configured replay source rejects browser sockets to prevent mixed views. Switching patients also disables capture and clears ROI. Speech-to-text and extraction counters both block capture admission; already-running vision cannot be preempted.
+
+Visual semantics: “Herald sees” off/watching/reading is technical status, not an alarm. Reading may use a reduced-motion-aware pulse. A drug-label mismatch is a steady caution/check card with spoken drug, label, evidence and explicit Keep as said/Edit actions. A match verifies ingredient only—not dose, route, patient, timing or administration. Verify-intent output never enters `meds.list`. Camera facts always start unconfirmed. The confirmation hold is applied synchronously to the crew dose before the asynchronous label check, so it cannot leave while the check waits. Match/unreadable never auto-confirm it.
+
+The capture page uses `/classic/capture.html` (also `/capture.html` with the React UI). Continuous camera requires localhost or HTTPS, explicit permission, visible preview and a stop control. It offers drag ROI and numeric-coordinate alternatives; a one-shot file input remains available. Camera close/tab hide/network failure stops the source; no automatic permission restart. Privacy is an in-memory ring buffer plus redacted used-evidence files, not continuous video storage. Face detection is fallible and requires spot checks. No field-safety or real-model acceptance claim is implied by fake tests.
+
 ### 5.1 Decision
 
 **React 19 + TypeScript + Vite + Tailwind v4 + shadcn/ui on Radix primitives [29], with Zustand for state, lucide-react for icons [33], Fontsource for self-hosted fonts [32], and hand-drawn SVG sparklines (no chart library).**
@@ -2411,6 +2467,10 @@ scripts/                                (repo root)
 ```
 
 ### 5.6 TypeScript contract (`ui/src/lib/types.ts`)
+
+**2026-09-25 ambient capture additions:** `POST /api/audio` and `POST /api/photo` accept optional multipart `incident_id`; a stale ID returns 409 before processing. `/api/audio` also accepts `ambient: bool = false`. Ambient facts always have `captured_by=other`, `role=unknown` (new Role enum value), an unverified-speaker label, and a confirmation hold regardless of extracted attribution. Existing clients remain compatible. Request-scoped capture binds delayed extraction to the original incident. Audio whose incident changes during STT returns 409 without adding the transcript; photo/refinement already running can finish on the original incident but cannot add facts to the new one. This is isolation, not durable incident archival. Snapshot field names are unchanged. Requests are batch jobs; there is no streaming-STT contract or cancel-job endpoint. Browser cancellation does not guarantee cancellation of server-side inference.
+
+**2026-09-25 medic workflow additions:** `POST /api/facts/{fact_id}/correct` accepts `{value}` in the canonical key's native JSON type and returns the appended confirmed fact. Errors: 400 invalid value (no mutation), 404 absent/current-incident mismatch, 409 obsolete/repeated correction. The rejected original and correction trace retain the audit history. `patient.name` and `patient.identifier` are optional canonical string fields requiring an explicit confirmation; both participate in conflict detection. Contract exports were refreshed. The snapshot wire shape is unchanged. Workspace phase is local UI state, not a persisted API field.
 
 These types are derived from `herald/core/snapshot.py` (`Projector.snapshot()`), `herald/relay/relay.py` `status()`, `herald/api/trace.py`, `herald/api/capture.py`, and `ed_receiver/app.py`, as read on 2026-09-23 (after the modular restructure; shapes unchanged), and updated on 2026-09-24 for model-only extraction (also read from `herald/api/routes/capture.py`, `herald/api/routes/system.py`, and `herald/core/schema.py`) and for the county alert checklists and criteria scores (`herald/scoring/criteria.py`, `herald/checklists/`, `herald/api/contract.py`; §5.9c). When the backend changes a field, change it here in the same PR.
 

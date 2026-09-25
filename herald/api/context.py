@@ -65,6 +65,9 @@ class AppContext:
     netem_mode: Optional[str] = None
     persistence: Optional[IncidentStore] = None
     extra: dict = field(default_factory=dict)
+    capture_agent: object = None
+    frame_reader: object = None
+    speech_in_flight: int = 0
 
     @property
     def incident(self) -> Incident:
@@ -77,25 +80,24 @@ class AppContext:
             return Incident(dispatch, vocabulary=self.vocab, policy=self.policy, projector=self.projector)
 
         self.roster = PatientRoster(factory)
+        patient = self.roster.add("Patient 1")
         self.restored = False
-        return self.roster.add("Patient 1")
+        if self.capture_agent is not None:
+            self.capture_agent.patient_changed()
+        return patient
 
     def end_incident(self) -> dict:
-        cleanups = {
-            inc.id: dispose_incident_media(inc, audio_dir=self.settings.audio_dir,
-                                           photo_dir=self.settings.photo_dir)
-            for inc in self.roster.incidents()
-        }
-        result = {
-            "at": max(row["at"] for row in cleanups.values()),
-            "deleted": {kind: sorted(media_id for row in cleanups.values() for media_id in row["deleted"][kind])
-                        for kind in ("audio", "photo")},
-            "missing": {kind: sorted(media_id for row in cleanups.values() for media_id in row["missing"][kind])
-                        for kind in ("audio", "photo")},
-            "invalid": {kind: sorted(media_id for row in cleanups.values() for media_id in row["invalid"][kind])
-                        for kind in ("audio", "photo")},
-            "patients": cleanups,
-        }
+        cleanups = {inc.id: dispose_incident_media(inc, audio_dir=self.settings.audio_dir,
+                                                    photo_dir=self.settings.photo_dir)
+                    for inc in self.roster.incidents()}
+        result = {"at": max(row["at"] for row in cleanups.values()),
+                  "deleted": {kind: sorted(media_id for row in cleanups.values() for media_id in row["deleted"][kind])
+                              for kind in ("audio", "photo")},
+                  "missing": {kind: sorted(media_id for row in cleanups.values() for media_id in row["missing"][kind])
+                              for kind in ("audio", "photo")},
+                  "invalid": {kind: sorted(media_id for row in cleanups.values() for media_id in row["invalid"][kind])
+                              for kind in ("audio", "photo")},
+                  "patients": cleanups}
         if self.persistence:
             self.persistence.discard()
         return result
@@ -108,16 +110,15 @@ class AppContext:
             with inc.lock:
                 patients.append({"id": inc.id, "label": inc.patient_label, "dispatch": inc.dispatch,
                                  "started": inc.started.isoformat(),
-                                 "facts": [f.model_dump(mode="json") for f in inc.facts],
+                                 "facts": [fact.model_dump(mode="json") for fact in inc.facts],
                                  "transcripts": inc.transcripts, "audit": inc.audit_log,
                                  "news2": inc.news2_history,
-                                 "media_ids": {k: sorted(v) for k, v in inc.media_ids.items()}})
+                                 "media_ids": {kind: sorted(ids) for kind, ids in inc.media_ids.items()}})
         self.persistence.save({"v": 1, "active": self.incident.id, "patients": patients,
                                "relay": {"authorized": self.relay.authorized, "acked": self.relay.acked,
                                          "ed_url": self.relay.ed_url}})
 
     def restore(self) -> bool:
-        """Restore only an encrypted, unfinished call; corrupted state starts clean."""
         payload = self.persistence.load() if self.persistence else None
         if not payload or payload.get("v") != 1 or not payload.get("patients"):
             return False
@@ -139,7 +140,6 @@ class AppContext:
         return True
 
     def pre_alert_scope(self) -> str:
-        """Describe the current checklist truthfully; authorization never relies on caller-provided wording."""
         labels = [row["label"] for row in self.incident.snapshot()["readiness"]]
         return f"{' + '.join(labels)} pre-alert set" if labels else "patient update set"
 
@@ -152,6 +152,9 @@ class AppContext:
         rs = self.relay.status()
         active_relay = rs["patients"].get(self.incident.id, {})
         snap["relay"], snap["ed_sync"], snap["netem"] = rs, active_relay.get("sync", {}), self.netem_mode
+        if self.capture_agent is not None:
+            self.capture_agent.patient_changed()
+            snap["capture"] = self.capture_agent.status()
         if self.knowledge is not None:
             snap["protocols"] = self.knowledge.status()
         return snap
@@ -205,3 +208,39 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
                                          embedder=embedder or None, reranker=LLMReranker(seeing), vision=seeing,
                                          fetch=protocol_fetch, mirror=s.protocol_mirror)
     return ctx
+
+
+def wire_capture(ctx: AppContext, broadcast):
+    """Compose the capture pipeline once. Construction loads no neural models or camera devices."""
+    from copy import deepcopy
+    from pathlib import Path
+    from ..config import load_yaml
+    from ..capture.agent import CaptureAgent
+    from ..capture.config import validate_config
+    from ..capture.privacy import EvidenceStore, FaceBlur
+    from ..capture.reading import FrameReader
+    from ..capture.sources import ReplayFrameSource
+    from ..capture.verify import DrugCheck
+    from .capture import CaptureService
+
+    config = validate_config(deepcopy(load_yaml(ctx.settings.capture_config)))
+    service = CaptureService(ctx, broadcast)
+    blur = FaceBlur(config["privacy"])
+    store = EvidenceStore(ctx.settings.photo_dir, config["privacy"], blur)
+    ctx.frame_reader = FrameReader(config, lambda: ctx.incident, ctx.vision, store,
+                                   DrugCheck(ctx.coder, config["verify"]), ctx.tracer,
+                                   ctx.vision_model.model_name, broadcast)
+
+    async def read(frame, intent, roi, valid):
+        return await service.photo(frame.jpeg, intent.mode, auto=True, frame=frame, intent=intent, roi=roi, valid=valid)
+
+    agent = CaptureAgent(config, read, incident_id=lambda: ctx.incident.id,
+                         speech_busy=lambda: ctx.speech_in_flight > 0, source=ctx.settings.capture_source,
+                         notify=broadcast, hold=lambda id, reason: ctx.incident.hold_verification(id, reason))
+    agent.set_auto(ctx.settings.capture_auto and ctx.settings.capture_source != "off")
+    ctx.capture_agent = agent
+    service.listeners.append(agent)
+    source = None
+    if ctx.settings.capture_source.startswith("replay:"):
+        source = ReplayFrameSource(Path(ctx.settings.capture_source.partition(":")[2]), config["fps_in"], config)
+    return service, source
