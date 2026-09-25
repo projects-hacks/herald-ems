@@ -89,9 +89,12 @@ class FrameReader:
                  "model": {"status": "done", "name": self.model_name(), "ms": ms,
                            "facts": [self.tracer.fact_view(f) for f in added]},
                  "effects": self.tracer.diff(before, self.tracer.summarize(inc.snapshot()))}
-        inc.transcripts.append({"id": new_id("t"), "ts": utcnow().isoformat(), "text": reason, "captured_by": "camera",
-                                "speaker": intent.mode, "audio_id": None, "photo_id": photo_id,
-                                "trigger": intent.trigger, "reason": reason, "frame_id": frame.id,
-                                "fact_ids": [f.id for f in added], "extract": {"rules": 0, "llm": len(added), "ms": ms}, "trace": trace})
+        # The call's record keeps what the camera contributed, not every frame it looked at: a frame that gave nothing
+        # new (unusable, or the same reading) is counted in the capture status (`capture.last`, `counts`) and no more.
+        if added:
+            inc.transcripts.append({"id": new_id("t"), "ts": utcnow().isoformat(), "text": reason, "captured_by": "camera",
+                                    "speaker": intent.mode, "audio_id": None, "photo_id": photo_id,
+                                    "trigger": intent.trigger, "reason": reason, "frame_id": frame.id,
+                                    "fact_ids": [f.id for f in added], "extract": {"rules": 0, "llm": len(added), "ms": ms}, "trace": trace})
         await self.broadcast()
         return CaptureResult([f.id for f in added], photo_id, reason)

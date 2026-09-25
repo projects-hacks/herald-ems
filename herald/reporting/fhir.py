@@ -33,6 +33,12 @@ def _slug(text: Any, limit: int = 40) -> str:
     return (s or "x")[:limit]
 
 
+def fhir_id(*parts: Any) -> str:
+    """A valid FHIR resource id ([A-Za-z0-9.-]{1,64}, R4 §2.24.0.1) from Herald ids such as "inc_03f1ac7a3c",
+    whose underscore FHIR does not allow."""
+    return _ID_SAFE.sub("-", "-".join(str(p) for p in parts)).strip("-")[:64] or "x"
+
+
 def _coding(code: Optional[Coding], display: Optional[str] = None) -> Optional[dict]:
     if not isinstance(code, Coding):
         return None
@@ -74,32 +80,41 @@ class FhirExport:
         return out
 
     # ---------- the bundle ----------
+    @staticmethod
+    def patient_id(incident) -> str:
+        return fhir_id("patient", incident.id)
+
     def build(self, incident, patient_id: Optional[str] = None) -> dict:
         with incident.lock:
-            pid = patient_id or f"patient-{incident.id}"
-            resources = [self._patient(incident, pid)]
-            resources += self._vitals(incident, pid)
-            resources += self._age(incident, pid)
-            resources += self._scores(incident, pid)
-            resources += self._medications(incident, pid)
-            resources += self._allergies(incident, pid)
-            resources += self._conditions(incident, pid)
+            resources = [r for r, _ in self.sourced(incident, patient_id)]
             return {"resourceType": "Bundle", "type": "collection", "timestamp": incident.started.isoformat(),
                    "entry": [{"resource": r} for r in resources]}
 
-    # ---------- resources ----------
-    def _patient(self, incident, pid: str) -> dict:
-        vals = incident.values(confirmed_only=True)
-        r: dict[str, Any] = {"resourceType": "Patient", "id": pid}
-        if "patient.identifier" in vals:
-            r["identifier"] = [{"value": str(vals["patient.identifier"])}]
-        if "patient.name" in vals:
-            r["name"] = [{"text": str(vals["patient.name"])}]
-        if "patient.sex" in vals:
-            r["gender"] = _GENDER.get(str(vals["patient.sex"]).strip().lower(), "unknown")
-        return r
+    def sourced(self, incident, patient_id: Optional[str] = None) -> list[tuple[dict, list]]:
+        """Every resource with the confirmed facts it was built from (empty for computed scores). The collection
+        above and the FHIR document (fhir_document.py) share this, so both carry exactly the same resources."""
+        with incident.lock:
+            pid = patient_id or self.patient_id(incident)
+            out = [self._patient(incident, pid)]
+            for part in (self._vitals, self._age, self._scores, self._medications, self._allergies,
+                         self._conditions):
+                out += part(incident, pid)
+            return out
 
-    def _vitals(self, incident, pid: str) -> list[dict]:
+    # ---------- resources: each is (resource, source facts) ----------
+    def _patient(self, incident, pid: str) -> tuple[dict, list]:
+        r: dict[str, Any] = {"resourceType": "Patient", "id": pid}
+        facts = {k: incident.latest(k, confirmed_only=True) for k in ("patient.identifier", "patient.name",
+                                                                      "patient.sex")}
+        if facts["patient.identifier"]:
+            r["identifier"] = [{"value": str(facts["patient.identifier"].value)}]
+        if facts["patient.name"]:
+            r["name"] = [{"text": str(facts["patient.name"].value)}]
+        if facts["patient.sex"]:
+            r["gender"] = _GENDER.get(str(facts["patient.sex"].value).strip().lower(), "unknown")
+        return r, [f for f in facts.values() if f]
+
+    def _vitals(self, incident, pid: str) -> list[tuple[dict, list]]:
         loinc, ucum_system = self.codes["system"]["loinc"], self.codes["system"]["ucum"]
         out = []
         for key, spec in self.codes.get("vitals", {}).items():
@@ -107,17 +122,17 @@ class FhirExport:
                 qty = _quantity(f.value, f.unit or self.vocab.meta(key).get("unit"), spec.get("ucum"), ucum_system)
                 if qty is None:
                     continue
-                out.append({
-                    "resourceType": "Observation", "id": f"obs-{f.id}", "status": "final",
+                out.append(({
+                    "resourceType": "Observation", "id": fhir_id("obs", f.id), "status": "final",
                     "category": [{"coding": [{"system": OBS_CATEGORY, "code": "vital-signs"}]}],
                     "code": {"coding": [{"system": loinc, "code": spec["loinc"], "display": spec["display"]}]},
                     "subject": {"reference": f"Patient/{pid}"},
                     "effectiveDateTime": f.ts.isoformat(),
                     "valueQuantity": qty,
-                })
+                }, [f]))
         return out
 
-    def _age(self, incident, pid: str) -> list[dict]:
+    def _age(self, incident, pid: str) -> list[tuple[dict, list]]:
         spec = self.codes.get("age")
         if not spec:
             return []
@@ -127,17 +142,17 @@ class FhirExport:
             qty = _quantity(f.value, "years", spec.get("ucum"), ucum_system)
             if qty is None:
                 continue
-            out.append({
-                "resourceType": "Observation", "id": f"obs-{f.id}", "status": "final",
+            out.append(({
+                "resourceType": "Observation", "id": fhir_id("obs", f.id), "status": "final",
                 "category": [{"coding": [{"system": OBS_CATEGORY, "code": "social-history"}]}],
                 "code": {"coding": [{"system": loinc, "code": spec["loinc"], "display": spec["display"]}]},
                 "subject": {"reference": f"Patient/{pid}"},
                 "effectiveDateTime": f.ts.isoformat(),
                 "valueQuantity": qty,
-            })
+            }, [f]))
         return out
 
-    def _scores(self, incident, pid: str) -> list[dict]:
+    def _scores(self, incident, pid: str) -> list[tuple[dict, list]]:
         """The county-active scores, from the SAME confirmed-only evaluation the snapshot already computed
         (herald/core/snapshot.py Projector.snapshot), read here straight from the incident so this export needs
         no snapshot/Projector wiring of its own."""
@@ -150,18 +165,22 @@ class FhirExport:
             text = self.scales[sid].relay_text(result)
             if text is None:
                 continue
-            out.append({
-                "resourceType": "Observation", "id": f"obs-score-{sid}-{incident.id}", "status": "final",
+            out.append(({
+                "resourceType": "Observation", "id": self.score_id(sid, incident), "status": "final",
                 "category": [{"coding": [{"system": OBS_CATEGORY, "code": "survey"}]}],
                 "code": {"coding": [{"system": scores_system, "code": sid,
                                     "display": result.get("name", sid)}]},
                 "subject": {"reference": f"Patient/{pid}"},
                 "effectiveDateTime": incident.facts[-1].ts.isoformat() if incident.facts else incident.started.isoformat(),
                 "valueString": text,
-            })
+            }, []))                      # computed from confirmed facts, not itself a fact
         return out
 
-    def _medications(self, incident, pid: str) -> list[dict]:
+    @staticmethod
+    def score_id(sid: str, incident) -> str:
+        return fhir_id("obs-score", sid, incident.id)
+
+    def _medications(self, incident, pid: str) -> list[tuple[dict, list]]:
         out, seen = [], set()
         for f in incident.history("meds.given", confirmed_only=True):
             key = norm_value(f.value)
@@ -175,7 +194,7 @@ class FhirExport:
             if coding:
                 concept["coding"] = [coding]
             r: dict[str, Any] = {
-                "resourceType": "MedicationAdministration", "id": f"medadmin-{f.id}", "status": "completed",
+                "resourceType": "MedicationAdministration", "id": fhir_id("medadmin", f.id), "status": "completed",
                 "medicationCodeableConcept": concept,
                 "subject": {"reference": f"Patient/{pid}"},
                 "effectiveDateTime": f.ts.isoformat(),
@@ -187,10 +206,10 @@ class FhirExport:
                     r["dosage"]["route"] = {"text": str(route)}
             if by:
                 r["note"] = [{"text": f"given by {by}"}]
-            out.append(r)
+            out.append((r, [f]))
         return out
 
-    def _allergies(self, incident, pid: str) -> list[dict]:
+    def _allergies(self, incident, pid: str) -> list[tuple[dict, list]]:
         latest = incident.latest("allergies", confirmed_only=True)
         if not latest or not isinstance(latest.value, list):
             return []
@@ -201,38 +220,38 @@ class FhirExport:
             coding = _coding(code if isinstance(code, Coding) else None, str(item))
             if coding:
                 concept["coding"] = [coding]
-            out.append({
-                "resourceType": "AllergyIntolerance", "id": f"allergy-{latest.id}-{_slug(item)}",
+            out.append(({
+                "resourceType": "AllergyIntolerance", "id": fhir_id("allergy", latest.id, _slug(item, 30)),
                 "clinicalStatus": {"coding": [{"system": ALLERGY_CLINICAL, "code": "active"}]},
                 "code": concept,
                 "patient": {"reference": f"Patient/{pid}"},
                 "recordedDate": latest.ts.isoformat(),
-            })
+            }, [latest]))
         return out
 
-    def _conditions(self, incident, pid: str) -> list[dict]:
+    def _conditions(self, incident, pid: str) -> list[tuple[dict, list]]:
         out = []
         impression = incident.latest("impression.primary", confirmed_only=True)
         if impression and impression.value not in (None, ""):
-            out.append({
-                "resourceType": "Condition", "id": f"condition-impression-{impression.id}",
+            out.append(({
+                "resourceType": "Condition", "id": fhir_id("condition-impression", impression.id),
                 "verificationStatus": {"coding": [{"system": COND_VER_STATUS, "code": "unconfirmed"}]},
                 "code": {"text": str(impression.value)},
                 "subject": {"reference": f"Patient/{pid}"},
                 "recordedDate": impression.ts.isoformat(),
                 "note": [{"text": "EMS crew's stated working impression; not a diagnosis"}],
-            })
+            }, [impression]))
         seen: set = set()
         for f in incident.history("trauma.injuries", confirmed_only=True):
             for item in (f.value or []):
                 if norm_value(item) in seen:
                     continue
                 seen.add(norm_value(item))
-                out.append({
-                    "resourceType": "Condition", "id": f"condition-injury-{f.id}-{_slug(item)}",
+                out.append(({
+                    "resourceType": "Condition", "id": fhir_id("injury", f.id, _slug(item, 30)),
                     "verificationStatus": {"coding": [{"system": COND_VER_STATUS, "code": "provisional"}]},
                     "code": {"text": str(item)},
                     "subject": {"reference": f"Patient/{pid}"},
                     "recordedDate": f.ts.isoformat(),
-                })
+                }, [f]))
         return out

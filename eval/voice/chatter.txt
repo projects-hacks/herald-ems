@@ -1,0 +1,44 @@
+# Non-clinical talk heard in an ambulance: crew logistics, radio-style traffic without patient values, small talk,
+# family. Expected facts from every line: none. Some lines carry numbers and words that are not about the patient
+# (a unit number, a phone battery, a thermostat, the crew's own aches, a hospital hinted at): those are the traps
+# the extractor must not turn into vitals, complaints or destinations. One line per row; "#" starts a comment.
+Dispatch, Medic 12 is clear of the scene and available.
+Can you grab the other bag from the side door before we go?
+Traffic on the bridge is terrible today, take the surface streets.
+Copy that, we'll go in through the ambulance bay, not the front.
+Did you close the back door all the way? It keeps rattling.
+Is the heater on back here? It's freezing.
+Coffee after this one, my treat.
+What time do you get off tonight, are you working the double?
+Ma'am, you can ride up front with my partner, just buckle up.
+Sir, can you hand me that clipboard on the bench seat?
+Let me know when you're ready to roll, the stretcher's locked in.
+The monitor cable is behind you, the long one, not the short one.
+Unit fourteen, we're still at the gas station, be there in a bit.
+Turn the radio down a little, I can't hear myself think.
+Go ahead for Medic 12, we're en route to your location.
+Did anyone pick up the keys from the house, or are they still on the kitchen table?
+My back is killing me from that carry down the stairs.
+The wipers on this rig are shot, remind me to write it up.
+Watch the bump at the driveway, it's a big one.
+Is his wife following us in her car, or is she riding along?
+Hey, do you want to run the report when we get there, or should I?
+Hold on, my glove tore, give me a second.
+We're going to the one on the hill, right, not the downtown one?
+Can you pass me the tape? It's in the top drawer on the left.
+I'll call it in once we're on the freeway.
+That's the third call to this address this month.
+Do you know if the elevator in that building is working again?
+Sorry about the noise, the siren's for the intersection, that's all.
+Remind me to restock the towels when we get back.
+Take a left at the light, the bay entrance is around the back.
+Channel four is all static, switch to the county channel.
+My phone's at two percent, can you text the station for me?
+Turn the heat down to seventy, it's an oven back here.
+You doing okay back there? Yell if you need me to pull over.
+Grab the yellow blanket from the top shelf, the blue ones are all gone.
+Dispatch, show us transporting, we'll advise on arrival.
+I'll take the gurney legs, you get the door.
+Did we ever hear back from the tow truck about the car?
+Honey, they're just asking me to wait up front, I'll be right there.
+Let's get moving, the game starts at seven and I want to catch the end.

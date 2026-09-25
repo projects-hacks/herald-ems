@@ -84,7 +84,8 @@ def test_unchanged_monitor_values_do_not_add_duplicates(tmp_path):
     ctx.capture_agent.last_input = float("-inf")
     run_frame(client, ctx, monitor=True, manual=True)
     assert len(ctx.incident.facts) == before
-    assert ctx.incident.transcripts[-1]["reason"] == "unchanged"
+    assert ctx.capture_agent.status()["last"]["reason"] == "unchanged"   # counted, not written into the record
+    assert all(t.get("reason") != "unchanged" for t in ctx.incident.transcripts)
 
 
 def test_bad_roi_and_frames_and_patient_change(tmp_path):
