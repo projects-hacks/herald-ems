@@ -29,7 +29,7 @@
 .cabin-eyebrow svg:last-child { margin-left:auto; }
 .cabin-patient h1 { line-height:1.15; font-weight:650; overflow-wrap:anywhere; font-size:1.9rem; letter-spacing:-.045em; margin:6px 0; }
 .cabin-patient p:not(.cabin-eyebrow) { color:var(--text-secondary); margin-top:6px; font-size:.9375rem; line-height:1.5; }
-.cabin-muted { font-size:.85em; color:var(--text-muted); }
+.cabin-muted { font-size:.85rem; color:var(--text-muted); }
 .cabin-journey { text-align:right; flex-shrink:0; max-width:35%; border-left:1px solid var(--border-subtle); padding-left:20px; }
 .cabin-journey>span { color:var(--text-muted); letter-spacing:.1em; display:flex; align-items:center; justify-content:flex-end; gap:6px; font-size:.8125rem; }
 .cabin-journey strong { display:block; font-variant-numeric:tabular-nums; font-weight:550; font-size:2rem; font-family:var(--font-mono); margin:4px 0; letter-spacing:-.035em; }
