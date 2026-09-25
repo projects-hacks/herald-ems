@@ -38,6 +38,11 @@ export interface NeedItem { key: string; label: string; pending_confirm: boolean
 export interface Changed {
   key: string; label: string; series: number[]; times: string[]; delta: number;
   direction: "up" | "down" | "flat"; significant: boolean;
+  // 2026-09-25: a trend point may now come from a camera read of the patient monitor that nobody has tapped yet.
+  // `unconfirmed` is true when any point in `series` is still waiting; `unconfirmed_fact_ids` are those readings,
+  // ready for POST /api/facts/confirm. `message` is the sentence to show (config/trends.yaml), present only when
+  // the newest point is unconfirmed. Unconfirmed readings never reach the relay or the handoff report.
+  unconfirmed: boolean; unconfirmed_fact_ids: string[]; message?: string;
 }
 
 // ---------- scores (herald/scoring, config/scores/*.yaml) ----------
@@ -69,7 +74,10 @@ export type Alert =
   | { type: "trauma_alert_criteria" | "sepsis_prenotification"; label: string; level: string; score: string; criteria: string[]; county_rule?: string[]; county?: string }
   | { type: "contradiction"; key: string; label: string; confirm_fact_id: string; facts: FactView[] }
   | { type: "confirm_required"; key: string; label: string; confirm_fact_id: string; facts: FactView[] }
-  | { type: "significant_change"; key: string; label: string; series: number[] }
+  | { type: "significant_change"; key: string; label: string; series: number[];
+      // 2026-09-25: same labelling as Changed. Render `message` when present and offer the tap; never imply the
+      // value has been sent to the ED.
+      unconfirmed: boolean; unconfirmed_fact_ids: string[]; message?: string }
   | { type: "news2_rise"; label: string; from: number; to: number; band: News2Band }
   | { type: "news2_high"; label: string; score: number; band: "high" }
   | { type: "race_positive"; label: string; score: number }

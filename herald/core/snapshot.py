@@ -137,17 +137,37 @@ class Projector:
             add(key, self.vocab.label(key), key in all_vals, kind_key=key)
         return missing, unknown
 
+    def _trend_points(self, inc, key: str) -> list[Fact]:
+        """The readings a trend may be built from: confirmed facts, plus unconfirmed readings from the sources
+        config/trends.yaml lists (the camera watching the monitor, a monitor feed). An unconfirmed reading can raise
+        an alert in the cabin; it still cannot leave the vehicle, because the relay and the report ask the incident
+        for confirmed facts only."""
+        return [f for f in inc.history(key)
+                if f.status == Status.confirmed or self.trends.counts_unconfirmed(f.captured_by.value)]
+
     def _trends(self, inc) -> list[dict]:
         changed = []
         for key in self.trends.keys():
-            h = inc.history(key, confirmed_only=True)
+            h = self._trend_points(inc, key)
             if len(h) >= 2:
                 series = [f.value for f in h]
-                changed.append({"key": key, "label": self.vocab.label(key), "series": series,
-                                "times": [(f.provenance.observed_at or f.ts).isoformat() for f in h], "delta": series[-1] - series[0],
-                                "direction": "up" if series[-1] > series[-2] else
-                                             ("down" if series[-1] < series[-2] else "flat"),
-                                "significant": self.trends.significant(key, series[-2], series[-1])})
+                waiting = [f for f in h if f.status != Status.confirmed]
+                direction = "up" if series[-1] > series[-2] else ("down" if series[-1] < series[-2] else "flat")
+                row = {"key": key, "label": self.vocab.label(key), "series": series,
+                       "times": [(f.provenance.observed_at or f.ts).isoformat() for f in h], "delta": series[-1] - series[0],
+                       "direction": direction,
+                       "significant": self.trends.significant(key, series[-2], series[-1]),
+                       # Labelled for the screen: which of these readings still need the medic's tap.
+                       "unconfirmed": bool(waiting), "unconfirmed_fact_ids": [f.id for f in waiting]}
+                if waiting:
+                    newest = waiting[-1]
+                    message = self.trends.sentence(
+                        newest.captured_by.value, label=row["label"], value=series[-1], previous=series[-2],
+                        direction=direction, delta=abs(series[-1] - series[-2]),
+                        unit=self.vocab.meta(key).get("unit"))
+                    if message:
+                        row["message"] = message
+                changed.append(row)
         return changed
 
     def _alerts(self, inc, changed, results, county, vals) -> list[dict]:
@@ -159,8 +179,11 @@ class Projector:
                                "confirm_fact_id": h[-1].id, "facts": [self.fact_view(f) for f in h[-2:]]})
         for c in changed:
             if c["significant"]:
-                alerts.append({"type": "significant_change", "key": c["key"], "label": c["label"],
-                               "series": c["series"]})
+                alert = {"type": "significant_change", "key": c["key"], "label": c["label"], "series": c["series"],
+                         "unconfirmed": c["unconfirmed"], "unconfirmed_fact_ids": c["unconfirmed_fact_ids"]}
+                if "message" in c:       # the wording is content (config/trends.yaml), never a literal here
+                    alert["message"] = c["message"]
+                alerts.append(alert)
         hist = [x for x in inc.news2_history if x["complete"]]
         if hist and hist[-1]["band"] == "high" and not any(x["band"] == "high" for x in hist[:-1]):
             alerts.append({"type": "news2_high", "label": "NEWS2", "score": hist[-1]["score"],

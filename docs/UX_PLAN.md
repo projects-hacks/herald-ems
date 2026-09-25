@@ -3387,6 +3387,39 @@ export interface HandoffSummary {                // snapshot.handoff
 
 **What the report can't represent yet.** The five gaps listed in the first version (time of injury, before arrival, airway status, primary impression, 12-lead territory) were closed by the keys approved on 2026-09-24 (table above). They reach the report only once the extraction model emits them; until then they show as "not yet known" where required.
 
+### 5.9f Monitor-watch: unconfirmed camera readings in trends and alerts (backend, 2026-09-25)
+
+Herald is a copilot, not a data-entry form: a camera mounted in the cabin watches the patient monitor, an agent picks
+usable frames, and only the extracted numbers plus their timestamps are kept. Until now a camera reading produced
+neither a trend point nor an alert, because every camera fact is born `unconfirmed` (`herald/core/confirmation.py`)
+and `Projector._trends` asked the incident for confirmed facts only. The whole loop was therefore silent until
+somebody tapped.
+
+**What changed in the snapshot.**
+
+- `changed[]` (`Changed`) gains three fields:
+  - `unconfirmed: boolean` — true when **any** point in `series` is a reading still waiting for a tap.
+  - `unconfirmed_fact_ids: string[]` — the ids of exactly those readings, in series order. They are the ids to send
+    to `POST /api/facts/confirm`.
+  - `message?: string` — the sentence to show when the **newest** point is unconfirmed, e.g.
+    "Camera read Systolic BP 168 mmHg, up 28 from 140 — confirm the reading". The wording is content
+    (`config/trends.yaml` `unconfirmed_text`, one template per source), not a UI string, and it is information plus
+    the tap that is needed: it never says what to do about the patient.
+- the `significant_change` alert gains the same three fields, with the same meaning.
+
+**Which unconfirmed readings count.** `config/trends.yaml` `unconfirmed_sources: [camera, device]`. A reading from
+another speaker's mic, or a low-confidence spoken value, still makes no trend point while it is unconfirmed; only the
+camera and a monitor feed do.
+
+**What did not change, and must not.** The relay (`herald/relay/relay.py`) and the handoff report
+(`herald/reporting/view.py`) read `confirmed_only=True` and were not touched. An unconfirmed camera reading can raise
+an alert in the cabin and can never reach the ED packet, the ED screen or a report line; the report lists it under
+`not_yet_confirmed` instead. Scores are unchanged for the same reason.
+
+**What the UI must do with it.** Render the trend and the alert as soon as they appear, with the reading marked
+unconfirmed (never as a value the ED has), show `message`, and offer the tap that confirms
+`unconfirmed_fact_ids`. Do not present an unconfirmed reading anywhere that implies it was sent.
+
 ### 5.10 Build and serving with FastAPI
 
 **Backend changes (U7).** In `herald/app.py`, replace the single mount at the end:

@@ -6,9 +6,26 @@ from copy import deepcopy
 
 from ..config import load_yaml
 
+GATE_THRESHOLDS = ("sharp_min", "change_min", "bright_min", "bright_max", "width", "stable_max")
+
 
 def capture_config() -> dict:
     return validate_config(deepcopy(load_yaml("capture.yaml")))
+
+
+def monitor_gate_config(c: dict) -> dict:
+    """The monitor-watch gate profile: the global gate with the `monitor.gate` overrides applied.
+
+    Monitor-watch assesses a small ROI on a screen; the global profile assesses a whole new photo. They are separate
+    profiles on purpose, so widening one cannot regress the other (config/capture.yaml carries the measurements).
+    """
+    return {**c["gate"], **(c["monitor"].get("gate") or {})}
+
+
+def _check_gate(g: dict, what: str) -> None:
+    if not (0 <= g["bright_min"] < g["bright_max"] <= 255 and 0 <= g["change_min"] <= 1 and g["sharp_min"] >= 0
+            and 0 <= g.get("stable_max", 0) <= 1 and g["width"] > 0):
+        raise ValueError(f"invalid {what} gate thresholds")
 
 
 def validate_config(c: dict) -> dict:
@@ -20,9 +37,11 @@ def validate_config(c: dict) -> dict:
         raise ValueError("capture limits must be finite and positive")
     if c["rate"]["max_in_flight"] != 1:
         raise ValueError("capture supports one in-flight request")
-    g, m = c["gate"], c["monitor"]
-    if not (0 <= g["bright_min"] < g["bright_max"] <= 255 and 0 <= g["change_min"] <= 1 and g["sharp_min"] >= 0):
-        raise ValueError("invalid gate thresholds")
+    m = c["monitor"]
+    if unknown := set(m.get("gate") or {}) - set(GATE_THRESHOLDS):
+        raise ValueError(f"monitor.gate may only override gate thresholds, not {sorted(unknown)}")
+    _check_gate(c["gate"], "global")
+    _check_gate(monitor_gate_config(c), "monitor-watch")
     if not (0 <= m["roi_margin"] <= 1 and m["max_interval_s"] >= m["min_interval_s"]):
         raise ValueError("invalid monitor policy")
     if c["privacy"]["store"] not in ("none", "used_only") or c["privacy"]["dir"] != "auto":

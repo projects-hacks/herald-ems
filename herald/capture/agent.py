@@ -10,6 +10,7 @@ from typing import Awaitable, Callable
 import numpy as np
 
 from .buffer import FrameBuffer
+from .config import monitor_gate_config
 from .gate import FrameGate
 from .policy import CapturePolicy
 from .scheduler import CaptureScheduler
@@ -23,7 +24,10 @@ class CaptureAgent:
         self.config, self.reader, self.incident_id, self.speech_busy = config, reader, incident_id, speech_busy
         self.source, self.clock = source, clock
         self.auto, self.roi = False, None
-        self.gate, self.monitor_gate = FrameGate(config["gate"]), FrameGate(config["gate"])
+        # Two gate profiles: the global one guards the one-shot photo path, `monitor.gate` the camera ROI on a
+        # screen (config/capture.yaml carries the measurements that separate them).
+        self.monitor_profile = monitor_gate_config(config)
+        self.gate, self.monitor_gate = FrameGate(config["gate"]), FrameGate(self.monitor_profile)
         self.buffer = FrameBuffer(config["buffer_s"], config["max_frames"])
         self.monitor_buffer = FrameBuffer(config["buffer_s"], config["max_frames"])
         self.policy, self.scheduler = CapturePolicy(config), CaptureScheduler(config["rate"])
@@ -119,7 +123,7 @@ class CaptureAgent:
             previous = self.monitor_gate.current
             monitor = self.monitor_gate.assess(frame, self.roi)
             current = self.monitor_gate.current
-            stable = previous is not None and previous.shape == current.shape and float(np.abs(previous - current).mean() / 255) < self.config["gate"]["change_min"]
+            stable = previous is not None and previous.shape == current.shape and float(np.abs(previous - current).mean() / 255) < self.monitor_profile["stable_max"]
             self.monitor_buffer.add(frame, monitor)
             for intent in self.policy.on_tick(now, {"roi": True, "usable": monitor.usable, "stable": stable, "changed": monitor.passed}):
                 self.enqueue(intent)
