@@ -1,13 +1,12 @@
-/* The ED wall, read from 3 m. The same visual system as the medic's screen (night graphite, Star-of-Life blue for the
-   hospital side, livery lime for what just arrived, amber hazard stripes for what has not), bundled fonts only. */
-@font-face{font-family:"Atkinson Hyperlegible Next";src:url(/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2) format("woff2");font-weight:200 800;font-display:swap}
-@font-face{font-family:"Saira Condensed";src:url(/fonts/saira-condensed-latin-700-normal.woff2) format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:"Inter";src:url(/fonts/inter-latin-wght-normal.woff2) format("woff2");font-weight:100 900;font-display:swap}
+/* The ED wall, read from 3 m. The same visual system as the medic's screen (a cool navy base, blue for the
+   hospital side, cyan for what just arrived, amber hazard stripes for what has not), Inter bundled. */
 :root{--bg:#070B14;--fg:#EEF3FA;--muted:#8C9AB0;--line:rgb(255 255 255 / .08);--glass:rgb(13 19 32 / .66);--blue:#7FB2FF;--lime:#22D3EE;
-  --amber:#FBBF24;--red:#F87171;--ok:#34D399;--sans:"Atkinson Hyperlegible Next",system-ui,sans-serif;--mono:"Atkinson Hyperlegible Next",system-ui,sans-serif;
-  --head:"Saira Condensed","Arial Narrow",sans-serif;font-size:24px;color-scheme:dark}
+  --amber:#FBBF24;--red:#F87171;--ok:#34D399;--sans:"Inter",system-ui,sans-serif;--mono:"Inter",system-ui,sans-serif;
+  --head:"Inter",system-ui,sans-serif;font-size:24px;color-scheme:dark}
 *{box-sizing:border-box}
 b,strong,.packet{font-variant-numeric:tabular-nums slashed-zero}
-body{margin:0;min-height:100vh;color:var(--fg);font-family:var(--sans);line-height:1.45;background:
+body{margin:0;min-height:100vh;font-feature-settings:"ss02","cv05","zero";color:var(--fg);font-family:var(--sans);line-height:1.45;background:
   radial-gradient(40vmax 40vmax at 85% 10%, rgb(79 70 229 / .22), transparent 65%),
   var(--bg);background-attachment:fixed}
 header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 28px;padding:16px 32px;border-bottom:1px solid var(--line);

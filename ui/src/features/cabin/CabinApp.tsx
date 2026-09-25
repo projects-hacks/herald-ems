@@ -93,6 +93,8 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
         <button className="cabin-button" aria-label="Record" aria-pressed={panel === "record"} onClick={() => openRecord("facts")}><FileText size={19} /><span className="patients-button-label">Record</span></button>
         <button className="cabin-button" aria-label="Protocols" onClick={() => setProtocols(true)}><BookOpen size={19} /><span className="patients-button-label">Protocols</span></button>
         {multi && <button className="cabin-button" aria-label="Patients" onClick={() => open("patients")}><Users size={19} /><span className="patients-button-label">Patients</span></button>}
+        <button className="cabin-button" aria-label={ui.theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          onClick={() => setUi({ theme: ui.theme === "dark" ? "light" : "dark" })}>{ui.theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}</button>
         <button className="cabin-button" aria-label="Settings" onClick={() => open("settings")}><Settings2 size={19} /></button>
       </div>
       {!panel && <SituationBar />}

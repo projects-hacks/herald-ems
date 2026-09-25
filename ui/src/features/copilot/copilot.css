@@ -1,21 +1,9 @@
-/* Herald copilot screen. The look comes from the ambulance itself: a night-cab graphite
-   ground with a faint retro-reflective chevron weave, livery lime for what is live, amber for decisions, Star-of-Life
-   blue for the county's words and the ED. Instrument-cluster headings (Saira Condensed), hyperlegible body and mono
-   values (Atkinson). Needs-you is the hero; everything else is quiet. Tokens only (src/styles/tokens.css). */
+/* Herald copilot screen: a cool navy base with solid surface levels, one cyan accent for what is live and the primary
+   action, amber for what needs the medic, blue for the county's words and the ED, red for danger. Inter throughout.
+   Needs-you is the hero; everything else is quiet. Tokens only (src/styles/tokens.css). */
 
 /* ---------- atmosphere: a dark ground with the ambulance's colours glowing through the glass ---------- */
 .workspace-shell.copilot { position: relative; isolation: isolate; background: var(--glass-ground); }
-.workspace-shell.copilot::before, .workspace-shell.copilot::after { content: ""; position: fixed; inset: 0; z-index: -1;
-  pointer-events: none; will-change: transform; }
-.workspace-shell.copilot::before {   /* three soft orbs in the livery colours, placed behind the panels that sit over them */
-  background:
-    radial-gradient(30vmax 30vmax at 22% 38%, var(--orb-a), transparent 65%),
-    radial-gradient(34vmax 34vmax at 80% 30%, var(--orb-b), transparent 66%),
-    radial-gradient(24vmax 24vmax at 62% 92%, var(--orb-c), transparent 64%);
-  filter: blur(30px); animation: orbs-drift 38s var(--ease-standard) infinite alternate; }
-.workspace-shell.copilot::after {    /* a faint retro-reflective chevron weave, the only texture */
-  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--text-primary) 2.2%, transparent) 0 1px, transparent 1px 22px); }
-@keyframes orbs-drift { to { transform: translate3d(3vmax, -2vmax, 0) scale(1.06); } }
 
 /* the material: three tiers, each a real piece of frosted glass (fill, blur, edge highlight, tinted shadow) */
 .glass-1, .copilot-activity, .copilot-movement, .copilot-ed, .copilot-protocol {
@@ -38,8 +26,8 @@
   border-bottom: 1px solid var(--glass-border); }
 .copilot-header::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
   background: linear-gradient(90deg, var(--accent) 0 64px, transparent 64px); }
-.copilot-patient { flex: 1 1 320px; margin: 0; font-family: var(--font-heading); font-weight: 700; font-size: 2.05rem;
-  line-height: 1.05; letter-spacing: .005em; color: var(--text-primary); text-wrap: balance; }
+.copilot-patient { flex: 1 1 320px; margin: 0; font-family: var(--font-heading); font-weight: 750; font-size: 1.75rem;
+  line-height: 1.15; letter-spacing: -.02em; color: var(--text-primary); text-wrap: balance; }
 .copilot-back { display: inline-flex; align-items: center; gap: 4px; min-height: 48px; padding: 0 14px 0 8px;
   border-radius: var(--radius-control); font-weight: 700; color: var(--text-secondary); background: var(--surface-2); }
 .copilot-header-actions { display: flex; gap: 8px; }
@@ -61,8 +49,8 @@
 .copilot-primary, .copilot-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
 /* section labels: instrument-panel captions */
-.copilot-activity h2, .copilot-movement h2, .copilot-ed h2, .copilot-protocol h2, .copilot-needs h2 {
-  font-family: var(--font-heading); font-weight: 600; font-size: .95rem; letter-spacing: .14em; text-transform: uppercase; }
+.copilot-activity h2, .copilot-movement h2, .copilot-ed h2, .copilot-protocol h2, .copilot-needs h2, .copilot-known h2 {
+  font-family: var(--font-heading); font-weight: 700; font-size: 1.0625rem; letter-spacing: -.005em; text-transform: none; }
 
 /* ---------- Needs you: the hero ---------- */
 .copilot-needs { border-radius: 20px; }
@@ -83,7 +71,7 @@
 /* ---------- quiet side panels: ruled, not boxed ---------- */
 .copilot-activity, .copilot-movement, .copilot-ed, .copilot-protocol { display: flex; flex-direction: column; gap: 10px;
   padding: 16px 20px 18px; border-radius: 18px; transition: border-color var(--dur-medium1) var(--ease-standard); }
-.copilot-activity h2, .copilot-movement h2, .copilot-ed h2 { margin: 0; color: var(--text-muted); }
+.copilot-activity h2, .copilot-movement h2, .copilot-ed h2 { margin: 0; color: var(--text-primary); }
 .copilot-activity ol, .copilot-movement ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .copilot-activity li { display: grid; grid-template-columns: 3.4em 18px 1fr; gap: 8px; align-items: start; font-size: .9375rem;
   color: var(--text-secondary); line-height: 1.4; }
@@ -109,7 +97,7 @@
 /* ---------- the county's words ---------- */
 .copilot-protocol { border-top-color: color-mix(in srgb, var(--low-fg) 60%, var(--glass-border)); }
 .copilot-protocol h2 { margin: 0; display: flex; align-items: center; gap: 8px; color: var(--low-fg); }
-.protocol-cue h3 { margin: 0 0 6px; font-family: var(--font-heading); font-weight: 700; font-size: 1.2rem; color: var(--text-primary); }
+.protocol-cue h3 { margin: 0 0 6px; font-weight: 700; font-size: 1.125rem; color: var(--text-primary); }
 .protocol-cue figure { margin: 0 0 10px; }
 .protocol-cue blockquote { margin: 0; padding: 2px 0 2px 14px; border-left: 3px solid var(--low-fg); font-size: 1rem; line-height: 1.5;
   color: var(--text-primary); }
@@ -121,9 +109,8 @@
 .copilot-dock { position: sticky; bottom: 0; z-index: 25; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   padding: 12px 24px calc(12px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--glass-border); }
-.copilot-dock .cabin-button { min-height: 64px; font-size: 1rem; padding: 0 22px; border: 1px solid var(--glass-border);
-  background: var(--glass-1); box-shadow: var(--glass-edge);
-  font-family: var(--font-heading); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.copilot-dock .cabin-button { min-height: 64px; font-size: 1.0625rem; padding: 0 22px; border: 1px solid var(--glass-border);
+  background: var(--surface-2); font-weight: 700; }
 .copilot-mic { flex: 0 1 340px; font-size: 1.1rem !important; }
 .copilot-mic.primary, .copilot-mic.recording { background: var(--accent-fill); color: var(--on-accent-fill); border-color: transparent; }
 .copilot-mic.recording { box-shadow: 0 0 0 calc(var(--level, 0) * 10px) color-mix(in srgb, var(--accent) 30%, transparent),
@@ -172,8 +159,7 @@
 
 /* ---------- what Herald knows: fields appear as they are said ---------- */
 .copilot-known { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px 18px; border-radius: 18px; }
-.copilot-known h2 { margin: 0; display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-family: var(--font-heading);
-  font-weight: 600; font-size: .95rem; letter-spacing: .14em; text-transform: uppercase; }
+.copilot-known h2 { margin: 0; display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
 .known-group h3 { margin: 0 0 6px; font-size: .8125rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
 .known-group dl { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px 18px; }
 .known-group dl > div { padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, var(--text-primary) 4%, transparent);
@@ -194,7 +180,7 @@
 .situation-bar { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding-top: 2px; }
 .sit-ready, .sit-clock { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 12px; border-radius: 999px;
   background: var(--glass-1); border: 1px solid var(--glass-border); font-size: .9375rem; color: var(--text-secondary); }
-.sit-ready b, .sit-clock b { font-family: var(--font-heading); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-primary); }
+.sit-ready b, .sit-clock b { font-weight: 700; color: var(--text-primary); }
 .sit-ready em { font-style: normal; font-weight: 700; color: var(--medium-fg); }
 .sit-ready[data-ready] { border-color: color-mix(in srgb, var(--ok-fg) 55%, transparent); }
 .sit-ready[data-ready] em { color: var(--ok-fg); }
@@ -221,8 +207,8 @@
   background: var(--glass-1); -webkit-backdrop-filter: blur(22px) saturate(1.4); backdrop-filter: blur(22px) saturate(1.4);
   border: 1px solid var(--glass-border); border-radius: 18px; box-shadow: var(--glass-edge), var(--glass-shadow); }
 .copilot .workspace-page { display: flex; flex-direction: column; gap: 16px; }
-.copilot .workspace-page-heading, .copilot .workspace-page h1 { font-family: var(--font-heading); font-weight: 700; letter-spacing: .01em; }
-.copilot .workspace-page .card h2 { font-family: var(--font-heading); font-weight: 600; letter-spacing: .1em; text-transform: uppercase; font-size: .95rem; }
+.copilot .workspace-page-heading, .copilot .workspace-page h1 { font-weight: 750; letter-spacing: -.02em; }
+.copilot .workspace-page .card h2 { font-weight: 700; font-size: 1.0625rem; }
 @media (max-width: 760px) {
   .copilot .workspace-page .card, .copilot .workspace-page-surface { -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
 }
