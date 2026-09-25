@@ -1,0 +1,69 @@
+# Which readings the medic may confirm as a SET, and which ones always cost their own tap.
+#
+# One camera read of the patient monitor yields HR, BP, SpO2 and RR at once. Four taps for one glance at one screen is
+# the tap burden this file exists to cut. It decides only how many taps are owed. It never decides what a value means,
+# and it never changes what leaves the vehicle: only a confirmed fact reaches the ED, before and after this file.
+#
+# The plausible-step numbers are clinical content, reviewed like code. Where config/trends.yaml already has a
+# significant-change rule for the same key (sbp, hr, spo2, rr, glucose) the numbers here match it exactly: a step big
+# enough to raise an alert is exactly the step a human should look at, so an alerting reading is never swept into a
+# batch. They are kept here as their own numbers rather than read from trends.yaml, so the two can be retuned apart.
+# The remaining keys (dbp, temp, etco2, pain, the GCS subscales) have no trends.yaml rule yet; their limits below are
+# new, reviewed defaults at a comparable clinical magnitude.
+#
+# NO VISION CONFIDENCE GATE HERE, ON PURPOSE. config/confirmation.yaml `auto_confirm_threshold` must not be reused for
+# camera facts: it was calibrated for the TEXT extractor's joint token probability (see the calibration block in that
+# file), and our own test set holds confident vision misreads - a glucometer showing "HI" read as 88, and a POLST
+# with only Section B checked read as DNR. A vision threshold has to be calibrated from measured accuracy on the
+# vision eval (real photos, POLST forms) first; there is no such seam yet, so there is no auto-confirm path here.
+
+# ---------- risk tiers ----------
+tiers:
+  # May be confirmed as a set, if the corroboration rules below say the reading is routine.
+  batched:
+    keys: [vitals.]                 # a trailing dot means "this prefix"
+    sources: [camera, device]       # monitor-sourced only; values of core/schema.py CapturedBy
+  # Never swept into any batch, whatever else is true. Medications, allergies and code status are individual
+  # decisions: a wrong one is a patient-safety event, not a trend point. code_status also carries require_tap in
+  # config/vocabulary.yaml; this list is the statement of the tier, not a duplicate mechanism.
+  individual:
+    keys: [meds., allergies, code_status, patient.name, patient.identifier, triage.category, ecg.]
+
+# The very first reading of a key has nothing to corroborate against.
+#   batch      - it becomes the baseline; the common case (one monitor read, one tap) stays one tap.
+#   individual - the first reading of every key costs its own tap.
+first_reading: batch
+
+# ---------- corroboration ----------
+# How far a reading may move from the previous reading of the same key and still be routine. A larger move is a JUMP:
+# it is not auto-confirmed and not batched, it is put in front of the medic on its own. A key with no rule here (a
+# word, a boolean, anything non-numeric) is always individual.
+plausible_step:
+  vitals.sbp: {max_step: 20}        # mmHg; matches config/trends.yaml abs_change
+  vitals.dbp: {max_step: 15}        # mmHg
+  vitals.hr: {max_step: 20}         # /min; matches config/trends.yaml abs_change
+  vitals.rr: {max_step: 6}          # /min; matches config/trends.yaml abs_change
+  vitals.spo2: {max_step: 3}        # percentage points; matches config/trends.yaml falls_by
+  vitals.temp: {max_step: 1.0}      # degrees C
+  vitals.glucose: {max_step: 50}    # mg/dL; matches config/trends.yaml abs_change
+  vitals.etco2: {max_step: 8}       # mmHg
+  vitals.pain: {max_step: 3}        # 0-10 scale
+  vitals.gcs_total: {max_step: 1}   # any real move in GCS is worth a look
+  vitals.gcs_eye: {max_step: 1}
+  vitals.gcs_verbal: {max_step: 1}
+  vitals.gcs_motor: {max_step: 1}
+
+# ---------- what the medic is told ----------
+# Shown on screen next to the reading that still needs a tap. Information about the reading, never advice about the
+# patient. Fields: {label} {value} {previous} {delta} {limit} {status}.
+reasons:
+  tier: "{label} is always confirmed on its own"
+  source: "only a monitor reading can be confirmed as a set"
+  no_rule: "{label} has no plausible-step rule, so it is checked on its own"
+  jump: "{label} moved {delta} from {previous}, more than the usual {limit}: check this reading"
+  first: "first {label} reading of this call: check it before it becomes the baseline"
+  held: held fact requires individual review
+  mismatch: label mismatch requires individual review
+  contradiction: contradiction requires individual review
+  not_found: not found
+  already: "already {status}"

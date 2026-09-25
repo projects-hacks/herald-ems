@@ -23,7 +23,7 @@ from ..core.ports import Transport
 from ..core.schema import utcnow
 from ..egress import EgressPolicy
 from ..scoring import ScaleRegistry, default_scales
-from .tiers import RelayTiers, default_tiers
+from .tiers import RelayScopes, RelayTiers, default_scopes, default_tiers
 
 
 def _compact(obj: Any) -> bytes:
@@ -42,10 +42,11 @@ class Relay:
                  transport: Optional[Transport] = None, probe: Optional[Callable[[], Awaitable[None]]] = None,
                  tiers: Optional[RelayTiers] = None, scales: Optional[ScaleRegistry] = None,
                  audio_dir: Optional[Path] = None, egress: Optional[EgressPolicy] = None,
-                 ed_token: Optional[str] = None):
+                 ed_token: Optional[str] = None, scopes: Optional[RelayScopes] = None):
         self.get_incident = incident_getter
         self.ed_url = ed_url
         self.tiers = tiers or default_tiers()
+        self.scopes = scopes or default_scopes()
         self.scales = scales or default_scales()
         self.audio_dir = audio_dir
         self.egress = egress    # E1: the real network path (below) always checks this before a packet leaves
@@ -79,8 +80,12 @@ class Relay:
     def configured(self) -> bool:
         return bool(self.ed_url or self._transport)
 
-    def authorize(self, destination: str, scope: str = "stroke pre-alert set") -> None:
-        self.authorized = {"destination": destination, "scope": scope, "at": utcnow().isoformat()}
+    def authorize(self, destination: str, scope: str = "patient update set", alert_ids: tuple = ()) -> None:
+        """`scope` is the medic-facing label (`herald/api/context.py` `pre_alert_scope`); `alert_ids` is the
+        machine scope actually enforced below (`config/relay.yaml` `scopes`). Neither is caller-provided free text
+        the client can widen: the one HTTP caller always derives both from the checklists currently open."""
+        self.authorized = {"destination": destination, "scope": scope, "at": utcnow().isoformat(),
+                           "alert_ids": list(alert_ids)}
 
     def set_ed_url(self, ed_url: Optional[str]) -> None:
         """Point at a new receiver without carrying that receiver's acknowledgements over.
@@ -114,15 +119,25 @@ class Relay:
     def _triage_rank(self, inc) -> int:
         return self.tiers.triage_rank.get(self._triage(inc), self.tiers.triage_rank["unknown"])
 
+    def _allowed_keys(self) -> Optional[frozenset[str]]:
+        """None means unrestricted (no authorization yet: this only feeds the pre-authorization status preview,
+        never a sent packet -- `tick()` refuses to send anything until `self.authorized` is set)."""
+        if not self.authorized:
+            return None
+        return self.scopes.allowed_keys(self.authorized.get("alert_ids", []), self.tiers)
+
     def critical_values(self, inc=None) -> dict[str, Any]:
         inc = inc or self._incidents()[0]
         vals = inc.values(confirmed_only=True)
-        out = {k: v for k, v in vals.items() if k in self.tiers}
+        allowed = self._allowed_keys()
+        out = {k: v for k, v in vals.items() if k in self.tiers and (allowed is None or k in allowed)}
         snap = inc.snapshot()                  # scores from confirmed facts, for the active county only
         for sid, r in snap["scores"].items():
-            if sid in self.scales and f"score.{sid}" in self.tiers and (text := self.scales[sid].relay_text(r)):
-                out[f"score.{sid}"] = text
-        if snap["readiness"]:
+            key = f"score.{sid}"
+            if (sid in self.scales and key in self.tiers and (allowed is None or key in allowed)
+                    and (text := self.scales[sid].relay_text(r))):
+                out[key] = text
+        if snap["readiness"] and (allowed is None or "alert.readiness" in allowed):
             out["alert.readiness"] = "; ".join(
                 f'{a["label"]} {a["done"]}/{a["total"]}{" ready" if a["ready"] else ""}'
                 for a in snap["readiness"]

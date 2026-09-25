@@ -14,6 +14,7 @@ from ..checklists import ChecklistEngine
 from ..config import Settings, get_settings
 from ..config.county import CountyRegistry
 from ..core.confirmation import ConfirmationPolicy
+from ..core.corroboration import BatchConfirmation, CorroborationRules
 from ..core.incident import Incident
 from ..core.schema import Fact
 from ..core.ports import Normalizer, PhotoReader, SpeechToText, TextModel
@@ -28,7 +29,7 @@ from ..knowledge import KnowledgeService
 from ..knowledge.rerank import LLMReranker
 from ..models import LocalLLMClient, VisionReader, WhisperSTT
 from ..relay import LinkEmulator, Relay, RelayTiers, default_tiers
-from ..reporting import LINE_KINDS, HandoffBuilder, HandoffConfig, default_handoff_config
+from ..reporting import LINE_KINDS, FhirExport, HandoffBuilder, HandoffConfig, default_handoff_config
 from ..scoring import ScaleRegistry, default_scales
 from ..telemetry import Telemetry
 from ..terminology import MedicationCoder, build_coder
@@ -66,6 +67,7 @@ class AppContext:
     coder: Optional[MedicationCoder] = None      # drug names -> RxNorm; None when the index isn't built
     relay: Optional[Relay] = None
     knowledge: Optional[KnowledgeService] = None
+    fhir: Optional[FhirExport] = None
     roster: Optional[PatientRoster] = None
     netem_mode: Optional[str] = None
     persistence: Optional[IncidentStore] = None
@@ -150,10 +152,14 @@ class AppContext:
         self.relay.ed_url, self.relay.authorized, self.relay.acked = relay.get("ed_url"), relay.get("authorized"), relay.get("acked", {})
         return True
 
-    def pre_alert_scope(self) -> str:
-        """Describe the current checklist truthfully; authorization never relies on caller-provided wording."""
-        labels = [row["label"] for row in self.incident.snapshot()["readiness"]]
-        return f"{' + '.join(labels)} pre-alert set" if labels else "patient update set"
+    def pre_alert_scope(self) -> tuple[str, list[str]]:
+        """The medic-facing label and the checklist alert ids actually open right now (`config/relay.yaml`
+        `scopes` maps each id to what it may send). Authorization never relies on caller-provided wording or scope:
+        both come from the checklist truthfully, every time."""
+        readiness = self.incident.snapshot()["readiness"]
+        labels, alert_ids = [row["label"] for row in readiness], [row["id"] for row in readiness]
+        label = f"{' + '.join(labels)} pre-alert set" if labels else "patient update set"
+        return label, alert_ids
 
     def full_state(self) -> dict:
         snap = self.incident.snapshot()
@@ -196,7 +202,16 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
     counties = CountyRegistry(s.county)
     checklists = ChecklistEngine.from_config(counties)
     trends = TrendRules.from_config()
-    projector = Projector(vocab, scales, checklists, counties, trends, ZoneInfo(s.timezone), s.reassess_min)
+    corroboration = CorroborationRules.from_config()
+    problems = corroboration.problems(vocab)
+    if problems:
+        raise ValueError("config/corroboration.yaml: " + "; ".join(problems))
+    batch = BatchConfirmation(vocab, corroboration)
+    fhir = FhirExport.from_config(vocab, scales)
+    fhir_problems = fhir.problems()
+    if fhir_problems:
+        raise ValueError("config/fhir_codes.yaml: " + "; ".join(fhir_problems))
+    projector = Projector(vocab, scales, checklists, counties, trends, ZoneInfo(s.timezone), s.reassess_min, batch)
     tel = telemetry or Telemetry(s.metrics_url, s.price_overrides)
     egress = default_policy(s)
     model = text_model or LocalLLMClient(s.llm_url, s.llm_model, usage=tel, egress=egress)
@@ -220,7 +235,7 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
         tracer=TraceRecorder(vocab, tiers),
         contract=UIContract(vocab, tiers, trends, checklists, counties, scales),
         link=LinkEmulator(s.toxiproxy_url), egress=egress, coder=coder,
-        handoff=build_handoff(default_handoff_config(), vocab, scales, checklists, s),
+        handoff=build_handoff(default_handoff_config(), vocab, scales, checklists, s), fhir=fhir,
         persistence=IncidentStore(s.state_dir, s.state_key_path) if s.persistence else None)
     ctx.new_incident(s.dispatch)
     ctx.relay = Relay(lambda: ctx.roster.incidents(), s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir,

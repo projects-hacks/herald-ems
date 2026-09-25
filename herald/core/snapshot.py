@@ -16,6 +16,7 @@ from ..config import get_settings
 from ..config.county import SCALE_IDS, CountyRegistry
 from ..scoring import ScaleRegistry, default_scales
 from .clock import parse_clock
+from .corroboration import BatchConfirmation, CorroborationRules
 from .schema import Fact, Status, utcnow
 from .trends import TrendRules
 from .vocabulary import Vocabulary, default_vocabulary, norm_value
@@ -25,9 +26,11 @@ SCORE_HISTORY = "news2"          # the score whose history drives the "rose" ale
 
 class Projector:
     def __init__(self, vocabulary: Vocabulary, scales: ScaleRegistry, checklists: ChecklistEngine,
-                 counties: CountyRegistry, trends: TrendRules, tz: ZoneInfo, reassess_min: Optional[int] = None):
+                 counties: CountyRegistry, trends: TrendRules, tz: ZoneInfo, reassess_min: Optional[int] = None,
+                 batch: Optional[BatchConfirmation] = None):
         self.vocab, self.scales, self.checklists = vocabulary, scales, checklists
         self.counties, self.trends, self.tz, self.reassess_override = counties, trends, tz, reassess_min
+        self.batch = batch or BatchConfirmation(vocabulary, CorroborationRules.from_config())
 
     # ---------- score history (called on commit) ----------
     def record_scores(self, inc) -> None:
@@ -74,6 +77,9 @@ class Projector:
                 "readiness": readiness,
                 "needs_attention": {"missing": missing, "unknown": unknown},
                 "changed": changed,
+                # One capture's unconfirmed readings, split into the set the medic can take in one action and the
+                # ones that need looking at (herald/core/corroboration.py, config/corroboration.yaml).
+                "capture_groups": self.batch.groups(inc),
                 "scores": {**results, "news2_history": inc.news2_history,
                            "stroke_scales": county["stroke"]["scales"],
                            "primary_stroke_scale": county["stroke"]["primary_scale"]},
@@ -242,7 +248,8 @@ class Projector:
 def build_projector(settings, counties: CountyRegistry) -> Projector:
     vocab = default_vocabulary()
     return Projector(vocab, default_scales(), ChecklistEngine.from_config(counties), counties,
-                     TrendRules.from_config(), ZoneInfo(settings.timezone), settings.reassess_min)
+                     TrendRules.from_config(), ZoneInfo(settings.timezone), settings.reassess_min,
+                     BatchConfirmation(vocab, CorroborationRules.from_config()))
 
 
 @lru_cache(maxsize=1)

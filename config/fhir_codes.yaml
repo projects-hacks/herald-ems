@@ -1,0 +1,42 @@
+# FHIR R4 coding for the confirmed-record export (herald/reporting/fhir.py, GET /api/handoff/fhir). Coding content,
+# reviewed like code (AGENTS.md rule 4).
+#
+# No SNOMED CT and no other UMLS-licensed vocabulary is used anywhere in this export (no UMLS license on this box).
+# Drug and allergen coding reuses only what herald/terminology/ already resolves from the public RxNorm subset
+# (config/terminology.yaml `systems.rxnorm`) and NEMSIS drug-class allergy codes (`systems.icd10cm`); this file
+# adds no drug coding of its own, only vitals/score identifiers.
+#
+# The LOINC codes below are the standard, commonly used codes for these vital-sign and score panels (loinc.org).
+# They were assembled from memory for this export, not re-verified against a live LOINC lookup in this session:
+# treat them as a first pass and give them one clinical/coding review before this export is relied on outside a
+# demo or a records request. `scores` uses a local, non-standard code system: Herald's computed scores (NEWS2,
+# RACE, G-FAST, county criteria) are not themselves LOINC panels, so no external code is asserted for them --
+# `code.text`/`valueString` carry the actual content, exactly as the relay and handoff report already do.
+system:
+  loinc: http://loinc.org
+  ucum: http://unitsofmeasure.org
+  scores: http://herald.local/fhir/scores
+
+# Vocabulary key -> LOINC code/display, and the UCUM unit code for its valueQuantity (omitted where the value
+# itself is unitless, e.g. a 0-10 pain score or a GCS component).
+vitals:
+  vitals.sbp: {loinc: "8480-6", display: "Systolic blood pressure", ucum: "mm[Hg]"}
+  vitals.dbp: {loinc: "8462-4", display: "Diastolic blood pressure", ucum: "mm[Hg]"}
+  vitals.hr: {loinc: "8867-4", display: "Heart rate", ucum: "/min"}
+  vitals.rr: {loinc: "9279-1", display: "Respiratory rate", ucum: "/min"}
+  vitals.spo2: {loinc: "59408-5", display: "Oxygen saturation in Arterial blood by Pulse oximetry", ucum: "%"}
+  vitals.temp: {loinc: "8310-5", display: "Body temperature", ucum: "Cel"}
+  vitals.glucose: {loinc: "2339-0", display: "Glucose [Mass/volume] in Blood", ucum: "mg/dL"}
+  vitals.etco2: {loinc: "19891-1", display: "Carbon dioxide [Partial pressure] in Exhaled gas --end expiration", ucum: "mm[Hg]"}
+  vitals.pain: {loinc: "72514-3", display: "Pain severity - 0-10 verbal numeric rating [Score] - Reported"}
+  vitals.gcs_total: {loinc: "9269-2", display: "Glasgow coma score total"}
+  vitals.gcs_eye: {loinc: "9267-6", display: "Glasgow coma score eye opening"}
+  vitals.gcs_verbal: {loinc: "9270-0", display: "Glasgow coma score verbal"}
+  vitals.gcs_motor: {loinc: "9268-4", display: "Glasgow coma score motor"}
+
+# patient.age is reported as its own FHIR Observation (LOINC "Age") rather than folded into Patient, since only
+# the spoken/estimated age is known, never a birth date.
+age:
+  loinc: "30525-0"
+  display: Age
+  ucum: a
