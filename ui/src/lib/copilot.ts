@@ -5,7 +5,7 @@ import { factValue, formatValue } from "./format";
 import type { CaptureGroup, FactView, Health, Snapshot } from "./types";
 
 // ---------- the activity feed: clinical outcomes of what Herald did, never telemetry ----------
-export type ActivityKind = "heard" | "read" | "checked" | "sent";
+export type ActivityKind = "heard" | "read" | "checked" | "found" | "sent";
 export interface ActivityLine { id: string; ts: string; kind: ActivityKind; text: string }
 
 const SHORT: Record<string, string> = {
@@ -60,6 +60,11 @@ export function activity(s: Snapshot, limit = 6, label: (key: string) => string 
     const ts = facts.map((f) => f.provenance?.observed_at ?? f.ts).sort().at(-1)!;
     const what = vitals.length ? `Read the monitor — ${readingText(vitals)}` : `Read a photo — ${facts.map((f) => `${f.label} ${factValue(f)}`).join(", ")}`;
     lines.push({ id: `r:${k}`, ts, kind: "read", text: clip(what, 110) });
+  }
+  for (const c of s.protocol_cues ?? []) {
+    const p = c.passages[0];
+    if (c.state !== "found" || !p || !c.found_at) continue;
+    lines.push({ id: `f:${c.id}`, ts: c.found_at, kind: "found", text: `Found Policy ${p.doc} §${p.section} for ${c.asked ? `“${c.query}”` : c.title.toLowerCase()}` });
   }
   // A relay packet re-sends the whole picture; the feed names only what reached the ED for the first time.
   const dest = s.relay.authorized?.destination ?? "the ED";
@@ -131,4 +136,24 @@ export function edHas(s: Snapshot, label: (key: string) => string): EdHas {
     waiting: allFacts(s).filter((f) => f.status === "unconfirmed").length,
     lastAck: s.relay.last_ack_at, authorized: !!s.relay.authorized, configured: s.relay.configured,
   };
+}
+
+// ---------- what Herald knows about the patient ----------
+/** Whatever has been heard or read, grouped; the fields exist because they were said, not because a form has them.
+ *  Vitals are left to the monitor and the movement strip; the safety keys lead. */
+export const SAFETY_KEYS = ["allergies", "meds.anticoagulant", "code_status"];
+const HIDE = (k: string) => k.startsWith("vitals.") || k.startsWith("score.") || k === "transport.eta_min" || k === "transport.destination";
+export interface KnownGroup { name: string; facts: FactView[] }
+export function patientKnown(s: Snapshot, groups: [string, (key: string) => boolean][]): KnownGroup[] {
+  const facts = Object.values(s.facts).filter((f) => f.status !== "rejected" && !HIDE(f.key));
+  const safety = SAFETY_KEYS.map((k) => facts.find((f) => f.key === k)).filter((f): f is FactView => !!f);
+  const rest = facts.filter((f) => !SAFETY_KEYS.includes(f.key));
+  const out: KnownGroup[] = safety.length ? [{ name: "Safety", facts: safety }] : [];
+  for (const [name, test] of groups) {
+    const g = rest.filter((f) => test(f.key)).sort((a, b) => a.ts.localeCompare(b.ts));
+    if (g.length) out.push({ name, facts: g });
+  }
+  const other = rest.filter((f) => !groups.some(([, test]) => test(f.key)));
+  if (other.length) out.push({ name: "Other", facts: other });
+  return out;
 }

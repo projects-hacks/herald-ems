@@ -185,7 +185,7 @@ export interface ProtocolAnswer {
 
 /** herald/knowledge/cues.py: the county's own passage for a recognised situation, verbatim with its citation. */
 export interface ProtocolCue {
-  id: string; title: string; query: string;
+  id: string; title: string; query: string; asked?: boolean; found_at?: string;
   state: "searching" | "found" | "not_covered";
   passages: { doc: string; title: string | null; section: string; heading: string | null; page: number | null;
     effective: string | null; text: string; shortened: boolean; text_layer_uncertain: boolean }[];

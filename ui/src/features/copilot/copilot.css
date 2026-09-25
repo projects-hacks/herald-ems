@@ -169,3 +169,23 @@
 .copilot-replay b { font-family: var(--font-mono); color: var(--text-primary); }
 .copilot-replay button { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: var(--accent); }
 @media (max-width: 760px) { .copilot-mark { display: none; } }
+
+/* ---------- what Herald knows: fields appear as they are said ---------- */
+.copilot-known { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px 18px; border-radius: 18px; }
+.copilot-known h2 { margin: 0; display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-family: var(--font-heading);
+  font-weight: 600; font-size: .95rem; letter-spacing: .14em; text-transform: uppercase; }
+.known-group h3 { margin: 0 0 6px; font-size: .8125rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.known-group dl { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px 18px; }
+.known-group dl > div { padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, var(--text-primary) 4%, transparent);
+  border: 1px solid transparent; transition: background var(--dur-medium1) var(--ease-standard), border-color var(--dur-medium1); }
+.known-group dt { font-size: .8125rem; color: var(--text-muted); }
+.known-group dd { margin: 2px 0 0; font-size: 1.125rem; font-weight: 700; color: var(--text-primary); line-height: 1.3; overflow-wrap: anywhere; }
+.known-group dd small { display: block; font-size: .75rem; font-weight: 700; color: var(--medium-fg); letter-spacing: .02em; }
+.known-group [data-status="unconfirmed"] dd { text-decoration: underline dotted color-mix(in srgb, var(--medium-fg) 70%, transparent); text-underline-offset: 4px; }
+.known-group [data-safety] { border-color: color-mix(in srgb, var(--medium-fg) 45%, transparent); }
+.known-group [data-new] { border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent); animation: just-heard 1.2s var(--ease-emphasized-decelerate) both; }
+@keyframes just-heard { from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); } to { box-shadow: 0 0 0 10px transparent; } }
+@media (prefers-reduced-motion: reduce) { .known-group [data-new] { animation: none; } }
+.ed-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ed-actions .cabin-button { text-decoration: none; }

@@ -26,8 +26,8 @@ import "./workspace.css";
 import "./capture-workspace.css";
 import "../copilot/copilot.css";
 import type { WorkspacePanel } from "./WorkspaceNav";
-import { CareSummary, PatientSafetySummary } from "./CareSummary";
-import { EdCard, HeraldActivity, MovementStrip, PresencePill, ProtocolCues, ReplayBar } from "@/features/copilot/Copilot";
+import { CareSummary } from "./CareSummary";
+import { EdCard, HeraldActivity, MovementStrip, PatientKnown, PresencePill, ProtocolCues, ReplayBar } from "@/features/copilot/Copilot";
 import type { FixturePlayer } from "@/lib/ws";
 
 // One screen. Everything that is not "Now" opens from the control that needs it (the ED card opens the handoff, the
@@ -97,7 +97,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
     <main id="workspace-main" tabIndex={-1} className="cabin-main">
       <span ref={urgentLive} className="sr-only" role="alert" />
       <div hidden={!!panel} className="copilot-grid">
-        <div className="copilot-primary"><PatientSafetySummary onReview={() => openRecord("facts")} /><AttentionQueue className="copilot-needs" /></div>
+        <div className="copilot-primary"><AttentionQueue className="copilot-needs" /><PatientKnown onRecord={() => openRecord("facts")} /></div>
         <div className="copilot-side">
           <ProtocolCues onOpen={() => setProtocols(true)} />
           <HeraldActivity onAll={() => openRecord("transcript")} />

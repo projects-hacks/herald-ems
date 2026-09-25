@@ -1,10 +1,13 @@
 // The copilot screen's own regions: the presence pill, what Herald did, how the
 // patient moved, and what the ED has. Everything here is a clinical outcome or an action; system status appears
 // only when something has stopped working.
-import { ArrowDownRight, ArrowUpRight, BookOpenCheck, Ear, FileText, Monitor, Pause, Play, RotateCcw, Send, ShieldCheck, SkipForward, TriangleAlert } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BookOpenCheck, Download, Ear, FileText, Share2, UserRound, Monitor, Pause, Play, RotateCcw, Send, ShieldCheck, SkipForward, TriangleAlert } from "lucide-react";
 import type { FixturePlayer } from "@/lib/ws";
 import { api } from "@/lib/api";
-import { activity, edHas, type ActivityKind, type Presence } from "@/lib/copilot";
+import { activity, edHas, patientKnown, SAFETY_KEYS, type ActivityKind, type Presence } from "@/lib/copilot";
+import { GROUPS } from "@/lib/selectors";
+import { factValue } from "@/lib/format";
+import { useNow } from "@/hooks/useNow";
 import { useContract } from "@/lib/contract";
 import { hhmm } from "@/lib/format";
 import { useHerald } from "@/lib/store";
@@ -17,7 +20,7 @@ export function PresencePill({ p }: { p: Presence }) {
   </span>;
 }
 
-const KIND_ICON: Record<ActivityKind, typeof Ear> = { heard: Ear, read: Monitor, checked: ShieldCheck, sent: Send };
+const KIND_ICON: Record<ActivityKind, typeof Ear> = { heard: Ear, read: Monitor, checked: ShieldCheck, found: BookOpenCheck, sent: Send };
 
 export function HeraldActivity({ onAll }: { onAll: () => void }) {
   const s = useHerald((st) => st.snapshot);
@@ -61,6 +64,8 @@ export function EdCard({ onHandoff }: { onHandoff: () => void }) {
   const contract = useContract();
   if (!s) return null;
   const ed = edHas(s, (k) => contract?.keys[k]?.label ?? k);
+  const destFact = s.facts["transport.destination"];
+  const dest = ed.destination ?? (destFact?.status === "confirmed" ? String(destFact.value) : null);
   return <section className="copilot-ed" aria-labelledby="ed-h">
     <h2 id="ed-h">{ed.destination ? `${ed.destination} has` : "The ED has"}</h2>
     {!ed.configured ? <p>No receiving ED set for this vehicle.</p> : !ed.authorized ? <p>Nothing yet — sharing not authorized. Confirmed facts stay on this vehicle.</p>
@@ -68,7 +73,12 @@ export function EdCard({ onHandoff }: { onHandoff: () => void }) {
       : <p>Nothing sent yet.</p>}
     {ed.lastAck && <p className="ed-meta">Last received {hhmm(ed.lastAck)}{s.relay.link === "down" ? " · link down, updates held" : ""}</p>}
     {ed.waiting > 0 && <p className="ed-meta">{ed.waiting} captured {ed.waiting === 1 ? "fact waits" : "facts wait"} for your confirmation before sending</p>}
-    <button className="cabin-button" onClick={onHandoff}><FileText size={19} />Handoff report</button>
+    <div className="ed-actions">
+      {ed.configured && !ed.authorized && <ActionButton pendingKey="authorize" variant="primary" className="min-h-16"
+        busyText="Sharing…" onClick={() => api.authorize(dest ?? "Receiving ED")}><Share2 size={19} />Share with {dest ?? "the ED"}</ActionButton>}
+      <button className="cabin-button" onClick={onHandoff}><FileText size={19} />Handoff report</button>
+      <a className="cabin-button" href="/api/handoff/fhir" download={`herald-${s.incident.id}.fhir.json`}><Download size={19} />Export (FHIR)</a>
+    </div>
   </section>;
 }
 
@@ -103,4 +113,25 @@ export function ReplayBar({ player }: { player: FixturePlayer }) {
     <button onClick={() => player.step()} aria-label="Next recorded message"><SkipForward size={18} /></button>
     <button onClick={() => player.restart()} aria-label="Restart replay"><RotateCcw size={18} /></button>
   </div>;
+}
+
+/** What Herald knows so far: fields appear as they are heard or read. Unconfirmed values say so; the newest glows. */
+export function PatientKnown({ onRecord }: { onRecord: () => void }) {
+  const s = useHerald((st) => st.snapshot);
+  const now = useNow();
+  if (!s) return null;
+  const groups = patientKnown(s, GROUPS);
+  if (!groups.length) return <section className="copilot-known glass-1" aria-labelledby="known-h"><h2 id="known-h"><UserRound size={16} aria-hidden />Patient</h2>
+    <p className="activity-empty">Nothing heard yet. Details appear here as they are said.</p></section>;
+  return <section className="copilot-known glass-1" aria-labelledby="known-h">
+    <h2 id="known-h"><UserRound size={16} aria-hidden />Patient</h2>
+    {groups.map((g) => <div key={g.name} className="known-group" data-group={g.name}>
+      <h3>{g.name}</h3>
+      <dl>{g.facts.map((f) => <div key={f.id} data-status={f.status} data-safety={SAFETY_KEYS.includes(f.key) || undefined}
+        data-new={now - Date.parse(f.ts) < 20000 || undefined}>
+        <dt>{f.label}</dt><dd>{factValue(f)}{f.status === "unconfirmed" && <small>not confirmed</small>}</dd>
+      </div>)}</dl>
+    </div>)}
+    <button className="activity-all" onClick={onRecord}>Sources</button>
+  </section>;
 }

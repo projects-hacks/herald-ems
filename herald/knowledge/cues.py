@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 import threading
+from datetime import datetime, timezone
 from typing import Callable, Optional
 
 from ..config import load_yaml
@@ -31,18 +32,56 @@ class ProtocolCues:
         cfg = config or load_yaml("protocol_cues.yaml")
         self.cues: list[dict] = cfg["cues"]
         self.passages: int = cfg.get("passages", 2)
+        req = cfg.get("requests", {})
+        # longest phrase first, so "show me the protocol for" wins over its tail "protocol for"
+        self.phrases: list[str] = sorted((p.lower() for p in req.get("phrases", [])), key=len, reverse=True)
+        self.keep: int = req.get("keep", 3)
+        self.asked: dict[str, list[dict]] = {}              # incident id -> the medic's own requests, newest first
         self.max_chars: int = cfg.get("max_chars", 700)
         self._kb, self._county = kb, county
         self._results: dict[tuple[str, str], dict] = {}
         self._inflight: set[tuple[str, str]] = set()
         self._lock = threading.Lock()
 
+    # ---------- the medic asking ----------
+    def ask(self, incident_id: str, text: str) -> Optional[dict]:
+        """If the words ask for a protocol, remember the request for this patient; the lookup runs like any cue."""
+        said = re.sub(r"\s+", " ", text).strip()
+        low = said.lower()
+        for phrase in self.phrases:
+            i = low.find(phrase)
+            if i < 0:
+                continue
+            topic = re.split(r"[.,;!?]", said[i + len(phrase):], maxsplit=1)[0].strip(" :\"'“”")   # the topic ends with the clause
+            topic = re.sub(r"^(a|an|the)\s+", "", topic, flags=re.I)
+            if len(topic) < 3:
+                return None
+            cue = {"id": f"asked:{topic.lower()}", "title": f"You asked: {topic}", "query": topic, "asked": True,
+                   "at": datetime.now(timezone.utc).isoformat()}
+            with self._lock:
+                mine = [c for c in self.asked.get(incident_id, []) if c["id"] != cue["id"]]
+                self.asked[incident_id] = [cue, *mine][: self.keep]
+            return cue
+        return None
+
     # ---------- which situations are live ----------
     def active(self, snap: dict) -> list[dict]:
         alerts = {a.get("type") for a in snap.get("alerts", [])}
         checklists = {r.get("id") for r in snap.get("readiness", [])}
-        return [c for c in self.cues
-                if alerts & set(c["when"].get("alerts", [])) or checklists & set(c["when"].get("checklists", []))]
+        asked = self.asked.get((snap.get("incident") or {}).get("id", ""), [])
+        out, seen = list(asked), {c["query"].lower() for c in asked}
+        for c in self.cues:
+            if "from_facts" in c:                  # any presentation: the heard value is the query
+                for key in c["from_facts"]:
+                    fact = (snap.get("facts") or {}).get(key) or {}
+                    values = fact.get("value") if isinstance(fact.get("value"), list) else [fact.get("value")]
+                    for v in values:
+                        if isinstance(v, str) and len(v.strip()) > 2 and fact.get("status") != "rejected" and v.lower() not in seen:
+                            seen.add(v.lower())
+                            out.append({"id": f"{c['id']}:{v.lower()}", "title": v.strip().capitalize(), "query": v.strip()})
+            elif alerts & set(c["when"].get("alerts", [])) or checklists & set(c["when"].get("checklists", [])):
+                out.append(c)
+        return out
 
     def _key(self, cue: dict) -> tuple[str, str]:
         return (self._county(), cue["id"])
@@ -62,6 +101,8 @@ class ProtocolCues:
             kb = self._kb()
             answer = kb.answer(cue["query"], self.passages) if kb is not None else None
             result = self._result(answer) if answer is not None else None
+            if result is not None:
+                result["found_at"] = datetime.now(timezone.utc).isoformat()
         except Exception as e:                                   # a model hiccup must not lose the cue for good
             result = {"state": "unavailable", "error": f"{type(e).__name__}: {e}"[:160]}
         with self._lock:
@@ -89,6 +130,6 @@ class ProtocolCues:
         with self._lock:
             for c in self.active(snap):
                 r = self._results.get(self._key(c))
-                out.append({"id": c["id"], "title": c["title"], "query": c["query"],
+                out.append({"id": c["id"], "title": c["title"], "query": c["query"], "asked": c.get("asked", False),
                             **(r if r else {"state": "searching", "passages": []})})
         return out
