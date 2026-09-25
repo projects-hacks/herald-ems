@@ -13,6 +13,7 @@ import { factValue, formatValue, hhmm, sourceName } from "@/lib/format";
 import { alertKey, alertPriority, type Priority } from "@/lib/selectors";
 import { useHerald } from "@/lib/store";
 import { MismatchCard } from "@/features/capture/MismatchCard";
+import { TraumaCriteriaChecklist } from "./TraumaCriteriaChecklist";
 import type { Alert, FactView, NeedItem, Snapshot } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ActionButton, ActionNote, usePendingAction } from "@/components/ActionButton";
@@ -156,7 +157,12 @@ function FindingRow({ a, s, onSeen }: { a: Alert; s: Snapshot; onSeen?: () => vo
   const p = alertPriority(a);
   const seen = onSeen && <Button size="md" onClick={onSeen}>Mark seen</Button>;
   switch (a.type) {
-    case "trauma_alert_criteria": case "sepsis_prenotification":
+    case "trauma_alert_criteria":
+      return <Row icon={ShieldAlert} cat="attention" urgent={p === "high" && !!onSeen} badge={<PriorityBadge p={p} />} title={a.label} actions={seen}>
+        <TraumaCriteriaChecklist a={a} s={s} />
+        {a.county_rule?.map((line, i) => <p key={i} className="mt-2 text-body">{a.county && <span>{a.county}: </span>}{line}</p>)}
+      </Row>;
+    case "sepsis_prenotification":
       return <Row icon={ShieldAlert} cat="attention" urgent={p === "high" && !!onSeen} badge={<PriorityBadge p={p} />} title={a.label} actions={seen}>
         <ul className="mt-2 space-y-2 text-body">{a.criteria.map((line, i) => <li key={i}>{line}</li>)}</ul>
         {a.county_rule?.map((line, i) => <p key={i} className="mt-2 text-body">{a.county && <span>{a.county}: </span>}{line}</p>)}
@@ -290,7 +296,7 @@ export function AttentionQueue({ className }: { className?: string }) {
           {a.acknowledged.length > 0 && (
             <div className="px-5 pt-1">
               <button type="button" onClick={() => setShowSeen(!showSeen)} aria-expanded={showSeen}
-                className="inline-flex min-h-10 items-center gap-1.5 text-meta font-semibold text-text-muted hover:text-text-primary">
+                className="inline-flex min-h-12 items-center gap-1.5 text-meta font-semibold text-text-muted hover:text-text-primary">
                 {showSeen ? <ChevronDown size={15} aria-hidden /> : <ChevronRight size={15} aria-hidden />}Seen · {a.acknowledged.length}
               </button>
               {showSeen && <ul className="-mx-5 opacity-75">{a.acknowledged.map((al) => <FindingRow key={alertKey(al)} a={al} s={s} />)}</ul>}

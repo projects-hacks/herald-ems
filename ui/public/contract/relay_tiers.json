@@ -63,6 +63,26 @@
     "tier": 1,
     "why": "the receiving team needs this before arrival"
   },
+  "score.stemi_700a08": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "ecg.stemi_reading": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "ecg.transmitted": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "ecg.twelve_lead_time": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "symptom.onset": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
   "score.news2": {
     "tier": 2,
     "why": "deterioration / published score changed"

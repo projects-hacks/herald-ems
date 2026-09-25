@@ -1,4 +1,9 @@
 export const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+/** 24-hour clock, zero-padded (UX_PLAN §3.0: clocks are HH:MM everywhere, never a locale-dependent 12-hour string). */
+export const hhmm = (dateLike) => {
+  const d = dateLike instanceof Date ? dateLike : new Date(dateLike);
+  return Number.isNaN(d.getTime()) ? "—" : `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
 export const formatValue = (value) => value === true ? "yes" : value === false ? "no" : value === null ? "unknown" : Array.isArray(value) ? value.map(formatValue).join(" · ") || "none reported" : typeof value === "object" ? Object.entries(value).map(([key, v]) => `${key}: ${formatValue(v)}`).join(" · ") : String(value);
 export const newestPatient = (incidents) => Object.keys(incidents).sort((a, b) => incidents[b].first_at.localeCompare(incidents[a].first_at))[0];
 export const isNewField = (field, previousSequence) => field.seq > previousSequence;

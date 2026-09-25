@@ -61,6 +61,7 @@ class Relay:
         self.bytes_sent = 0
         self.packets_acked = 0
         self.retries = 0
+        self.duplicates_acked = 0  # the ED told us it already had this sequence number (P3.2 reconciliation count)
         self.full_synced_facts: dict[str, int] = {}
         self.last_ack_at: Optional[str] = None
         self.clinician_acknowledgements: dict[str, list[dict]] = {}
@@ -277,6 +278,8 @@ class Relay:
             rtt = (time.perf_counter() - t0) * 1000
             if ack.get("ack") != pkt["q"]:
                 raise RuntimeError(f"bad ack {ack}")
+            if ack.get("duplicate"):
+                self.duplicates_acked += 1
             self.results.append((True, rtt))
             patient_acked = self.acked.setdefault(pkt["i"], {})
             for k, v in pkt["f"].items():
@@ -328,7 +331,8 @@ class Relay:
             "patients": patients,
             "sync": sync, "bytes_sent": self.bytes_sent, "local_bytes": local_bytes,
             "kept_local_pct": _kept_local_pct(self.bytes_sent, local_bytes),
-            "packets_acked": self.packets_acked, "retries": self.retries, "last_ack_at": self.last_ack_at,
+            "packets_acked": self.packets_acked, "retries": self.retries, "duplicates_acked": self.duplicates_acked,
+            "last_ack_at": self.last_ack_at,
             "clinician_acknowledgements": self.clinician_acknowledgements,
             "log": list(self.log)[-12:],
         }

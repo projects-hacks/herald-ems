@@ -1,6 +1,6 @@
 // Pure functions from the snapshot to what the screen shows. Tested in src/test/selectors.test.ts.
-import type { Contract } from "./contract";
-import type { Alert, FactView, Snapshot, StrokeScale, StrokeScaleId } from "./types";
+import type { Contract, ContractCriterion } from "./contract";
+import type { Alert, CriteriaScoreDetail, FactView, Snapshot, StrokeScale, StrokeScaleId } from "./types";
 
 // ---------- alert priority (UX_PLAN §2.3: IEC 60601-1-8 semantics, no sounds) ----------
 export type Priority = "high" | "medium" | "low";
@@ -149,6 +149,11 @@ export function reconciled(s: Snapshot): boolean {
   return !!r.authorized && r.link === "good" && !r.pending.some((p) => patientPacket(s, p.patient)) && Object.values(activeSync(s)).every((v) => v === "sent")
     && r.log.some((l) => patientPacket(s, l.patient) && l.tier === "full" && l.result === "acked");
 }
+/** P3.2: the ED's own count of sequence numbers it told the vehicle it already had — never estimated from a
+ * sequence gap. Older recorded fixtures may predate this field, so it is optional; absent means unknown. */
+export function reconciledDuplicates(s: Snapshot): number | null {
+  return typeof s.relay.duplicates_acked === "number" ? s.relay.duplicates_acked : null;
+}
 
 // ---------- patient picture groups (§3.1.9) ----------
 export const GROUPS: [string, (key: string) => boolean][] = [
@@ -169,4 +174,49 @@ export function groupFacts(facts: FactView[]): [string, FactView[]][] {
   }
   if (other.length) out.push(["Other", other]);
   return out.filter(([, fs]) => fs.length);
+}
+
+// ---------- field-triage / county trauma criteria checklist ----------
+// Speech recall on trauma.criteria measures ~0.2: most injury-pattern/mechanism criteria a medic actually
+// observes are never heard by the model, so the score must not look like an automatic screen. A criterion the
+// contract marks `tap` (a plain "value described in a list key" rule) becomes a one-tap checklist item instead
+// of a silent gap; everything else (vitals, medications, a recorded procedure) stays a read-only line sourced
+// from its own capture flow, per the "never invent what the backend can't record" rule.
+export function criteriaScore(s: Snapshot, id: string): CriteriaScoreDetail | undefined {
+  return (s.scores as unknown as Record<string, CriteriaScoreDetail | undefined>)[id];
+}
+export interface TraumaCriterionRow {
+  code: string | null; label: string; group: string;
+  /** "confirmed": counts toward the score now. "unconfirmed": heard or tapped, needs one more tap to confirm.
+   * "unmarked": tappable but nothing recorded yet. "computed": no tap target; state comes from the live score. */
+  status: "confirmed" | "unconfirmed" | "unmarked" | "computed";
+  computedState?: "met" | "not_met" | "unknown";
+  factId?: string; tap?: { key: string; value: string };
+}
+function flattenLive(rows: import("./types").CriteriaRow[] | undefined): Map<string, import("./types").CriteriaRow> {
+  const out = new Map<string, import("./types").CriteriaRow>();
+  for (const r of rows ?? []) {
+    if (r.code) out.set(r.code, r);
+    for (const p of r.parts ?? []) if (p.code) out.set(p.code, p);
+  }
+  return out;
+}
+/** For a `tap` criterion not yet met, has the medic (or speech) already put a matching, non-rejected fact on the
+ * record? Prefers a confirmed occurrence; otherwise the most recent unconfirmed one. Scans `timeline` because
+ * an accumulating list key (trauma.criteria) keeps one fact per utterance/tap, not one merged fact per key. */
+function matchingFact(s: Snapshot, tap: { key: string; value: string }): FactView | undefined {
+  const hits = s.timeline.filter((f) => f.key === tap.key && f.status !== "rejected"
+    && Array.isArray(f.value) && (f.value as string[]).some((v) => v.toLowerCase() === tap.value.toLowerCase()));
+  return hits.find((f) => f.status === "confirmed") ?? hits.at(-1);
+}
+export function traumaCriteriaRows(s: Snapshot, contractRows: ContractCriterion[] | undefined, scoreId: string): TraumaCriterionRow[] {
+  const live = flattenLive(criteriaScore(s, scoreId)?.criteria);
+  return (contractRows ?? []).map((c): TraumaCriterionRow => {
+    const liveState = c.code ? live.get(c.code)?.state : undefined;
+    if (!c.tap) return { code: c.code, label: c.label, group: c.group, status: "computed", computedState: liveState };
+    if (liveState === "met") return { code: c.code, label: c.label, group: c.group, status: "confirmed", tap: c.tap };
+    const fact = matchingFact(s, c.tap);
+    if (fact) return { code: c.code, label: c.label, group: c.group, status: fact.status === "confirmed" ? "confirmed" : "unconfirmed", factId: fact.id, tap: c.tap };
+    return { code: c.code, label: c.label, group: c.group, status: "unmarked", tap: c.tap };
+  });
 }

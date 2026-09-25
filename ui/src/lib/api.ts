@@ -41,6 +41,11 @@ export const api = {
   confirmMany: (ids: string[]) => act(`confirm-many:${ids.slice().sort().join(",")}`, "/api/facts/confirm", { ids }, "Couldn't confirm these readings. Review them and try again."),
   reject: (factId: string) => act(`reject:${factId}`, `/api/facts/${factId}/reject`, undefined, "Couldn't reject. The Herald server didn't answer. Try again."),
   correct: (factId: string, value: unknown) => act(`correct:${factId}`, `/api/facts/${factId}/correct`, { value }, "Couldn't save the correction. Check the value and try again."),
+  // A medic tapping a criterion the model never heard: the same generic structured-fact endpoint every manual
+  // entry uses (ManualEntry), so it starts unconfirmed like any other structured reading and needs the usual tap
+  // to confirm. No new write path.
+  markCriterion: (key: string, value: string) => act(`mark:${key}:${value}`, "/api/facts",
+    [{ key, value: [value], unit: null }], "Couldn't record that. The Herald server didn't answer. Try again."),
   retryTranscript: (entryId: string) => act(`retry:${entryId}`, `/api/transcripts/${encodeURIComponent(entryId)}/retry`, undefined,
     "Couldn't retry these preserved words. Check that the local extractor is available."),
   authorize: (destination: string) => act("authorize", "/api/relay/authorize", { destination },

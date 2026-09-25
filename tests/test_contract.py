@@ -69,6 +69,41 @@ def test_bundled_keys_match_current_vocabulary():
     assert all(bundled[key]["label"] == meta["label"] for key, meta in default_vocabulary().keys.items())
 
 
+def test_bundled_contract_matches_the_live_export():
+    """The bundled contract (ui/public/contract/*.json) is what a fixture/offline replay uses for labels — every
+    file, not just keys.json. A stale bundle (e.g. a score added after the last export) shows raw key names in
+    replay mode even though live /api/meta is correct. Regenerate with scripts/export_ui_contract.py."""
+    _, ctx = make_client()
+    for name, content in ctx.contract.files().items():
+        bundled = json.loads((ROOT / "ui/public/contract" / name).read_text())
+        assert bundled == json.loads(json.dumps(content)), f"{name} is stale — run scripts/export_ui_contract.py"
+
+
+def test_trauma_criteria_tap_targets_are_real_writable_facts():
+    """Speech recall on trauma.criteria is low (~0.2), so the medic screen renders every Policy 605 criterion as a
+    checklist, not just the ones already heard. Each `tap` the contract offers must be an exact key/value POST
+    /api/facts already accepts and default_vocabulary() already validates -- no new write path, and never a value
+    the medic could tap that the county text doesn't actually describe."""
+    _, ctx = make_client()
+    vocab = default_vocabulary()
+    rows = ctx.contract.score_defs()["trauma_605"]["criteria"]
+    tapped = [r for r in rows if "tap" in r]
+    assert len(tapped) >= 15, "most Policy 605 injury-pattern/mechanism criteria should be tappable"
+    for row in tapped:
+        tap = row["tap"]
+        assert tap["key"] == "trauma.criteria"
+        meta = vocab.meta(tap["key"])
+        assert meta["type"] == "list" and meta["merge"] == "accumulate"
+        assert tap["value"] in meta["enum"], (row["code"], tap["value"])
+    # Vitals/medication/computed criteria (GCS, RR, SpO2, SBP-by-age, HR>SBP, anticoagulants, pregnancy weeks,
+    # a recorded procedure) have no free-text value to tap and must stay read-only, not silently fabricated.
+    read_only_codes = {r["code"] for r in rows if "tap" not in r}
+    assert {"J", "K", "M", "N.1", "N.2", "N.3", "N.4", "X.1"} <= read_only_codes
+    # The generic (non-county) national field-triage score has no injury-pattern text list at all: every row
+    # there is vitals/medication-based, so nothing should be tappable.
+    assert all("tap" not in r for r in ctx.contract.score_defs()["field_triage"]["criteria"])
+
+
 def test_county_switch_is_live():
     c, _ = make_client()
     assert c.post("/api/county/generic").json()["primary_stroke_scale"] == "RACE"

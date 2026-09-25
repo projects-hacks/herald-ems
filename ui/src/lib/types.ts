@@ -65,6 +65,17 @@ export interface StrokeScale {
 }
 export interface FieldTriage { name: string; red: string[]; yellow: string[]; missing: string[]; source: string }
 export type StrokeScaleId = "RACE" | "GFAST";
+/** A live, per-patient criteria score's own detail (trauma_605, field_triage, sepsis_700a04, stemi_700a08),
+ * evaluated from confirmed facts only (herald/scoring/criteria.py). Not in `Scores` below because it is read
+ * by score id, not by a fixed field name; see selectors.ts's criteriaScore(). */
+export interface CriteriaRow {
+  code: string | null; label: string; state: "met" | "not_met" | "unknown"; group?: string;
+  finding?: string; needs?: string[]; parts?: CriteriaRow[];
+}
+export interface CriteriaScoreDetail {
+  name: string; county: string | null; applies: boolean; met: boolean; level: string | null;
+  complete: boolean; missing: string[]; criteria: CriteriaRow[]; source: string; thresholds: string | null;
+}
 export interface Scores {
   news2: News2; news2_history: News2Point[]; race: StrokeScale; gfast: StrokeScale; field_triage: FieldTriage;
   stroke_scales: StrokeScaleId[];          // the county's scales, primary first
@@ -73,7 +84,8 @@ export interface Scores {
 
 // ---------- alerts ----------
 export type Alert =
-  | { type: "trauma_alert_criteria" | "sepsis_prenotification"; label: string; level: string; score: string; criteria: string[]; county_rule?: string[]; county?: string }
+  | { type: "trauma_alert_criteria"; label: string; level: string; score: string; criteria: string[]; county_rule?: string[]; county?: string }
+  | { type: "sepsis_prenotification"; label: string; level: string; score: string; criteria: string[]; county_rule?: string[]; county?: string }
   | { type: "contradiction"; key: string; label: string; confirm_fact_id: string; facts: FactView[] }
   | { type: "confirm_required"; key: string; label: string; confirm_fact_id: string; facts: FactView[] }
   | { type: "significant_change"; key: string; label: string; series: number[];
@@ -148,7 +160,7 @@ export interface RelayStatus {
   authorized: { destination: string; scope: string; at: string } | null;
   link: LinkState; pending: { patient?: string; key: string; priority: number; why: string }[];
   sync: Record<string, "sent" | "queued">; bytes_sent: number; local_bytes: number;
-  kept_local_pct: number; packets_acked: number; retries: number; last_ack_at: string | null;
+  kept_local_pct: number; packets_acked: number; retries: number; duplicates_acked?: number; last_ack_at: string | null;
   clinician_acknowledgements?: Record<string, { at: string; status: "received" | "cath_lab_activated"; note?: string | null }[]>;
   log: RelayLogEntry[];
 }

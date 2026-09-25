@@ -25,7 +25,8 @@ class FakeED:
         lost_request = self.rng.random() < self.fail_rate / 2
         if lost_request:
             raise ConnectionError("request lost")
-        if p["q"] in self.applied:
+        duplicate = p["q"] in self.applied
+        if duplicate:
             self.duplicates += 1
         else:
             self.fields.update(p["f"])
@@ -41,7 +42,7 @@ class FakeED:
             self.bytes.append(len(wire))
         if self.rng.random() < self.fail_rate / 2:   # applied, but the ACK is lost -> sender retries
             raise ConnectionError("ack lost")
-        return {"ack": p["q"]}
+        return {"ack": p["q"], "duplicate": duplicate} if duplicate else {"ack": p["q"]}
 
 
 def build_incident():
@@ -92,6 +93,38 @@ def test_reconciles_exactly_over_a_flaky_link():
         crit = r.critical_values()
         assert {k: ed.fields.get(k) for k in crit} == crit, f"seed {seed}: lost or stale fields"
         assert len(ed.applied) == len(set(ed.applied))       # no packet applied twice
+        assert r.duplicates_acked == ed.duplicates, f"seed {seed}: relay's own count disagrees with the ED's"
+
+
+def test_reconciliation_counter_reflects_a_real_retry_not_a_guess():
+    """P3.2: the 'N duplicates' shown after a restore is the ED's own count of resent sequence numbers it
+    already had, not a client-side estimate. An ack that gets lost after the ED applied the packet forces
+    exactly one retry, which the ED reports back as a duplicate; nothing here is inferred from a sequence gap.
+    A dispatch that opens no checklist keeps the incident's only pending field at one (no synthetic
+    "alert.readiness" riding along), so a failed send does not also drop the in-flight packet for being
+    oversized on a now-degraded link (relay.py's own weak-link shed rule)."""
+    inc = Incident(dispatch="abdominal pain")
+    fact = inc.ingest(FactIn(key="vitals.hr", value=92, captured_by=CapturedBy.medic, confidence=0.99), record=False)
+    inc.set_status(fact.id, Status.confirmed)
+    inc.commit()
+    ed = FakeED()
+    ack_lost_once = {"done": False}
+
+    async def flaky_once(wire: bytes) -> dict:
+        result = await ed(wire)
+        if not ack_lost_once["done"]:
+            ack_lost_once["done"] = True
+            raise ConnectionError("ack lost")   # the ED applied it; the client never saw the ack
+        return result
+
+    r = Relay(lambda: inc, transport=flaky_once)
+    r.authorize("Valley Medical")
+    assert r.status()["duplicates_acked"] == 0
+    asyncio.run(r.tick())   # applied at the ED, but the client times out and keeps the packet in flight
+    assert r.duplicates_acked == 0 and r.inflight is not None
+    asyncio.run(r.tick())   # retry: same sequence number, the ED reports it back as a duplicate
+    assert r.duplicates_acked == 1 == ed.duplicates
+    assert r.status()["duplicates_acked"] == 1
 
 
 def test_unconfirmed_facts_never_leave():

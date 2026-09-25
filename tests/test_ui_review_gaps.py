@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -6,6 +7,8 @@ from fakes import make_client
 from herald.core.incident import IncidentEnded
 from herald.core.schema import CapturedBy, FactIn, Role
 from ed_receiver.app import app, INCIDENTS, LINK
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 def test_stale_patient_capture_rejected_and_late_work_never_reaches_the_new_patient():
@@ -63,3 +66,19 @@ def test_ed_report_uses_received_facts_and_preserves_event_history():
         assert client.get("/api/handoff/test-patient?format=invalid").status_code == 400
     finally:
         INCIDENTS.clear(); LINK["last_contact_at"] = None
+
+
+def test_no_locale_ambiguous_clock_in_frontend_source():
+    """TIME: every clinical time is 24h everywhere (ui/src/lib/format.ts's hhmm/clockTime, view.mjs's hhmm) —
+    never Date.toLocaleTimeString()/toLocaleString(), which renders 12-hour AM/PM in most locales."""
+    banned = ("toLocaleTimeString", "toLocaleString(")
+    hits = []
+    for base in (ROOT / "ui" / "src", ROOT / "ed_receiver" / "web"):
+        for path in base.rglob("*"):
+            if path.suffix not in (".ts", ".tsx", ".js", ".mjs") or "/test/" in path.as_posix():
+                continue
+            text = path.read_text()
+            for needle in banned:
+                if needle in text:
+                    hits.append(f"{path.relative_to(ROOT)}: {needle}")
+    assert not hits, hits

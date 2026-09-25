@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useHerald } from "@/lib/store";
 import { Card, CardHeader } from "@/components/kit";
+import { hhmm } from "@/lib/format";
 
 interface Report {
   incident: { id: string }; as_of: string; text: string;
@@ -35,7 +36,7 @@ export function HandoffReport() {
       <label className="text-body">Format<select className="ml-3 min-h-12 rounded-lg border border-border-control bg-surface-2 px-3" value={format} onChange={(e) => setFormat(e.target.value)}><option value="">Automatic</option>{(visible?.formats ?? report?.formats ?? []).map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}</select></label>
       {error ? <p role="alert">{error} <button className="min-h-12 px-3 text-herald-accent" onClick={() => setRetry((n) => n + 1)}>Retry</button></p> : !visible ? <p role="status">Loading report…</p> : <>
         <h3 className="mt-4 text-title font-semibold">{visible.format.title}</h3>
-        <p className="text-meta text-text-muted">As of {new Date(visible.as_of).toLocaleTimeString()}</p>
+        <p className="text-meta text-text-muted">As of {hhmm(visible.as_of)}</p>
         <div className="mt-4 space-y-5">{visible.sections.map((section) => <section key={section.id}><h4 className="text-title font-semibold">{section.label}</h4><ul className="space-y-3 text-critical leading-relaxed">{section.lines.map((line, i) => <li key={i} className={line.status === "missing" ? "text-text-muted" : ""}>{line.text}</li>)}</ul></section>)}</div>
         {visible.not_yet_known.length > 0 && <p className="mt-4 text-body">Not yet known: {visible.not_yet_known.map((f) => f.label).join(" · ")}</p>}
         {visible.not_yet_confirmed.length > 0 && <p className="mt-3 text-body text-medium-fg">Not yet confirmed (not in report): {visible.not_yet_confirmed.map((f) => f.label).join(" · ")}</p>}
