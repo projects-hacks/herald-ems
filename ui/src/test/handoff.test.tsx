@@ -29,4 +29,11 @@ describe("handoff claims", () => {
     expect(screen.getByRole("region", { name: "Read-aloud handoff" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Download handoff draft" })).toBeTruthy();
   });
+  it("shows the recorded scenario's snapshot report expanded in replay mode, not an unavailable notice", () => {
+    useHerald.setState({ snapshot: structuredClone(snapshot), source: "fixture" });
+    render(<HandoffPage />);
+    expect(screen.getByRole("region", { name: "Read-aloud handoff" })).toBeTruthy();
+    expect(screen.queryByText(/does not include a full handoff report/)).toBeNull();
+    expect(screen.queryByText("Snapshot summary and text export")).toBeNull(); // not collapsed behind a <details> in replay
+  });
 });

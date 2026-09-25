@@ -164,6 +164,31 @@
       }
     ]
   },
+  "stemi_700a08": {
+    "name": "STEMI Alert (700-A08)",
+    "kind": "criteria",
+    "county": "santa_clara",
+    "source": "Santa Clara County EMS Protocol 700-A08 STEMI, §3.2",
+    "thresholds": "12-lead monitor interpretation documented as STEMI / acute MI suspected",
+    "relay_key": "score.stemi_700a08",
+    "groups": [
+      {
+        "id": "trigger",
+        "label": "STEMI interpretation documented (700-A08 §3.2)",
+        "short": "STEMI",
+        "met": true,
+        "priority": "high"
+      }
+    ],
+    "criteria": [
+      {
+        "group": "trigger",
+        "code": "3.2",
+        "label": "12-lead monitor interpretation reads STEMI",
+        "parent": null
+      }
+    ]
+  },
   "trauma_605": {
     "name": "Trauma Alert criteria (Policy 605)",
     "kind": "criteria",

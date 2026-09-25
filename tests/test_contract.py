@@ -69,6 +69,16 @@ def test_bundled_keys_match_current_vocabulary():
     assert all(bundled[key]["label"] == meta["label"] for key, meta in default_vocabulary().keys.items())
 
 
+def test_bundled_contract_matches_the_live_export():
+    """The bundled contract (ui/public/contract/*.json) is what a fixture/offline replay uses for labels — every
+    file, not just keys.json. A stale bundle (e.g. a score added after the last export) shows raw key names in
+    replay mode even though live /api/meta is correct. Regenerate with scripts/export_ui_contract.py."""
+    _, ctx = make_client()
+    for name, content in ctx.contract.files().items():
+        bundled = json.loads((ROOT / "ui/public/contract" / name).read_text())
+        assert bundled == json.loads(json.dumps(content)), f"{name} is stale — run scripts/export_ui_contract.py"
+
+
 def test_county_switch_is_live():
     c, _ = make_client()
     assert c.post("/api/county/generic").json()["primary_stroke_scale"] == "RACE"
