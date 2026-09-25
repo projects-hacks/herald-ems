@@ -273,3 +273,210 @@ Everything runs locally.
 **Acceptance:** at least 5 speakers and at least 100 clips; numbers with confidence intervals in MODEL_PLAN.
 
 **Pitfalls:** don't use judges' or strangers' voices without consent, and never real patients.
+
+## S9. Agentic capture: Herald decides when to look (U-capture → Tushar)
+
+**Goal.** Herald's eyes work without the medic. A camera (the tablet or phone on a mount, or a USB camera on the box)
+feeds frames to the backend. A cheap filter drops almost all of them. An **agent policy** decides when a frame is
+worth reading (the monitor changed; speech mentioned a drug being given or a POLST; a new alert; the handoff is
+near). The chosen frame goes to the vision model, and the facts land in the patient picture **unconfirmed**, with the
+frame as evidence. A **"Show Herald"** button keeps the manual path. **Vision also checks speech:** when the medic
+says a drug is being given, Herald reads the vial label in view and flags a mismatch ("said naloxone, label reads
+ondansetron").
+
+**Why.** Voice gives actions and history, and vision gives readings and documents. The medic has no free hands to
+take photos in an emergency, so the agent captures and proposes, and the medic only confirms. This is the product's
+"copilot, not autopilot" line made visible.
+
+**The agent's limits (invariants; tests enforce them):**
+- It **may** decide when to capture, pick the frame, read it, add unconfirmed facts, attach evidence, flag a
+  mismatch, and refresh vitals and trends.
+- It **never** confirms its own readings (photo facts always start unconfirmed: AGENTS.md invariant 4), never acts on
+  the patient, never recommends, and never changes a spoken fact because of what it saw. A mismatch is a flag the
+  medic resolves.
+- **No video goes to the model.** Only chosen still frames do, and speech always has priority on the GPU.
+- **Privacy.** Frames live in memory only (a few-second ring buffer). A frame is written to disk only if it produced a
+  fact or a flag, and faces are blurred before it is stored. The camera is aimed at the equipment and the stretcher
+  area. An on-screen "Herald sees" indicator shows whenever it's on, and it can be switched off. It is off by default.
+
+**Constraints:**
+- The 30B is being trained until about Fri 2–3 AM PDT, so **no model or GPU load during development.** Build and test
+  everything against fakes (`tests/fakes.py`) and a replay frame source. The real-model check happens after
+  `herald-f` serves.
+- The deadline is Fri 11 PM PDT.
+- Follow AGENTS.md rule 4: package by responsibility, interfaces in `herald/core/ports.py`, wiring only in the
+  composition root, content in `config/`, settings in `herald/config/settings.py`, and the API contract recorded in
+  `docs/UX_PLAN.md` §5 in the same PR.
+- Work in your own clone (`~/work/tushar-fs/herald-ems`) on branch `feat/agentic-capture`; commits as you; PR to main.
+
+### Design (package `herald/capture/`, one responsibility per module, each under ~300 lines)
+
+| Module | Responsibility | Key types |
+|---|---|---|
+| `herald/core/ports.py` | Interfaces: `FrameSource.frames() -> Iterator[Frame]` and `close()`; `IncidentListener.on_change(event: IncidentEvent)` | `Frame(id, ts, jpeg: bytes, w, h, source)` and `IncidentEvent(kind: facts_added\|alert_new\|eta_changed, facts, summary_diff)`, dataclasses in `herald/capture/types.py` |
+| `sources.py` | Frame sources behind `FrameSource` | `BrowserFrameSource` (frames pushed from a page over the WebSocket below), `LocalCameraSource` (USB/V4L2 camera on the box via OpenCV, optional), `ReplayFrameSource` (a folder of JPEGs at a given fps: tests and demo rehearsal) |
+| `gate.py` | The cheap filter; numpy + PIL only; about 5 ms per frame at 320 px grey | `FrameGate.assess(frame, roi) -> GateResult(sharp: float, changed: float, bright: float, passed: bool, reason)`. Sharpness is the variance of a 3×3 Laplacian; change is the mean absolute difference against the last *accepted* frame inside the ROI; brightness rejects frames that are too dark or blown out. Thresholds come from config. |
+| `buffer.py` | Ring buffer of the last N seconds of gated frames; pick the best frame in a time window | `FrameBuffer.add(frame, gate)` and `best(since, until, roi=None) -> Frame \| None` (the sharpest frame that passed the gate) |
+| `policy.py` | **The agent's decision rules, from config:** which event triggers which capture | `CapturePolicy.on_event(event) -> list[CaptureIntent]` and `on_tick(now, gate_state) -> list[CaptureIntent]`; `CaptureIntent(trigger, mode, window_s, roi_target, purpose: record\|verify)` |
+| `scheduler.py` | Rate limit and priority | A token bucket (default one automatic vision call per 10 s; manual captures bypass it); at most one automatic vision request in flight; **skips when a speech extraction is running** (`ctx.text_model` busy flag, or a counter of in-flight `_extract` tasks in `CaptureService`) |
+| `verify.py` | Deterministic check of speech against vision (no model) | `DrugCheck.compare(dose_fact, frame_facts) -> match\|mismatch\|unreadable`, comparing RxNorm-coded drug names (both sides go through the existing `ctx.coder`). A match attaches the frame as evidence on the dose record. A mismatch sets a hold on the dose ("Said naloxone; label seen: ondansetron: check before confirming") and raises a caution-level check item. Unreadable does nothing. |
+| `privacy.py` | Face blur and storage decisions | `blur_faces(jpeg) -> jpeg` (OpenCV Haar frontal-face cascade shipped with OpenCV, Gaussian-blur each box); `store(frame) -> photo_id` only for frames that produced a fact or a flag, written to `settings.photo_dir / "auto"` (gitignored, like `data/photos/*`) |
+| `agent.py` | Orchestration: consumes frames, runs the gate and buffer, asks the policy, schedules, calls `CaptureService.photo(...)`-style reading, runs `DrugCheck` for verify intents, records the trace | `CaptureAgent.start()/stop()`, an asyncio task in the app; `last_decisions` for the status endpoint |
+
+**Where it plugs in:**
+- `herald/api/capture.py`: add an observer list. After `ingest_batch` and in `_extract` (after the model's facts
+  land), emit `IncidentEvent(facts_added, facts, tracer.diff(before, after))`. When the summary diff shows a new
+  alert, emit `alert_new`; when `transport.eta_min` changes, emit `eta_changed`. `CaptureAgent` registers as a
+  listener in the composition root (`herald/api/context.py`). This is the only change to existing capture code.
+- **Reading a chosen frame** reuses the photo path, `CaptureService.photo(raw, mode)`, extended with provenance
+  arguments: `trigger`, `frame_id`, `auto=True`. The trace entry kind stays "camera", with `trigger`, `reason` and a
+  thumbnail id.
+- **Verify intents** (a drug given by the crew) read the frame with the `pill_bottle` prompt but **do not add
+  `meds.list` facts** (a vial being drawn up is not a home medication). They feed `DrugCheck` only.
+- **Record intents** (monitor, bottle bag, POLST) add facts as usual: monitor → vitals, bottles → `meds.list`, form →
+  `code_status`. Photo facts are unconfirmed.
+- **Duplicate suppression for the monitor:** if every value read equals the latest fact for that key and the last
+  monitor fact is under `max_interval_s` old, add nothing (log "unchanged"). Trends still get a point at least every
+  `max_interval_s`.
+- **ROI (region of interest).** The medic (or the demo operator) draws a box around the monitor once on the camera
+  preview, then `POST /api/capture/roi`, stored per incident. Monitor captures are cropped to the ROI (plus a 10%
+  margin) before reading, which matters because a mounted camera sees the monitor small. Without an ROI, monitor
+  watch is off and only speech-triggered and manual captures run.
+
+### Content: `config/capture.yaml` (reviewed data, with a comment on every number)
+
+```yaml
+fps_in: 1                      # frames the source sends per second
+gate: {sharp_min: 60, change_min: 0.06, bright_min: 25, bright_max: 235, width: 320}
+buffer_s: 6
+rate: {auto_calls_per_s: 0.1, max_in_flight: 1, skip_while_speech: true}
+monitor: {roi_margin: 0.10, stable_frames: 2, min_interval_s: 15, max_interval_s: 60}
+triggers:                      # the agent's rules: event -> capture. Keys come from the MODEL's facts, not phrases.
+  - {on: fact, key: meds.given, where: {by: crew}, mode: pill_bottle, purpose: verify, window_s: 8}
+  - {on: fact, key: meds.list, mode: pill_bottle, purpose: record, window_s: 8}
+  - {on: fact, key: meds.anticoagulant, mode: pill_bottle, purpose: record, window_s: 8}
+  - {on: fact, key: code_status, mode: form, purpose: record, window_s: 10}
+  - {on: alert_new, mode: monitor, purpose: record}
+  - {on: eta_changed, when: {lte: 5}, mode: monitor, purpose: record, once: true}
+suppress_during: [cpr_in_progress]        # a checklist/state id, if present: record-only monitor captures continue
+privacy: {store: used_only, blur_faces: true, dir: auto}
+```
+
+**Why triggers use the model's facts and not phrase lists:** AGENTS.md says extraction fixes go into the model, not
+regexes. The model already turns "drawing up 0.4 of Narcan" into a `meds.given` record, so the agent reacts to that
+record, not to words.
+
+### Settings (`herald/config/settings.py`)
+- `HERALD_CAPTURE_SOURCE`: `off` (default), `browser`, `local:/dev/video0` or `replay:<dir>`.
+- `HERALD_CAPTURE_AUTO`: `0` (default) or `1`, the starting state of the switch.
+- The config file path, if needed.
+
+### API contract (record all of it in `docs/UX_PLAN.md` §5, with TypeScript types)
+- `WS /ws/frames`: binary JPEG messages from the capture page (≤ 1280 px long side, ≤ `fps_in`). The server replies
+  `{accepted, gate: {sharp, changed, passed}}` at most once a second, for the preview indicator.
+- `GET /api/capture/status` → `{auto, source, fps_in, roi, last: {ts, trigger, mode, reason, facts, photo_id} | null,
+  counts: {frames, gated, captured, stored}}`.
+- `POST /api/capture/auto {on: bool}`: the on/off switch. Off stops everything, and the buffer is cleared.
+- `POST /api/capture/roi {x0, y0, x1, y1}` (normalized 0–1, target `monitor`); `DELETE` clears it.
+- `POST /api/capture/now {mode?: monitor|pill_bottle|form|scene}`: the manual "Show Herald" button. It takes the best
+  frame of the last 2 s (or the next frame), bypasses the gate and the rate limit, and uses the same read path.
+- **Snapshot:** add a `capture` block (`auto`, `source`, `sees: off|watching|reading`, and the last decision). Trace
+  entries for automatic captures carry `trigger`, `reason` ("monitor changed 12%", "speech: fentanyl given → read the
+  vial label", "new alert: STEMI → monitor"), `photo_id` and the facts.
+- **A dose record with a mismatch** carries `provenance.hold_reason` and a `verify: {status: mismatch|match,
+  label_drug, photo_id}` field on its fact view.
+
+### Capture page (`web/capture.html`, served by the backend) and NOW screen (`ui/`, Tushar)
+1. **Capture page, continuous mode:** `getUserMedia` (rear camera), draws to a canvas, sends a JPEG every
+   1/`fps_in` s over `/ws/frames`, and shows a live preview with the ROI drawn.
+   - **Secure context needed:** `getUserMedia` works only on HTTPS or localhost. Options: run the page on the
+     presenter laptop via `http://localhost:<port>` (SSH port forward, as for the mic), or serve HTTPS with a
+     self-signed certificate (a setting). Document both. The existing one-tap photo mode (`<input capture>`) stays
+     as the fallback.
+   - **Drawing the ROI:** drag a box on the preview → `POST /api/capture/roi`.
+2. **NOW screen:**
+   - **"Herald sees" indicator:** off (grey), watching (steady), or reading (pulse, while a vision call runs).
+     Colors and motion follow UX_PLAN's alarm rules; this is status, not an alarm.
+   - **On/off toggle.**
+   - **"Show Herald" button**, with a mode picker defaulting to auto (monitor if an ROI is set, else label).
+   - **Trace cards for automatic captures:** thumbnail, trigger and reason, facts proposed, and confirm taps
+     (unchanged).
+   - **Mismatch:** a caution-level check item on the dose ("Said naloxone · label: ondansetron"), with the thumbnail
+     and the two actions "Keep as said" or "Edit"; the medic decides. A match shows a small "label seen ✓" badge on
+     the dose.
+
+### OpenCV (face blur, optional camera source)
+There's no `cv2` in the zgx env. Install **without dependencies** so pip can't touch numpy or torch: first
+`~/miniforge3/envs/zgx/bin/pip install --dry-run --no-deps opencv-python-headless` (check the version), then the real
+install with `--no-deps`, and `python -c "import cv2, numpy, torch; print(cv2.__version__, numpy.__version__,
+torch.__version__)"` before and after (torch and numpy versions must not change).
+- If the wheel can't import against the env's numpy, keep `blur_faces` behind a feature check, set
+  `privacy.store: none` (keep no frames at all; facts keep a text provenance), and report it.
+- `LocalCameraSource` is optional; the browser source is the demo path.
+
+### Tests (fakes only, no GPU)
+- **`tests/test_capture_gate.py`:** sharp vs blurred frames (synthesize with PIL blur), change detection inside vs
+  outside the ROI, too dark or too bright.
+- **`tests/test_capture_policy.py`:**
+  - every trigger in the config maps to the right intent;
+  - a `meds.given` fact by family (not crew) does not trigger verify;
+  - `eta_changed` fires once at ≤ 5;
+  - suppression works.
+- **`tests/test_capture_scheduler.py`:** the token bucket, one in flight at most, a skip while speech is in flight,
+  manual captures bypass it.
+- **`tests/test_capture_verify.py`:** match, mismatch and unreadable. Both sides coded with the real RxNorm coder, as
+  in `tests/test_build_train_set.py`, so "Narcan" and a "naloxone hydrochloride" label match. A mismatch sets the hold
+  and never changes the dose value.
+- **`tests/test_capture_agent.py`,** with `ReplayFrameSource` and a `FakeVision` that returns canned facts per frame
+  id, driving the app through the HTTP API:
+  - monitor changes → new unconfirmed vitals with trigger `monitor_changed`;
+  - unchanged frames → no duplicates;
+  - "we're drawing up 0.4 of Narcan" (fake extractor returns `meds.given` by crew) plus an ondansetron label frame in
+    the window → a mismatch flag on the dose and no `meds.list` fact;
+  - a matching label → evidence attached;
+  - `POST /api/capture/now` works with auto off;
+  - auto off → zero vision calls;
+  - privacy: no files written for frames that produced nothing; stored frames went through `blur_faces`.
+- **The contract test** (`tests/test_contract.py` pattern): the new snapshot fields and trace fields exist and are
+  typed.
+- **`python -m pytest -q`** passes (the whole suite).
+
+### Demo replay
+`scenarios/auto_capture_demo.json` plus `scenarios/frames/auto_capture/` (synthetic frames: render monitor frames
+with `scripts/vision_train` renderers or pick from `eval/photos`; a vial label frame; a POLST frame from
+`eval/forms_polst`; no real patient photos).
+- **Steps:** speech lines interleaved with frame timestamps. `scripts/replay.py` learns a `frames` step that streams
+  the folder into `/ws/frames` (or `ReplayFrameSource` via the setting).
+- **Show:**
+  1. monitor watch updates vitals by itself;
+  2. "drawing up 0.4 of Narcan" plus an ondansetron vial → the mismatch card;
+  3. "her POLST is on the fridge" plus the form frame → code status (unconfirmed);
+  4. the Show Herald button.
+
+### Acceptance (on the real model, after `herald-f` serves; the reviewer re-runs each number 3 times)
+1. **Monitor watch** (a phone showing a patient-monitor simulator app or a monitor image, camera on a mount, ROI set):
+   - changed values appear as unconfirmed vitals within ≤ 20 s;
+   - unchanged screens add nothing;
+   - ≤ 1 automatic vision call per 10 s (from `counts`).
+2. **Mismatch catch:** 5/5 on the replay; a match gives "label seen ✓" on 5/5.
+3. **Speech is not slowed:** extraction p95 with capture on is within 10% of capture off (3 runs each, same
+   utterances).
+4. **Privacy:**
+   - no frame files for frames that produced nothing;
+   - faces blurred on stored frames (spot check);
+   - the indicator is correct in all three states.
+5. **Stability:** a 30-minute soak (`scripts/soak.py`) with capture on at 1 fps. No memory growth over 1 GiB, and the
+   memory guard (`docs/MEMORY_SAFETY.md`) never warns. The capture code runs in the app process, on the CPU; it
+   loads no model.
+6. **Docs:** this spec's contract in `docs/UX_PLAN.md` §5; TASKS.md row; README "What Herald does" gains one line.
+
+### Pitfalls
+- Don't send every frame to the model: the gate and the policy exist so that the 30B (1–3 s per image) is called
+  rarely.
+- Don't store frames by default, and never commit any (`data/photos/*` stays gitignored).
+- Browser camera needs HTTPS or localhost (see the capture page).
+- Never `pkill -f uvicorn` (AGENTS.md pitfalls).
+- Don't load any model on the box while the 30B trains (until about Fri 3 AM PDT). The memory guard refuses GPU jobs
+  next to the training run anyway.
+
+**What needs Rajeev:** the ROI UX sign-off, and the real-model acceptance run after the gates.
