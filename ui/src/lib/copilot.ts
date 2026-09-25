@@ -155,10 +155,11 @@ export function batchedIds(s: Snapshot): Set<string> {
 export type PresenceTone = "ok" | "idle" | "down" | "replay";
 export interface Presence { tone: PresenceTone; text: string }
 export function presence(o: {
-  replay: boolean; offline: boolean; hasSnapshot: boolean; health: Health | null;
+  replay: boolean; elsewhere?: boolean; offline: boolean; hasSnapshot: boolean; health: Health | null;
   listening: boolean; micError: string | null; monitorWatching: boolean; cameraError: string | null;
 }): Presence {
   if (o.replay) return { tone: "replay", text: "Demo replay · recorded scenario" };
+  if (o.elsewhere) return { tone: "replay", text: "Listening and watching in another Herald tab — this one shows the call" };
   if (o.offline) return { tone: "down", text: !o.hasSnapshot ? "Connecting to the vehicle…"
     : o.listening ? "Vehicle server not answering — still listening; speech is held and sent when it returns"
     : "Offline — vehicle server disconnected, showing last state" };

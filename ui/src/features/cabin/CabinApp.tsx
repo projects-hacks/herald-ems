@@ -20,6 +20,7 @@ import { HandoffPage } from "@/pages/HandoffPage";
 import type { CameraStatus } from "./CameraCapture";
 import { CameraWorkspace } from "./CameraWorkspace";
 import { useAmbient } from "./useAmbient";
+import { useCaptureOwner } from "./captureOwner";
 import "./workspace.css";
 import "./capture-workspace.css";
 import "../copilot/copilot.css";
@@ -43,6 +44,8 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   const stale = useHerald((st) => st.stale || st.conn !== "open");
   const setUi = useHerald((st) => st.setUi);
   const a = useAttention();
+  useCaptureOwner();                        // one tab listens and watches; others only show the call
+  const elsewhere = useHerald((st) => st.captureElsewhere);
   const ambient = useAmbient();
   const [panel, setPanel] = useState<Panel>(null);
   const [recordView, setRecordView] = useState<RecordView>("facts");
@@ -77,7 +80,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   const recording = ambient.status.listening || ambient.status.starting;
   const identity = s?.facts["patient.name"];
   const isReplay = source === "fixture";
-  const pill = presence({ replay: isReplay, offline: stale, hasSnapshot: !!s, health,
+  const pill = presence({ replay: isReplay, elsewhere, offline: stale, hasSnapshot: !!s, health,
     listening: ambient.status.listening, micError: ambient.status.error ? ambient.status.message : null,
     monitorWatching: !!(monitor.active || (s?.capture?.auto && s.capture.sees !== "off")),
     cameraError: s?.capture?.error ?? (monitor.error ? monitor.message : null) });

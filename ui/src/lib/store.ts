@@ -38,6 +38,8 @@ export interface HeraldState {
   lastMessageAt: number;            // performance.now() of the last state or pong
   lastStateAt: number;              // Date.now() of the last state (shown as "last update hh:mm:ss")
   stale: boolean;
+  /** Another Herald tab in this browser holds the microphone and camera (features/cabin/captureOwner.ts). */
+  captureElsewhere: boolean;
   source: "live" | "fixture";
   fixture: FixtureState | null;
   health: Health | null;
@@ -107,6 +109,12 @@ export function initialUi(search = typeof location === "undefined" ? "" : locati
   };
 }
 
+/** Another Herald tab may own the microphone and camera (features/cabin/captureOwner.ts). Before the Web Lock answers, a tab
+ *  assumes another one captures, so it never opens the microphone for an instant. */
+export function initialCaptureElsewhere(): boolean {
+  return typeof navigator !== "undefined" && !!(navigator as Navigator & { locks?: LockManager }).locks;
+}
+
 export const useHerald = create<HeraldState>()((set, get) => ({
   snapshot: null,
   conn: "connecting",
@@ -114,6 +122,7 @@ export const useHerald = create<HeraldState>()((set, get) => ({
   lastMessageAt: 0,
   lastStateAt: 0,
   stale: false,
+  captureElsewhere: initialCaptureElsewhere(),
   source: "live",
   fixture: null,
   health: null,

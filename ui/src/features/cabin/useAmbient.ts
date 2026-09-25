@@ -6,7 +6,7 @@ export function useAmbient() {
   const incident = useHerald((s) => s.snapshot?.incident.id);
   // Only a replay blocks capture. A stale or dropped connection to the screen's feed does not: uploads are separate
   // requests that wait and retry, so a link blip no longer tears the microphone down and rebuilds it.
-  const blocked = useHerald((s) => s.source !== "live");
+  const blocked = useHerald((s) => s.source !== "live" || s.captureElsewhere);   // a replay, or another tab listens
   const paused = useHerald((s) => s.ui.capturePaused);
   const [status, setStatus] = useState(initialAmbient);
   const capture = useRef<AmbientCapture | null>(null);
