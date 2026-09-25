@@ -30,21 +30,29 @@ The watchdog line matters for a second reason: the box hard-hung four times on 2
 `efi_pstore` backend. Each time the SBSA watchdog reset it after 60 s and systemd brought everything back. If the
 machine reboots mid-rehearsal, that is the known fault: re-run this checklist from step 1 rather than debugging it.
 
-The final model label is defined by `scripts/serve_models.sh`:
+**The ship stack is not final.** `herald-f` (run F, MODEL_PLAN §0l) trained on speech, photos, protocol
+reranking, figure transcription and translation, and it **passed** on speech and photos but **failed its own
+protocol-reranking kept-ability gate** (right passage first 0.731 vs a required ≥0.788; see MODEL_CARD.md
+and `eval/results.jsonl`). So there is no single "final model label" yet — pick one of these three config
+options, defined by `scripts/serve_models.sh`:
 
-- `herald-f` — speech-to-facts extraction, photos, protocol figures, and passage reranking.
+1. **Default (what README.md documents):** `ems-e-v2-fp8` (speech) + `qwen3vl-fp8` (photos, reranking,
+   figures, translation) — two untuned-vs-fine-tuned-but-not-run-F models, both fully gated.
+2. **Split stack** (§7 below): `herald-f` for speech **and** photos only, `qwen3vl-fp8` for reranking,
+   figures and translation — gets herald-f's speech/photo gains without its rerank regression.
+3. **4B fallback:** `herald-f4b-fp8` (text-only) + untuned `qwen3vl-fp8` — weaker than both of the above on
+   every measured number (MODEL_CARD.md); use only if the 30B stack will not fit or will not start.
 
-It must be `Ready`. Do not start a duplicate service. If it is absent, give Rajeev the output of
-`zrt status`; model starts take minutes and require shared-memory planning.
+Whichever you start, it must be `Ready` in `zrt status`. Do not start a duplicate service. If it is absent,
+give Rajeev the output of `zrt status`; model starts take minutes and require shared-memory planning.
 
 ### Kernel-backend check
 
 ```bash
-grep -i "backend" /opt/hp/zrt/run/vllm-herald-f.log | tail -1
+grep -i "backend" /opt/hp/zrt/run/vllm-<label>.log | tail -1        # <label>: ems-e-v2-fp8, qwen3vl-fp8, herald-f, or herald-f4b-fp8
 ```
 
-Record the backend line exactly as the final service reports it. The old S7 wording asked for MARLIN on `omni`;
-that retired label is not a valid acceptance check for the final stack.
+Record the backend line exactly as the service reports it, for every label you started.
 
 ## 2. ED receiver and link
 
@@ -71,16 +79,18 @@ teammate laptop address and verify the second URL through Toxiproxy.
 ```bash
 scripts/demo_mode.sh on
 HERALD_ED_URL=http://127.0.0.1:9000 \
-HERALD_LLM_MODEL=herald-f \
-HERALD_VISION_MODEL=herald-f \
+HERALD_LLM_MODEL=ems-e-v2-fp8 \
+HERALD_VISION_MODEL=qwen3vl-fp8 \
 scripts/run_demo.sh
 ```
 
 Do not substitute `run_dev.sh` on the demo port: `run_demo.sh` disables reload, preloads Whisper, and refuses to
 start unless the memory guard is healthy and demo mode is on.
 
-If the run F gates sent us to the two-model configuration, use §7.3 instead of this command and expect two `Ready`
-labels in step 1 rather than one.
+This is the default stack (§1 option 1). To run the split stack instead (herald-f for speech and photos,
+`qwen3vl-fp8` kept for reranking/figures/translation), use §7.3 and expect two `Ready` labels in step 1
+rather than one. To run the 4B fallback, set `HERALD_LLM_MODEL=herald-f4b-fp8` with `HERALD_VISION_MODEL`
+still `qwen3vl-fp8`.
 
 Wait for the server, then check:
 
@@ -128,10 +138,13 @@ Use a contributor port for the soak, never the live demo port:
 
 ```bash
 HERALD_ED_URL=http://127.0.0.1:9000 \
-HERALD_LLM_MODEL=herald-f \
-HERALD_VISION_MODEL=herald-f \
+HERALD_LLM_MODEL=ems-e-v2-fp8 \
+HERALD_VISION_MODEL=qwen3vl-fp8 \
 PORT=8103 scripts/run_dev.sh
 ```
+
+Soak whichever config option (§1) you intend to run at the demo; substitute its `HERALD_LLM_MODEL`/
+`HERALD_VISION_MODEL` values here.
 
 In another terminal:
 
@@ -177,18 +190,19 @@ that the guard prevents another invalid 30-minute run; it does not replace the p
 4. Run one full scenario, including provenance playback and the contradiction confirmation.
 5. Run weak → down → good once more.
 6. Reset the ED receiver and Herald incident.
-7. Leave the link `good`, `herald-f` `Ready`, and the browser on the clean opening state.
+7. Leave the link `good`, the config option's model label(s) `Ready`, and the browser on the clean opening state.
 8. After judging is complete, run `scripts/demo_mode.sh off`; never turn it off while the protected demo is active.
 
 ## 7. Split stack (two models, one job each) — `docs/TRAINING_PLAN.md` §7a
 
-**Skip this section for the normal demo.** The stack above is one model, `herald-f`, doing every job. This section is
-the contingency, and it is the *third* choice, not the first.
+**This is what actually happened, not a hypothetical.** `herald-f` (epoch 2) won speech and photos and was
+merged and served, but it **failed the protocol-reranking kept-ability gate** (right passage first 0.731 vs
+a required ≥0.788, top 3 0.788 vs ≥0.827; 700-A13 figure transcription and the translation check were not
+the blocker — see MODEL_CARD.md). Per `TRAINING_PLAN` §6a rule 3, that sends us here or to the 4B fallback
+below, not to epoch 1 (epoch 1 retained kept abilities worse than epoch 2, so it would not have passed
+either).
 
-**When to use it.** Only if **both** run F epoch adapters win speech and photos but fail the kept-ability gates —
-protocol reranking on the 59 questions, 700-A13 figure transcription, the 10-line EN↔ES translation check
-(`TRAINING_PLAN` §6a). If only one epoch fails them, ship the other one: that is cheaper and keeps a single model. If
-speech or photos also fail, take the §7 rollback in `TRAINING_PLAN` instead.
+**What it does.** The fine-tune keeps the jobs it is good at; the untuned base keeps the job it lost.
 
 **What it does.** The fine-tune keeps the jobs it is good at; the untuned base keeps the jobs it lost.
 
@@ -277,5 +291,24 @@ expects one `Ready` label — in this configuration there are two.
 Unset `HERALD_KNOWLEDGE_MODEL`, restart the app, and stop whichever model is no longer needed. No reindexing and no
 retraining: the knowledge base, prompts and county configuration are untouched by this switch.
 
-> **Untested.** Written while the box was training; the two-model configuration has never been started. Rehearse it
-> once off the demo clock before relying on it.
+> **Untested.** herald-f and `qwen3vl-fp8` have each been served and gated separately (`eval/results.jsonl`),
+> but never started resident together on this box. Rehearse the two-model configuration once off the demo
+> clock before relying on it.
+
+## 7a. 4B fallback (no split stack, no reranking regression)
+
+The other option `TRAINING_PLAN` §6a rule 3 names: `herald-f4b-fp8` (Qwen3-4B-Instruct-2507 + LoRA, text-only)
+for speech, paired with the untuned `qwen3vl-fp8` for photos, reranking, figures and translation. One model
+fewer resident than the split stack (no memory-fit check needed), but weaker than both `ems-e-v2-fp8` and
+`herald-f` on every measured speech number, and markedly weaker on G.F.A.S.T. (F1 0.519 vs herald-f's 0.947
+and the default stack's 0.95; MODEL_CARD.md). Prefer the default stack or the split stack unless the 30B
+stack genuinely will not fit or will not start.
+
+```bash
+scripts/serve_models.sh f4b        # herald-f4b-fp8, alongside scripts/serve_models.sh vision for qwen3vl-fp8
+scripts/demo_mode.sh on
+HERALD_ED_URL=http://127.0.0.1:9000 \
+HERALD_LLM_MODEL=herald-f4b-fp8 \
+HERALD_VISION_MODEL=qwen3vl-fp8 \
+scripts/run_demo.sh
+```

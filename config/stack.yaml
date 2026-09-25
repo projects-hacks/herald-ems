@@ -5,10 +5,18 @@ models:
      component: text_model, role: "speech-to-facts extraction (fine-tuned on this box, served in FP8)"}
   - {id: "Qwen/Qwen3-VL-30B-A3B-Instruct-FP8 (Apache-2.0)", served_as: "qwen3vl-fp8", component: vision_model,
      role: "photo reading (monitors, pill bottles, forms)"}
-  # Run F: ONE Qwen3-VL-30B-A3B + merged LoRA doing speech, photos, reranking, figures and translation. It is listed
-  # for both components because the same label serves both: /api/stack computes status per component from the label
-  # actually being served, so without this entry a box serving herald-f reported BOTH shipped models as
-  # "not served (serving herald-f)" on the AI-stack screen -- found during app integration, 2026-09-25.
+  # Run F: ONE Qwen3-VL-30B-A3B + merged LoRA, trained on speech, photos, reranking, figures and translation
+  # (MODEL_PLAN §0l). It is listed for both components below because the same served label answers both roles:
+  # /api/stack computes status per component from the label actually being served, so without this entry a box
+  # serving herald-f reported BOTH shipped models as "not served (serving herald-f)" on the AI-stack screen --
+  # found during app integration, 2026-09-25.
+  #
+  # herald-f FAILED its own protocol-reranking kept-ability gate (right passage first 0.731 vs a required
+  # >= 0.788; top 3 0.788 vs >= 0.827; see MODEL_CARD.md and eval/results.jsonl "bench": "vision:rerank",
+  # model "herald-f"). It is served here for speech and photos ONLY -- the roles below say exactly that, on
+  # purpose. Reranking, protocol-figure transcription and translation stay on the untuned `qwen3vl-fp8` above
+  # (the split-stack option, TRAINING_PLAN §7a; docs/RUNBOOK.md §7). Do not add a reranking/figures/translation
+  # role to the herald-f entries below until a future run passes that gate.
   - {id: "rajeev-chaurasia/herald-extractor-lora-merged-f (Qwen3-VL-30B-A3B + LoRA, run F epoch 2)",
      served_as: "herald-f", component: text_model,
      role: "speech-to-facts extraction (fine-tuned on this box, served in FP8)"}
