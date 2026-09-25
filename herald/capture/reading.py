@@ -17,6 +17,17 @@ class FrameReader:
         self.store, self.drug_check, self.tracer = store, drug_check, tracer
         self.model_name, self.broadcast = model_name, broadcast
 
+    def _keep(self, inc, frame):
+        """Store a used still and attach it to the call, so ending the call deletes it (herald/api/media.py)."""
+        photo_id = self.store.store(frame, used=True)
+        if photo_id is not None:
+            try:
+                inc.register_media("evidence", photo_id)
+            except Exception:
+                (self.store.directory / f"{photo_id}.jpg").unlink(missing_ok=True)   # call ended: keep nothing
+                raise
+        return photo_id
+
     async def read(self, frame, intent, roi, valid):
         inc = self.incident()
         before = self.tracer.summarize(inc.snapshot())
@@ -30,7 +41,7 @@ class FrameReader:
             dose = next((f for f in inc.facts if f.id == intent.fact_id and f.status != Status.rejected), None)
             result = self.drug_check.compare(dose, facts) if dose else None
             if result and result.status != "unreadable":
-                photo_id = self.store.store(frame, used=True)
+                photo_id = self._keep(inc, frame)
                 c = self.config["verify"]
                 reason = c["mismatch"].format(said=dose.value[c["drug_field"]], label=result.label_drug) if result.status == "mismatch" else "Ingredient label matches; dose and administration not verified"
                 inc.apply_verification(dose.id, Verification(status=result.status, label_drug=result.label_drug,
@@ -63,7 +74,7 @@ class FrameReader:
             if intent.mode == "monitor" and unchanged:
                 proposed = []; reason = "unchanged"
             if proposed:
-                photo_id = self.store.store(frame, used=True)
+                photo_id = self._keep(inc, frame)
                 for f in proposed:
                     f.provenance.photo_id = photo_id
                     added.append(inc.ingest(f, record=False))

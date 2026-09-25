@@ -2,8 +2,9 @@
 // counts, the replay controls (fixture mode), "On this vehicle" as an inset grouped list, and the screen settings.
 // Collapses to an icon rail (the medic's choice, remembered; explain mode forces the rail so the trace has room).
 // Below 1024 px it becomes a top bar with the pages in a row.
+import { useState } from "react";
 import {
-  AudioLines, Cpu, HeartPulse, LayoutGrid, Mic, Moon, PanelLeftClose, PanelLeftOpen, Pause, Play, RotateCcw, Send,
+  AudioLines, BookOpen, Cpu, HeartPulse, LayoutGrid, Mic, Moon, PanelLeftClose, PanelLeftOpen, Pause, Play, RotateCcw, Send,
   ShieldCheck, SkipForward, Sparkles, Sun, Type, UserRound, Wifi, type LucideIcon,
 } from "lucide-react";
 import { useAttention } from "@/hooks/useAttention";
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils";
 import type { FixturePlayer } from "@/lib/ws";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dot, IconTile, type Cat, type Tone } from "@/components/kit";
+import { ProtocolSearch } from "@/features/protocols/ProtocolSearch";
 
 const NEXT_SCALE: Record<number, TypeScale> = { 1: 1.25, 1.25: 1.5, 1.5: 1 };
 
@@ -63,6 +65,20 @@ function CaptureNav({ rail }: { rail: boolean }) {
       </button>
     </Tip>
   );
+}
+
+function ProtocolsNav({ rail }: { rail: boolean }) {
+  const [open, setOpen] = useState(false);
+  return <>
+    <Tip show={rail} label="County protocols">
+      <button type="button" onClick={() => setOpen(true)} aria-label={rail ? "Protocols" : undefined}
+        className={cn("flex h-12 w-full items-center gap-3 rounded-[12px] text-[1.0625rem] font-medium text-text-primary hover:bg-surface-2",
+          rail ? "justify-center px-0" : "pr-3 pl-2", "max-lg:h-11 max-lg:w-auto max-lg:shrink-0 max-lg:px-2")}>
+        <IconTile icon={BookOpen} cat="check" size={30} /><span className={cn("truncate", rail && "lg:sr-only")}>Protocols</span>
+      </button>
+    </Tip>
+    <ProtocolSearch open={open} onClose={() => setOpen(false)} />
+  </>;
 }
 
 function StatusRow({ icon: Icon, label, value, tone, rail }: { icon: LucideIcon; label: string; value: string; tone: Tone; rail: boolean }) {
@@ -220,6 +236,8 @@ export function Sidebar({ player }: { player: FixturePlayer | null }) {
         <NavItem rail={rail} page="patient" icon={UserRound} cat="patient" label="Patient" />
         <NavItem rail={rail} page="trends" icon={HeartPulse} cat="heart" label="Vitals" count={significant} />
         <NavItem rail={rail} page="transcript" icon={AudioLines} cat="speech" label="Audit" />
+        {!rail && <p className="label-caps mt-3 px-3 text-text-muted max-lg:hidden">Reference</p>}
+        <ProtocolsNav rail={rail} />
       </nav>
       <div className="flex-1 max-lg:hidden" />
       {!rail && <button type="button" className="min-h-12 rounded-xl bg-surface-2 px-3 text-body font-semibold max-lg:hidden"

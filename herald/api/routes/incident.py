@@ -100,6 +100,8 @@ async def confirm_facts(body: BulkConfirm, c=Depends(get_ctx), h=Depends(get_hub
             skipped.append({"id": fact_id, "reason": f"already {fact.status.value}"})
         elif fact.provenance.hold_reason:
             skipped.append({"id": fact_id, "reason": "held fact requires individual review"})
+        elif fact.verify and fact.verify.status == "mismatch" and not fact.verify.resolution:
+            skipped.append({"id": fact_id, "reason": "label mismatch requires individual review"})
         elif fact.key in c.vocab.contradiction_keys and fact.previous_value is not None:
             skipped.append({"id": fact_id, "reason": "contradiction requires individual review"})
         else:

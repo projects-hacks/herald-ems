@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Activity, ArrowLeft, Camera, ChevronRight, ClipboardCheck, FileText, Info, Maximize2, Mic, MicOff, Moon, Pause, Settings2, Sun, TriangleAlert, Users, X } from "lucide-react";
+import { Activity, ArrowLeft, BookOpen, Camera, ChevronRight, ClipboardCheck, FileText, Info, Maximize2, Mic, MicOff, Moon, Pause, Settings2, Sun, TriangleAlert, Users, X } from "lucide-react";
 import { ManualEntry } from "@/components/ManualEntry";
 import { PatientRoster } from "@/components/PatientRoster";
 import { CompactStatus } from "@/components/CompactStatus";
 import { CaptureControl } from "@/features/capture/CaptureControl";
 import { CaptureBar } from "@/features/capture/CaptureBar";
+import { ProtocolSearch } from "@/features/protocols/ProtocolSearch";
 import { allFacts, queuedCount } from "@/lib/selectors";
 import { ConnectBand, StaleOverlay } from "@/components/GlobalStates";
 import { AttentionQueue } from "@/features/attention/AttentionQueue";
@@ -40,6 +41,7 @@ export function CabinApp() {
   const ambient = useAmbient();
   const [panel, setPanel] = useState<Panel>(null);
   const [focus, setFocus] = useState(false);
+  const [protocols, setProtocols] = useState(false);
   const [photo, setPhoto] = useState<CameraStatus>({ busy: false, message: "", failed: false });
   const heading = useRef<HTMLHeadingElement>(null);
   const lastTrigger = useRef<HTMLElement | null>(null);
@@ -66,6 +68,7 @@ export function CabinApp() {
           onClick={() => { setUi({ incidentPhase: phase }); if (phase === "handoff") open("handoff"); }}>{phase}</button>)}
       </div>
       <div className="cabin-header-actions">
+        <button className="cabin-button" onClick={() => setProtocols(true)}><BookOpen size={20} />Protocols</button>
         <button className="cabin-button" aria-pressed={focus} onClick={() => setFocus(!focus)}><Maximize2 size={20} />{focus ? "Standard view" : "Large view"}</button>
         <button className="cabin-button" aria-label={ui.theme === "dark" ? "Use daylight theme" : "Use night theme"} onClick={() => setUi({ theme: ui.theme === "dark" ? "light" : "dark" })}>{ui.theme === "dark" ? <Sun size={21} /> : <Moon size={21} />}</button>
         <button className="cabin-button" aria-label="Workspace settings" onClick={() => open("settings")}><Settings2 size={21} /></button>
@@ -155,5 +158,6 @@ export function CabinApp() {
       </div>
       <p className="cabin-dock-note">Start only when recording is authorized · ambient speakers unverified · {health?.stt_loaded ? "local speech model loaded" : "local speech model may need to warm up"} · {isReplay ? "replay" : stale ? "server disconnected" : "vehicle server connected"}</p>
     </footer>
+    <ProtocolSearch open={protocols} onClose={() => setProtocols(false)} />
   </div>;
 }

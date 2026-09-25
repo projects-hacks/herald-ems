@@ -26,6 +26,11 @@ describe("ambulance workspace", () => {
     expect(screen.getByRole("status", { name: "Vehicle and ED status" })).toBeTruthy();
     expect(screen.getByText("Mass-casualty · add patient")).toBeTruthy();
   });
+  it("opens the county protocol search from the header", () => {
+    render(<CabinApp />);
+    fireEvent.click(screen.getByRole("button", { name: "Protocols" }));
+    expect(screen.getByRole("dialog", { name: "County protocols" })).toBeTruthy();
+  });
   it("exposes bounded push-to-talk and typed notes without starting the microphone", () => {
     render(<CabinApp />);
     fireEvent.click(screen.getByRole("button", { name: "Type a note" }));

@@ -30,7 +30,7 @@ class Incident:
         self.transcripts: list[dict] = []
         self.audit_log: list[dict] = []
         self.ended_at = None
-        self.media_ids: dict[str, set[str]] = {"audio": set(), "photo": set()}
+        self.media_ids: dict[str, set[str]] = {"audio": set(), "photo": set(), "evidence": set()}
         self.media_disposal: Optional[dict] = None
         self.news2_history: list[dict] = []   # score history, recorded once per utterance by the projector
         self.ed_sync: dict[str, dict] = {}
@@ -50,11 +50,10 @@ class Incident:
         """Raise ValueError if `ingest` would reject this fact (lets a batch be all-or-nothing)."""
         return self.vocab.validate(fin.key, fin.value)
 
-    def ingest(self, fin: FactIn, record: bool = True, *, allow_ended: bool = False) -> Fact:
+    def ingest(self, fin: FactIn, record: bool = True) -> Fact:
         value = self.validate(fin)
         with self.lock:
-            if not allow_ended:
-                self.ensure_open()
+            self.ensure_open()
             prev = self.latest(fin.key)
             data = fin.model_dump()
             data["value"] = value

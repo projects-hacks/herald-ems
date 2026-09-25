@@ -45,6 +45,8 @@ export interface News2 {
   name: string; score: number; complete: boolean; band: News2Band; any_single_3: boolean;
   parts: Record<string, { value: FactValue; points: number }>; missing: string[];
   thresholds: string; source: string; evidence: string;
+  applicability: "applicable" | "unknown" | "excluded";
+  applicability_reason: string | null; applicability_missing: string[];
 }
 export interface News2Point { ts: string; score: number; complete: boolean; band: News2Band }
 /** An item-sum stroke scale: RACE, G.F.A.S.T. */
@@ -145,6 +147,14 @@ export interface ProtocolStatus {
   ready: boolean; county: string; sections: number; missing: string[]; review_required: string[];
   last_sync: string | null; destination_audit_ok: boolean;
   documents: { id: string; title: string; effective: string }[];
+}
+export interface ProtocolPassage {
+  doc: string; title: string | null; section: string; heading: string; page: number;
+  text: string; parents: string[]; score: number; effective: string | null; text_layer_uncertain: boolean;
+}
+export interface ProtocolAnswer {
+  query: string; answerable: boolean | null; reranked: boolean; chosen?: number; error?: string;
+  results: ProtocolPassage[];
 }
 
 // ---------- the snapshot (api/context.py full_state()) ----------

@@ -75,7 +75,7 @@ class CaptureService:
                 reason = "Ambient speech: verify the words, speaker, and patient before confirming"
                 f.provenance.hold_reason = "; ".join(filter(None, [f.provenance.hold_reason, reason]))
             try:
-                facts.append(self.inc.ingest(f, record=False, allow_ended=self._incident is not None))
+                facts.append(self.inc.ingest(f, record=False))
             except ValueError as e:
                 if rejected is not None:
                     rejected.append({"key": f.key, "value": f.value, "reason": str(e)[:120]})
