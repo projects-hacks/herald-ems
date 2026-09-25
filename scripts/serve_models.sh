@@ -6,7 +6,7 @@
 #                  `omni` stays available. Untuned: this is the model Herald actually serves for reranking,
 #                  figures and translation (see herald-f below).
 #   ems-e-v2-fp8   the fine-tuned extractor, run E v2 (every call type + the call's dispatch) (Qwen3-4B +
-#                  merged LoRA, private HF repo), FP8 weights: speech -> facts. Herald's default extraction
+#                  merged LoRA, public HF repo), FP8 weights: speech -> facts. Herald's default extraction
 #                  model (README.md "Run it").
 #   herald-f       run F (MODEL_PLAN §0l): ONE Qwen3-VL-30B-A3B + merged LoRA, trained on speech, photos,
 #                  reranking, figures and translation. Merged, gated and confirmed servable on 2026-09-25
@@ -15,7 +15,7 @@
 #                  as Herald's default extractor. Where it is used at all, it is for speech and photos ONLY,
 #                  paired with the untuned qwen3vl-fp8 for reranking/figures/translation -- the split stack
 #                  below. `herald-f-dry` prints the serve command without starting anything.
-#   herald-f4b-fp8 run F's text-only 4B fallback (Qwen3-4B-Instruct-2507 + LoRA, private HF repo), paired
+#   herald-f4b-fp8 run F's text-only 4B fallback (Qwen3-4B-Instruct-2507 + LoRA, public HF repo), paired
 #                  with the untuned qwen3vl-fp8 for everything vision-adjacent. See MODEL_CARD.md: weaker
 #                  than herald-f and than ems-e-v2-fp8 on every measured number, in particular G.F.A.S.T.
 #                  F1 0.519 -- use it only when the 30B stack genuinely will not fit or will not start.
@@ -26,7 +26,7 @@
 # (scripts: see AGENTS.md pitfalls).
 set -euo pipefail
 [ -f ~/.config/herald/secrets.env ] && set -a && . ~/.config/herald/secrets.env && set +a
-: "${HF_REPO_ID:?set HF_REPO_ID (see CONTRIBUTING.md: shared secrets)}"
+: "${HF_REPO_ID:=rajeev-chaurasia/herald-extractor-lora}"   # public repos: <id>-merged-e2, -merged-f, -merged-f4b
 export MAX_JOBS=3 NVCC_THREADS=1          # the kernel JIT can otherwise OOM the box
 what="${1:-all}"
 if [ "$what" = all ] || [ "$what" = vision ]; then
@@ -38,7 +38,7 @@ if [ "$what" = omni ]; then                 # the previous vision model, for com
     --extra '--max-model-len=16384' --extra '--trust-remote-code' --extra '--limit-mm-per-prompt={\"image\":2,\"video\":0,\"audio\":0}'"
 fi
 if [ "$what" = all ] || [ "$what" = ems ]; then
-  sg zrt -c "HF_TOKEN=$HF_TOKEN zrt serve hf:${HF_REPO_ID}-merged-e2 --label ems-e-v2-fp8 --gpu-memory-fraction 0.12 \
+  sg zrt -c "${HF_TOKEN:+HF_TOKEN=$HF_TOKEN }zrt serve hf:${HF_REPO_ID}-merged-e2 --label ems-e-v2-fp8 --gpu-memory-fraction 0.12 \
     --extra '--max-model-len=4096' --extra '--quantization=fp8'"
 fi
 # Run F (MODEL_PLAN §0l). The merged checkpoint is BF16; vLLM quantizes it to FP8 while loading (layer by layer on the
@@ -61,7 +61,7 @@ if [ "$what" = herald-f-dry ]; then         # print exactly what would run (toke
   echo "# the command sg runs (what zrt receives): HF_TOKEN=*** zrt serve hf:${HERALD_F_REPO} ${HERALD_F_ARGS}"
 fi
 if [ "$what" = herald-f ]; then
-  sg zrt -c "HF_TOKEN=$HF_TOKEN zrt serve hf:${HERALD_F_REPO} ${HERALD_F_ARGS}"
+  sg zrt -c "${HF_TOKEN:+HF_TOKEN=$HF_TOKEN }zrt serve hf:${HERALD_F_REPO} ${HERALD_F_ARGS}"
 fi
 
 # herald-f's text-only 4B fallback (TRAINING_PLAN §7): serve with ems-e-v2-fp8's argument shape, per
@@ -69,7 +69,7 @@ fi
 # herald-f. Weaker than both ems-e-v2-fp8 and herald-f on every measured number (MODEL_CARD.md); use only when
 # the 30B stack will not fit or will not start.
 if [ "$what" = f4b ]; then
-  sg zrt -c "HF_TOKEN=$HF_TOKEN zrt serve hf:${HF_REPO_ID}-merged-f4b --label herald-f4b-fp8 --gpu-memory-fraction 0.12 \
+  sg zrt -c "${HF_TOKEN:+HF_TOKEN=$HF_TOKEN }zrt serve hf:${HF_REPO_ID}-merged-f4b --label herald-f4b-fp8 --gpu-memory-fraction 0.12 \
     --extra '--max-model-len=4096' --extra '--quantization=fp8'"
 fi
 
@@ -94,7 +94,7 @@ fi
 # and only then start them, one at a time. If it does not fit, prefer shipping epoch 1 (§6a rule 2) or the §7
 # rollback. UNTESTED: this has never been started (the box was training when it was written).
 # if [ "$what" = split ]; then
-#   sg zrt -c "HF_TOKEN=$HF_TOKEN zrt serve hf:${HERALD_F_REPO} --label herald-f --gpu-memory-fraction 0.30 \
+#   sg zrt -c "${HF_TOKEN:+HF_TOKEN=$HF_TOKEN }zrt serve hf:${HERALD_F_REPO} --label herald-f --gpu-memory-fraction 0.30 \
 #     --extra '--max-model-len=8192' --extra '--limit-mm-per-prompt={\"image\":2,\"video\":0}' \
 #     --extra '--quantization=fp8'"
 #   # wait for Ready, then:

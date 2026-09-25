@@ -125,11 +125,9 @@ useful claim.
 | out-of-scope questions correctly refused | 0.571 (4/7) | ≥ 0.571 (4/7) |
 
 **This gate failed** on top1 and top3: herald-f's protocol reranking is measurably worse than the untuned
-model it would replace. In the run saved in `eval/results.jsonl`, refusal correctness ties the untuned
-baseline at 4/7 on the full 59-question set; the model owner has separately described refusals as a
-regression from 7/7 to 4/7, which this repository's saved runs do not show for the untuned baseline on the
-same question set — noted here as an open discrepancy rather than silently picking one number. Either way,
-**top1/top3 alone are enough to fail the gate.** Figure transcription (700-A13, `bench: vision:flowchart`)
+model it would replace. Refusal of out-of-scope questions ties the untuned baseline at 4/7 on the same
+59-question set (an earlier baseline refusal rate of 1.0 came from a single run on the 25-question subset, which has fewer
+out-of-scope questions, and is not comparable). **Top1 and top3 alone fail the gate.** Figure transcription (700-A13, `bench: vision:flowchart`)
 matched the untuned baseline exactly (node recall 0.875, edge recall 0.857, 0 added words) and is not the
 blocker.
 
@@ -194,14 +192,13 @@ stroke-screen-critical primary extractor given the G.F.A.S.T. number above.
 
 `herald-f` (run F, 30B) is published on Hugging Face as a research artifact, using
 [`docs/hf/README_herald-f.md`](docs/hf/README_herald-f.md) as its model card; it is not part of Herald's
-served stack (see Status above). The team's day-to-day serving repo (`herald-extractor-lora-merged-f` and
-`-f4b`, and the earlier `ems-e-v2-fp8`/etc. checkpoints) stays private under the account that trained them;
-`scripts/serve_models.sh` reads that repo id from `~/.config/herald/secrets.env` (`HF_REPO_ID`), which is
-not in this repository. To reproduce or reuse these adapters yourself:
+served stack (see Status above). All merged checkpoints are public: `rajeev-chaurasia/herald-extractor-lora-merged-e2`
+(run E v2, the shipped extractor served as `ems-e-v2-fp8`), `-merged-f` (run F epoch 2), `-merged-f-e1` and
+`-merged-f4b`. `scripts/serve_models.sh` uses them by default (`HF_REPO_ID=rajeev-chaurasia/herald-extractor-lora`),
+no token needed. To reproduce or reuse these adapters yourself:
 1. Fine-tune your own adapter with `scripts/train_vlm_lora.py` (30B) or `scripts/train_lora.py` (4B) against
    the base models above, using `requirements-train.txt` (see `README.md`); the training data recipe is
    documented in `docs/TRAINING_PLAN.md` and `docs/MODEL_PLAN.md`, though the specific rendered/synthesized
    training rows are not committed to this repository.
 2. Or use the published `herald-f` Hugging Face repo directly (for research/experimentation only — see
-   Known limits above before relying on it for anything), or ask the repo owner for read access to the
-   private serving repo and point `HF_REPO_ID`/`HF_TOKEN` at it.
+   Known limits above before relying on it for anything).

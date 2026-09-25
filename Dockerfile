@@ -4,9 +4,8 @@
 # fine-tuned/vision model weights. Those stay on the host:
 #   - ZRT is an HP snap tied to the host's driver and GPU, not a pip/pypi package. `sudo zrt setup --mode system`
 #     is a one-time host operation (AGENTS.md), not something a container should redo per build.
-#   - The private model repos need ~/.config/herald/secrets.env (HF_TOKEN) and take 3-23 minutes to warm up;
+#   - The model repos are public on Hugging Face (no token needed) but take 3-23 minutes to warm up;
 #     starting them is a deliberate, GPU-exclusive action the team coordinates on, not a container side effect.
-#     See docs/MODEL_CARD.md for what "private" means here and the one step the repo owner must do to fix it.
 # This container reaches ZRT at http://127.0.0.1:8080 over `network_mode: host` (see docker-compose.yml), exactly
 # like a non-containerized `scripts/run_dev.sh` would, and it is why HERALD_LLM_URL must stay a loopback address
 # (herald/config/settings.py enforces this).
@@ -64,7 +63,7 @@ COPY --from=ui-build /app/ui/dist/ ui/dist/
 # Pre-fetch the two public model weights (STT + retrieval embeddings) into the venv's default Hugging Face cache,
 # so herald/models/weights.py's local_weights(..., offline=True) finds them on the very first request. No token,
 # no network access needed at container run time. (The fine-tuned extraction/vision model is NOT downloaded here:
-# it is private, served separately by ZRT on the host -- see the top-of-file comment and docs/MODEL_CARD.md.)
+# it is served separately by ZRT on the host -- see the top-of-file comment and docs/MODEL_CARD.md.)
 RUN python -c "from huggingface_hub import snapshot_download as s; \
       s('openai/whisper-large-v3-turbo'); s('BAAI/bge-base-en-v1.5')"
 

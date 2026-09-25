@@ -107,8 +107,8 @@ scripts/setup.sh                              # checks the platform, installs re
                                                # re-run any time. It does NOT start any model server -- see below.
 scripts/serve_models.sh                       # qwen3vl-fp8 (photos, reranking, figures, translation) +
                                                # ems-e-v2-fp8 (speech -> facts) via HP Z Runtime on :8080;
-                                               # needs ~/.config/herald/secrets.env (HF_TOKEN/HF_REPO_ID) for
-                                               # the private fine-tuned repo -- see CONTRIBUTING.md
+                                               # pulls the public fine-tuned repos (HF_REPO_ID defaults to
+                                               # rajeev-chaurasia/herald-extractor-lora; no token needed)
 HERALD_LLM_MODEL=ems-e-v2-fp8 HERALD_VISION_MODEL=qwen3vl-fp8 PORT=8100 scripts/run_dev.sh
 ```
 
