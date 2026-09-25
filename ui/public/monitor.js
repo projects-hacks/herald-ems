@@ -5,6 +5,20 @@ try {
   const response = await fetch("/fixtures/monitor_journey.json");
   if (!response.ok) throw new Error("Synthetic scenario unavailable");
   const scenario = await response.json();
+  const { tick_ms: tickMs, simulated_minutes_per_tick: minutesPerTick } = scenario.display;
+  const startMinute = scenario.simulated_minutes.start, endMinute = scenario.simulated_minutes.end;
+  const sampleCount = Math.round((endMinute - startMinute) / minutesPerTick) + 1;
+  function valueAt(key, minute) {
+    const after = scenario.steps.findIndex((step) => step.minute >= minute);
+    if (after <= 0) return scenario.steps[0][key];
+    const before = scenario.steps[after - 1], next = scenario.steps[after];
+    const fraction = (minute - before.minute) / (next.minute - before.minute);
+    return Math.round(before[key] + (next[key] - before[key]) * fraction);
+  }
+  const samples = Array.from({ length: sampleCount }, (_, sampleIndex) => {
+    const minute = startMinute + sampleIndex * minutesPerTick;
+    return { minute, ...Object.fromEntries(scenario.readings.map(({ key }) => [key, valueAt(key, minute)])) };
+  });
   scenarioName.textContent = scenario.scenario_label || "Synthetic training scenario";
   const fields = scenario.readings.map(({ key, label, unit }) => {
     const card = document.createElement("article"), title = document.createElement("h1"), value = document.createElement("strong"), units = document.createElement("small"), chart = document.createElementNS("http://www.w3.org/2000/svg", "svg"), trend = document.createElement("p");
@@ -12,7 +26,7 @@ try {
     chart.classList.add("trend-chart"); chart.setAttribute("viewBox", "0 0 300 88"); chart.setAttribute("role", "img");
     trend.classList.add("trend-label");
     card.append(title, value, units, chart, trend); readings.append(card);
-    return { key, value, chart, trend, values: scenario.steps.map((step) => step[key]), label, unit };
+    return { key, value, chart, trend, values: samples.map((sample) => sample[key]), label, unit };
   });
   function drawTrend(field) {
     const { values, chart } = field, shown = values.slice(0, index + 1);
@@ -28,17 +42,17 @@ try {
     minLabel.setAttribute("x", "0"); minLabel.setAttribute("y", String(top + height)); minLabel.textContent = String(Math.round(low));
     maxLabel.setAttribute("x", "0"); maxLabel.setAttribute("y", String(top + 7)); maxLabel.textContent = String(Math.round(high));
     chart.append(grid, line, dot, minLabel, maxLabel);
-    chart.setAttribute("aria-label", `${field.label} trend through synthetic minute ${scenario.steps[index].minute}: ${shown.join(", ")} ${field.unit}`);
-    field.trend.textContent = `Trend: +${scenario.steps[0].minute} → +${scenario.steps[index].minute} min`;
+    chart.setAttribute("aria-label", `${field.label} trend through synthetic minute ${samples[index].minute}: ${shown.join(", ")} ${field.unit}`);
+    field.trend.textContent = `Trend: +${samples[0].minute} → +${samples[index].minute} min`;
   }
   function render() {
-    fields.forEach((field) => { field.value.textContent = scenario.steps[index][field.key]; drawTrend(field); });
-    phase.textContent = `Synthetic transport +${scenario.steps[index].minute} min · step ${index + 1} of ${scenario.steps.length} · ${timer ? `changes every ${scenario.step_seconds} seconds` : "paused"}`;
+    fields.forEach((field) => { field.value.textContent = samples[index][field.key]; drawTrend(field); });
+    phase.textContent = `Synthetic transport +${samples[index].minute} min · sample ${index + 1} of ${samples.length} · ${timer ? "updates every second" : "paused"}`;
     play.textContent = timer ? "Pause changes" : "Start changes";
   }
   function pause() { clearInterval(timer); timer = null; }
-  function next() { if (index < scenario.steps.length - 1) index++; else pause(); render(); }
-  play.onclick = () => { if (timer) pause(); else { if (index === scenario.steps.length - 1) index = 0; timer = setInterval(next, scenario.step_seconds * 1000); } render(); };
+  function next() { if (index < samples.length - 1) index++; else pause(); render(); }
+  play.onclick = () => { if (timer) pause(); else { if (index === samples.length - 1) index = 0; timer = setInterval(next, tickMs); } render(); };
   document.getElementById("next").onclick = () => { pause(); next(); };
   document.getElementById("reset").onclick = () => { pause(); index = 0; render(); };
   document.getElementById("fullscreen").onclick = () => { void document.documentElement.requestFullscreen().catch(() => { phase.textContent = "Full screen unavailable; the monitor still works in this window."; }); };
