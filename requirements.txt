@@ -1,5 +1,11 @@
 # Runs on the HP ZGX Nano (aarch64, CUDA 13). torch/torchaudio/transformers come from the
-# `zgx` conda env (torch 2.14.0+cu130). Everything below is plain pip.
+# `zgx` conda env (torch 2.14.0+cu130) on bare metal, or are pip-installed separately by the Dockerfile
+# (PyTorch's own cu130 wheel index). Everything below is plain pip, covers every third-party import under
+# herald/ (the app itself) and is what a clean `pip install -r requirements.txt` needs to run the server.
+#
+# Training/LoRA/eval tooling used only by scripts/ (accelerate, peft, trl, datasets, scipy, ...) is NOT
+# runtime-required by the app and is intentionally not in this file, to keep the app/container install small;
+# see requirements-train.txt.
 fastapi>=0.115
 uvicorn[standard]>=0.30
 websockets>=15         # bounded synchronous camera replay; no model dependencies
@@ -12,3 +18,7 @@ pytest>=8
 rapidfuzz>=3.9          # RxNorm drug-name matching (herald/terminology/)
 jellyfish>=1.0
 cryptography==50.0.1     # authenticated local recovery for unfinished calls
+Pillow>=11.0             # herald/capture/frames.py, herald/capture/gate.py (frame gating, camera capture)
+opencv-python-headless>=4.9   # herald/capture/privacy.py (face/plate blurring); headless: no GUI in the container
+PyYAML>=6.0              # herald/config/loader.py (config/*.yaml)
+huggingface_hub>=0.24     # herald/models/weights.py (local, offline weight lookup for STT/embeddings)
