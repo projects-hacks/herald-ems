@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, Camera, ChevronRight, CircleCheck, CircleDashed, Clock3, FileText, Info, Keyboard, MapPin, Mic, MicOff, Moon, OctagonAlert, Pause, Settings2, Sun, TriangleAlert, UserRound, Users, WifiOff } from "lucide-react";
+import { BookOpen, Camera, ChevronRight, CircleCheck, CircleDashed, FileText, Info, Keyboard, MapPin, Mic, MicOff, Moon, OctagonAlert, Pause, Settings2, Sun, TriangleAlert, UserRound, Users, WifiOff } from "lucide-react";
 import { ManualEntry } from "@/components/ManualEntry";
 import { PatientRoster } from "@/components/PatientRoster";
 import { CompactStatus } from "@/components/CompactStatus";
@@ -13,8 +13,7 @@ import { ConnectBand, RestoredCallBanner, StaleOverlay } from "@/components/Glob
 import { AttentionQueue } from "@/features/attention/AttentionQueue";
 import { StatTiles } from "@/features/overview/StatTiles";
 import { useAttention } from "@/hooks/useAttention";
-import { useNow } from "@/hooks/useNow";
-import { clockSeconds, hhmm, hhmmss, patientLabel } from "@/lib/format";
+import { hhmm, patientLabel } from "@/lib/format";
 import { useHerald, type IncidentPhase } from "@/lib/store";
 import { PatientPage } from "@/pages/PatientPage";
 import { TrendsPage } from "@/pages/TrendsPage";
@@ -42,10 +41,8 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   const source = useHerald((st) => st.source);
   const health = useHerald((st) => st.health);
   const stale = useHerald((st) => st.stale || st.conn !== "open");
-  const at = useHerald((st) => st.lastStateAt);
   const setUi = useHerald((st) => st.setUi);
   const a = useAttention();
-  const now = useNow();
   const ambient = useAmbient();
   const [panel, setPanel] = useState<Panel>(null);
   const [protocols, setProtocols] = useState(false);
@@ -67,7 +64,6 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   useEffect(() => { setPanel(null); }, [s?.incident.id, s?.active_patient]);
   useEffect(() => { if (ui.page !== "overview") { setPanel(ui.page === "transcript" ? "notes" : ui.page); setUi({ page: "overview" }); } }, [ui.page, setUi]);
   const recording = ambient.status.listening || ambient.status.starting;
-  const elapsed = s?.clocks.find((c) => c.id === "scene");
   const identity = s?.facts["patient.name"];
   const destination = s?.facts["transport.destination"];
   const latest = s?.transcripts.at(-1);

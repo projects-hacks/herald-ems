@@ -42,7 +42,9 @@ export interface Changed {
   // `unconfirmed` is true when any point in `series` is still waiting; `unconfirmed_fact_ids` are those readings,
   // ready for POST /api/facts/confirm. `message` is the sentence to show (config/trends.yaml), present only when
   // the newest point is unconfirmed. Unconfirmed readings never reach the relay or the handoff report.
-  unconfirmed: boolean; unconfirmed_fact_ids: string[]; message?: string;
+  // Optional: a recorded fixture or an older vehicle predates these fields, so a screen must read
+  // their absence as "nothing is waiting" rather than crash or claim an unconfirmed reading.
+  unconfirmed?: boolean; unconfirmed_fact_ids?: string[]; message?: string;
 }
 
 // ---------- scores (herald/scoring, config/scores/*.yaml) ----------
@@ -77,7 +79,7 @@ export type Alert =
   | { type: "significant_change"; key: string; label: string; series: number[];
       // 2026-09-25: same labelling as Changed. Render `message` when present and offer the tap; never imply the
       // value has been sent to the ED.
-      unconfirmed: boolean; unconfirmed_fact_ids: string[]; message?: string }
+      unconfirmed?: boolean; unconfirmed_fact_ids?: string[]; message?: string }
   | { type: "news2_rise"; label: string; from: number; to: number; band: News2Band }
   | { type: "news2_high"; label: string; score: number; band: "high" }
   | { type: "race_positive"; label: string; score: number }
