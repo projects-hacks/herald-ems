@@ -47,10 +47,14 @@ def main() -> None:
     ap.add_argument("--runs", type=int, default=3, help="HARD RULE 3: a deciding number is measured 3 times")
     ap.add_argument("--clip", default=None, help="a ~8 s wav (default: the longest under data/audio)")
     ap.add_argument("--photo", default="eval/photos/monitor_01_dark.jpg")
+    ap.add_argument("--gold-id", default="v2_001", help="gold_v2 utterance for the extraction leg")
+    ap.add_argument("--worst", action="store_true", help="use the utterance with the most facts")
     ap.add_argument("--max-tokens", type=int, default=400, help="informational: VisionReader fixes it at 400")
     a = ap.parse_args()
 
     import soundfile as sf
+
+    speech_facts: list[int] = []
 
     from herald.config import load_yaml
     from herald.config.settings import get_settings
@@ -78,11 +82,22 @@ def main() -> None:
     reader = VisionReader(vis_client, None)
     stt = WhisperSTT(s.stt_model, offline=s.models_offline)
 
+    # Every clip in data/audio is the same TTS test passage with no clinical content, so extracting from its
+    # transcript emits almost no tokens and measures a no-op. Decode cost scales with the facts emitted, so the
+    # speech leg is STT on the real clip (Whisper tracks audio duration, not content) plus extraction on a real
+    # gold utterance. `--worst` uses the utterance with the most facts, which is the worst case for decode.
+    gold = [json.loads(ln) for ln in (ROOT / "eval/gold_v2.jsonl").read_text().splitlines() if ln.strip()]
+    row = max(gold, key=lambda r: len(r.get("facts", []))) if a.worst else next(r for r in gold if r["id"] == a.gold_id)
+    print(json.dumps({"speech_text_from": row["id"], "gold_facts": len(row["facts"]),
+                      "text": row["text"][:110]}, indent=1), flush=True)
+
     def speech() -> float:
         t0 = time.perf_counter()
-        out = stt.transcribe(audio, sr)
-        extractor.extract(out["text"])
-        return time.perf_counter() - t0
+        stt.transcribe(audio, sr)
+        facts = extractor.extract(row["text"], dispatch=row.get("dispatch"))
+        dt = time.perf_counter() - t0
+        speech_facts.append(len(facts))            # a fast leg with no facts is a no-op, not a result
+        return dt
 
     def vision() -> float:
         t0 = time.perf_counter()
@@ -126,6 +141,13 @@ def main() -> None:
     }
     verdict["one_model_serves_both"] = (not verdict["vision_alone_exceeds_min_interval"]
                                        and c_med < a_med + b_med)
+    verdict["speech_facts_seen"] = sorted(set(speech_facts))
+    a_alone, c_leg = rows[0]["median_s"], rows[4]["median_s"]
+    verdict["speech_leg_alone_s"] = a_alone
+    verdict["speech_leg_concurrent_s"] = c_leg
+    verdict["contention_additive_s"] = round(c_leg - a_alone, 2)
+    verdict["contention_multiplier"] = round(c_leg / a_alone, 2) if a_alone else None
+    verdict["speech_leg_over_6s"] = c_leg > 6.0
     print("\n" + json.dumps(verdict, indent=1))
 
 

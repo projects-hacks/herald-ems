@@ -6,6 +6,7 @@ whether a fine-tuned adapter ships (docs/TRAINING_PLAN.md §6, §6a, §6b), so t
 answer would be silent: a missing metric, a missing baseline, an operator applying its margin the wrong way.
 """
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -246,7 +247,10 @@ def test_plan_lists_every_level_gate_and_run():
 def test_plan_commands_go_through_run_job_and_carry_the_label_and_dump():
     lines = rg.plan_lines(PLAN_CFG, ["f-e2"], runs=1, want_gates={"gold_v3"})
     cmd = next(ln for ln in lines if "bench_extract" in ln).split()
-    assert cmd[0].endswith("scripts/run_job.py")         # MEMORY_SAFETY §4: never the bench alone
+    # run_job.py is invoked with the env interpreter, never via its shebang: the shebang resolves to the system
+    # python3, which has no yaml, and every gate died with ModuleNotFoundError before reaching the bench.
+    assert cmd[0] == sys.executable
+    assert cmd[1].endswith("scripts/run_job.py")         # MEMORY_SAFETY §4: never the bench alone
     assert "--need-gib" in cmd and cmd[cmd.index("--need-gib") + 1] == "6"
     assert cmd[cmd.index("--model") + 1] == "herald-f"
     assert cmd[cmd.index("--dump") + 1].endswith("eval/dumps/gates/f-e2/gold_v3_run1.jsonl")
