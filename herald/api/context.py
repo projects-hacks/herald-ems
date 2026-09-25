@@ -224,7 +224,7 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
         persistence=IncidentStore(s.state_dir, s.state_key_path) if s.persistence else None)
     ctx.new_incident(s.dispatch)
     ctx.relay = Relay(lambda: ctx.roster.incidents(), s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir,
-                      egress=egress)
+                      egress=egress, ed_token=s.ed_token)
     ctx.restored = ctx.restore()
     if s.knowledge:
         if embedder is None and text_model is None:        # real deployment; tests pass their own (or none)

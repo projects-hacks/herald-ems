@@ -42,10 +42,16 @@ COPY ui/dist/ ui/dist/
 
 ENV HERALD_MODELS_OFFLINE=1 \
     HERALD_LLM_URL=http://127.0.0.1:8080/v1 \
-    PORT=8100
+    PORT=8100 \
+    HERALD_BIND_HOST=127.0.0.1
+# HERALD_BIND_HOST defaults to loopback (B7), same as scripts/run_dev.sh: with `network_mode: host`
+# (docker-compose.yml) that means only this box can reach the app, same as running it bare-metal. The tablet in
+# the back of the ambulance is a separate device on the LAN -- reaching it from there needs
+# HERALD_BIND_HOST=0.0.0.0 (every interface) and HERALD_DEVICE_TOKEN set (herald/config/settings.py), or any
+# other device on that LAN/Wi-Fi can read and write patient state. See docker-compose.yml.
 EXPOSE 8100
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD curl -sf "http://127.0.0.1:${PORT}/api/health" || exit 1
 
-CMD ["sh", "-c", "python -m uvicorn herald.app:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "python -m uvicorn herald.app:app --host ${HERALD_BIND_HOST} --port ${PORT}"]

@@ -75,6 +75,7 @@ An offline AI copilot for the back of the ambulance, running entirely on an HP Z
 | `herald/models/` | adapters to local model servers | `llm_client.py` (ZRT/vLLM, localhost only), `stt.py` (Whisper), `vision.py` (photo reading) |
 | `herald/terminology/` | drug and allergen names → RxNorm; drug-class allergies → ICD-10-CM | `rxnorm.py` (`RxNormNormalizer`: exact → product name → combination → contained / fuzzy → phonetic; never guesses), `allergy.py` (NEMSIS eHistory.06 classes), `coding.py` (`MedicationCoder`: codes the keys in `config/terminology.yaml`, drug classes, holds non-exact matches for a tap), `factory.py` (`build_coder`, shared by the app and the benchmarks). The index is built by `scripts/build_rxnorm_index.py` into `data/terminology/` (not in git): pinned NLM release + RxNav brand supplement |
 | `herald/relay/` | weak-link relay | `relay.py`, `tiers.py`, `netem.py` (Toxiproxy link emulation, demo only) |
+| `herald/egress/` | egress policy (E1) | `policy.py` (`EgressPolicy`: ALLOW / QUEUE / DENY for every outbound URL, from `config/egress.yaml`); every outbound call (relay, protocol sync, local model requests) passes through it |
 | `herald/reporting/` | the written handoff report | `handoff.py` (`HandoffBuilder`: MIST for trauma, SBAR for medical calls, from confirmed facts and computed scores), `lines.py` (line kinds), `view.py` (confirmed facts, provenance, wording), `text.py` (read-aloud text), `config.py` (loads and checks `config/handoff.yaml`). No model writes report text |
 | `herald/telemetry/` | tokens, power, cost | `collector.py`, `prometheus.py` |
 | `herald/api/` | HTTP + WebSocket only | `app.py` (factory), `context.py` (**composition root**), `capture.py`, `trace.py`, `contract.py`, `hub.py`, `routes/` |
@@ -93,6 +94,11 @@ $PY -m uvicorn ed_receiver.app:app --host 0.0.0.0 --port 8200 &
 HERALD_ED_URL=http://127.0.0.1:9000 PORT=8101 scripts/run_dev.sh   # your own port: 8101..8104; 8100 = demo
 # models: HERALD_LLM_MODEL = extraction (ems-e-v2-fp8, the fine-tuned extractor), HERALD_VISION_MODEL = photos (qwen3vl-fp8)
 # every setting: herald/config/settings.py; content (scores, checklists, prompts, county rules): config/
+# run_dev.sh binds 127.0.0.1 by default (B7). A tablet on the LAN needs HERALD_BIND_HOST=0.0.0.0 *and*
+# HERALD_DEVICE_TOKEN=<shared secret> (every mutating /api/* call must send it back as X-Herald-Token; open the
+# tablet's page once as .../?token=<the same secret>, ui/src/lib/authToken.ts remembers it) -- open the port with
+# no token and any other device on that Wi-Fi can read and write patient state. /api/egress (herald/egress/) is
+# the one place to see what left this box, was queued, or was refused, and why.
 $PY scripts/replay.py scenarios/stroke_demo.json --url http://localhost:8101 --no-llm
 $PY eval/bench_extract.py --extractor rules                # or: --extractor llm --model omni
 $PY scripts/build_rxnorm_index.py                          # once per clone: RxNorm index -> data/terminology/ (~10 min first time: RxNav)

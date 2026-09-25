@@ -14,6 +14,7 @@ from fastapi import FastAPI, WebSocket
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+from .auth import DeviceTokenMiddleware
 from .context import AppContext, build_context, wire_capture
 from .hub import Hub
 from .routes import capture as capture_routes
@@ -72,6 +73,7 @@ def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
             sync_task.cancel()
 
     app = FastAPI(title="Herald", version="0.2.0", lifespan=lifespan)
+    app.add_middleware(DeviceTokenMiddleware, token=ctx.settings.device_token)
     app.state.ctx, app.state.hub = ctx, hub
     app.state.capture = capture_service
     for module in (incident, patients, capture_routes, relay, system, protocols, handoff, agentic_capture, egress):

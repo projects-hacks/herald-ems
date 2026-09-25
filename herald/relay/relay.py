@@ -41,17 +41,23 @@ class Relay:
     def __init__(self, incident_getter: Callable, ed_url: Optional[str] = None,
                  transport: Optional[Transport] = None, probe: Optional[Callable[[], Awaitable[None]]] = None,
                  tiers: Optional[RelayTiers] = None, scales: Optional[ScaleRegistry] = None,
-                 audio_dir: Optional[Path] = None, egress: Optional[EgressPolicy] = None):
+                 audio_dir: Optional[Path] = None, egress: Optional[EgressPolicy] = None,
+                 ed_token: Optional[str] = None):
         self.get_incident = incident_getter
         self.ed_url = ed_url
         self.tiers = tiers or default_tiers()
         self.scales = scales or default_scales()
         self.audio_dir = audio_dir
         self.egress = egress    # E1: the real network path (below) always checks this before a packet leaves
+        self.ed_token = ed_token  # B7: sent as X-Herald-Token; must match the receiver's own ED_RECEIVER_TOKEN
         self._transport = transport
         self._probe = probe
         self.last_probe = 0.0
         self.reset()
+
+    def _headers(self, extra: Optional[dict] = None) -> dict:
+        h = {"X-Herald-Token": self.ed_token} if self.ed_token else {}
+        return {**h, **(extra or {})}
 
     def reset(self) -> None:
         self.authorized: Optional[dict] = None
@@ -231,8 +237,8 @@ class Relay:
                         raise RuntimeError(f"egress policy: {decision.reason}")
                 import httpx
                 async with httpx.AsyncClient(timeout=2.0) as c:
-                    (await c.get(f"{self.ed_url.rstrip('/')}/ping")).raise_for_status()
-                    state_response = await c.get(f"{self.ed_url.rstrip('/')}/state")
+                    (await c.get(f"{self.ed_url.rstrip('/')}/ping", headers=self._headers())).raise_for_status()
+                    state_response = await c.get(f"{self.ed_url.rstrip('/')}/state", headers=self._headers())
                     state_response.raise_for_status()
                     state = state_response.json()
                     self.clinician_acknowledgements = {
@@ -254,7 +260,7 @@ class Relay:
         import httpx
         async with httpx.AsyncClient(timeout=3.0) as c:
             r = await c.post(f"{self.ed_url.rstrip('/')}/ingest", content=wire,
-                             headers={"Content-Type": "application/json"})
+                             headers=self._headers({"Content-Type": "application/json"}))
             r.raise_for_status()
             return r.json()
 
