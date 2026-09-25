@@ -200,9 +200,13 @@ class Relay:
             return None
         _, _, inc, confirmed = min(candidates, key=lambda row: (row[0], row[1]))
         self.seq += 1
-        timeline = [{"k": f.key, "v": f.value, "t": f.ts.isoformat(), "r": f.role.value, "s": f.speaker}
+        timeline = [{"k": f.key, "v": f.value, "t": f.ts.isoformat(), "r": f.role.value, "s": f.speaker,
+                     **({"o": f.provenance.observed_at.isoformat()} if f.provenance.observed_at else {})}
                     for f in confirmed]
+        lkw = next((clock["since"] for clock in inc.snapshot()["clocks"]
+                    if clock["id"] == "lkw" and clock.get("confirmed")), None)
         return {"i": inc.id, "q": self.seq, "tier": "full", "f": self.critical_values(inc), "tl": timeline,
+                **({"lkw_at": lkw} if lkw else {}),
                 "patient": inc.patient_label, "dest": (self.authorized or {}).get("destination"), "x": 0,
                 "_why": ["full record on a good link"],
                 "_n": len(confirmed)}

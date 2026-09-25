@@ -2,7 +2,7 @@
 import { AlertCircle, CheckCircle2, ChevronDown, ClipboardList, Download, ListOrdered, Radio, Send, UserCheck } from "lucide-react";
 import { factValue, patientLabel, hhmm } from "@/lib/format";
 import { HandoffReport as StructuredHandoffReport } from "@/features/handoff/HandoffReport";
-import { allFacts, reconciled } from "@/lib/selectors";
+import { allFacts, clinicianReceipt, reconciled } from "@/lib/selectors";
 import { useHerald } from "@/lib/store";
 import type { FactView, Snapshot } from "@/lib/types";
 import { Badge, Button, Card, CardHeader, Count, EmptyState, PageHeader } from "@/components/kit";
@@ -43,7 +43,7 @@ function HandoffReport({ s }: { s: Snapshot }) {
       ...rows.map(([label, value]) => `${label}: ${value}`),
       `Unverified fields (excluded): ${unresolved.map((fact) => fact.label).join(", ") || "None"}`,
       `Missing fields: ${gaps.map((item) => item.label).join(", ") || "None in active checklists"}`,
-      "Clinician acknowledgment: not recorded. This draft is not a complete incident archive."].join("\n\n");
+      `Clinician acknowledgment: ${clinicianReceipt(s)}. This draft is not a complete incident archive.`].join("\n\n");
     const url = URL.createObjectURL(new Blob([report], { type: "text/plain;charset=utf-8" }));
     const link = document.createElement("a"); link.href = url; link.download = `herald-${s.incident.id}-draft.txt`;
     link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);

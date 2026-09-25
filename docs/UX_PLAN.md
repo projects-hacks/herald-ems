@@ -2273,6 +2273,17 @@ These run against fixtures (§5.8) and live (U6).
 ---
 ## 5. Stack
 
+### Continuous workspace and journey contract (2026-09-25)
+
+The medic workspace's **Camera → Monitor watch** uses the existing S9 endpoints below, always with the active `incident_id`. It remains mounted across internal care-page navigation. It requests camera access only on Start, allows at most one unacknowledged JPEG, and stops on tab hide, patient change, disconnect or explicit Stop. `/capture.html` remains the standalone option. See [workflow and review closeout](COPILOT_WORKFLOW.md).
+
+- Fact provenance gains optional `observed_at: ISO datetime`. For selected camera frames this is the vehicle's frame-receipt timestamp, not extraction completion and not an inferred administration time. `Fact.ts` remains record time. Old fixtures may omit `observed_at`.
+- `Snapshot.changed[].times` uses `provenance.observed_at` where available, otherwise record time. Confirmed-history handoff points include time and unit through the configurable `point_template` in `config/handoff.yaml`; report sources add `observed_at` and `frame_id`.
+- Full relay timeline entries gain optional `o: ISO datetime` for observation time. Full packets gain optional `lkw_at: ISO datetime` derived from the vehicle's confirmed LKW clock. Critical packets and their byte budget are unchanged. No raw media or unconfirmed facts are added to relay.
+- ED state carries nullable `lkw_at`. A changed or withdrawn LKW invalidates prior elapsed metadata; a full sync replaces it. ED uses only absolute, zone-qualified timestamps for elapsed time, displaying “elapsed not received” otherwise. Empty full timelines replace previous history.
+- ED metadata key entries include optional `unit`. Journey display uses received confirmed history, labels UTC timestamps, and explains that newer critical fields may have arrived separately from the latest full history. The received-data report preserves observation time.
+- Capture timeline updates existing rows in place; new captures wait for an explicit jump. Visible evidence is retained while being read even when it leaves the server's rolling transcript window; patient changes reset it.
+
 ### UI review contract additions (2026-09-25)
 
 Integration with ambient capture and patient roster: both `X-Herald-Patient` and existing multipart `incident_id` guards remain supported. Request-scoped capture retains camera listeners and ambient confirmation holds. Roster changes clear automatic camera work and ROI. Generic fact correction returns409 for an unresolved medication-label mismatch; only the explicit capture verification endpoint resolves it. These additive checks also apply when using the ambulance workspace.
@@ -2322,11 +2333,11 @@ The capture page uses `/classic/capture.html` (also `/capture.html` with the Rea
 
 ### 5.1 Decision
 
-**React 19 + TypeScript + Vite + Tailwind v4 + shadcn/ui on Radix primitives [29], with Zustand for state, lucide-react for icons [33], Fontsource for self-hosted fonts [32], and hand-drawn SVG sparklines (no chart library).**
+**React 19 + TypeScript + Vite + Tailwind v4, shared local components and direct Radix dialog/tabs/tooltip primitives [29], with Zustand for state, lucide-react for icons [33], Fontsource for self-hosted fonts [32], and hand-drawn SVG sparklines (no chart library).**
 
 **Why.**
 1. **Keyed rendering.** The trace card must keep its expanded state and keyboard focus while the server pushes new snapshots. Today's `web/app.js` rebuilds each region with `innerHTML` on every message, which loses both. React reconciles by key, so a card updated in place (§4.7) stays the same DOM node.
-2. **Accessible primitives.** Radix gives collapsible, tooltip, tabs, sheet, dialog and popover with focus management and ARIA built in [61]. Hand-rolling these for 1.5 days would cost more than the setup.
+2. **Accessible primitives.** Radix supplies tooltip, tabs and dialog focus/ARIA behavior [61]; the sheet uses dialog. Native details and local components cover the other shipped interactions.
 3. **Staffing.** It is the most widely documented web stack. Any teammate can pick up a component.
 4. **Offline at runtime.** Everything is bundled into static files served by FastAPI. No CDN and no Node at runtime (§5.11).
 
@@ -2340,7 +2351,7 @@ The capture page uses `/classic/capture.html` (also `/capture.html` with the Rea
 
 ### 5.3 Packages and versions
 
-These are the latest versions on the npm registry, queried 2026-09-23 [57]. Pin exact versions (`save-exact`).
+Original toolchain choices were queried 2026-09-23 [57]. The 2026-09-25 cleanup retains exact installed versions and replaces the unified Radix import with the three used packages. The authoritative install inputs are `ui/package.json` and its lockfile; use `npm ci` for an existing checkout.
 
 | Package | Version | Kind | License | Notes |
 |---|---|---|---|---|
@@ -2348,8 +2359,9 @@ These are the latest versions on the npm registry, queried 2026-09-23 [57]. Pin 
 | `react`, `react-dom` | 19.3.0 | dep | MIT | |
 | `zustand` | 5.0.15 | dep | MIT | Store (§5.7); `useShallow` for multi-field selectors [56] |
 | `lucide-react` | 1.47.0 | dep | ISC | Icons; tree-shaken |
-| `radix-ui` | 1.6.7 | dep | MIT | The unified Radix package, installed through shadcn components. Which Radix packages `shadcn add` pulls in is **unverified**; U1 records it. |
-| `class-variance-authority` | 0.7.1 | dep | Apache-2.0 | shadcn variants |
+| `@radix-ui/react-dialog` | 1.1.23 | dep | MIT | Dialog and sheet |
+| `@radix-ui/react-tabs` | 1.1.21 | dep | MIT | Camera workspace |
+| `@radix-ui/react-tooltip` | 1.2.16 | dep | MIT | Accessible tooltips |
 | `clsx` | 2.1.1 | dep | MIT | |
 | `tailwind-merge` | 3.7.0 | dep | MIT | |
 | `@fontsource-variable/inter` | 5.3.0 | dep | OFL-1.1 | [58] |
@@ -2361,14 +2373,13 @@ These are the latest versions on the npm registry, queried 2026-09-23 [57]. Pin 
 | `tw-animate-css` | 1.4.0 | dev | MIT | shadcn animation utilities. Our motion rules (§2.8) override the durations. |
 | `@types/react`, `@types/react-dom` | 19.3.0 | dev | MIT | |
 | `@types/node` | 26.6.2 | dev | MIT | For `vite.config.ts` |
-| `shadcn` (CLI, via `npx`) | 4.21.0 | tool | MIT | Not a runtime dependency. Needs Node ≥20.18.1. |
 | `vitest` | 5.0.1 | dev | MIT | Needs Node ^22.12; unit tests for selectors and the store |
 | `jsdom` | 30.1.1 | dev | MIT | Needs Node ^22.22.2 (22.23.2 is fine) |
 | `@testing-library/react` | 16.3.3 | dev | MIT | Component tests for the trace card |
 
 ### 5.4 Scaffolding commands
 
-**These commands have not been run on this box; U1 runs them and records the output.** Run them in your own clone under `~/work/<name>/herald-ems`, per AGENTS.md.
+**Historical initial scaffolding, not the current install procedure.** The unused shadcn CLI/configuration and variant dependency below were removed during cleanup. For this checkout, run `npm ci`, `npm test`, `npm run build` in `ui/`; do not rerun scaffolding over the existing app. Follow AGENTS.md for workspace and resource constraints.
 
 ```bash
 # 1) Node without sudo, from conda-forge (once per machine)

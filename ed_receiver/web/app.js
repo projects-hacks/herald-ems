@@ -1,4 +1,5 @@
-import { esc, formatValue, newestPatient, isNewField, fieldKeys, clockElapsed } from './view.mjs';
+import { esc, formatValue, newestPatient, isNewField, fieldKeys, observedElapsed } from './view.mjs';
+import { renderJourney } from './journey.mjs';
 const $ = (id) => document.getElementById(id);
 let selected = null, manualSelection = false, lastView = null, labels = {}, display = null, reportVersion = '', reportAbort = null;
 const seen = {}, highlights = {}, triageRank = { immediate: 0, delayed: 1, minimal: 2, expectant: 3, dead: 4 };
@@ -48,15 +49,16 @@ function render(view) {
   // stays the only span in the row, so the `.new span::after` "· NEW" marker keeps landing on the label alone.
   const row = (key) => {
     const field = incident.fields[key], meta = labels[key] ?? {};
-    const elapsed = field && meta.type === 'time' ? clockElapsed(field.v) : null;
+    const elapsed = field && key === 'stroke.lkw' ? observedElapsed(incident.lkw_at) : null;
     const value = !field ? '<span class="empty">not received</span>'
       : elapsed !== null ? esc(`${formatValue(field.v)} · ${elapsed} ago`)
-      : esc(`${formatValue(field.v)}${meta.unit ? ` ${meta.unit}` : ''}`);
-    return `<div class="row ${recent.has(key) ? 'new' : ''}"><span>${esc(label(key))}</span><b${elapsed !== null ? ` data-clock="${esc(String(field.v))}"` : ''}>${value}</b></div>`;
+      : esc(`${formatValue(field.v)}${meta.unit ? ` ${meta.unit}` : ''}${key === 'stroke.lkw' ? ' · elapsed not received' : ''}`);
+    return `<div class="row ${recent.has(key) ? 'new' : ''}"><span>${esc(label(key))}</span><b${elapsed !== null ? ` data-clock="${esc(String(field.v))}" data-since="${esc(incident.lkw_at)}"` : ''}>${value}</b></div>`;
   };
   const acknowledgements = incident.acknowledgements || [];
   $('root').innerHTML = `<div class="grid"><section class="card"><h2>${esc(incident.label || selected)} · received facts</h2>${fieldKeys(incident).map(row).join('') || '<p>No fields received yet</p>'}</section><section class="card"><h2>Link and packets</h2><p>${incident.applied.length} packets · ${incident.duplicates} duplicates ignored</p><p>${incident.queued_on_rig} queued on the vehicle · ${incident.bytes} bytes received</p><p><button id="ack-received">Mark received</button> <button id="ack-cath">Cath lab activated</button></p>${acknowledgements.length ? `<p>Clinician acknowledgement: ${esc(acknowledgements.at(-1).status.replaceAll('_', ' '))}</p>` : '<p>No clinician acknowledgement recorded.</p>'}<details><summary>Packet history</summary>${[...incident.packets].reverse().map((p) => `<p class="packet">${esc(incident.label || selected)} · #${p.seq} · ${esc(p.tier)} · ${p.bytes} B<br>${esc(p.keys.map(label).join(' · '))}</p>`).join('')}</details></section></div>${incident.timeline.length ? `<details class="card"><summary>Received event history</summary>${incident.timeline.map((t) => `<p>${esc(new Date(t.t).toLocaleTimeString())} · ${esc(label(t.k))}: ${esc(formatValue(t.v))}</p>`).join('')}</details>` : ''}`;
   $('ack-received').onclick = () => acknowledge(selected, 'received');
+  $('root').insertAdjacentHTML('beforeend', renderJourney(incident, labels));
   $('ack-cath').onclick = () => acknowledge(selected, 'cath_lab_activated');
   seen[selected] = max;
   const factsSection = $('root').querySelector('section');
@@ -78,7 +80,7 @@ function connect() {
 }
 function tickClocks() {
   document.querySelectorAll('b[data-clock]').forEach((el) => {
-    const elapsed = clockElapsed(el.dataset.clock);
+    const elapsed = observedElapsed(el.dataset.since);
     if (elapsed !== null) el.textContent = `${el.dataset.clock} · ${elapsed} ago`;
   });
 }

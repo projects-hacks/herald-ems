@@ -3,7 +3,7 @@
 **The patient's story arrives before the doors open.**
 
 Herald is an offline AI copilot for the back of the ambulance. While the paramedic works, it:
-- listens to the call and reads what the medic points the phone at;
+- listens in the background and selects useful frames from a camera aimed at the equipment;
 - keeps a live, evidence-backed picture of the patient: what's known, what changed, what's still missing, which clock is running, and whether a stroke or heart-attack pre-alert is ready;
 - looks up the county's own protocols, with citations;
 - sends the emergency department the smallest critical update the connection can carry.
@@ -16,6 +16,8 @@ Every model runs on one HP ZGX Nano (NVIDIA GB10). **No cloud AI.**
 ## What it does
 
 **Agentic capture (S9):** opt-in mounted-camera frames trigger selected still readings, proposed vitals, and spoken-drug/label checks; the medic confirms. [Setup, synthetic rehearsal, and pending real-model acceptance](docs/AGENTIC_CAPTURE.md).
+
+**Journey workflow:** start listening and monitor watch once, then use the overview for changing patient state, time windows and review. Confirmed observations and care events become the ED handoff. [Product boundaries, component decisions, UI cleanup and review closeout](docs/COPILOT_WORKFLOW.md).
 
 | | |
 |---|---|
@@ -63,9 +65,9 @@ The details, including what was genuine, what was noise, and what was a flaw in 
 
 ```
 CAPTURE                          PATIENT STATE (deterministic)             OUTPUTS
-push-to-talk speech ─┐           append-only facts with provenance         NOW screen (gap-first)
-phone photos        ─┼─► facts ─► checklists · gaps · contradictions ────► protocol lookup (cited)
-monitor panel       ─┘           trends · clocks · NEWS2 · RACE · G.F.A.S.T. relay → ED screen
+ambient / PTT audio ─┐           append-only facts with provenance         NOW screen (changes and gaps)
+selected frames     ─┼─► facts ─► checklists · gaps · contradictions ────► protocol lookup (cited)
+manual observations ─┘           trends · clocks · NEWS2 · RACE · G.F.A.S.T. relay → ED journey
         │                        (content: config/, reviewed and cited)
   Whisper → fine-tuned extractor (the only extractor) · vision model for photos
 ```
@@ -98,6 +100,8 @@ HERALD_LLM_MODEL=ems-e-v2-fp8 HERALD_VISION_MODEL=qwen3vl-fp8 PORT=8100 scripts/
 ```
 
 Open `http://localhost:8100`. Browsers only allow the microphone on `localhost` or HTTPS, so from a laptop, forward the port first (`ssh -L 8100:localhost:8100 <user>@<nano>`). Hold **Space** to talk as the medic, and **F** for a patient or family member.
+
+For continuous observation, choose **Start listening** and **Camera → Start monitor watch**, granting each device explicitly. Adjust the monitor region and return to the overview; camera capture continues across care pages. Hiding the browser tab, changing patient or losing the connection stops the camera. For a second-laptop equipment simulation, open `/monitor.html`, start its synthetic journey and point the observing camera at that display. It sends no facts directly to Herald. Real inference must use an approved serving instance; see the capture setup above.
 
 - **Relay demo:** `scripts/link.sh start 127.0.0.1:8200`, then run `ed_receiver` on port 8200 and set `HERALD_ED_URL=http://127.0.0.1:9000`. Shift+G/W/D switch the emulated link.
 - **Protocol-update demo** (two real versions of 700-S04): `scripts/demo_protocol_update.sh setup` and `HERALD_PROTOCOL_MIRROR=http://127.0.0.1:8300`.

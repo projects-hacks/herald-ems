@@ -6,7 +6,9 @@ import { CompactStatus } from "@/components/CompactStatus";
 import { CaptureControl } from "@/features/capture/CaptureControl";
 import { CaptureBar } from "@/features/capture/CaptureBar";
 import { ProtocolSearch } from "@/features/protocols/ProtocolSearch";
-import { alertKey, alertTitle, allFacts, queuedCount } from "@/lib/selectors";
+import { alertKey, alertTitle, allFacts } from "@/lib/selectors";
+import { RelaySummary } from "@/features/handoff/RelaySummary";
+import { monitorIdle } from "@/features/capture/monitor";
 import { ConnectBand, RestoredCallBanner, StaleOverlay } from "@/components/GlobalStates";
 import { AttentionQueue } from "@/features/attention/AttentionQueue";
 import { StatTiles } from "@/features/overview/StatTiles";
@@ -22,10 +24,9 @@ import type { CameraStatus } from "./CameraCapture";
 import { CameraWorkspace } from "./CameraWorkspace";
 import { useAmbient } from "./useAmbient";
 import { VitalReadings } from "./VitalReadings";
+import { JourneySummary } from "./JourneySummary";
 import { WorkspaceCards } from "./WorkspaceCards";
-import "./cabin.css";
 import "./workspace.css";
-import "./medic.css";
 import "./capture-workspace.css";
 import { WorkspaceNav, type WorkspacePanel } from "./WorkspaceNav";
 import { CareSummary, PatientSafetySummary } from "./CareSummary";
@@ -49,6 +50,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   const [panel, setPanel] = useState<Panel>(null);
   const [protocols, setProtocols] = useState(false);
   const [photo, setPhoto] = useState<CameraStatus>({ active: false, busy: false, message: "", failed: false });
+  const [monitor, setMonitor] = useState(monitorIdle);
   const page = useRef<HTMLElement>(null);
   const lastTrigger = useRef<HTMLElement | null>(null);
   const urgentLive = useRef<HTMLSpanElement>(null);
@@ -72,7 +74,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   const proposed = s ? allFacts(s).filter((f) => f.status === "unconfirmed").length : 0;
   const processing = s?.transcripts.filter((t) => t.trace.model.status === "running").length ?? 0;
   const errors = s?.transcripts.filter((t) => t.trace.model.status === "error").length ?? 0;
-  const firstAlert = a ? a.urgent[0] ?? a.choose[0] ?? a.confirmAlerts[0] ?? a.review[0] : undefined;
+  const firstAlert = a ? a.urgent[0] ?? a.positiveScreens[0] ?? a.choose[0] ?? a.confirmAlerts[0] ?? a.review[0] : undefined;
   const headline = firstAlert ? alertTitle(firstAlert) : undefined;
   const isReplay = source === "fixture";
   // The extraction model being down means new speech silently stops becoming facts: the banner escalates to HIGH.
@@ -118,6 +120,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
       </button>
       <span ref={urgentLive} className="sr-only" role="alert" />
       <div hidden={!!panel}><StatTiles overview /></div>
+      <div hidden={!!panel}><JourneySummary onReview={() => open("review")} onTrends={() => open("trends")} /></div>
       <div hidden={!!panel}><VitalReadings key={s?.active_patient ?? s?.incident.id} onReview={() => open("review")} onTrends={() => open("trends")} /></div>
       <section hidden={!panel} ref={page} tabIndex={-1} className="workspace-page" aria-label={panel ? TITLES[panel] : undefined}>
         {!s && panel && ["review", "patient", "patients", "trends", "handoff"].includes(panel) ? <div className="workspace-page-surface workspace-page-unavailable" role="status">
@@ -131,19 +134,19 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
         </>}
         {panel === "notes" && <><TranscriptPage onReview={() => open("review")} /><CaptureBar allowVoice={!recording && ambient.status.queued === 0} /></>}
         {panel === "protocols" && <div className="workspace-page-surface"><h1 className="workspace-page-heading">Protocol library</h1><ProtocolLibrary /></div>}
-        <div hidden={panel !== "camera"}><CameraWorkspace key={s?.incident.id} patient={identity?.status === "confirmed" ? String(identity.value) : s?.summary?.split(" · ")[0] || patientLabel(s)} visible={panel === "camera"} onStatus={setPhoto} onReview={() => open("review")} /></div>
+        <div hidden={panel !== "camera"}><CameraWorkspace key={s?.incident.id} patient={identity?.status === "confirmed" ? String(identity.value) : s?.summary?.split(" · ")[0] || patientLabel(s)} visible={panel === "camera"} onStatus={setPhoto} onMonitorStatus={setMonitor} onReview={() => open("review")} /></div>
         {panel === "settings" && <div className="cabin-settings workspace-page-surface"><h1 className="workspace-page-heading">Workspace settings</h1>
           <p>Expand an individual reading to see its history. Arrange cards changes only the capture and handoff layout; patient context, alerts and recording controls stay pinned. Browser zoom and pinch remain available. Phase buttons change this workspace only.</p>
           <div className="cabin-actions">{([1, 1.25, 1.5] as const).map((scale) => <button className="cabin-button" key={scale} aria-pressed={ui.typeScale === scale} onClick={() => setUi({ typeScale: scale })}>Text {scale * 100}%</button>)}</div>
-          <details><summary><Info size={18} />What runs in the background?</summary><p>After you start listening, audio is captured continuously and sent in approximately 8-second clips to this vehicle’s server. Transcription and extraction may take longer. Speaker identity is not detected. Verify every ambient fact before it can contribute to scores or be shared.</p><p>The local viewfinder reads a frozen image after you tap Read photo. A separately connected camera can watch a selected region when auto capture is explicitly enabled. Scores use confirmed facts. Handoff delivery status is a server acknowledgment, not proof a clinician has read it.</p><p>Microphone pauses when the tab is hidden. Patient change, lost connection, or leaving this view stops capture. Unsent audio is not a durable backup.</p></details>
+          <details><summary><Info size={18} />What runs in the background?</summary><p>After you start listening, audio is captured continuously and sent in approximately 8-second clips to this vehicle’s server. Transcription and extraction may take longer. Speaker identity is not detected. Verify every ambient fact before it can contribute to scores or be shared.</p><p>Start monitor watch keeps the camera observing equipment while you navigate care pages. The vehicle selects useful stills and holds readings for review. Take a photo remains available for individual labels or documents. Scores use confirmed facts. Handoff delivery status is a server acknowledgment, not proof a clinician has read it.</p><p>Hiding this browser tab, changing patient, losing the connection or leaving the medic workspace stops capture. Unsent audio is not a durable backup.</p></details>
           <div className="cabin-actions"><button className="cabin-button" onClick={() => setUi({ presentationMode: true })}>Guided demo</button><button className="cabin-button" onClick={() => setUi({ mode: "explain" })}>Detailed application view</button>
             <button className="cabin-button" disabled={recording || ambient.status.queued > 0 || photo.busy} onClick={() => setUi({ confirmNewIncident: true })}>New incident…</button></div>
-          <p className="cabin-muted">Prototype for demonstration. Not validated for use during patient care.</p>
+          <p className="cabin-muted">Prototype. Not validated for use during patient care.</p>
         </div>}
       </section>
       <div hidden={!!panel} className="overview-grid"><WorkspaceCards cards={{
         capture: { label: "Capture & evidence", content: <>
-          <div className="workspace-card-heading"><span className="workspace-icon"><Mic size={22} /></span><div><h3>Capture & evidence</h3><p>Words and images, ready for your review</p></div></div>
+          <div className="workspace-card-heading"><span className="workspace-icon"><Mic size={22} /></span><div><h3>Background observation</h3><p>Listening and watching, with you in control</p></div></div>
           <button className="capture-note-preview" onClick={() => open("notes")}><span className="cabin-eyebrow">{processing ? `${processing} notes processing` : errors ? `${errors} notes need attention` : "LATEST CAPTURE"}<ChevronRight size={18} /></span><p>{latest?.text ?? "Your next note starts here. Listen hands-free or type what you observe."}</p><small>{latest ? `Captured ${hhmm(latest.ts)} · expand transcript & evidence` : "Microphone stays off until you start"}</small></button>
           <div className="capture-visual-summary"><Camera size={20} /><div><strong>{photo.busy ? "Reading your photo…" : photo.failed ? "Photo needs attention" : "Visual evidence"}</strong><p>{photo.message || "Monitor, medication label, form or scene"}</p></div><button className="component-expand" aria-label="Open visual evidence" onClick={() => open("camera")}><ChevronRight size={20} /></button></div>
           <CaptureControl compact onSetup={() => open("camera")} />
@@ -151,8 +154,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
         handoff: { label: "Receiving team", content: <>
           <div className="workspace-card-heading"><span className="workspace-icon"><FileText size={22} /></span><div><h3>Receiving team</h3><p>The patient story, ready to share</p></div></div>
           <p className="handoff-destination">{destination?.status === "confirmed" ? String(destination.value) : "Destination not confirmed"}</p>
-          <div className="handoff-summary"><span>{s?.relay.authorized ? "Sharing authorized" : "Sharing not authorized"}</span><strong>{s?.relay.authorized ? `${queuedCount(s)} fields queued` : "Confirmed facts stay on this vehicle"}</strong></div>
-          <p className="workspace-caption">Receiving-system delivery is separate from a clinician reading the report.</p>
+          <RelaySummary />
           <button className="cabin-button handoff-open" onClick={() => open("handoff")}><FileText size={19} />Open read-aloud handoff<ChevronRight size={18} /></button>
         </> },
       }} /><CareSummary onReview={() => open("review")} /></div>
@@ -163,6 +165,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
           <p role={ambient.status.error ? "alert" : "status"}>{ambient.status.queued ? `${ambient.status.queued} audio clip(s) processing · ` : ""}{ambient.status.message}</p>
           <meter min={0} max={1} value={ambient.status.level} aria-label="Microphone input level" />
           <span className="cabin-camera-status">{photo.active ? "This device: camera preview on · " : ""}{stale && !isReplay ? "Camera last known" : "Connected camera"}: {cameraState}{stale && !isReplay ? " · disconnected" : ""}{s?.capture?.pending ? ` · ${s.capture.pending} waiting` : ""}</span>
+          {(monitor.active || monitor.starting || monitor.error) && <p role={monitor.error ? "alert" : "status"}>{monitor.active ? "Monitor watch on · " : ""}{monitor.message}</p>}
           {s?.capture?.error && <p role="alert">Camera capture needs attention: {s.capture.error}</p>}</div></div>
       <div className="cabin-actions">
         {s?.capture?.auto && <CaptureControl stopOnly />}

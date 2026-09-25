@@ -111,8 +111,13 @@ Presenter link hotkeys on the NOW screen: Shift+G good, Shift+W weak, Shift+D do
   only killed small session daemons. `run_job.py` refuses in demo mode, queues GPU-heavy jobs (one at a time), waits
   for memory, caps host memory in a systemd scope, and caps torch's CUDA allocator at `--need-gib`. The memory guard
   (`herald-memguard.service`, always running) kills normal guarded jobs first when memory is short, and
-  `--priority critical` jobs (the training run) last. While a critical job runs, other `--gpu` jobs are refused. Never stop the guard
+  `--priority critical` jobs (the training run) last. While a critical job runs, other `--gpu` jobs are refused, and so
+  is any job needing more than 4 GiB. Never stop the guard
   during a demo. Details: `docs/MEMORY_SAFETY.md`.
+- **"CPU-only" is not safe next to a training run.** On 2026-09-25 at 05:13 the box hard-froze because a 4B model
+  merge started with `--need-gib 12` and no `--gpu` was admitted alongside the critical 30B run: `run_job` refused only
+  `--gpu` jobs. GPU and CPU share one 121.6 GiB pool here, so a critical job now blocks any job over
+  `run_job.critical_coexist_gib` (4 GiB) regardless of `--gpu`; use `--wait` to queue behind it.
 - **GB10 unified memory: CUDA allocations are NOT charged to cgroups** (measured: a 4 GiB torch CUDA allocation
   succeeded inside `systemd-run --user --scope -p MemoryMax=2G`), but they **do** lower `MemAvailable`. A cgroup cap
   alone can't stop a GPU job, which is why `run_job.py` also sets `torch.cuda.set_per_process_memory_fraction`. The

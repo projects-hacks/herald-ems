@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+from datetime import datetime, timezone
 
 from fastapi.concurrency import run_in_threadpool
 
@@ -60,6 +61,7 @@ class FrameReader:
                 f.captured_by, f.role = CapturedBy.camera, Role.photo
                 f.provenance.photo_id = None
                 f.provenance.trigger, f.provenance.frame_id, f.provenance.auto = intent.trigger, frame.id, intent.trigger != "manual"
+                f.provenance.observed_at = datetime.fromtimestamp(frame.ts, timezone.utc)
                 f.provenance.crop = list(roi.__dict__.values()) if roi and intent.mode == "monitor" else None
                 f.provenance.text = f"{intent.reason}; frame {frame.id} at {frame.ts}"
                 try:
