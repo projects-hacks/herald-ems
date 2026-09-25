@@ -80,7 +80,7 @@ Say:
 
 Select **Clinical view** or press `Shift+P`. Use only these points:
 
-- **Scores are deterministic code; the model only extracts facts.** For this Santa Clara County stroke case the routing scale is **G.F.A.S.T. 4 of 4 → 700-A13 routing** (Protocol 700-A13: 4 of 4 routes to a Comprehensive Stroke Center unless the center is more than 45 minutes away). NEWS2 and RACE are computed and shown beside it as supporting context — RACE is not the county's routing rule, so lead with G.F.A.S.T.
+- **Scores are deterministic code; the model only extracts facts.** For this Santa Clara County stroke case the routing scale is **G.F.A.S.T. 4 of 4 → 700-A13 routing** (Protocol 700-A13 §3.2: 4 of 4 routes to a Comprehensive Stroke Center; §3.2.1: if that is more than 45 minutes away, to the closest Primary Stroke Center). NEWS2 and RACE are computed and shown beside it as supporting context — RACE is not the county's routing rule, so lead with G.F.A.S.T.
 - **Nothing uncertain leaves the ambulance until a human confirms it.** Model-only facts are held below the confidence bar and wait for a medic's tap.
 - **Everything runs locally; the screen reports zero cloud AI calls.** Speech is Whisper (large-v3-turbo), fact extraction is the fine-tuned local model served as `ems-e-v2-fp8`, and photo reading is the local vision model served as `qwen3vl-fp8`.
 
