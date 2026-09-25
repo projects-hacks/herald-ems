@@ -5,7 +5,7 @@ import { ArrowDownRight, ArrowUpRight, BookOpenCheck, Download, Ear, FileText, S
 import type { FixturePlayer } from "@/lib/ws";
 import type { ProtocolCue } from "@/lib/types";
 import { api } from "@/lib/api";
-import { activity, edHas, keyPoints, patientKnown, SAFETY_KEYS, type ActivityKind, type Presence } from "@/lib/copilot";
+import { activity, cuePoints, edHas, patientKnown, SAFETY_KEYS, type ActivityKind, type Presence } from "@/lib/copilot";
 import { GROUPS } from "@/lib/selectors";
 import { clockSeconds, factValue, hhmmss } from "@/lib/format";
 import { useNow } from "@/hooks/useNow";
@@ -104,7 +104,7 @@ export function ProtocolCues({ onOpen }: { onOpen: () => void }) {
       <h3>{c.title}</h3>
       {c.state === "searching" && <p className="protocol-status" role="status">Finding the county passage…</p>}
       {c.state === "not_covered" && <p className="protocol-status">The county documents on this vehicle do not cover this.</p>}
-      {c.state === "found" && (() => { const points = keyPoints(c.passages, 2, shown); return points.length ? <ul className="protocol-points">{points.map((k, i) => <li key={i}>
+      {c.state === "found" && (() => { const points = cuePoints(c, shown); return points.length ? <ul className="protocol-points">{points.map((k, i) => <li key={i}>
         <span>{k.segments.map((s, j) => s.hl ? <mark key={j}>{s.t}</mark> : <span key={j}>{s.t}</span>)}</span>
         <cite>{k.cite}</cite>
       </li>)}</ul> : <p className="protocol-status">The matching county text is a heading or a list; open it below.</p>; })()}

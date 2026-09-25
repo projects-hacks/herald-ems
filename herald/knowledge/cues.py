@@ -28,7 +28,8 @@ def _cut(text: str, limit: int) -> tuple[str, bool]:
 
 
 class ProtocolCues:
-    def __init__(self, kb: Callable[[], Optional[object]], county: Callable[[], str], config: Optional[dict] = None):
+    def __init__(self, kb: Callable[[], Optional[object]], county: Callable[[], str], config: Optional[dict] = None,
+                 picker: Optional[object] = None):
         cfg = config or load_yaml("protocol_cues.yaml")
         self.cues: list[dict] = cfg["cues"]
         self.passages: int = cfg.get("passages", 2)
@@ -41,7 +42,7 @@ class ProtocolCues:
         self._q = (lambda topic: f"{topic} {ctx}".strip())
         self.asked: dict[str, list[dict]] = {}              # incident id -> the medic's own requests, newest first
         self.max_chars: int = cfg.get("max_chars", 700)
-        self._kb, self._county = kb, county
+        self._kb, self._county, self._picker = kb, county, picker      # picker: KeyPointPicker, or None to skip
         self._results: dict[tuple[str, str], dict] = {}
         self._inflight: set[tuple[str, str]] = set()
         self._lock = threading.Lock()
@@ -90,6 +91,15 @@ class ProtocolCues:
     def _key(self, cue: dict) -> tuple[str, str]:
         return (self._county(), cue["id"])
 
+    @staticmethod
+    def situation(snap: dict) -> str:
+        """What the key-point picker is told about this call: the summary, the dispatch and the open alerts."""
+        alerts = [a.get("label") or a.get("type") for a in snap.get("alerts", [])]
+        ready = [r.get("label") for r in snap.get("readiness", [])]
+        parts = [snap.get("summary") or "", (snap.get("incident") or {}).get("dispatch") or "", ", ".join(filter(None, ready)),
+                 ", ".join(filter(None, alerts))]
+        return "; ".join(p for p in parts if p) or "EMS call"
+
     def pending(self, snap: dict) -> list[dict]:
         """Active cues with no result yet and no search running; the caller resolves them off the request path."""
         if self._kb() is None:
@@ -97,7 +107,8 @@ class ProtocolCues:
         with self._lock:
             out = [c for c in self.active(snap) if self._key(c) not in self._results and self._key(c) not in self._inflight]
             self._inflight.update(self._key(c) for c in out)
-        return out
+        where = self.situation(snap)
+        return [{**c, "situation": f"{where}; the paramedic needs: {c.get('topic') or c['title']}"} for c in out]
 
     def resolve(self, cue: dict) -> None:
         key = self._key(cue)
@@ -105,6 +116,13 @@ class ProtocolCues:
             kb = self._kb()
             answer = kb.answer(cue["query"], self.passages) if kb is not None else None
             result = self._result(answer) if answer is not None else None
+            if result is not None and result["state"] == "found" and self._picker is not None:
+                try:                                              # key points are optional: without them the screen
+                    points = self._picker.pick(cue.get("situation", cue["title"]), result["passages"])   # uses lead sentences
+                    if points is not None:
+                        result["points"] = points
+                except Exception:
+                    pass
             if result is not None:
                 result["found_at"] = datetime.now(timezone.utc).isoformat()
         except Exception as e:                                   # a model hiccup must not lose the cue for good

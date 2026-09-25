@@ -172,8 +172,9 @@ const HL = [
 ];
 /** Only what a medic scans for: numbers with their units and time windows, and destination facilities. Marking every
  *  word of the question would mark everything, which marks nothing. */
-export function highlight(text: string): Segment[] {
-  const patterns = HL;
+export function highlight(text: string, exact: string[] = []): Segment[] {
+  const phrases = exact.filter((m) => m && text.includes(m)).map((m) => new RegExp(m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"));
+  const patterns = [...HL, ...phrases];
   const marks: [number, number][] = [];
   for (const re of patterns) for (const m of text.matchAll(re)) marks.push([m.index!, m.index! + m[0].length]);
   marks.sort((a, b) => a[0] - b[0]);
@@ -198,6 +199,21 @@ export function keyPoints(passages: { doc: string; section: string; text: string
     const text = lead.length > 240 ? `${lead.slice(0, 237).replace(/\s+\S*$/, "")} …` : lead;
     out.push({ segments: highlight(text), cite });
     if (out.length >= max) break;
+  }
+  return out;
+}
+
+/** The model's picks when it made them (each already verified server-side to be the county's words), otherwise the
+ *  lead sentence of each passage. Either way a passage shows once across situations. */
+export function cuePoints(c: { passages: { doc: string; section: string; text: string }[]; points?: { text: string; cite: string; marks: string[] }[] },
+  skip: Set<string>): KeyPoint[] {
+  if (!c.points?.length) return keyPoints(c.passages, 2, skip);   // no picks: each passage's lead sentence
+  const out: KeyPoint[] = [];
+  for (const p of c.points) {
+    const key = `${p.cite}|${p.text}`;
+    if (skip.has(key)) continue;
+    skip.add(key); skip.add(p.cite);
+    out.push({ segments: highlight(p.text, p.marks), cite: p.cite });
   }
   return out;
 }
