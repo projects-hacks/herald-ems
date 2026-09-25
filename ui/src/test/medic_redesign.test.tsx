@@ -24,7 +24,7 @@ describe("medic workspace navigation", () => {
     fireEvent.click(nav.getByRole("button", { name: "Protocol library" }));
     expect(screen.getByRole("textbox", { name: "Search county protocols" })).toBeTruthy();
     fireEvent.click(nav.getByRole("button", { name: "Overview" }));
-    expect(screen.getByRole("region", { name: "Latest documented readings" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "How this patient is moving" })).toBeTruthy();
     expect(nav.getByRole("button", { name: "Overview" }).getAttribute("aria-current")).toBe("page");
   });
   it("switches between server-provided checklists without inventing completion", () => {

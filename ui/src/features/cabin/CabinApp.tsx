@@ -95,21 +95,18 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
       </div>
     </header>
     <div className="cabin-sticky-status">
-      <div className="cabin-patient-context"><span className="workspace-patient-pin"><UserRound size={14} />{identity?.status === "confirmed" ? String(identity.value) : s?.summary?.split(" · ")[0] || patientLabel(s)}</span><CompactStatus always /><span className="workspace-session"><Clock3 size={14} />Started {hhmm(s?.incident.started)}</span></div>
+      <div className="cabin-patient-context"><span className="workspace-patient-pin"><UserRound size={14} />{identity?.status === "confirmed" ? String(identity.value) : s?.summary?.split(" · ")[0] || patientLabel(s)}</span><CompactStatus always /></div>
       <ConnectBand /><StaleOverlay />
       <RestoredCallBanner />
       {isReplay && <p className="cabin-replay">Demo replay · recorded scenario, not a live patient · capture disabled</p>}
     </div>
     <main id="workspace-main" tabIndex={-1} className="cabin-main">
       <section hidden={!!panel} className="cabin-patient" aria-label="Current patient">
-        <div className="patient-identity"><span className="patient-avatar"><UserRound size={30} strokeWidth={1.6} /></span><div><p className="cabin-eyebrow">CURRENT PATIENT <span className="encounter-badge">{isReplay ? "Recorded encounter" : s ? "Active encounter" : "Awaiting connection"}</span></p>
-          <h1>{identity?.status === "confirmed" ? String(identity.value) : patientLabel(s)}</h1>
-          <p>{s?.summary || "Start capture or enter a patient fact"}</p>
-          <p className="cabin-muted">{identity?.status !== "confirmed" ? "Identity not confirmed · " : ""}{s?.incident.dispatch ? `Dispatch: ${s.incident.dispatch}` : "Dispatch not recorded"}</p>
+        <div className="patient-identity"><div>
+          <h1>{s?.summary || patientLabel(s)}</h1>
+          <p className="cabin-destination"><MapPin size={14} />{destination?.status === "confirmed" ? String(destination.value) : "Destination not confirmed"}</p>
           {(s?.patients?.length ?? 0) > 1 && <PatientRoster />}
         </div></div>
-        <div className="cabin-journey"><span><Clock3 size={14} />CALL ELAPSED</span><strong>{elapsed ? hhmmss(clockSeconds(elapsed, at, now)) : "—"}</strong>
-          <p><MapPin size={14} />{destination?.status === "confirmed" ? String(destination.value) : "Destination not confirmed"}</p></div>
       </section>
       <PatientSafetySummary onReview={() => open("patient")} />
       <button id="cabin-attention" className={`cabin-attention ${modelDown || a?.urgent.length ? "urgent" : ""} ${modelDown || a?.count ? "has-items" : ""}`} disabled={!s} onClick={() => open("review")}>
@@ -119,9 +116,8 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
         <span className="cabin-count">{s ? a?.count ?? 0 : "—"}<small>to review</small></span><ChevronRight size={23} aria-hidden />
       </button>
       <span ref={urgentLive} className="sr-only" role="alert" />
-      <div hidden={!!panel}><StatTiles overview /></div>
-      <div hidden={!!panel}><JourneySummary onReview={() => open("review")} onTrends={() => open("trends")} /></div>
-      <div hidden={!!panel}><VitalReadings key={s?.active_patient ?? s?.incident.id} onReview={() => open("review")} onTrends={() => open("trends")} /></div>
+      <div hidden={!!panel} role="region" aria-label="How this patient is moving"><StatTiles overview />
+        <JourneySummary onReview={() => open("review")} onTrends={() => open("trends")} /></div>
       <section hidden={!panel} ref={page} tabIndex={-1} className="workspace-page" aria-label={panel ? TITLES[panel] : undefined}>
         {!s && panel && ["review", "patient", "patients", "trends", "handoff"].includes(panel) ? <div className="workspace-page-surface workspace-page-unavailable" role="status">
           <WifiOff size={28} aria-hidden /><h1 className="workspace-page-heading">{TITLES[panel]}</h1><p>Patient data is not available yet. This page will update when the vehicle connects.</p>
@@ -129,7 +125,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
           {panel === "review" && <AttentionQueue />}
           {panel === "patient" && <PatientPage />}
           {panel === "patients" && <div className="workspace-page-surface"><h1 className="workspace-page-heading">Manage patients</h1><PatientRoster /></div>}
-          {panel === "trends" && <><StatTiles /><TrendsPage /></>}
+          {panel === "trends" && <><StatTiles /><VitalReadings key={s?.active_patient ?? s?.incident.id} onReview={() => open("review")} onTrends={() => open("trends")} /><TrendsPage /></>}
           {panel === "handoff" && <HandoffPage />}
         </>}
         {panel === "notes" && <><TranscriptPage onReview={() => open("review")} /><CaptureBar allowVoice={!recording && ambient.status.queued === 0} /></>}
