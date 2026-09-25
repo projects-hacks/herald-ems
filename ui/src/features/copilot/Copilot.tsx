@@ -132,7 +132,7 @@ function Passage({ p }: { p: ProtocolCue["passages"][number] }) {
 
 /** The county's own words for the situation Herald recognised: quoted, cited, dated. Herald adds nothing. One passage
  *  per situation on the screen; the rest are a tap away. */
-export function ProtocolCues({ onOpen }: { onOpen: () => void }) {
+export function ProtocolCues() {
   const cues = useHerald((st) => st.snapshot?.protocol_cues);   // select the stored array: a fresh [] would re-render forever
   if (!cues?.length) return null;
   const shown = new Set<string>();                        // a passage appears once, under the first situation that found it
@@ -152,7 +152,6 @@ export function ProtocolCues({ onOpen }: { onOpen: () => void }) {
       {c.state === "found" && <details className="protocol-more"><summary>Full county text{c.passages[0]?.effective ? ` · effective ${c.passages[0].effective}` : ""}</summary>
         {c.passages.map((p) => <Passage key={`${p.doc}-${p.section}`} p={p} />)}</details>}
     </article>)}
-    <button className="activity-all" onClick={onOpen}>All protocols</button>
   </section>;
 }
 

@@ -31,10 +31,13 @@ describe("ambulance workspace", () => {
     expect(screen.getByRole("region", { name: "What Herald did" })).toBeTruthy();
     expect(screen.queryByText(/Record only when authorized|processed on the vehicle/)).toBeNull();   // no disclaimers on Now
   });
-  it("opens the county protocol search from the header", () => {
+  it("does not offer a manual protocol search: the copilot surfaces the county passage on its own", () => {
+    // The medic knows their protocols; Herald's job is to suggest the relevant passage unprompted (ProtocolCues) or
+    // on a spoken ask, not to be a reference the medic types into. The manual search drawer was removed from the
+    // cabin (owner, 2026-09-25); the agentic path (auto-cues + "show me the protocol for …") covers it.
     render(<CabinApp />);
-    fireEvent.click(screen.getByRole("button", { name: "Protocols" }));
-    expect(screen.getByRole("dialog", { name: "County protocols" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Protocols" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "County protocols" })).toBeNull();
   });
   it("exposes bounded push-to-talk and typed notes without starting the microphone", () => {
     useHerald.setState({ ui: initialUi("?capture=off") }); render(<CabinApp />);

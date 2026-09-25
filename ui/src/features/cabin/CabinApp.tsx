@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Activity, BookOpen, Camera, ChevronLeft, FileText, Info, Keyboard, Moon, Settings2, Sun, Users, WifiOff } from "lucide-react";
+import { Activity, Camera, ChevronLeft, FileText, Info, Keyboard, Moon, Settings2, Sun, Users, WifiOff } from "lucide-react";
 import { ManualEntry } from "@/components/ManualEntry";
 import { PatientRoster } from "@/components/PatientRoster";
 import { CaptureBar } from "@/features/capture/CaptureBar";
 import { CaptureControl } from "@/features/capture/CaptureControl";
-import { ProtocolSearch } from "@/features/protocols/ProtocolSearch";
 import { alertKey, alertTitle } from "@/lib/selectors";
 import { monitorIdle } from "@/features/capture/monitor";
 import { ConnectBand, RestoredCallBanner, StaleOverlay } from "@/components/GlobalStates";
@@ -47,7 +46,6 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   const ambient = useAmbient();
   const [panel, setPanel] = useState<Panel>(null);
   const [recordView, setRecordView] = useState<RecordView>("facts");
-  const [protocols, setProtocols] = useState(false);
   const [photo, setPhoto] = useState<CameraStatus>({ active: false, busy: false, message: "", failed: false });
   const [monitor, setMonitor] = useState(monitorIdle);
   const page = useRef<HTMLElement>(null);
@@ -97,7 +95,6 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
         <button className="cabin-button" aria-label="Camera" aria-pressed={panel === "camera"} onClick={() => open("camera")}><Camera size={19} /></button>
         <button className="cabin-button" aria-label="Type a note" aria-pressed={panel === "notes"} onClick={() => open("notes")}><Keyboard size={19} /></button>
         <button className="cabin-button" aria-label="Record" aria-pressed={panel === "record"} onClick={() => openRecord("facts")}><FileText size={19} /><span className="patients-button-label">Record</span></button>
-        <button className="cabin-button" aria-label="Protocols" onClick={() => setProtocols(true)}><BookOpen size={19} /><span className="patients-button-label">Protocols</span></button>
         {multi && <button className="cabin-button" aria-label="Patients" onClick={() => open("patients")}><Users size={19} /><span className="patients-button-label">Patients</span></button>}
         <button className="cabin-button" aria-label={ui.theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
           onClick={() => setUi({ theme: ui.theme === "dark" ? "light" : "dark" })}>{ui.theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}</button>
@@ -115,7 +112,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
         <div className="copilot-primary"><AttentionQueue className="copilot-needs" /></div>
         <div className="copilot-rest">   {/* on a landscape screen: two columns that scroll together beside Needs you */}
           <div className="copilot-side">
-            <ProtocolCues onOpen={() => setProtocols(true)} />
+            <ProtocolCues />
             <PatientKnown onRecord={() => openRecord("facts")} />
           </div>
           <div className="copilot-side">
@@ -149,14 +146,12 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
             <button className="cabin-button" onClick={() => setUi({ theme: ui.theme === "dark" ? "light" : "dark" })}>{ui.theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}{ui.theme === "dark" ? "Daylight theme" : "Night theme"}</button></div>
           <label className="copilot-switch"><input type="checkbox" checked={ui.autoCapture} onChange={(e) => setUi({ autoCapture: e.target.checked, capturePaused: !e.target.checked })} />
             Listen and watch automatically when a call starts</label>
-          <div className="cabin-actions"><button className="cabin-button" onClick={() => setProtocols(true)}>Search protocols</button>
-            <button className="cabin-button" disabled={recording || ambient.status.queued > 0 || photo.busy} onClick={() => setUi({ confirmNewIncident: true })}>New incident…</button>
+          <div className="cabin-actions"><button className="cabin-button" disabled={recording || ambient.status.queued > 0 || photo.busy} onClick={() => setUi({ confirmNewIncident: true })}>New incident…</button>
             <button className="cabin-button" onClick={() => setUi({ presentationMode: true })}>Guided demo</button><button className="cabin-button" onClick={() => setUi({ mode: "explain" })}>Detailed application view</button></div>
           <details><summary><Info size={18} />Recording, privacy and what runs in the background</summary><p>Record only when authorized. After you start listening, Herald listens continuously and sends only speech, cut at natural pauses, to this vehicle’s server; everything is processed on the vehicle. Speaker identity is not detected. Every captured fact needs your confirmation before it counts toward scores or is shared.</p><p>Monitor watch keeps the camera on the equipment while you use other pages; the vehicle keeps useful stills and holds readings for your confirmation. Hiding this tab, changing patient, losing the connection or leaving the workspace stops capture. Unsent audio is not a durable backup. Handoff delivery status is a system acknowledgment, not proof a clinician has read it.</p></details>
           <p className="cabin-muted">Prototype. Not validated for use during patient care.</p>
         </div>}
       </section>
     </main>
-    <ProtocolSearch open={protocols} onClose={() => setProtocols(false)} />
   </div></div>;
 }
