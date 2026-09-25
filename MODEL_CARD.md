@@ -9,12 +9,18 @@ It does not cover the untuned models Herald also serves (Whisper large-v3-turbo,
 models only turn speech, photos, and document images into structured facts; a paramedic decides everything.
 See `README.md` and `AGENTS.md` invariant 3.
 
-**Status.** herald-f finished training and passed most of its own held-out speech and photo gates, but it
-**failed the protocol-reranking kept-ability gate** and its confirmation threshold has not been recalibrated
-for it. It has not shipped as Herald's extractor. Herald's default configuration keeps serving the
-previous run (`ems-e-v2-fp8`, Qwen3-4B-Instruct-2507 + LoRA) or the documented split-stack/4B-fallback
-options; see `docs/RUNBOOK.md` and `config/stack.yaml`. Every number below is from `eval/results.jsonl`
-(or, where noted, `docs/RUN_F_REPORT.md` for the training run itself) and was current as of 2026-09-25.
+**Status.** herald-f (30B) is a **research artifact, published on Hugging Face, and does not ship in
+Herald.** It measurably beat the shipped extractor on held-out speech and on `infection.suspected` recall
+(see "What herald-f does better," below), but it failed a blocking gate it had to pass to replace the
+shipped stack: protocol reranking (kept-ability gate), G.F.A.S.t. below its 0.95 bar, and a confirmation
+threshold that has not been recalibrated for it. **Herald's shipped stack is `ems-e-v2-fp8`
+(Qwen3-4B-Instruct-2507 + LoRA) for speech, the untuned `qwen3vl-fp8` for photos/reranking/figures/
+translation, and Whisper large-v3-turbo** — see `README.md`, `docs/RUNBOOK.md`, and `config/stack.yaml`
+(owned separately from this card; check it directly for the current default). herald-f4b-fp8 (4B) is an
+optional, experimental fallback, also not shipped by default. Every number below is from
+`eval/results.jsonl` unless marked otherwise, and was current as of 2026-09-25; some figures (marked) are
+the model owner's own multi-run summary and could not be independently re-derived from the saved file at
+the time this card was written, because gating was still in progress.
 
 ## herald-f (30B)
 
@@ -72,9 +78,11 @@ quantized to **FP8**, block-128 on the language model with the vision tower left
 | `gold_es_v1` (Spanish speech → facts) | 60 | 0.931 | — | — | 0.993 |
 | `gold_newkeys_v1` | 84 | 0.935 | — | — | 0.980 |
 
-G.F.A.S.T. F1 on `gold_v2` was **0.947** on this run — **below the 0.95 kept/shipping bar**, and measured
-once; a same-day rerun of the same gold set (also in `eval/results.jsonl`) scored G.F.A.S.T. F1 0.919, so
-this number has not been shown stable across repeats and should not be read as a pass.
+G.F.A.S.T. F1 on `gold_v2` was **0.947** on the run saved in `eval/results.jsonl` at this card's writing —
+already below the 0.95 kept/shipping bar. The model owner reports a **mean of 0.924 across 3 runs**
+(precision 1.000; the miss is recall, on `exam.gfast.speech`), which is the number to treat as authoritative
+for the pass/fail call; it is not yet independently re-derivable from a single saved row in this repository,
+because gating was still in progress when this card was written.
 
 Adversarial speech (`eval/results.jsonl`, one run each): seen set 20/25 passed, unseen set 27/40 passed.
 
@@ -82,7 +90,24 @@ Confirmation calibration at the 0.8 threshold, held-out: **206 facts auto-confir
 0.947). The shipping bar for herald-f is auto-confirmed wrong ≤ 1 (`docs/TRAINING_PLAN.md` §6); at 11 wrong
 this is **not** recalibrated for shipping — see Known limits.
 
-**Photos**, `eval/results.jsonl` `bench: vision:photos`, model `herald-f`:
+### What herald-f does better than the shipped extractor
+
+Not every number went herald-f's way. Against `ems-e-v2-fp8` (the shipped extractor), on `gold_v2`:
+
+- **Transcript → facts F1: herald-f ~0.964 (model owner's 3-run mean) vs. `ems-e-v2-fp8` 0.948–0.952**
+  (`eval/results.jsonl`, 3 runs) — a real, if modest, gain on the shipped extractor's own held-out set.
+- **`infection.suspected` recall: herald-f 0.889 vs. `ems-e-v2-fp8` 0.111** (model owner's measurement) —
+  a large gain on a key the shipped extractor mostly misses.
+
+These wins are why herald-f is published as a research artifact rather than discarded: the underlying
+speech extraction improved, even though the model as a whole did not clear every gate needed to replace
+the shipped stack. Do not read the failed gates below as "the fine-tune did not work" — read them as
+"this specific merged checkpoint is not a safe drop-in replacement yet," which is a narrower and more
+useful claim.
+
+**Photos** (herald-f only — these numbers are NOT the shipped vision stack's; Herald serves the untuned
+`qwen3vl-fp8` for photos by default, and its own numbers are separate, in `eval/results.jsonl` under model
+`qwen3vl-fp8`). `bench: vision:photos`, model `herald-f`:
 - Camera-on-screen synthetic set (`eval/photos/camera_screen`, n=8): F1 1.000, exact-image accuracy 1.000.
 - Rendered forms including POLST (`photos_forms_polst`): F1 **0.578**, 3 invented facts — weak. Herald does
   **not** claim reliable POLST `code_status` reading from this model; see the "Claims" section of
@@ -100,9 +125,13 @@ this is **not** recalibrated for shipping — see Known limits.
 | out-of-scope questions correctly refused | 0.571 (4/7) | ≥ 0.571 (4/7) |
 
 **This gate failed** on top1 and top3: herald-f's protocol reranking is measurably worse than the untuned
-model it would replace. Refusal correctness met the bar exactly but did not improve on it. Figure
-transcription (700-A13, `bench: vision:flowchart`) matched the untuned baseline exactly (node recall 0.875,
-edge recall 0.857, 0 added words) and is not the blocker.
+model it would replace. In the run saved in `eval/results.jsonl`, refusal correctness ties the untuned
+baseline at 4/7 on the full 59-question set; the model owner has separately described refusals as a
+regression from 7/7 to 4/7, which this repository's saved runs do not show for the untuned baseline on the
+same question set — noted here as an open discrepancy rather than silently picking one number. Either way,
+**top1/top3 alone are enough to fail the gate.** Figure transcription (700-A13, `bench: vision:flowchart`)
+matched the untuned baseline exactly (node recall 0.875, edge recall 0.857, 0 added words) and is not the
+blocker.
 
 ### Known limits
 
@@ -114,17 +143,24 @@ edge recall 0.857, 0 added words) and is not the blocker.
   auto-confirmed facts were wrong, against a ≤ 1 bar. herald-f must not be served with `ems-e-v2-fp8`'s
   confirmation thresholds; `config/confirmation.yaml` needs herald-f-specific thresholds from a refit that
   has not yet been done.
-- **G.F.A.S.T. F1 0.947 on one `gold_v2` run**, against a 0.95 bar, with a same-day rerun at 0.919 — not
-  yet shown to pass reliably (see above).
+- **G.F.A.S.T. F1 0.947 on the one `gold_v2` run saved in `eval/results.jsonl`**, against a 0.95 bar; the
+  model owner's 3-run mean (0.924) is also below the bar and is the number to treat as authoritative.
 - **Photo reading on real (non-rendered) photos and on POLST forms is measurably weaker** than on the
   rendered/synthetic training distribution (F1 0.727 and 0.578 respectively, vs 1.000 on the synthetic
-  camera-on-screen set). Treat any photo-derived fact, and POLST `code_status` in particular, as needing the
-  medic's confirmation, which Herald already requires for every photo-derived fact (invariant 4).
+  camera-on-screen set). These numbers are herald-f's, a research artifact — the shipped vision model is the
+  untuned `qwen3vl-fp8`, evaluated separately. Treat any photo-derived fact, and POLST `code_status` in
+  particular, as needing the medic's confirmation, which Herald already requires for every photo-derived
+  fact (invariant 4); Herald does not claim reliable POLST `code_status` reading from any model.
 - **No end-to-end (microphone-to-facts) evaluation exists for herald-f.** All speech numbers above are
   extraction from gold *text* transcripts (`eval/bench_extract.py`), not from audio through Whisper; see
   "Claims" in `README.md`.
 - Training and evaluation data is entirely synthetic/AI-assisted and not clinician-reviewed (see Data
   statement above); accuracy on real speech and real photos is expected to be lower than these numbers.
+- **`trauma.criteria` recall is weak on every extractor tested, herald-f included** (roughly 0.19–0.25 per
+  the model owner's measurements). Herald does not claim automatic field-triage or sepsis-criteria
+  extraction from speech: the 2021 field-triage score and Policy 605/700-A04 criteria are computed only from
+  criteria the medic has confirmed, and missing inputs are shown as missing, never inferred or guessed
+  (`AGENTS.md` invariant 6).
 
 ## herald-f4b-fp8 (4B, text-only fallback)
 
@@ -133,7 +169,7 @@ edge recall 0.857, 0 added words) and is not the blocker.
 | Base model | `Qwen/Qwen3-4B-Instruct-2507` (Apache-2.0) |
 | Fine-tuning method | LoRA merged into the base, same run-F training recipe and data as herald-f's text rows; text-only (no vision tower) |
 | License | Apache-2.0 |
-| Role | The fallback extractor when the 30B stack is not used (`docs/TRAINING_PLAN.md` §7); paired with the untuned `qwen3vl-fp8` for photos, reranking, figures and translation. |
+| Role | An optional, experimental fallback, **not served by default**, for when the 30B stack does not fit or will not start (`docs/TRAINING_PLAN.md` §7); paired with the untuned `qwen3vl-fp8` for photos, reranking, figures and translation. Herald's default extractor is `ems-e-v2-fp8`. |
 
 Evaluation (`eval/results.jsonl`, extractor `llm:herald-f4b-fp8`, scorer v2, one run each):
 
@@ -154,17 +190,18 @@ Use herald-f4b-fp8 only as the documented fallback (`docs/RUNBOOK.md`), paired w
 `qwen3vl-fp8` for everything vision- and language-adjacent; it has not been evaluated or intended as a
 stroke-screen-critical primary extractor given the G.F.A.S.T. number above.
 
-## What "private" means here, and how to get the weights
+## Where the weights are
 
-`herald-extractor-lora-merged-f` (and `-f4b`) are pushed to a private Hugging Face repo under the account
-that trained them; `scripts/serve_models.sh` reads the repo id from `~/.config/herald/secrets.env`
-(`HF_REPO_ID`), which is not in this repository. To reproduce or reuse these adapters:
+`herald-f` (run F, 30B) is published on Hugging Face as a research artifact, using
+[`docs/hf/README_herald-f.md`](docs/hf/README_herald-f.md) as its model card; it is not part of Herald's
+served stack (see Status above). The team's day-to-day serving repo (`herald-extractor-lora-merged-f` and
+`-f4b`, and the earlier `ems-e-v2-fp8`/etc. checkpoints) stays private under the account that trained them;
+`scripts/serve_models.sh` reads that repo id from `~/.config/herald/secrets.env` (`HF_REPO_ID`), which is
+not in this repository. To reproduce or reuse these adapters yourself:
 1. Fine-tune your own adapter with `scripts/train_vlm_lora.py` (30B) or `scripts/train_lora.py` (4B) against
    the base models above, using `requirements-train.txt` (see `README.md`); the training data recipe is
    documented in `docs/TRAINING_PLAN.md` and `docs/MODEL_PLAN.md`, though the specific rendered/synthesized
    training rows are not committed to this repository.
-2. Or ask the repo owner for read access to the existing private Hugging Face repo and point
-   `HF_REPO_ID`/`HF_TOKEN` at it.
-
-A Hugging-Face-formatted copy of this card, for the adapter repo itself, is at
-[`docs/hf/README_herald-f.md`](docs/hf/README_herald-f.md).
+2. Or use the published `herald-f` Hugging Face repo directly (for research/experimentation only — see
+   Known limits above before relying on it for anything), or ask the repo owner for read access to the
+   private serving repo and point `HF_REPO_ID`/`HF_TOKEN` at it.
