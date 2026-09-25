@@ -176,4 +176,12 @@ async def ws(ws: WebSocket):
         CLIENTS.discard(ws)
 
 
-app.mount("/", StaticFiles(directory=str(Path(__file__).parent / "web"), html=True), name="web")
+class _Revalidated(StaticFiles):
+    """The wall screen runs for days: every load revalidates (a cheap 304), so an update is never hidden by a cache."""
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+app.mount("/", _Revalidated(directory=str(Path(__file__).parent / "web"), html=True), name="web")

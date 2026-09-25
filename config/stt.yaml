@@ -1,0 +1,41 @@
+# Speech-to-text gates: which clips Whisper's own signals say are not speech Herald should read.
+#
+# Herald listens to the cabin in short clips, so many clips are silence, engine noise, or half a word. On those,
+# Whisper does not stay quiet: it echoes its priming prompt, writes "Thank you." or "Hello.", produces subtitles or
+# greetings in another language, or repeats one phrase to the token limit (all seen live on 2026-09-25, and one of
+# them reached the record as a blood pressure nobody said). These gates read the model's own probabilities at its
+# first decoder step and the shape of its output (herald/models/stt_gates.py), never a list of phrases.
+#
+# Every signal below comes from one decoder step from <|startoftranscript|> on the clip's encoder output, the step
+# openai-whisper reads for no_speech_prob and detect_language. Measured on this box with whisper-large-v3-turbo,
+# 2026-09-25 (docs/MODEL_PLAN.md §0k "Speech gates"): 25 non-speech clips (silence; white, pink and synthetic cabin
+# noise at three levels) against 100 speech clips (Piper TTS: English clean, 8 dB and 3 dB cabin noise, 1.5 s
+# fragments, -26 dB quiet; Spanish clean and 8 dB). TTS speech, not people: the thresholds are a floor to revisit
+# with real cabin recordings.
+gates:
+  # P(<|nospeech|>) over the whole vocabulary at that step: how sure Whisper is that the window holds no speech.
+  # Above this the clip is dropped without decoding.
+  # Source: openai-whisper transcribe(), default no_speech_threshold=0.6 (github.com/openai/whisper,
+  # whisper/transcribe.py). openai-whisper also requires a low decode log-probability before it skips a segment;
+  # Herald does not decode a clip it has judged silent, so the probability stands alone here.
+  # Measured: whisper-large-v3-turbo never predicts the token (P ~ 1e-10 on silence and on speech alike; its first
+  # step is split between <|transcribe|> and a language token), so on the shipped model this gate is inert. It is
+  # kept for other Whisper checkpoints (HERALD_STT_MODEL); the gate below does the work on turbo.
+  no_speech_threshold: 0.6
+  # Languages the product reads: English and Mexican Spanish (config/grounding.yaml spoken_numbers.languages,
+  # config/numbers.yaml). Codes are Whisper's language tokens (ISO 639-1). The most probable language at that step
+  # must be one of these: anything else on a cabin clip is noise the decoder would turn into subtitles or a greeting
+  # in that language, not a patient.
+  languages: [en, es]
+  # The probability mass, among Whisper's language tokens at that same step, on the languages above. On speech it
+  # is ~1.0 whatever the noise (code-switched English/Spanish keeps its mass inside the list); on non-speech Whisper
+  # hears "some language, unsure which" and spreads it over ru, ja, pt, fr... Below this the clip is dropped without
+  # decoding. Measured: non-speech min 0.41, median 0.62, max 0.74 (n=25); speech min 0.94 (Spanish, clean), 0.97
+  # (8 dB), 0.98 (1.5 s fragments), median 1.00 (n=100). 0.85 sits in the middle of that gap. Set to 0 to disable.
+  min_read_language_prob: 0.85
+  # zlib compression ratio of the decoded text's UTF-8 bytes (raw / compressed): a decode that loops repeats itself
+  # and compresses far better than speech does. Above this the decode is discarded.
+  # Source: openai-whisper transcribe(), default compression_ratio_threshold=2.4 (whisper/transcribe.py, and
+  # whisper/utils.py compression_ratio()). Measured: loops 18.9-26.9; speech 0.77-1.75 (the 1.75 is one sentence
+  # written twice), median ~1.05.
+  compression_ratio_threshold: 2.4

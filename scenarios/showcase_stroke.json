@@ -1,0 +1,24 @@
+{
+ "name": "Showcase: every copilot capability on one stroke call",
+ "note": "For rehearsal and screenshots: speech from the medic and family, a pill bottle that disagrees with what was said (label check), a monitor read by the camera, a spoken protocol request answered with the county's cited words, sharing with the receiving ED, and a later monitor frame with falling SpO2 (change alert). Photos are the synthetic test images in eval/photos (no patient data). LKW_TIME is filled by replay.py. Run without --fast.",
+ "steps": [
+  {"incident": "possible stroke", "pause": 3},
+  {"say": "68-year-old female, sudden right-sided weakness, husband says she was fine at LKW_TIME.", "pause": 4},
+  {"say": "Right facial droop, right arm drift, eyes deviated to the left, she can't get her words out.", "pause": 4},
+  {"say": "She takes Eliquis for her heart.", "by": "other", "speaker": "husband", "pause": 3},
+  {"photo": "eval/photos/synthetic_pill_warfarin.jpg", "mode": "pill_bottle", "pause": 4,
+   "note": "the bottle reads warfarin: Herald flags that it disagrees with what the husband said"},
+  {"say": "Show me the protocol for stroke.", "pause": 4},
+  {"photo": "eval/photos/monitor_03_defib_glare.jpg", "mode": "monitor", "pause": 4},
+  {"say": "Mom is allergic to aspirin.", "by": "other", "speaker": "daughter", "pause": 3},
+  {"say": "Glucose 142. Transporting to Regional, ETA 12 minutes.", "pause": 4},
+  {"confirm": "exam.gfast.", "pause": 1},
+  {"confirm": "stroke.", "pause": 1},
+  {"confirm": "patient.", "pause": 1},
+  {"confirm": "transport.", "pause": 1},
+  {"confirm": "vitals.glucose", "pause": 1},
+  {"authorize": "Regional", "scope": "stroke pre-alert", "pause": 3},
+  {"photo": "eval/photos/monitor_04_dark_blur.jpg", "mode": "monitor", "pause": 4,
+   "note": "a later frame: SpO2 falls from 99 to 84 and the respiratory rate rises"}
+ ]
+}

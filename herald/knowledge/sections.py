@@ -17,6 +17,7 @@ class Section:
     text: str = ""              # heading + body, as printed
     uncertain: bool = False     # the text layer shows font/ligature damage here
     parents: list[str] = field(default_factory=list)   # parent headings, for search context
+    items: str = ""             # a lead-in section's sub-items, quoted with it but not indexed (they rank themselves)
 
 
 def strip_running_lines(pages: list[tuple[int, str]], share: float, band: Optional[tuple[int, int]] = None,
@@ -45,12 +46,13 @@ def strip_running_lines(pages: list[tuple[int, str]], share: float, band: Option
 
 class SectionSplitter:
     def __init__(self, heading_styles: dict, running_line_share: float, glyph_error_pattern: str,
-                 running_line_band: Optional[tuple[int, int]] = None):
+                 running_line_band: Optional[tuple[int, int]] = None, lead_in_children_chars: int = 0):
         self.decimal = re.compile(heading_styles["decimal"])
         self.outline = [re.compile(p) for p in heading_styles["outline"]]
         self.nested = re.compile(heading_styles["nested"]) if heading_styles.get("nested") else None
         self.share, self.band = running_line_share, tuple(running_line_band) if running_line_band else None
         self.glyph_error = re.compile(glyph_error_pattern)
+        self.lead_in_chars = lead_in_children_chars
 
     def split(self, doc_id: str, pages: list[tuple[int, str]], style: str) -> list[Section]:
         lines = strip_running_lines(pages, self.share, self.band, lambda line: self._looks_like_heading(line, style))
@@ -71,9 +73,25 @@ class SectionSplitter:
                     sections[-1].text += "\n" + line.strip()
                 else:   # preamble (title, effective date) before the first numbered heading
                     sections.append(Section(doc_id, "0", line.strip(), page, 0, line.strip()))
+        if self.lead_in_chars:
+            self._carry_lead_ins(sections)
         for s in sections:
             s.uncertain = bool(self.glyph_error.search(s.text))
         return sections
+
+    def _carry_lead_ins(self, sections: list[Section]) -> None:
+        """A section ending in a lead-in colon also carries its sub-items' text for quoting (the sub-items stay
+        sections and are what search ranks, so a parent never outranks the item that says it)."""
+        for i, s in enumerate(sections):
+            if not s.text.rstrip().endswith(":") or s.level == 0:
+                continue
+            extra, used = [], 0
+            for child in sections[i + 1:]:
+                if child.level <= s.level or used + len(child.text) > self.lead_in_chars:
+                    break
+                extra.append(child.text); used += len(child.text)
+            if extra:
+                s.items = "\n".join(extra)
 
     def _looks_like_heading(self, line: str, style: str) -> bool:
         """The line has the shape of a numbered section in this style (no sequence check, no state change)."""

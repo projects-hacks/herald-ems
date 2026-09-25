@@ -5,7 +5,7 @@ import { ArrowDownRight, ArrowUpRight, BookOpenCheck, Download, Ear, FileText, S
 import type { FixturePlayer } from "@/lib/ws";
 import type { ProtocolCue } from "@/lib/types";
 import { api } from "@/lib/api";
-import { activity, cuePoints, edHas, patientKnown, SAFETY_KEYS, type ActivityKind, type Presence } from "@/lib/copilot";
+import { activity, cuePoints, edHas, keyPoints, setAside, patientKnown, SAFETY_KEYS, type ActivityKind, type Presence } from "@/lib/copilot";
 import { GROUPS } from "@/lib/selectors";
 import { clockSeconds, factValue, hhmmss } from "@/lib/format";
 import { useNow } from "@/hooks/useNow";
@@ -29,15 +29,18 @@ const KIND_ICON: Record<ActivityKind, typeof Ear> = { heard: Ear, read: Monitor,
 
 export function HeraldActivity({ onAll }: { onAll: () => void }) {
   const s = useHerald((st) => st.snapshot);
-  const working = s?.transcripts.some((t) => t.trace?.model?.status === "running");
   const contract = useContract();
-  const lines = s ? activity(s, 6, (k) => contract?.keys[k]?.label ?? k.split(".").at(-1)!.replace(/_/g, " ")) : [];
+  const name = (k: string) => contract?.keys[k]?.label ?? (k.startsWith("score.") ? (s?.scores as unknown as Record<string, { name?: string } | undefined> | undefined)?.[k.slice(6)]?.name : undefined)
+    ?? (k.startsWith("alert.") ? "pre-alert status" : k.split(".").at(-1)!.replace(/_/g, " "));
+  const lines = s ? activity(s, 6, name) : [];
   return <section className="copilot-activity" aria-labelledby="activity-h">
-    <h2 id="activity-h">Herald is doing</h2>
-    {working && <p className="activity-working" role="status">Listening… working on what was just said</p>}
-    {lines.length ? <ol>{lines.map((l) => { const Icon = KIND_ICON[l.kind]; return <li key={l.id} data-kind={l.kind}>
-      <time>{hhmm(l.ts)}</time><Icon size={16} aria-hidden /><span>{l.text}</span>
-    </li>; })}</ol> : !working && <p className="activity-empty">Nothing yet. Start listening and Herald records as you work.</p>}
+    <h2 id="activity-h">What Herald did</h2>
+    {lines.length ? <ol className="herald-timeline">{lines.map((l) => { const Icon = KIND_ICON[l.kind]; return <li key={l.id} data-kind={l.kind}>
+      <span className="tl-node" aria-hidden><Icon size={14} /></span>
+      <span className="tl-body"><span className="tl-text">{l.text}</span>{l.detail && <span className="tl-detail">{l.detail}</span>}</span>
+      <time>{hhmm(l.ts)}</time>
+    </li>; })}</ol> : <p className="activity-empty">Nothing yet. Herald records what it hears, reads and sends here.</p>}
+    {s && setAside(s) > 0 && <p className="activity-aside">Set aside {setAside(s)} {setAside(s) === 1 ? "remark" : "remarks"} with nothing clinical in {setAside(s) === 1 ? "it" : "them"}</p>}
     {lines.length > 0 && <button className="activity-all" onClick={onAll}>Full record</button>}
   </section>;
 }
@@ -105,15 +108,18 @@ export function ProtocolCues({ onOpen }: { onOpen: () => void }) {
   const shown = new Set<string>();                        // a passage appears once, under the first situation that found it
   return <section className="copilot-protocol" aria-labelledby="protocol-h">
     <h2 id="protocol-h"><BookOpenCheck size={16} aria-hidden />County protocol</h2>
-    {cues.map((c) => <article key={c.id} className="protocol-cue" data-state={c.state}>
-      <h3>{c.title}</h3>
+    <p className="protocol-note">Found by Herald in the county’s documents · quoted, not advice</p>
+    {cues.map((c) => <article key={c.id} className="protocol-cue" data-state={c.state} data-asked={c.asked || undefined}>
+      <h3>{c.asked ? <><span className="cue-asked">You asked</span>“{c.query}”</> : c.title}</h3>
       {c.state === "searching" && <p className="protocol-status" role="status">Finding the county passage…</p>}
       {c.state === "not_covered" && <p className="protocol-status">The county documents on this vehicle do not cover this.</p>}
-      {c.state === "found" && (() => { const points = cuePoints(c, shown); return points.length ? <ul className="protocol-points">{points.map((k, i) => <li key={i}>
+      {c.state === "found" && (() => { let points = cuePoints(c, shown); let closest = false;
+        if (!points.length && c.asked) { points = keyPoints(c.passages, 1); closest = points.length > 0; }   // asked: the nearest county words
+        return points.length ? <>{closest && <p className="protocol-status">No rule names this exactly. The closest county text:</p>}<ul className="protocol-points">{points.map((k, i) => <li key={i}>
         <span>{k.segments.map((s, j) => s.hl ? <mark key={j}>{s.t}</mark> : <span key={j}>{s.t}</span>)}</span>
         <cite>{k.cite}</cite>
-      </li>)}</ul> : <p className="protocol-status">No single rule to show here. The county text is below.</p>; })()}
-      {c.state === "found" && <details className="protocol-more"><summary>County text · effective {c.passages[0]?.effective ?? "date not stated"}</summary>
+      </li>)}</ul></> : <p className="protocol-status">Closest county sections: {[...new Set(c.passages.slice(0, 3).map((p) => `${p.doc} §${p.section}`))].join(" · ")}</p>; })()}
+      {c.state === "found" && <details className="protocol-more"><summary>Full county text{c.passages[0]?.effective ? ` · effective ${c.passages[0].effective}` : ""}</summary>
         {c.passages.map((p) => <Passage key={`${p.doc}-${p.section}`} p={p} />)}</details>}
     </article>)}
     <button className="activity-all" onClick={onOpen}>All protocols</button>

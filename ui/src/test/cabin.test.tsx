@@ -25,10 +25,10 @@ describe("ambulance workspace", () => {
     useHerald.setState({ ui: initialUi("?capture=off") });
     render(<CabinApp />);
     expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Start listening" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Listen and watch" })).toBeTruthy();
     expect(screen.getByText(/Paused — tap to listen and watch/)).toBeTruthy();
     expect(screen.getByRole("region", { name: "How the patient is moving" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "Herald is doing" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "What Herald did" })).toBeTruthy();
     expect(screen.queryByText(/Record only when authorized|processed on the vehicle/)).toBeNull();   // no disclaimers on Now
   });
   it("opens the county protocol search from the header", () => {
@@ -64,7 +64,7 @@ describe("ambulance workspace", () => {
   });
   it("disables capture in a replay", () => {
     useHerald.setState({ source: "fixture" }); render(<CabinApp />);
-    expect((screen.getByRole("button", { name: "Start listening" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Listen and watch" }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Camera" }));
     expect((screen.getByRole("button", { name: "Start monitor watch" }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.queryByRole("button", { name: "Close details" })).toBeNull();

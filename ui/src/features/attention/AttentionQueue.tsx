@@ -15,7 +15,7 @@ import { useHerald } from "@/lib/store";
 import { MismatchCard } from "@/features/capture/MismatchCard";
 import { TraumaCriteriaChecklist } from "./TraumaCriteriaChecklist";
 import type { Alert, FactView, NeedItem, Snapshot } from "@/lib/types";
-import { readingCards, type ReadingCard } from "@/lib/copilot";
+import { readingCards, readingText, type ReadingCard } from "@/lib/copilot";
 import { cn } from "@/lib/utils";
 import { ActionButton, ActionNote, usePendingAction } from "@/components/ActionButton";
 import { AudioEvidence } from "@/components/AudioEvidence";
@@ -113,6 +113,42 @@ function TapRow({ f }: { f: FactView }) {
       was={f.previous_value !== null && f.previous_value !== undefined ? factValue({ value: f.previous_value, unit: f.unit }) : undefined}
       meta={<FactMeta f={f} />} actions={<ConfirmActions fact={f} />} />
   );
+}
+
+/** Several facts taken from one sentence: the words once, then each value with its own decision. "Confirm all" is
+ *  offered only when none of them is held for an individual check (the server refuses held facts in a batch too). */
+function HeardGroup({ facts }: { facts: FactView[] }) {
+  const first = facts[0];
+  const words = first.captured_by === "camera" ? null : first.provenance?.text?.trim();
+  const vitals = facts.filter((f) => f.key.startsWith("vitals."));
+  const held = facts.some((f) => f.provenance?.hold_reason || (f.verify?.status === "mismatch" && !f.verify.resolution));
+  return (
+    <Row icon={sourceIconOf(first)} cat={catOf(first.key)} title={words ? <span className="heard-quote">“{words.length > 140 ? `${words.slice(0, 139).trimEnd()}…` : words}”</span>
+        : vitals.length === facts.length ? <>Monitor reading · <span className="num">{readingText(facts)}</span></> : `${facts.length} values from one photo`}
+      meta={<FactMeta f={first} />}>
+      <ul className="heard-facts">{facts.map((f) => <li key={f.id}>
+        <span className="heard-what"><span className="heard-label">{f.label}</span><span className="heard-value">{factValue(f)}</span></span>
+        <span className="heard-actions">
+          <ActionButton pendingKey={`confirm:${f.id}`} onClick={() => api.confirm(f.id)} busyText="Saving…" variant={held ? "primary" : undefined}>Confirm</ActionButton>
+          <CorrectFactDialog fact={f} />
+          <ActionButton pendingKey={`reject:${f.id}`} onClick={() => api.reject(f.id)} busyText="Saving…">Reject</ActionButton>
+        </span>
+      </li>)}</ul>
+      {!held && <div className="heard-all"><ActionButton pendingKey={`confirm-many:${facts.map((f) => f.id).sort().join(",")}`} onClick={() => api.confirmMany(facts.map((f) => f.id))}
+        busyText="Saving…" variant="primary" className="min-h-16">Confirm all {facts.length}</ActionButton></div>}
+    </Row>
+  );
+}
+
+/** Facts in the order they were heard, those from one sentence together. */
+function byUtterance(facts: FactView[]): FactView[][] {
+  const groups = new Map<string, FactView[]>();
+  for (const f of facts) {
+    const k = f.verify?.status === "mismatch" && !f.verify.resolution ? `solo:${f.id}`
+      : f.provenance?.audio_id ?? f.provenance?.photo_id ?? f.provenance?.frame_id ?? (f.provenance?.text ? `t:${f.provenance.text}` : `solo:${f.id}`);
+    groups.set(k, [...(groups.get(k) ?? []), f]);
+  }
+  return [...groups.values()];
 }
 
 function CodeStatusRow({ a }: { a: CodeStatus }) {
@@ -227,13 +263,13 @@ function StillToCapture({ s }: { s: Snapshot }) {
   const checklist = new Set(s.readiness.flatMap((r) => r.items.map((i) => i.key)));
   const gaps = s.needs_attention.missing.filter((m) => checklist.has(m.key));
   const news2 = s.needs_attention.missing.filter((m) => !checklist.has(m.key));
-  const unknown = s.needs_attention.unknown;
+  const unknown = s.needs_attention.unknown.filter((m) => !m.pending_confirm);   // heard ones already wait above
   if (!gaps.length && !news2.length && !unknown.length) return null;
   return (
     <Section title="Missing for handoff" count={gaps.length + unknown.length + news2.length} className="border-t border-border-subtle pt-1">
       <div className="flex flex-col gap-3 px-5 pt-1 pb-4">
         {gaps.length > 0 && <div className="flex flex-col gap-1.5"><p className="text-meta text-text-muted">{s.readiness[0]?.label ?? "Pre-alert"} checklist</p><Chips items={gaps} /></div>}
-        {unknown.length > 0 && <div className="flex flex-col gap-1.5"><p className="text-meta text-text-muted">Not asked yet</p><Chips items={unknown} /></div>}
+        {unknown.length > 0 && <div className="flex flex-col gap-1.5"><p className="text-meta text-text-muted">Not heard yet</p><Chips items={unknown} /></div>}
         {news2.length > 0 && (
           <p className="text-body text-text-secondary"><span className="font-semibold text-text-primary">NEWS2 needs {news2.length} more {news2.length === 1 ? "value" : "values"}</span>
             {news2.length <= 3 ? ` · ${news2.map((m) => m.label.replace(NEWS2_SUFFIX, "")).join(" · ")}` : ""}</p>
@@ -293,8 +329,8 @@ export function AttentionQueue({ className }: { className?: string }) {
               <ul>
                 {readings.map((c) => <ReadingRow key={c.frameId} c={c} />)}
                 {a.confirmAlerts.map((al) => <CodeStatusRow key={alertKey(al)} a={al as CodeStatus} />)}
-                {a.confirmFacts.map((f) => f.verify?.status === "mismatch" && !f.verify.resolution
-                  ? <MismatchCard key={f.id} fact={f} /> : <TapRow key={f.id} f={f} />)}
+                {byUtterance(a.confirmFacts).map((g) => g.length > 1 ? <HeardGroup key={g[0].id} facts={g} />
+                  : g[0].verify?.status === "mismatch" && !g[0].verify.resolution ? <MismatchCard key={g[0].id} fact={g[0]} /> : <TapRow key={g[0].id} f={g[0]} />)}
               </ul>
             </Section>
           )}

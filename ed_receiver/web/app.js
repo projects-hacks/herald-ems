@@ -71,12 +71,13 @@ function render(view) {
     const elapsed = key === 'stroke.lkw' ? observedElapsed(incident.lkw_at) : null;
     const value = elapsed !== null ? `${formatValue(field.v)} · ${elapsed} ago` : `${formatValue(field.v)}${meta.unit ? ` ${meta.unit}` : ''}`;
     const fresh = field.seq === max;
-    return `<div class="tile ${fresh ? 'new' : ''}"><small>${esc(label(key))} · <em>${fresh ? 'latest update' : 'received'}</em></small><b${elapsed !== null ? ` data-clock="${esc(String(field.v))}" data-since="${esc(incident.lkw_at)}"` : ''}>${esc(value)}</b></div>`;
+    return `<div class="tile ${fresh ? 'new' : ''}"><small>${esc(label(key))}${fresh ? ' · <em>latest update</em>' : ''}</small><b${elapsed !== null ? ` data-clock="${esc(String(field.v))}" data-since="${esc(incident.lkw_at)}"` : ''}>${esc(value)}</b></div>`;
   };
   // What the latest packet changed, in one line the charge nurse can read from across the room.
   const latest = fieldKeys(incident).filter((key) => incident.fields[key].seq === max && max > 0);
   const changed = latest.length && incident.applied.length > 1 ? `<div class="changed"><h2>Changed in the latest update</h2>${latest.slice(0, 4).map((key) =>
-    `<span>${esc(label(key))}</span><b>${esc(formatValue(incident.fields[key].v))}${labels[key]?.unit ? ` ${esc(labels[key].unit)}` : ''}</b>`).join('')}</div>` : '';
+    { const h = incident.history?.[key] ?? [], was = h.length > 1 ? h[h.length - 2].v : null, unit = labels[key]?.unit ? ` ${esc(labels[key].unit)}` : '';
+      return `<span>${esc(label(key))}</span><b>${was !== null ? `<s>${esc(formatValue(was))}</s> → ` : ''}${esc(formatValue(incident.fields[key].v))}${unit}</b>`; }).join('')}</div>` : '';
   factsSection.innerHTML = `<h2>Critical</h2><div class="critical">${critical.map(tile).join('')}</div>${changed}<h2>Vitals, exam, logistics</h2>${fieldKeys(incident).filter((key) => !critical.includes(key)).map(row).join('')}`;
   incoming(incident);
   const version = `${selected}:${max}`;

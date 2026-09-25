@@ -112,7 +112,7 @@ export interface TraceFact {
   status: FactStatus; confidence: number; extractor: string | null; relay: string; hold_reason: string | null;
   code?: Coding | (Coding | null)[] | null;
 }
-export interface SttInfo { seconds: number | null; chunks: { text: string; t: [number | null, number | null] }[]; ms?: number; error?: string }
+export interface SttInfo { seconds: number | null; chunks: { text: string; t: [number | null, number | null] }[]; ms?: number; error?: string; language?: string | null }
 export interface RejectedFact { key: string; value: FactValue; reason: string }
 export interface Trace {
   heard: { text: string; speaker?: string | null; audio_id?: string | null; photo_id?: string | null; frame_id?: string;

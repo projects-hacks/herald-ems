@@ -46,7 +46,8 @@ class KnowledgeBase:
         self.county = county
         self.dir = protocols_dir / county["id"]
         self.splitter = SectionSplitter(self.cfg["heading_styles"], self.cfg["running_line_share"],
-                                        self.cfg["glyph_error_pattern"], self.cfg.get("running_line_band"))
+                                        self.cfg["glyph_error_pattern"], self.cfg.get("running_line_band"),
+                                        self.cfg.get("lead_in_children_chars", 0))
         self.sections: list[Section] = []
         self.versions: dict[str, dict] = {}
         self.missing: list[str] = []
@@ -234,7 +235,7 @@ class KnowledgeBase:
         for score, s in self.ranked(query)[: k or self.cfg["search"]["top_k"]]:
             v = self.versions.get(s.doc_id, {})
             out.append({"doc": s.doc_id, "title": v.get("title"), "section": s.number, "heading": s.title,
-                        "page": s.page, "text": s.text, "parents": s.parents, "score": round(score, 3),
+                        "page": s.page, "text": s.text + (f"\n{s.items}" if s.items else ""), "parents": s.parents, "score": round(score, 3),
                         "effective": v.get("effective_in_file") or v.get("effective_reviewed"),
                         "text_layer_uncertain": s.uncertain})
         return out

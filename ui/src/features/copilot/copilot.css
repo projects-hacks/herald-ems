@@ -24,8 +24,6 @@
 .copilot-header { position: sticky; top: 0; z-index: var(--z-sticky, 30); display: flex; align-items: center; flex-wrap: wrap;
   gap: 10px 18px; min-height: 76px; padding: 12px 28px;
   border-bottom: 1px solid var(--glass-border); }
-.copilot-header::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
-  background: linear-gradient(90deg, var(--accent) 0 64px, transparent 64px); }
 .copilot-patient { flex: 1 1 320px; margin: 0; font-family: var(--font-heading); font-weight: 750; font-size: 1.75rem;
   line-height: 1.15; letter-spacing: -.02em; color: var(--text-primary); text-wrap: balance; }
 .copilot-back { display: inline-flex; align-items: center; gap: 4px; min-height: 48px; padding: 0 14px 0 8px;
@@ -55,18 +53,23 @@
 /* ---------- Needs you: the hero ---------- */
 .copilot-needs { border-radius: 20px; }
 .copilot-needs h2 { color: var(--text-primary) !important; font-size: 1.15rem; }
-.copilot-needs li { position: relative; }
-.copilot-needs li::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 4px; border-radius: 0 4px 4px 0;
+.copilot-needs li[data-tone] { position: relative; }
+.copilot-needs li[data-tone]::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 4px; border-radius: 0 4px 4px 0;
   background: var(--medium-fg); }
 .copilot-needs li[data-tone="high"]::before { background: var(--high-fg); }
 .copilot-needs li[data-tone="live"]::before { background: var(--accent); box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 55%, transparent); }
 .copilot-needs li[data-tone="info"]::before { background: var(--low-fg); }
 .copilot-needs .text-critical { font-weight: 700; font-variant-numeric: tabular-nums; }
-.copilot-needs li { animation: card-in .32s var(--ease-emphasized-decelerate) both; }
-.copilot-needs li:nth-child(2) { animation-delay: 40ms; } .copilot-needs li:nth-child(3) { animation-delay: 80ms; }
-.copilot-needs li:nth-child(4) { animation-delay: 120ms; } .copilot-needs li:nth-child(5) { animation-delay: 160ms; }
-.copilot-needs li:nth-child(n+6) { animation-delay: 200ms; }
-@keyframes card-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* a new row slides in; it is never drawn invisible, so a still frame (a screenshot, a glance mid-animation) shows it */
+.copilot-needs li[data-tone] { animation: card-in .32s var(--ease-emphasized-decelerate) backwards; }
+@keyframes card-in { from { transform: translateY(8px); } to { transform: none; } }
+.heard-quote { font-weight: 600; font-style: normal; color: var(--text-primary); }
+.heard-facts { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; }
+.heard-facts li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 8px 0; border-top: 1px dashed var(--border-subtle); }
+.heard-what { flex: 1 1 9rem; min-width: 0; display: flex; flex-direction: column; }
+.heard-label { font-size: .875rem; color: var(--text-muted); font-weight: 600; }
+.heard-value { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); overflow-wrap: anywhere; line-height: 1.25; }
+.heard-actions { display: flex; gap: 4px; margin-left: auto; }
 
 /* ---------- quiet side panels: ruled, not boxed ---------- */
 .copilot-activity, .copilot-movement, .copilot-ed, .copilot-protocol { display: flex; flex-direction: column; gap: 10px;
@@ -75,10 +78,10 @@
 .copilot-activity ol, .copilot-movement ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .copilot-activity li { display: grid; grid-template-columns: 3.4em 18px 1fr; gap: 8px; align-items: start; font-size: .9375rem;
   color: var(--text-secondary); line-height: 1.4; }
-.copilot-activity li time { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--accent); font-size: .875rem; padding-top: 1px; }
+.copilot-activity li time { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-muted); font-size: .875rem; padding-top: 1px; }
 .copilot-activity li svg { margin-top: 3px; color: var(--text-muted); }
 .copilot-activity li[data-kind="checked"] svg, .copilot-activity li[data-kind="sent"] svg { color: var(--ok-fg); }
-.copilot-activity li:first-child span { color: var(--text-primary); }
+
 .activity-working { margin: 0; font-size: .875rem; color: var(--accent); font-weight: 700; }
 .activity-empty, .copilot-movement > p, .copilot-ed p { margin: 0; font-size: .9375rem; color: var(--text-secondary); }
 .activity-all { align-self: flex-start; min-height: 48px; padding: 0 2px; font-weight: 700; color: var(--accent); }
@@ -104,6 +107,32 @@
 .protocol-cue figcaption { margin-top: 6px; font-family: var(--font-mono); font-size: .8125rem; color: var(--text-muted); }
 .protocol-cue figcaption strong { color: var(--low-fg); font-weight: 700; }
 .protocol-status { margin: 0; font-size: .9375rem; color: var(--text-secondary); }
+.protocol-note { margin: -4px 0 2px; font-size: .8125rem; color: var(--text-muted); }
+.protocol-cue { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border-subtle); }
+.protocol-cue h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.cue-asked { font-size: .75rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.protocol-cue[data-asked] h3 { font-style: normal; }
+.protocol-more summary { min-height: 44px; font-size: .875rem; color: var(--text-muted) !important; font-weight: 600 !important; }
+.protocol-more summary:hover { color: var(--low-fg) !important; }
+
+/* ---------- what Herald did: a timeline, newest first ---------- */
+.herald-timeline { position: relative; gap: 0 !important; }
+.herald-timeline li { position: relative; display: grid !important; grid-template-columns: 28px minmax(0, 1fr) auto !important; gap: 10px !important;
+  padding: 0 0 12px; }
+.herald-timeline li:not(:last-child)::after { content: ""; position: absolute; left: 13px; top: 28px; bottom: 2px; width: 2px;
+  background: linear-gradient(var(--border-control), transparent); }
+.tl-node { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--surface-2);
+  border: 1px solid var(--border-subtle); color: var(--text-muted); }
+.herald-timeline li:first-child .tl-node { border-color: color-mix(in srgb, var(--accent) 60%, transparent); color: var(--accent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 35%, transparent); }
+.herald-timeline li[data-kind="checked"] .tl-node, .herald-timeline li[data-kind="sent"] .tl-node { color: var(--ok-fg); }
+.herald-timeline li[data-kind="found"] .tl-node { color: var(--low-fg); }
+.herald-timeline li svg { margin: 0 !important; color: inherit !important; }
+.tl-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-top: 3px; }
+.tl-text { color: var(--text-secondary); overflow-wrap: anywhere; }
+.herald-timeline li:first-child .tl-text { color: var(--text-primary); }
+.tl-detail { font-size: .875rem; font-weight: 700; color: var(--accent); }
+.herald-timeline time { padding-top: 4px; }
 
 /* ---------- dock ---------- */
 .copilot-dock { position: sticky; bottom: 0; z-index: 25; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
@@ -161,8 +190,8 @@
 .copilot-known { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px 18px; border-radius: 18px; }
 .copilot-known h2 { margin: 0; display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
 .known-group h3 { margin: 0 0 6px; font-size: .8125rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
-.known-group dl { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px 18px; }
-.known-group dl > div { padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, var(--text-primary) 4%, transparent);
+.known-group dl { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.known-group dl > div { min-width: 7.5rem; max-width: 100%; padding: 7px 14px; border-radius: 12px; background: color-mix(in srgb, var(--text-primary) 4%, transparent);
   border: 1px solid transparent; transition: background var(--dur-medium1) var(--ease-standard), border-color var(--dur-medium1); }
 .known-group dt { font-size: .8125rem; color: var(--text-muted); }
 .known-group dd { margin: 2px 0 0; font-size: 1.125rem; font-weight: 700; color: var(--text-primary); line-height: 1.3; overflow-wrap: anywhere; }
@@ -229,3 +258,28 @@ html:has(.copilot) { font-size: clamp(16px, calc(0.3vw + 11px), 19px); }
 .presence-pill:not(:disabled):hover { border-color: var(--glass-border-hi); }
 .copilot-switch { display: flex; align-items: center; gap: 12px; min-height: 48px; font-weight: 600; }
 .copilot-switch input { width: 24px; height: 24px; accent-color: var(--accent); }
+.heard-all { display: flex; justify-content: flex-end; padding-top: 8px; border-top: 1px dashed var(--border-subtle); }
+/* the words' audio stays one tap away without taking a row of its own */
+.copilot-needs audio { height: 34px; width: 240px; max-width: 100%; vertical-align: middle; }
+
+/* ---------- one screen, no page scroll: an instrument panel on a landscape display ----------
+   The header and Herald stay put; Needs you (the priority) scrolls in its own column, everything else scrolls
+   together beside it. Narrow and portrait screens keep a single scrolling column. */
+.copilot-rest { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (min-width: 1100px) and (min-height: 640px) {
+  .copilot:not(.workspace-task) { height: 100dvh; min-height: 0; overflow: hidden; }
+  .copilot:not(.workspace-task) .workspace-body { height: 100dvh; min-height: 0; }
+  .copilot:not(.workspace-task) .cabin-main { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-top: 16px; padding-bottom: 16px; }
+  .copilot:not(.workspace-task) .herald-live { flex-shrink: 0; margin-bottom: 16px; }
+  .copilot:not(.workspace-task) .copilot-grid { flex: 1; min-height: 0; align-items: stretch; gap: 20px;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.6fr); }
+  .copilot:not(.workspace-task) .copilot-primary { min-height: 0; }
+  .copilot:not(.workspace-task) .copilot-needs { height: 100%; min-height: 0; }
+  .copilot:not(.workspace-task) .copilot-rest { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px;
+    display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+}
+@media (min-width: 1100px) and (max-width: 1399px) and (min-height: 640px) {   /* a 1280 tablet: one column beside Needs you */
+  .copilot:not(.workspace-task) .copilot-grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+  .copilot:not(.workspace-task) .copilot-rest { display: flex; }
+}
+.activity-aside { margin: 0; font-size: .875rem; color: var(--text-muted); }
