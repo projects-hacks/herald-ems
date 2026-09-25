@@ -5,6 +5,82 @@
 **Version 2, full detail (2026-09-23; updated 2026-09-24 for model-only extraction).** This replaces the compressed version 1 from earlier the same day. Every decision in version 1 still stands, except where the 2026-09-24 change note below replaces it; this version adds the detail behind it.
 **Demo:** Fri 2026-09-25. **Feature freeze:** Fri 11:00. **Owners:** frontend teammates build the screens; backend owns the data contracts and `/api/telemetry`; pitch owns the stage, the 3 m test, and the video.
 
+## Change note, 2026-09-25 (late): Herald is a copilot, not a patient display (read this before §1 and §3)
+
+The team lead redirected the product on 2026-09-25, after reviewing the medic screen against the use case rather than against this document: "we are an AI EMS Copilot… what are we actually solving?" The camera is a continuous, ongoing thing — frames arriving, an agent selecting the usable ones, information extracted, the image discarded and only the timestamp and what was extracted kept. The mic is the same: always listening, always adding. The patient's state is then updated from those streams, and **vitals are already tracked on a screen** — the ambulance's own monitor — so Herald's job is not to re-display them but to watch how they move, raise the change to the paramedic, and report the journey to the ED. Two further rulings followed: "not every model reasoning needs to be shown on screen — paramedic needs action or visibility, not how the AI model is working," and, on this document's authority, "plans are meant to be executed; once done, review them, and what upgrades we are discussing supersedes."
+
+This note exercises that authority. The backend already implements most of the thesis (`herald/capture/`, `config/capture.yaml`, `herald/core/trends.py`, the `trends` line in `config/handoff.yaml`); what drifted was the screen, which this document specified as a dashboard of the patient. The information architecture below replaces it.
+
+### The default medic screen answers three clinical questions, and nothing else
+
+1. **What needs me now.** The finding, in clinical words, with its action attached — "Camera read SBP 168, up 28 from 140 — confirm the reading", not "3 items to review".
+2. **How is this patient moving.** Movement, not current values: "SBP 140 → 152 → 168 over 14 min". Two readings make a trend; one reading is not news.
+3. **What the ED has.** The record filling up, because that is the product's output and the medic's obligation before arrival. The server already computes this every broadcast (`herald/api/context.py:159`, `snap["handoff"]`) and no screen has ever rendered it.
+
+**This is a closed list.** Anything that is not one of the three, or the failure line below, does not belong on the default screen. Identity chrome, dispatch text, encounter badges, avatars, section eyebrows, "started HH:MM", duplicated connection chips and marketing cards are form-filling residue: they were each defensible alone and together they produced eight stacked regions and roughly twenty-five data points on the screen a medic glances at between tasks.
+
+### Duplicate no instrument
+
+The ambulance has a patient monitor. It is larger, faster and more trustworthy than our reading of it, and the medic already looks at it. **Herald must not present itself as a second monitor.** A current value on Herald's screen is only justified as the anchor of a movement or as evidence attached to a decision. This retires the four large current-value vital tiles as the overview's hero element; `VitalReadings`' own honest label — "Recorded values, not a live monitor" — was the tell that the component was answering a question the medic had not asked.
+
+What Herald uniquely owns, and therefore what it shows: the movement across the journey, the provenance of each reading, the change worth interrupting for, and the record that reaches the hospital.
+
+### No model telemetry on the clinical screen
+
+This extends **P8** ("Show the record, not a story") from reasoning text to operational telemetry. The paramedic needs action or visibility; how the copilot works is not their concern mid-call. Off the clinical screen, permanently: the capture decision history (`decision_history: 30`), frame counts, gate accept/reject reasons, trigger names, frame ids, confidence scores as ambient decoration, "last read the monitor 14 s ago", queue depths and duty cycles.
+
+The audit of 2026-09-25 listed "the agent's 30-entry decision history is rendered nowhere" as a gap. **It is not a gap. It is correct, and it stays that way.** The history remains valuable for the runbook, the soak and post-incident review; it has no place on the medic's screen. Any future review that proposes surfacing it should be pointed at this paragraph.
+
+### The one exception: say so when you have stopped working
+
+Silence while working, one clear line when broken. A medic who believes Herald is capturing when it is not is worse off than a medic who knows it is down, because they stop writing things down themselves. This is a warning light, not a status readout: "Camera is not reading the monitor", at the same weight as the extraction-model-down banner (§3.1.14, H6), and nothing at all while it is working. The distinction from the paragraph above is intent: a failure state changes what the medic does; an activity feed does not.
+
+### Provenance on demand, never ambient
+
+"Where did this come from?" is a real clinical question, asked at one moment: when the medic is deciding about a specific fact. So provenance stays exactly where it is — on the fact under review, with its source, time and evidence ("read from the monitor at 14:22", with the frame) — and never becomes a feed. `herald/reporting/view.py` already carries `role`, `speaker`, `captured_by`, `time`, `audio_id` and `photo_id` per report line, and the handoff view renders only `line.text`; putting that provenance behind the line, on demand, is the correct use of it.
+
+### The tap burden: batch, corroborate, tier by risk — not confidence
+
+Every camera fact is born unconfirmed (`herald/core/confirmation.py:35-36`), which is right for what leaves the vehicle and wrong as a per-reading chore: a monitor read every 15–60 s across a 20-minute transport is an unreasonable number of taps. The team lead asked whether model confidence could decide. It cannot yet, for two measured reasons: our own test set contains **confident** vision misreads (a glucometer displaying "HI" read as 88; a POLST with only Section B checked read as DNR), and `auto_confirm_threshold: 0.8` in `config/confirmation.yaml` was calibrated on the *text* extractor's joint measure, a different model with a different confidence distribution. Auto-confirming vision on a borrowed threshold is not a safety trade we can defend.
+
+Three levers instead, in this order:
+
+1. **Batch the reading, not the number.** One monitor read yields HR, BP, SpO₂ and RR from one frame; the medic confirms the *reading*. An immediate fourfold reduction with no change in what is verified.
+2. **Corroborate instead of trusting confidence.** A reading that agrees with the previous one, or moves within a configured plausible delta, is low-risk; a reading that *jumps* is both where a human should look and where a misread reveals itself. Taps concentrate where they earn their keep. Plausible deltas are clinical content and live in `config/`, never in code.
+3. **Tier by clinical risk.** Only monitor-sourced vitals participate in batching. Medications, allergies and code status are always individually confirmed — `code_status` already carries `require_tap`. A mis-transcribed heart rate self-corrects on the next read fifteen seconds later; a wrong allergy or a wrong code status does not.
+
+Confidence-based auto-confirm stays unbuilt behind a documented seam. It may be enabled only from a **vision-specific** threshold calibrated against measured accuracy — the evaluation already scores 97 real photos and 60 POLST forms, so the calibration curve is obtainable rather than hypothetical.
+
+### What this supersedes
+
+- **P3 ("The top band reads in one glance").** Its four questions — what's missing, what's due, what disagrees, is the ED current — are replaced by the three above. "What's missing" and "what's due" survive inside question 1 as findings with actions, not as a permanent band of counters. Its glance evidence (NHTSA single glances ≤2 s, FAA HFDS §5.1.8.10 critical information ≥16′ of arc) is unaffected and still governs.
+- **The medic workspace redesign note in §2 (2026-09-25) and `MEDIC_WORKSPACE_REDESIGN.md`, for information architecture only.** The "Live patient overview" widget row (last known well, ETA, next vitals, NEWS2 with sparkline, stroke scales, field triage) as the overview's organising idea is withdrawn; those elements are not deleted but are subordinate to the three questions, and current values appear only as anchors of movement. **The palette, contrast rules, token location (`ui/src/styles/tokens.css`), type scale, shape and code layout in that note are unchanged and still authoritative.**
+- **§3.1 (NOW screen), for composition.** Its target sizes, layout modes, reflow rules, offline and stale behaviour, and §3.1.14's honest-status requirements all stand. Its region-by-region composition of the default view does not.
+- **The "four vital tiles as the hero" reading of §3.1.9 and the continuous-workspace contract (§5, 2026-09-25).** The continuous workspace itself — fixed cabin layout, in-place panels, continuous ambient audio — is retained and reinforced; only the content of the default view changes.
+- **MEDIC_UX_AUDIT.md and the three-lens UI review of 2026-09-25**, where their findings ask for something to be made more prominent that this note removes from the screen. Findings about type floors, touch targets, contrast, crash paths and failure visibility are unaffected and were implemented in `19826da`.
+
+### What this does not change
+
+Nothing in this note relaxes a field-usability or safety rule, and no clinical rule changes.
+
+- **§2.5 typography floors and §2.7 targets and hit areas** stand in full: no text below 13 px, critical text 20 px, 48 px targets with 64 px primary actions, the 32 px mono clock. These answer "can a gloved hand hit it in a moving vehicle", which is a different question from "what belongs on the screen". They were re-verified and fixed in `19826da`.
+- **§2.3 priority mapping and P6 ("Never color alone")**: priority is colour *and* icon *and* word.
+- **P1 ("Information, not advice")** and the AGENTS.md invariant that Herald never recommends. An alert states what was read and what changed; it never states what to do about it clinically.
+- **P10 ("Force the decision on what leaves the vehicle")** and the confirmed-only guarantee for the relay and the ED report. Unconfirmed readings may now raise a trend and an alert *to the paramedic*, labelled as unconfirmed; they still reach neither the hospital nor a report line.
+- **P12 clinical-safety hygiene**, P13 honest system status, and every confirmation requirement.
+
+### Evidence gathered for this note
+
+- **The camera has never worked outside tests, and the cause is measured.** A CPU probe of the real `FrameGate` against synthetic camera photographs of a laptop displaying a patient monitor (`scripts/capture/gate_probe.py`): a dark monitor UI cropped to the screen reads mean brightness **18.8** against `bright_min: 25`, so it fails `usable` and even the 60-second `monitor_refresh` never runs; a white interface reads **238.3** against `bright_max: 235`; a single vital changing moves the change metric to **0.0022** against `change_min: 0.06`, and the tightest possible ROI around only the changing number reaches **0.0589** — still under. Digits are a small fraction of any ROI's mean, so the shipped thresholds cannot fire on a screen. Synthetic renders understate change, because real camera noise adds difference; final values need tuning against real captures.
+- **Continuous camera and continuous mic are affordable on one model.** Measured on the served 30B, three runs each, median: speech (Whisper + extraction, 10.4 s clip) **0.66 s** alone and **3.00 s** under concurrency; a monitor vision read (400 tokens) **5.41 s** alone and **6.26 s** concurrent; concurrent wall **6.26 s**. Speech therefore occupies a 6–8% duty cycle against an 8–10 s clip cadence, so it cannot starve the camera; `skip_while_speech: true` is retained as a latency choice, not a capacity necessity, because overlap costs the speech leg 4.5×.
+- **Intents lose races to in-flight reads.** A read occupies the agent for 5.4–6.3 s (`max_in_flight: 1`, and `step()` returns early while `scheduler.in_flight`), while intent deadlines are 6 s (monitor), 8 s (`meds.given` label verification) and 10 s (`code_status`). An intent queued behind a read can burn its whole window waiting for us and is then discarded as "no usable frame before request expired" — silently. The highest-value victim is the pill-bottle label check, not monitor-watch. An intent must not expire because the agent was busy.
+
+### Still to validate before this is settled
+
+- A real camera pointed at a real monitor, with the gate profile tuned against captures rather than renders, and the model's reading of that monitor checked against the displayed values. Until a 30B has demonstrably read a monitor, the "what needs me now" card is designed against an assumption.
+- Sustained-load safety: a 5.4 s read every 15 s is roughly a 36% GPU duty cycle indefinitely, a pattern never run on this box, whose only protection against the day's freezes is an unproven clock cap. The 30-minute soak must include continuous monitor-watch with temperature and power recorded.
+- The vision confidence calibration curve, before any confidence-based auto-confirm is considered.
+
 ## Change note, 2026-09-24: the model is the only extractor (read this first)
 
 The team lead decided on 2026-09-24: "If the model is down, whole app is down, we cannot compromise quality… there is nothing like an app without AI… no regex rules." The backend implements this now, in `herald/api/capture.py` (`CaptureService.text`, `_extract`, `_hold`), `herald/api/routes/capture.py`, `herald/api/routes/system.py`, `herald/core/confirmation.py`, `herald/extraction/model.py`, `config/confirmation.yaml`, and `config/guard.yaml`. It is covered by `tests/test_trace.py`. Every section below that described the old behavior has been rewritten. What changes for the UI team:
@@ -165,6 +241,8 @@ Each principle has five parts:
 **Bad:** `NEWS2 4` computed from 5 of 7 parameters. Hiding the checklist until something is captured.
 
 ### P3. The top band reads in one glance
+
+> **Superseded (2026-09-25, late).** The four questions below are replaced by the three clinical questions in the copilot change note at the top of this document. The glance evidence in this section still governs.
 
 **Why.** The medic looks up between tasks. Each look must answer four questions:
 1. What's missing?
@@ -395,6 +473,8 @@ This principle turns existing team decisions into a design rule.
 ## 2. Visual system
 
 ## Medic workspace redesign, 2026-09-25
+
+> **Information architecture superseded (2026-09-25, late)** by the copilot change note at the top of this document: the "Live patient overview" widget row is no longer the overview's organising idea, and current vital values are not the hero element. Everything else in this section — palette, contrast rules, token location, type scale, shape, targets and code layout — remains authoritative.
 
 The default medic application now uses the clinical workspace described in [MEDIC_WORKSPACE_REDESIGN.md](MEDIC_WORKSPACE_REDESIGN.md): daylight by default, a consistent teal interaction palette, seven task destinations, persistent patient/connection context, documented vitals, a pre-alert checklist, and accessible capture controls. The existing React, shadcn/Radix and Lucide foundation remains. Night mode and saved theme preferences remain available. This supersedes the older Apple Health styling description for the medic workspace; clinical status semantics and confirmation requirements remain in force. The protocol library consumes the existing GET search and page-image endpoints; no API or snapshot contract changed.
 
@@ -786,6 +866,8 @@ Durations and easing come from the Material 3 motion tokens [47] (verified in th
 - **Every action is idempotent from the UI's side.** A double tap sends one request, because the button is disabled while its request is pending.
 
 ### 3.1 NOW screen
+
+> **Composition superseded (2026-09-25, late)** by the copilot change note at the top of this document. The target sizes, layout modes, reflow rules, offline and stale behaviour and §3.1.14's honest-status requirements below all stand; the region-by-region composition of the default medic view does not.
 
 #### 3.1.1 Target sizes and layout modes
 
