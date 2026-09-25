@@ -48,6 +48,5 @@ export function MonitorWatch({ onStatus }: { onStatus: (status: MonitorStatus) =
     </div>
     {error && <p role="alert">{error}</p>}
     <p className="capture-help">No video recording. Unselected frames expire from the short memory buffer. Evidence retention follows the vehicle policy. Hiding this browser tab, changing patient or losing the connection stops capture.</p>
-    {capture?.last && <p className="capture-notice">Latest camera decision: {capture.last.reason}</p>}
   </section>;
 }

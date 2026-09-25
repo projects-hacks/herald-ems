@@ -164,7 +164,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
         <div><strong>{ambient.status.listening ? "Microphone on · listening" : ambient.status.starting ? "Waiting for microphone" : "Microphone off"}</strong>
           <p role={ambient.status.error ? "alert" : "status"}>{ambient.status.queued ? `${ambient.status.queued} audio clip(s) processing · ` : ""}{ambient.status.message}</p>
           <meter min={0} max={1} value={ambient.status.level} aria-label="Microphone input level" />
-          <span className="cabin-camera-status">{photo.active ? "This device: camera preview on · " : ""}{stale && !isReplay ? "Camera last known" : "Connected camera"}: {cameraState}{stale && !isReplay ? " · disconnected" : ""}{s?.capture?.pending ? ` · ${s.capture.pending} waiting` : ""}</span>
+          <span className="cabin-camera-status">{photo.active ? "This device: camera preview on · " : ""}{stale && !isReplay ? "Camera last known" : "Connected camera"}: {cameraState}{stale && !isReplay ? " · disconnected" : ""}</span>
           {(monitor.active || monitor.starting || monitor.error) && <p role={monitor.error ? "alert" : "status"}>{monitor.active ? "Monitor watch on · " : ""}{monitor.message}</p>}
           {s?.capture?.error && <p role="alert">Camera capture needs attention: {s.capture.error}</p>}</div></div>
       <div className="cabin-actions">
