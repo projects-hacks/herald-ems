@@ -10,4 +10,4 @@ numpy>=1.26
 pytest>=8
 rapidfuzz>=3.9          # RxNorm drug-name matching (herald/terminology/)
 jellyfish>=1.0
-cryptography>=43,<45     # encrypted local recovery log for unfinished calls
+cryptography==50.0.1     # authenticated local recovery for unfinished calls

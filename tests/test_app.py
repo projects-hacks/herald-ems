@@ -1,14 +1,19 @@
 """HTTP/WebSocket behaviour the screens rely on: heartbeat, monitor-panel and failed-photo trace
 entries, all-or-nothing structured facts, and the /classic/ safety-net page."""
 import io
+import os
+import stat
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
+import pytest
 import soundfile as sf
 from fastapi.testclient import TestClient
 
 from ed_receiver import app as ed_mod
 from fakes import FakeModel, FakeSTT, FakeVision, make_client, test_settings as fake_settings
 from herald.api import build_context, create_app
+from herald.api.persistence import IncidentStore, PersistenceError
 from herald.core.schema import CapturedBy, FactIn, Role
 
 MONITOR = {"captured_by": "device", "role": "device", "speaker": "monitor", "confidence": 0.99,
@@ -130,25 +135,64 @@ def test_ed_receiver_records_human_acknowledgement():
 
 
 def test_unfinished_call_is_restored_from_an_encrypted_local_file(tmp_path):
-    settings = fake_settings(data_dir=tmp_path, persistence=True)
+    key_path = tmp_path / "private" / "state.key"
+    settings = fake_settings(data_dir=tmp_path / "data", persistence=True, state_key_file=key_path)
     first = build_context(settings, text_model=FakeModel(name=None), stt=FakeSTT(), vision=FakeVision())
     first.incident.ingest(FactIn(key="vitals.hr", value=116, captured_by=CapturedBy.medic, role=Role.medic,
                                  confidence=0.99))
     first.persist()
     stored = settings.state_dir / "active-call.fernet"
     assert stored.exists() and b"vitals.hr" not in stored.read_bytes()
+    assert key_path.parent != settings.state_dir
+    assert stat.S_IMODE(key_path.stat().st_mode) == 0o600
     restored = build_context(settings, text_model=FakeModel(name=None), stt=FakeSTT(), vision=FakeVision())
     assert restored.restored is True and restored.incident.values()["vitals.hr"] == 116
     restored.end_incident()
     assert not stored.exists()
+    assert key_path.exists()                         # retained separately for the next unfinished call
 
 
 def test_relay_authorization_is_saved_with_an_unfinished_call(tmp_path):
-    settings = fake_settings(data_dir=tmp_path, persistence=True)
-    client, _ = make_client(data_dir=tmp_path, persistence=True)
+    key_path = tmp_path / "private" / "state.key"
+    settings = fake_settings(data_dir=tmp_path / "data", persistence=True, state_key_file=key_path)
+    client, _ = make_client(data_dir=tmp_path / "data", persistence=True, state_key_file=key_path)
     client.post("/api/relay/authorize", json={"destination": "Valley ED"})
     restored = build_context(settings, text_model=FakeModel(name=None), stt=FakeSTT(), vision=FakeVision())
     assert restored.relay.authorized["destination"] == "Valley ED"
+
+
+def test_recovery_refuses_tampering_missing_keys_and_weak_key_permissions(tmp_path):
+    state_dir, key_path = tmp_path / "data" / "state", tmp_path / "private" / "state.key"
+    store = IncidentStore(state_dir, key_path)
+    store.save({"v": 1, "patients": [{"id": "inc-1"}]})
+    token = bytearray(store.path.read_bytes())
+    token[-1] ^= 1
+    store.path.write_bytes(token)
+    with pytest.raises(PersistenceError, match="failed authentication"):
+        store.load()
+
+    store.save({"v": 1})
+    key_path.unlink()
+    with pytest.raises(PersistenceError, match="key is missing"):
+        store.load()
+
+    store.path.unlink()
+    store.save({"v": 1})
+    os.chmod(key_path, 0o644)
+    with pytest.raises(PersistenceError, match="permissions must be 0600"):
+        store.load()
+
+
+def test_recovery_key_must_be_outside_patient_data_directory(tmp_path):
+    with pytest.raises(ValueError, match="outside HERALD_DATA_DIR"):
+        IncidentStore(tmp_path / "data" / "state", tmp_path / "data" / "keys" / "state.key")
+
+
+def test_concurrent_recovery_saves_leave_one_authenticated_snapshot(tmp_path):
+    store = IncidentStore(tmp_path / "data" / "state", tmp_path / "private" / "state.key")
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(lambda n: store.save({"v": 1, "revision": n}), range(40)))
+    assert store.load()["revision"] in range(40)
 
 
 def test_relay_scope_is_derived_from_the_active_checklist_not_the_client_label():

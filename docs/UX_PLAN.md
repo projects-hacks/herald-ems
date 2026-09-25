@@ -2617,6 +2617,7 @@ export interface Snapshot {
               media_disposal: MediaDisposal | null };
   patients: PatientSummary[];                              // every patient on this rig, insertion order
   active_patient: string;                                 // incident id; POST /api/patients/{id}/activate
+  restored: boolean;                                      // show "Call restored after restart" when true
   summary: string;
   readiness: Readiness[];
   needs_attention: { missing: NeedItem[]; unknown: NeedItem[] };

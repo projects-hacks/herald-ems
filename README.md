@@ -102,6 +102,19 @@ Open `http://localhost:8100`. Browsers only allow the microphone on `localhost` 
 - **Tests:** `python -m pytest -q`.
 - **Benchmarks:** `eval/bench_extract.py`, `eval/adversarial_bench.py`.
 
+### Unfinished-call recovery and retention
+
+Herald keeps one authenticated, encrypted recovery snapshot for an unfinished call. The ciphertext is
+`data/state/active-call.fernet`; its 0600 key is stored separately at
+`~/.config/herald/state.fernet.key` (override with `HERALD_STATE_KEY_FILE`). A restart restores the active patient
+roster, facts, transcript trace, audit entries and relay state, and the API marks the snapshot `restored: true`.
+Ending or replacing the call deletes the recovery snapshot and that call's registered audio/photos. The key is kept
+for the next call and must not be committed or copied with patient data. If the key is missing, too broadly readable,
+or the ciphertext fails authentication, Herald refuses to start rather than silently replacing the record.
+
+Audio and photos remain local evidence files; they are deleted at call end but are not encrypted by this recovery
+snapshot mechanism. Set `HERALD_PERSISTENCE=0` only for disposable tests or fixtures.
+
 ## Evidence behind the scores (sources checked September 2026)
 
 - **NEWS2** (Royal College of Physicians, Dec 2017; still the current version): pooled across 30 studies and 185,835 patients, 2-day mortality AUC 0.88, sensitivity 0.81, specificity 0.81 (Wei et al., *Ann Transl Med* 2023).

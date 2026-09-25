@@ -105,10 +105,13 @@ class AppContext:
             return
         patients = []
         for inc in self.roster.incidents():
-            patients.append({"id": inc.id, "label": inc.patient_label, "dispatch": inc.dispatch,
-                             "started": inc.started.isoformat(), "facts": [f.model_dump(mode="json") for f in inc.facts],
-                             "transcripts": inc.transcripts, "audit": inc.audit_log, "news2": inc.news2_history,
-                             "media_ids": {k: sorted(v) for k, v in inc.media_ids.items()}})
+            with inc.lock:
+                patients.append({"id": inc.id, "label": inc.patient_label, "dispatch": inc.dispatch,
+                                 "started": inc.started.isoformat(),
+                                 "facts": [f.model_dump(mode="json") for f in inc.facts],
+                                 "transcripts": inc.transcripts, "audit": inc.audit_log,
+                                 "news2": inc.news2_history,
+                                 "media_ids": {k: sorted(v) for k, v in inc.media_ids.items()}})
         self.persistence.save({"v": 1, "active": self.incident.id, "patients": patients,
                                "relay": {"authorized": self.relay.authorized, "acked": self.relay.acked,
                                          "ed_url": self.relay.ed_url}})
@@ -188,7 +191,7 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
         contract=UIContract(vocab, tiers, trends, checklists, counties, scales),
         link=LinkEmulator(s.toxiproxy_url), coder=coder,
         handoff=build_handoff(default_handoff_config(), vocab, scales, checklists, s),
-        persistence=IncidentStore(s.state_dir) if s.persistence else None)
+        persistence=IncidentStore(s.state_dir, s.state_key_path) if s.persistence else None)
     ctx.new_incident(s.dispatch)
     ctx.relay = Relay(lambda: ctx.roster.incidents(), s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir)
     ctx.restored = ctx.restore()

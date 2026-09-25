@@ -150,6 +150,7 @@ export interface Snapshot {
   };
   patients: PatientSummary[];
   active_patient: string;
+  restored: boolean;                     // unfinished call recovered after a server restart
   summary: string;
   readiness: Readiness[];
   needs_attention: { missing: NeedItem[]; unknown: NeedItem[] };
