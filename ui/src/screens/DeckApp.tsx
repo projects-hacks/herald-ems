@@ -10,7 +10,7 @@
 
 import {
   Activity, ArrowLeft, ArrowRight, AudioLines, BrainCircuit, CheckCircle2, CloudOff,
-  Hospital, ShieldCheck, Sparkles, TrendingDown, TrendingUp,
+  Hospital, Info, ShieldCheck, Sparkles, TrendingDown, TrendingUp,
 } from "lucide-react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -40,6 +40,17 @@ const DECK_DATA = {
     { label: "Info missing at hand-off", before: 55, after: 12, unit: "%", dir: "down" as const },
     { label: "Raw audio leaving the vehicle", before: 100, after: 0, unit: "%", dir: "down" as const },
   ],
+  // Field-evaluation honesty note (task F1 / C4.9). The recording station and scorer are merged,
+  // but no real-voice recordings have been collected yet, so every number above is from synthetic
+  // clips and replay — not a real-voice field measurement. State this limit rather than overclaim.
+  // When ≥5 consenting people are recorded and eval/field_bench.py has run, replace this with the
+  // real result (people count, clip count, per-key F1 with confidence intervals).
+  fieldEval: {
+    measured: false as boolean,
+    speakers: 0,
+    speakersTarget: 5,
+    note: "Numbers here are from synthetic clips and replay. Real-voice field recordings are not collected yet — the recording station and scorer are built and merged (C4.9), but no consenting speakers have been recorded.",
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -169,6 +180,16 @@ function BenchmarkSlide() {
         <p className="mt-2 flex items-center gap-2 text-meta text-text-muted">
           <Activity size={14} /> Lower is better for latency and cloud calls; higher is better for fields captured.
         </p>
+        {!DECK_DATA.fieldEval.measured && (
+          <div className="mt-1 flex items-start gap-2.5 rounded-[14px] bg-medium-tint p-3.5">
+            <Info size={18} className="mt-0.5 shrink-0 text-medium-fg" />
+            <p className="text-body text-medium-fg">
+              <strong>Evaluation limit:</strong> {DECK_DATA.fieldEval.note}
+              {" "}Field-robustness scoring targets {DECK_DATA.fieldEval.speakersTarget}+ consenting speakers
+              ({DECK_DATA.fieldEval.speakers} recorded so far).
+            </p>
+          </div>
+        )}
       </div>
     </SlideFrame>
   );
