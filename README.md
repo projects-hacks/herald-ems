@@ -94,26 +94,26 @@ manual observations ─┘           trends · clocks · NEWS2 · RACE · G.F.A.
 
 ## Run it
 
-**The one rebuild path, clean clone to running app, on the ZGX Nano (aarch64, GB10, CUDA 13), in the `zgx`
-conda env:**
+**One command starts the whole system** on the ZGX Nano (aarch64, GB10, CUDA 13), from a checkout of `main`:
 
 ```bash
-git clone <this repo> && cd herald-ems
-scripts/setup.sh                              # checks the platform, installs requirements.txt (pinned
-                                               # against the env's torch/transformers so pip can't move them),
-                                               # builds ui/dist (npm ci && npm run build, needs node >= 22 --
-                                               # `--skip-ui` to skip), builds the RxNorm drug-name index
-                                               # (public NLM download + RxNav brand names) -> data/terminology/
-                                               # (`--skip-rxnorm` to skip), and runs the test suite. Idempotent;
-                                               # re-run any time. It does NOT start any model server -- see below.
-scripts/serve_models.sh                       # qwen3vl-fp8 (photos, reranking, figures, translation) +
-                                               # ems-e-v2-fp8 (speech -> facts) via HP Z Runtime on :8080;
-                                               # pulls the public fine-tuned repos (HF_REPO_ID defaults to
-                                               # rajeev-chaurasia/herald-extractor-lora; no token needed)
-HERALD_LLM_MODEL=ems-e-v2-fp8 HERALD_VISION_MODEL=qwen3vl-fp8 PORT=8100 scripts/run_dev.sh
+scripts/herald.sh up          # add --pull to fast-forward to origin/main first
 ```
 
-Open `http://localhost:8100`. Browsers only allow the microphone on `localhost` or HTTPS, so from a laptop, forward the port first (`ssh -L 8100:localhost:8100 <user>@<nano>`). Hold **Space** to talk as the medic, and **F** for a patient or family member.
+It skips whatever is already running and verifies the rest: the one-time data (RxNorm drug index, Whisper and
+embedding weights), the shipped models on HP Z Runtime :8080 (`ems-e-v2-fp8` for speech -> facts, `qwen3vl-fp8` for
+photos, the monitor and protocol reranking; served one at a time and only if memory allows), the UI build, the ED
+screen (:8200) behind the link emulator (:9000), and the app (:8100) with Whisper preloaded. It exits non-zero
+unless speech, extraction and vision all report ready, then prints the URLs. `scripts/herald.sh status`,
+`scripts/herald.sh logs` and `scripts/herald.sh down` (models keep serving) do the rest.
+
+Browsers only allow the microphone and camera on `localhost` or HTTPS, so from a laptop forward the ports first:
+`ssh -L 8100:localhost:8100 -L 8200:localhost:8200 <user>@<nano>`, then open `http://localhost:8100` (medic),
+`http://localhost:8200` (ED) and `http://localhost:8100/monitor.html` (a monitor to point the camera at).
+
+**First time on a fresh machine:** `scripts/setup.sh` checks the platform and installs `requirements.txt` pinned
+against the env's torch/transformers (so pip can't move them), then `scripts/herald.sh up` does everything else.
+For development with auto-reload, `scripts/run_dev.sh` still starts only the app.
 
 **Containerized alternative:** `docker compose up --build herald` builds `ui/dist` and pre-fetches the public
 STT/embedding weights (Whisper large-v3-turbo, bge-base-en-v1.5) into the image in one `docker build`, so it

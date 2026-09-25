@@ -26,6 +26,7 @@
 # (scripts: see AGENTS.md pitfalls).
 set -euo pipefail
 [ -f ~/.config/herald/secrets.env ] && set -a && . ~/.config/herald/secrets.env && set +a
+unset HF_TOKEN HUGGING_FACE_HUB_TOKEN   # every Herald model repo is public; a stale token makes downloads fail with 401
 : "${HF_REPO_ID:=rajeev-chaurasia/herald-extractor-lora}"   # public repos: <id>-merged-e2, -merged-f, -merged-f4b
 export MAX_JOBS=3 NVCC_THREADS=1          # the kernel JIT can otherwise OOM the box
 what="${1:-all}"
