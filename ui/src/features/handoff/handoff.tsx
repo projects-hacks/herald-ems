@@ -104,6 +104,7 @@ export function PacketLog({ s }: { s: Snapshot }) {
             {open === l.seq ? <ChevronDown size={15} aria-hidden className="text-text-muted" /> : <ChevronRight size={15} aria-hidden className="text-text-muted" />}
             {l.result === "acked" ? <CircleCheck size={16} className="text-ok-fg" aria-hidden /> : <RefreshCw size={16} className="text-low-fg" aria-hidden />}
             <span className="num font-semibold">#{l.seq}</span>
+            <span className="text-meta">{s.patients?.find((p) => p.id === l.patient)?.label ?? l.patient ?? "Current patient"}</span>
             <Badge tone={l.tier === "critical" ? "accent" : "neutral"}>{l.tier}</Badge>
             <span className="num min-w-0 truncate text-meta text-text-muted">
               {l.result === "acked" ? `${l.keys.length} field${l.keys.length === 1 ? "" : "s"} · ${l.bytes} B · ${l.rtt_ms} ms` : "failed · retrying"}

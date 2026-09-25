@@ -130,7 +130,8 @@ export function Button({ variant = "secondary", size = "md", className, ...rest 
   return (
     <button type="button" {...rest} className={cn(
       "hit inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius-control)] font-semibold whitespace-nowrap transition-[background-color,filter,color] duration-[var(--dur-short3)] disabled:cursor-not-allowed disabled:opacity-50",
-      size === "sm" && "h-9 px-3 text-meta", size === "md" && "h-10 px-4 text-button", size === "lg" && "h-11 px-5 text-button",
+      size === "sm" && "min-h-12 px-3 text-meta", size === "md" && "min-h-12 px-4 text-button", size === "lg" && "min-h-12 px-5 text-button",
+      variant === "primary" && "min-h-16",
       variant === "primary" && "bg-accent-fill text-on-accent-fill shadow-[var(--shadow-1)] enabled:hover:brightness-110",
       variant === "secondary" && "border border-border-subtle bg-surface-2 text-text-primary enabled:hover:bg-surface-3",
       variant === "ghost" && "text-text-secondary enabled:hover:bg-surface-2 enabled:hover:text-text-primary",

@@ -11,7 +11,7 @@ export function TranscriptPage() {
     <div className="flex flex-col gap-5 p-6">
       <PageHeader title="Transcript" description="What Herald heard, and what it did with it. The last 20 captures, newest first." />
       <Card>
-        {ts.length === 0 ? <EmptyState icon={AudioLines} tone="neutral" title="Nothing heard yet">Speak, or take a photo at {location.host}/capture.html</EmptyState>
+        {ts.length === 0 ? <EmptyState icon={AudioLines} tone="neutral" title="Nothing heard yet">Use the capture bar, or <a href="/classic/capture.html">take a photo</a>.</EmptyState>
           : [...ts].reverse().map((t) => <TraceEntry key={t.id} t={t} wide />)}
       </Card>
     </div>

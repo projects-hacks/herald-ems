@@ -1,5 +1,9 @@
 # TASKS.md: Herald task board
 
+## Tushar review follow-up (Fri 25 Sep)
+
+`feat/ui-review-gaps`: U1/U2/U3, U4/U5/U6/U7, U8 frontend, U10/U11 and X3 implemented; fake/CPU regression verification and handoff details in [UI_REVIEW_GAPS.md](docs/UI_REVIEW_GAPS.md). Physical mic/tablet/three-metre ED checks remain. U13 stays gated on model lock with Jenil; U8 startup default remains with Vineet; C1 stays on its separate published branch awaiting authenticated PR creation and reviewer/real-model gates. No main merge is implied by this row.
+
 Deadline **Fri 2026-09-25, 8:00 PM**. Internal target: submit by 6:00 PM. Feature freeze Fri 11:00 AM.
 **Scope: the full product ships. Nothing is cut** (team lead, 2026-09-23). P1–P10 is the **build order** (dependencies and what gets hardened first), not a cut list. If something runs late, add people to it. The only things we never build are safety principles, not scope cuts: treatment/dose/eligibility advice, cloud AI inference, and self-trained clinical predictors. Rules for agents: `AGENTS.md`.
 Where decisions live: product spec and pitch → `/home/hp18/Documents/team-last-minute/.agent/ideas/herald-ems-copilot.md` (Nano only) · models → `docs/MODEL_PLAN.md` · UI → `docs/UX_PLAN.md` · hackathon rules and history → `/home/hp18/Documents/team-last-minute/.agent/context.md` (Nano only). The full document map is in `AGENTS.md`.

@@ -61,6 +61,7 @@ export interface Scores {
 
 // ---------- alerts ----------
 export type Alert =
+  | { type: "trauma_alert_criteria" | "sepsis_prenotification"; label: string; level: string; score: string; criteria: string[]; county_rule?: string[]; county?: string }
   | { type: "contradiction"; key: string; label: string; confirm_fact_id: string; facts: FactView[] }
   | { type: "confirm_required"; key: string; label: string; confirm_fact_id: string; facts: FactView[] }
   | { type: "significant_change"; key: string; label: string; series: number[] }
@@ -118,13 +119,15 @@ export interface PatientSummary {
 // ---------- relay (relay/relay.py status()) ----------
 export type LinkState = "good" | "weak" | "down" | "unknown" | "not configured";
 export interface RelayLogEntry {
+  patient?: string;
   ts: string; seq: number; tier: "critical" | "full"; bytes: number; keys: string[]; why: string[];
   queued_after: number; result: "acked" | "failed"; rtt_ms?: number; error?: string;
 }
 export interface RelayStatus {
+  patients?: Record<string, { triage: string | null; pending: number; sync: Record<string, "sent" | "queued"> }>;
   configured: boolean; ed_url: string | null;
   authorized: { destination: string; scope: string; at: string } | null;
-  link: LinkState; pending: { key: string; priority: number; why: string }[];
+  link: LinkState; pending: { patient?: string; key: string; priority: number; why: string }[];
   sync: Record<string, "sent" | "queued">; bytes_sent: number; local_bytes: number;
   kept_local_pct: number; packets_acked: number; retries: number; last_ack_at: string | null;
   log: RelayLogEntry[];

@@ -8,6 +8,7 @@ import { clockSeconds, clockTime, hhmm, hhmmss, shortId } from "@/lib/format";
 import { useHerald } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { Badge, TINT } from "@/components/kit";
+import { PatientRoster } from "@/components/PatientRoster";
 
 function Chip({ tone, onClick, label, children }: { tone: "ok" | "medium" | "high" | "neutral"; onClick: () => void; label: string; children: React.ReactNode }) {
   return (
@@ -62,6 +63,7 @@ export function TopBar() {
           : <Chip tone="neutral" onClick={() => goOverview("prealert")} label={`${r.label}: ${r.done} of ${r.total}`}><CircleDashed size={15} aria-hidden />{r.label} <span className="num">{r.done}/{r.total}</span></Chip>)}
         <span className="num ml-2 font-mono text-body font-semibold text-text-secondary" aria-label="Time">{clockTime(now)}</span>
       </div>
+      <PatientRoster />
     </header>
   );
 }

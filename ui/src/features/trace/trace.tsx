@@ -5,6 +5,7 @@ import { formatValue, hhmm } from "@/lib/format";
 import type { TranscriptEntry } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/kit";
+import { AudioEvidence } from "@/components/AudioEvidence";
 
 export function summarize(t: TranscriptEntry): string {
   const facts = [...t.trace.rules.facts, ...(t.trace.model.facts ?? [])];
@@ -49,6 +50,7 @@ export function TraceEntry({ t, wide = false }: { t: TranscriptEntry; wide?: boo
             ))}
           </ul>
         )}
+        <AudioEvidence id={t.audio_id} />
         <p className="mt-1.5 text-meta text-text-muted">{summarize(t)}</p>
       </div>
     </article>

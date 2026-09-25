@@ -9,6 +9,8 @@ import { useWakeLock } from "@/hooks/useWakeLock";
 import { Sidebar } from "@/layout/Sidebar";
 import { TopBar } from "@/layout/TopBar";
 import { TranscriptBar } from "@/layout/TranscriptBar";
+import { CaptureBar } from "@/features/capture/CaptureBar";
+import { CompactStatus } from "@/components/CompactStatus";
 import { useHerald, type Page } from "@/lib/store";
 import type { FixturePlayer } from "@/lib/ws";
 import { HandoffPage } from "@/pages/HandoffPage";
@@ -48,10 +50,12 @@ export function NowApp({ player }: { player: FixturePlayer | null }) {
         <div className="relative my-2 mr-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-border-subtle bg-canvas shadow-[var(--shadow-2)] max-lg:m-0 max-lg:overflow-visible max-lg:rounded-none max-lg:border-x-0">
           <TopBar />
           <ConnectBand />
+          <CompactStatus />
           <main key={page} className="min-h-0 flex-1 overflow-y-auto max-lg:overflow-visible">
             <Current />
           </main>
           <TranscriptBar />
+          <CaptureBar />
           <StaleOverlay />
         </div>
       </div>

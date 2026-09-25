@@ -5,8 +5,8 @@ import { useHerald } from "./store";
 
 export async function act(key: string, url: string, body?: unknown, failCopy = "The Herald server didn't answer. Try again.") {
   const st = useHerald.getState();
-  if (st.source === "fixture") {
-    st.showToast("Replay: actions are off");
+  if (st.source === "fixture" || st.stale || st.conn !== "open") {
+    st.showToast(st.source === "fixture" ? "Replay: actions are off" : "Vehicle connection unavailable. Action not sent.");
     return false;
   }
   if (st.pending[key] === "pending" || st.pending[key] === "sent") return false;   // one request per double tap
@@ -28,6 +28,8 @@ export async function act(key: string, url: string, body?: unknown, failCopy = "
 }
 
 export const api = {
+  activatePatient: (id: string) => act(`patient:${id}`, `/api/patients/${encodeURIComponent(id)}/activate`),
+  addPatient: (label: string) => act("patient:add", "/api/patients", { label }),
   confirm: (factId: string) => act(`confirm:${factId}`, `/api/facts/${factId}/confirm`, undefined, "Couldn't confirm. The Herald server didn't answer. Try again."),
   reject: (factId: string) => act(`reject:${factId}`, `/api/facts/${factId}/reject`, undefined, "Couldn't reject. The Herald server didn't answer. Try again."),
   authorize: (destination: string) => act("authorize", "/api/relay/authorize", { destination, scope: "stroke pre-alert set" },

@@ -26,10 +26,16 @@ class ModelUnavailable(RuntimeError):
 class CaptureService:
     def __init__(self, ctx: AppContext, broadcast: Broadcast):
         self.ctx, self.broadcast = ctx, broadcast
+        self._incident = None
+
+    def for_incident(self):
+        scoped = CaptureService(self.ctx, self.broadcast)
+        scoped._incident = self.ctx.incident
+        return scoped
 
     @property
     def inc(self):
-        return self.ctx.incident
+        return self._incident if self._incident is not None else self.ctx.incident
 
     def _summary(self) -> dict:
         return self.ctx.tracer.summarize(self.inc.snapshot())

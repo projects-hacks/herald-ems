@@ -11,6 +11,7 @@ export interface PendingAction { busy: boolean; slow: boolean; error: string | n
 export function usePendingAction(key: string): PendingAction {
   const p = useHerald((s) => s.pending[key]);
   const replay = useHerald((s) => s.source === "fixture");
+  const offline = useHerald((s) => s.stale || s.conn !== "open");
   const busy = p === "pending" || p === "sent";
   const [slow, setSlow] = useState(false);
   useEffect(() => {
@@ -18,7 +19,7 @@ export function usePendingAction(key: string): PendingAction {
     const t = window.setTimeout(() => setSlow(true), 2000);
     return () => window.clearTimeout(t);
   }, [busy]);
-  return { busy, slow: busy && slow, error: typeof p === "object" ? p.error : null, disabled: busy || replay, replay };
+  return { busy, slow: busy && slow, error: typeof p === "object" ? p.error : null, disabled: busy || replay || offline, replay };
 }
 
 export function ActionNote({ a, className }: { a: PendingAction; className?: string }) {

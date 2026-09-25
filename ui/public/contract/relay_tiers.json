@@ -3,6 +3,10 @@
     "tier": 1,
     "why": "the receiving team needs this before arrival"
   },
+  "triage.category": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
   "code_status": {
     "tier": 1,
     "why": "the receiving team needs this before arrival"
@@ -20,6 +24,42 @@
     "why": "the receiving team needs this before arrival"
   },
   "complaint.chief": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "meds.given": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "impression.primary": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "trauma.mechanism": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "trauma.injury_time": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "trauma.injuries": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "infection.suspected": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "patient.pregnancy_weeks": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "score.trauma_605": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "score.sepsis_700a04": {
     "tier": 1,
     "why": "the receiving team needs this before arrival"
   },
@@ -64,6 +104,42 @@
     "why": "latest vitals and exam"
   },
   "stroke.deficits": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
+  "vitals.gcs_total": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
+  "vitals.gcs_eye": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
+  "vitals.gcs_verbal": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
+  "vitals.gcs_motor": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
+  "vitals.etco2": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
+  "vitals.pain": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
+  "airway.status": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
+  "ecg.territory": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
+  "procedures.done": {
     "tier": 3,
     "why": "latest vitals and exam"
   },

@@ -1,7 +1,8 @@
 // States every live screen handles (UX_PLAN §3.0, §3.1.12): connecting, can't connect, stale, toast, and the
 // new-incident confirmation. The replay controls live in the sidebar.
 import { RefreshCw } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useContract } from "@/lib/contract";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { clockTime, hhmmss } from "@/lib/format";
@@ -52,16 +53,22 @@ export function Toast() {
 export function NewIncidentDialog() {
   const open = useHerald((s) => s.ui.confirmNewIncident);
   const setUi = useHerald((s) => s.setUi);
-  const dispatch = useHerald((s) => s.snapshot?.incident.dispatch ?? null);
+  const [dispatch, setDispatch] = useState("");
+  const [busy, setBusy] = useState(false), [error, setError] = useState("");
+  const contract = useContract();
+  useEffect(() => { if (open) { setDispatch(""); setError(""); } }, [open]);
   return (
     <Dialog open={open} onOpenChange={(o) => setUi({ confirmNewIncident: o })}>
       <DialogContent>
         <DialogTitle>Start a new incident?</DialogTitle>
-        <DialogDescription>This clears the current patient from this screen and resets the ED relay.</DialogDescription>
+        <DialogDescription>This replaces the entire active patient roster and resets the ED relay. To add someone to this incident, use Add patient instead.</DialogDescription>
+        <label className="text-body">Dispatch / call type<input list="dispatch-types" value={dispatch} onChange={(e) => setDispatch(e.target.value)} placeholder="Unspecified — or type dispatch" className="mt-2 block min-h-12 w-full rounded-lg border border-border-control bg-surface-2 px-3" /></label>
+        <datalist id="dispatch-types">{Object.entries(contract?.checklists ?? {}).filter(([, c]) => c.label).map(([id, c]) => <option key={id} value={id}>{c.label}</option>)}</datalist>
+        {error && <p role="alert">{error}</p>}
         <DialogFooter>
-          <button type="button" onClick={() => setUi({ confirmNewIncident: false })} className="min-h-11 rounded-[var(--radius-control)] border border-border-subtle bg-surface-2 px-4 text-button font-semibold">Cancel</button>
-          <button type="button" onClick={async () => { if (await api.newIncident(dispatch)) setUi({ confirmNewIncident: false }); }}
-            className="min-h-11 rounded-[var(--radius-control)] bg-accent-fill px-4 text-button font-semibold text-on-accent-fill">Start new incident</button>
+          <button type="button" onClick={() => setUi({ confirmNewIncident: false })} className="min-h-12 rounded-[var(--radius-control)] border border-border-subtle bg-surface-2 px-4 text-button font-semibold">Cancel</button>
+          <button type="button" disabled={busy} onClick={async () => { setBusy(true); if (await api.newIncident(dispatch.trim() || null)) setUi({ confirmNewIncident: false }); else setError("Could not start a new incident. Your current call remains on screen."); setBusy(false); }}
+            className="min-h-16 rounded-[var(--radius-control)] bg-accent-fill px-4 text-button font-semibold text-on-accent-fill">Start new incident</button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

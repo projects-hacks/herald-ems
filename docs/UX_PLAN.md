@@ -2221,6 +2221,15 @@ These run against fixtures (§5.8) and live (U6).
 ---
 ## 5. Stack
 
+### UI review contract additions (2026-09-25)
+
+- React text, audio and device-reading capture sends optional `X-Herald-Patient: <incident id>` to existing `/api/transcript`, `/api/audio`, `/api/facts` (and supported photo capture). Mismatch returns409 before processing. Each admitted request binds its capture service to the original patient throughout asynchronous extraction. This header is a race guard, not authentication.
+- Live label loading prefers `/api/meta`; bundled `/contract/*.json` stays the offline/fixture fallback. Numeric monitor controls accept vocabulary `int`/`float` types and use their labels/units.
+- React uses existing `/api/patients` add and `/{id}/activate` endpoints; `Snapshot.relay.patients[active_patient].sync` is authoritative in multi-patient mode. Packet log entries carry `patient?: string`; pending rows also carry `patient?: string`. Legacy single-patient snapshots fall back to `relay.sync`. No sent/queued badge is shown before authorization.
+- Trauma/sepsis alerts carry `{type:"trauma_alert_criteria"|"sepsis_prenotification", label:string, level:string, score:string, criteria:string[], county_rule?:string[], county?:string}`. Red trauma is HIGH; other listed criteria alerts are CHECK. Criteria and county text are displayed verbatim.
+- Vehicle read-aloud view uses existing `/api/handoff?format=<id>`; results are invalidated on patient change and hidden while stale. It is available independently of relay authorization.
+- **ED receiver only:** `GET /api/meta` returns `{keys: Record<string,{label:string}>, display:{critical_keys:string[],critical_px:number,body_px:number,highlight_ms:number,report_county:string,report_timezone:string}}` from reviewed vocabulary/scores and `config/ed_display.yaml`. `GET /api/handoff/{patient_id}?format=<id>` returns the existing report shape plus `scope:string`, computed solely from received confirmed fields/timeline. Missing patient →404; unknown format →400. It is explicitly a received-data projection, not the vehicle's full report; vehicle dispatch/county/timezone are not inferred. The receiver uses generic published scales and UTC, explicitly labeled, with no guessed county-local rule. Neither endpoint starts models or reaches the vehicle.
+
 ### 5.1 Decision
 
 **React 19 + TypeScript + Vite + Tailwind v4 + shadcn/ui on Radix primitives [29], with Zustand for state, lucide-react for icons [33], Fontsource for self-hosted fonts [32], and hand-drawn SVG sparklines (no chart library).**

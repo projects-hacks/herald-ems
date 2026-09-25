@@ -24,10 +24,10 @@ export function TranscriptBar() {
           <span className="hidden shrink-0 text-meta text-text-muted xl:inline">→ {summarize(t)}</span>
         </button>
       ) : (
-        <p className="min-w-0 flex-1 truncate text-body text-text-muted">Nothing heard yet. Speak, or take a photo at {location.host}/capture.html</p>
+        <p className="min-w-0 flex-1 truncate text-body text-text-muted">Nothing heard yet. Use Hold to talk or typed input below.</p>
       )}
-      <a href="/classic/" className="inline-flex shrink-0 items-center gap-1 rounded-[8px] px-2 py-1.5 text-meta font-medium text-text-muted hover:bg-surface-1 hover:text-text-primary">
-        Voice capture<ArrowUpRight size={14} aria-hidden />
+      <a href="/classic/capture.html" className="inline-flex min-h-12 shrink-0 items-center gap-1 rounded-[8px] px-2 py-1.5 text-meta font-medium text-text-muted hover:bg-surface-1 hover:text-text-primary">
+        Photo<ArrowUpRight size={14} aria-hidden />
       </a>
     </footer>
   );

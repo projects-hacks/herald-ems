@@ -1,5 +1,6 @@
 // ED handoff (UX_PLAN §3.1.9): the figures, every field the ED set carries with its state, and the packet log.
 import { Send } from "lucide-react";
+import { HandoffReport } from "@/features/handoff/HandoffReport";
 import { useHerald } from "@/lib/store";
 import { Card, CardHeader, Count, EmptyState, PageHeader } from "@/components/kit";
 import { AuthorizeForm, Figure, LinkDownNote, PacketLog, ReconciledLine, SyncTable, useHandoff } from "@/features/handoff/handoff";
@@ -9,7 +10,7 @@ export function HandoffPage() {
   const h = useHandoff(s);
   if (!s) return null;
   const r = s.relay;
-  const header = <PageHeader title="ED handoff" description={r.authorized ? `Pre-alert to ${r.authorized.destination} · ${r.authorized.scope}` : "What the receiving team has, what's queued, and what stays on the vehicle."} />;
+  const header = <><PageHeader title="ED handoff" description={r.authorized ? `Pre-alert to ${r.authorized.destination} · ${r.authorized.scope}` : "What the receiving team has, what's queued, and what stays on the vehicle."} /><HandoffReport /></>;
   if (!r.configured) return <div className="flex flex-col gap-5 p-6">{header}<Card><EmptyState icon={Send} tone="neutral" title="The ED link isn't set up">Set HERALD_ED_URL on this vehicle to send pre-alerts.</EmptyState></Card></div>;
   if (!r.authorized) return <div className="flex flex-col gap-5 p-6">{header}<Card className="max-w-md p-5"><AuthorizeForm s={s} /></Card></div>;
   return (

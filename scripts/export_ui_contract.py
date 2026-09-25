@@ -25,7 +25,8 @@ def main() -> None:
     ap.add_argument("--out", default=str(ROOT / "ui" / "public" / "contract"))
     out = Path(ap.parse_args().out)
     out.mkdir(parents=True, exist_ok=True)
-    ctx = build_context(Settings.from_env({}))       # content only: no model server is contacted
+    settings = Settings.from_env({}).model_copy(update={"knowledge": False, "terminology": False, "warm_stt": False})
+    ctx = build_context(settings)  # content only: no weights, embedding index, or model requests
     for name, content in ctx.contract.files().items():
         (out / name).write_text(json.dumps(content, indent=2, ensure_ascii=False) + "\n")
         print(f"wrote {out / name}")

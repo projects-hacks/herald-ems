@@ -74,7 +74,9 @@ function render() {
       <div class="parts">${esc(ft.source)}</div></div>` : ""}`;
 
   // alerts
-  $("alerts").innerHTML = S.alerts.length ? S.alerts.map((a) => {
+  const high = a => (a.type === "trauma_alert_criteria" && a.level === "red") || (a.type === "news2_rise" && a.band === "high");
+  $("alerts").innerHTML = S.alerts.length ? [...S.alerts].sort((a, b) => Number(high(b)) - Number(high(a))).map((a) => {
+    if (a.type === "trauma_alert_criteria" || a.type === "sepsis_prenotification") return `<div class="alert ${a.level === "red" ? "band-high" : "warn"}"><b>${a.level === "red" ? "HIGH" : "CHECK"} · ${esc(a.label)}</b>${a.criteria.map(line => `<p>${esc(line)}</p>`).join("")}${(a.county_rule || []).map(line => `<p>${esc(a.county || "")} · ${esc(line)}</p>`).join("")}</div>`;
     if (a.type === "contradiction") return `<div class="alert">⚠ <b>${esc(a.label)}: sources disagree</b><br>${a.facts.map((f) =>
       `${esc(f.speaker || f.role)}: <b>${esc(fmtVal(f.value))}</b> <span class="src">(${hhmm(f.ts)})</span>${f.provenance?.audio_id ? ` <button onclick="play('${f.provenance.audio_id}')">▶</button>` : ""}`).join("<br>")}
       <br><button onclick="act('${a.confirm_fact_id}','confirm')">Confirm latest</button><button onclick="act('${a.confirm_fact_id}','reject')">Reject latest</button></div>`;

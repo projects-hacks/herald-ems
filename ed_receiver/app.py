@@ -11,13 +11,34 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="Herald ED receiver")
 INCIDENTS: dict[str, dict] = {}
 CLIENTS: set[WebSocket] = set()
 LINK = {"last_contact_at": None}   # any request from the ambulance (packet or idle probe)
+
+
+@app.get("/api/meta")
+async def metadata():
+    from herald.config import load_yaml
+    from herald.core.vocabulary import default_vocabulary
+    from herald.scoring import default_scales
+    keys = {key: {"label": meta["label"]} for key, meta in default_vocabulary().keys.items()}
+    keys.update({f"score.{sid}": {"label": default_scales()[sid].name} for sid in default_scales().ids()})
+    return {"keys": keys, "display": load_yaml("ed_display.yaml")}
+
+
+@app.get("/api/handoff/{patient_id}")
+async def handoff(patient_id: str, format: str | None = None):
+    from .report import received_report
+    if patient_id not in INCIDENTS:
+        raise HTTPException(404, "No received patient with that ID")
+    try:
+        return received_report(patient_id, INCIDENTS[patient_id], format)
+    except KeyError:
+        raise HTTPException(400, "Unknown handoff format")
 
 
 def now() -> str:

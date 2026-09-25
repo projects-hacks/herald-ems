@@ -4,7 +4,8 @@ import { Camera, CircleCheck, CircleQuestionMark, CircleX, Keyboard, Mic, Monito
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { factValue, formatValue, hhmm, sourceName } from "@/lib/format";
-import { groupFacts } from "@/lib/selectors";
+import { allFacts, groupFacts } from "@/lib/selectors";
+import { AudioEvidence } from "@/components/AudioEvidence";
 import { useHerald } from "@/lib/store";
 import type { FactView } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,8 @@ function FactRow({ f }: { f: FactView }) {
       <span className="truncate pt-px text-meta text-text-muted">{f.label}</span>
       <span className="min-w-0">
         <span className="block text-body font-semibold">{factValue(f)}</span>
+        <AudioEvidence id={f.provenance.audio_id} />
+        {f.status === "unconfirmed" && <span className="flex flex-wrap gap-2 py-2"><ActionButton pendingKey={`confirm:${f.id}`} onClick={() => api.confirm(f.id)} busyText="Confirming…">Confirm</ActionButton><ActionButton pendingKey={`reject:${f.id}`} onClick={() => api.reject(f.id)} busyText="Rejecting…">Reject</ActionButton></span>}
         <span className="flex flex-wrap items-center gap-x-1.5 text-meta text-text-muted">
           <SourceIcon f={f} />{sourceName(f)} · <span className="num">{hhmm(f.ts)}</span>
           {f.previous_value !== null && f.previous_value !== undefined && <span>· was {formatValue(f.previous_value)}</span>}
@@ -38,7 +41,7 @@ export function PatientPage() {
   const s = useHerald((st) => st.snapshot);
   const [showRejected, setShowRejected] = useState(false);
   if (!s) return null;
-  const groups = groupFacts(Object.values(s.facts));
+  const groups = groupFacts(allFacts(s).filter((f) => f.status !== "rejected"));
   const rejected = s.timeline.filter((f) => f.status === "rejected");
   return (
     <div className="flex flex-col gap-5 p-6">

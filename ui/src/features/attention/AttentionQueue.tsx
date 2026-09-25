@@ -15,6 +15,8 @@ import { useHerald } from "@/lib/store";
 import type { Alert, FactView, NeedItem, Snapshot } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ActionButton, ActionNote, usePendingAction } from "@/components/ActionButton";
+import { AudioEvidence } from "@/components/AudioEvidence";
+import { activeSync } from "@/lib/selectors";
 import { Badge, Button, Card, CardHeader, Count, EmptyState, IconBadge, Section, type Tone } from "@/components/kit";
 
 const NEWS2_SUFFIX = / \(for NEWS2\)$/;
@@ -67,6 +69,7 @@ function FactMeta({ f }: { f: FactView }) {
       <span aria-hidden>·</span><span className="num">{hhmm(f.ts)}</span>
       {byModel && <><span aria-hidden>·</span><span className="inline-flex items-center gap-1 text-herald-accent"><Sparkles size={12} aria-hidden />local model</span></>}
       {f.provenance.hold_reason && <><span aria-hidden>·</span><span>{f.provenance.hold_reason}</span></>}
+      <AudioEvidence id={f.provenance.audio_id} />
     </>
   );
 }
@@ -125,7 +128,7 @@ function Choice({ f, a, sentToEd }: { f: FactView; a: Contradiction; sentToEd: b
 
 function ContradictionRow({ a, s }: { a: Contradiction; s: Snapshot }) {
   const [older, newer] = a.facts;
-  const sentToEd = older?.status === "confirmed" && s.relay.sync[a.key] === "sent";
+  const sentToEd = older?.status === "confirmed" && activeSync(s)[a.key] === "sent";
   return (
     <Row icon={GitCompareArrows} tone="medium" title={<>{a.label}: sources disagree</>} badge={<PriorityBadge p="medium" />}
       meta={sentToEd && newer
@@ -145,6 +148,11 @@ function FindingRow({ a, s, onSeen }: { a: Alert; s: Snapshot; onSeen?: () => vo
   const tone: Tone = p === "high" ? "high" : p === "medium" ? "medium" : "low";
   const seen = onSeen && <Button size="md" onClick={onSeen}>Got it</Button>;
   switch (a.type) {
+    case "trauma_alert_criteria": case "sepsis_prenotification":
+      return <Row icon={ShieldAlert} tone={tone} urgent={p === "high" && !!onSeen} badge={<PriorityBadge p={p} />} title={a.label} actions={seen}>
+        <ul className="mt-2 space-y-2 text-body">{a.criteria.map((line, i) => <li key={i}>{line}</li>)}</ul>
+        {a.county_rule?.map((line, i) => <p key={i} className="mt-2 text-body">{a.county && <span>{a.county}: </span>}{line}</p>)}
+      </Row>;
     case "news2_rise": {
       const parts = Object.entries(s.scores.news2.parts).filter(([, v]) => v.points > 0).map(([k, v]) => `${k} ${formatValue(v.value)} (+${v.points})`);
       return <Row icon={Gauge} tone={tone} urgent={p === "high" && !!onSeen} flash={p === "high" && !!onSeen} badge={<PriorityBadge p={p} />}

@@ -1,0 +1,441 @@
+{
+  "field_triage": {
+    "name": "Field triage (2021)",
+    "kind": "criteria",
+    "county": null,
+    "source": "Newgard CD et al. National Guideline for the Field Triage of Injured Patients: Recommendations of the National Expert Panel on Field Triage, 2021. J Trauma Acute Care Surg 2022;93(2):e49-e60",
+    "thresholds": "Red: transport to the highest-level trauma center; Yellow: preferentially a trauma center (need not be the highest level)",
+    "relay_key": "score.field_triage",
+    "groups": [
+      {
+        "id": "red",
+        "label": "Red criteria",
+        "short": null,
+        "met": true,
+        "priority": "high"
+      },
+      {
+        "id": "yellow",
+        "label": "Yellow criteria",
+        "short": null,
+        "met": true,
+        "priority": "medium"
+      }
+    ],
+    "criteria": [
+      {
+        "group": "red",
+        "code": null,
+        "label": "Unable to follow commands (motor GCS < 6)",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": null,
+        "label": "RR < 10 or > 29",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": null,
+        "label": "Room-air SpO2 < 90%",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": null,
+        "label": "SBP below the age limit",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": null,
+        "label": "SBP < 70 + 2×age (age 0-9)",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": null,
+        "label": "SBP < 90 (age 10-64)",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": null,
+        "label": "SBP < 110 (age ≥ 65)",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": null,
+        "label": "HR > SBP (age ≥ 10)",
+        "parent": null
+      },
+      {
+        "group": "yellow",
+        "code": null,
+        "label": "Anticoagulant use",
+        "parent": null
+      }
+    ]
+  },
+  "gfast": {
+    "name": "G.F.A.S.T.",
+    "kind": "item_sum",
+    "county": null,
+    "source": "Santa Clara County EMS Protocol 700-A13 Stroke (effective 2026-01-01), sections 2.3 and 3.2-3.3",
+    "thresholds": "4 of 4 = Comprehensive Stroke Center (closest stroke center if > 45 min transport); 3 or fewer = closest stroke center (Policy 602)",
+    "relay_key": "score.gfast"
+  },
+  "news2": {
+    "name": "NEWS2",
+    "kind": "banded",
+    "county": null,
+    "source": "Royal College of Physicians. National Early Warning Score (NEWS) 2: Standardising the assessment of acute-illness severity in the NHS. London: RCP; December 2017",
+    "thresholds": "single parameter 3 = low-medium; 5-6 = medium; >=7 = high",
+    "relay_key": "score.news2"
+  },
+  "race": {
+    "name": "RACE",
+    "kind": "item_sum",
+    "county": null,
+    "source": "Pérez de la Ossa N et al., Stroke 2014;45:87-91 (RACE scale)",
+    "thresholds": ">= 5 = large-vessel occlusion screen positive",
+    "relay_key": "score.race"
+  },
+  "sepsis_700a04": {
+    "name": "Sepsis pre-notification (700-A04)",
+    "kind": "criteria",
+    "county": "santa_clara",
+    "source": "Santa Clara County EMS Protocol 700-A04 Sepsis (effective 2026-01-01; replaces 2025-01-01), §1.3-1.4, page 1 of 1",
+    "thresholds": "700-A04 §1.4: \"Advanced notification to hospital of suspected sepsis patient if two or more SIRS criteria are met\"",
+    "relay_key": "score.sepsis_700a04",
+    "groups": [
+      {
+        "id": "notify",
+        "label": "Sepsis pre-notification criteria met (700-A04 §1.4)",
+        "short": "met",
+        "met": true,
+        "priority": "medium"
+      }
+    ],
+    "criteria": [
+      {
+        "group": "notify",
+        "code": "1.4",
+        "label": "1.4. Advanced notification to hospital of suspected sepsis patient if two or more SIRS criteria are met",
+        "parent": null
+      },
+      {
+        "group": "notify",
+        "code": "4.1",
+        "label": "Suspected infection (700-A04 §1.4, §4.1)",
+        "parent": "1.4"
+      },
+      {
+        "group": "notify",
+        "code": "1.3",
+        "label": "1.3. Identification of Systemic Inflammatory Response Syndrome (SIRS) Criteria (two or more, §1.4)",
+        "parent": "1.4"
+      },
+      {
+        "group": "notify",
+        "code": "1.3.1",
+        "label": "1.3.1. Temperature less than 96 °F or greater than 100.4 °F",
+        "parent": "1.3"
+      },
+      {
+        "group": "notify",
+        "code": "1.3.2",
+        "label": "1.3.2. Heart rate greater than 90 bpm",
+        "parent": "1.3"
+      },
+      {
+        "group": "notify",
+        "code": "1.3.3",
+        "label": "1.3.3. Respiratory rate greater than 20 bpm",
+        "parent": "1.3"
+      },
+      {
+        "group": "notify",
+        "code": "1.3.4",
+        "label": "1.3.4. ETCO2 less than 25 mmHg",
+        "parent": "1.3"
+      }
+    ]
+  },
+  "trauma_605": {
+    "name": "Trauma Alert criteria (Policy 605)",
+    "kind": "criteria",
+    "county": "santa_clara",
+    "source": "Santa Clara County EMS Policy 605 Prehospital Trauma Triage (effective 2025-04-01, in AO 2025-005), §II.B criteria A-X (policy pp. 1-3) and §III.A (p. 3); PDF pages 25-27 of AO 2025-005",
+    "thresholds": "605 §II.B: \"Injured patients are to be identified as a Trauma Alert Patient if one or more of the criteria below are met\" (Red or Yellow; Policy 602 §VI.C). Special considerations X are EMS judgement. Major burn criteria (§III) are shown separately.",
+    "relay_key": "score.trauma_605",
+    "groups": [
+      {
+        "id": "red",
+        "label": "High Risk Injury Pattern / Mental Status and Vital Signs (Red Criteria)",
+        "short": "RED",
+        "met": true,
+        "priority": "high"
+      },
+      {
+        "id": "yellow",
+        "label": "Moderate Risk Mechanism of Injury (Yellow Criteria)",
+        "short": "YELLOW",
+        "met": true,
+        "priority": "medium"
+      },
+      {
+        "id": "consider",
+        "label": "Special Considerations (EMS Judgement), §II.B X: \"The following should be considered in prehospital trauma triage when a traumatic injury is also present\"",
+        "short": "X",
+        "met": false,
+        "priority": "low"
+      },
+      {
+        "id": "burn",
+        "label": "Major Burn Criteria (§III.A)",
+        "short": "BURN",
+        "met": false,
+        "priority": "medium"
+      }
+    ],
+    "criteria": [
+      {
+        "group": "red",
+        "code": "A",
+        "label": "A. Penetrating injuries to head, neck, torso, and proximal extremities",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": "B",
+        "label": "B. Skull deformity, suspected skull fracture",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": "C",
+        "label": "C. Suspected spinal injury with new motor or sensory loss",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": "D",
+        "label": "D. Chest wall instability, deformity, or suspected flail chest",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": "E",
+        "label": "E. Suspected pelvic fracture",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": "F",
+        "label": "F. Suspected fracture of two or more proximal long bones",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": "G",
+        "label": "G. Crushed, degloved, mangled, or pulseless extremity",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": "H",
+        "label": "H. Amputation proximal to wrist or ankle",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": "I",
+        "label": "I. Active bleeding requiring a tourniquet or wound packing with continuous pressure",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": null,
+        "label": "Described: bleeding requiring tourniquet or wound packing",
+        "parent": "I"
+      },
+      {
+        "group": "red",
+        "code": null,
+        "label": "Procedure done: tourniquet or wound packing",
+        "parent": "I"
+      },
+      {
+        "group": "red",
+        "code": "J",
+        "label": "J. Unable to follow commands (motor GCS <6)",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": "K",
+        "label": "K. Respiratory rate less than 10 or greater than 29 breaths per minute",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": "L",
+        "label": "L. Respiratory distress or need for respiratory support",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": null,
+        "label": "Described: respiratory distress or need for respiratory support",
+        "parent": "L"
+      },
+      {
+        "group": "red",
+        "code": null,
+        "label": "Procedure done: BVM ventilation, CPAP, supraglottic airway or intubation",
+        "parent": "L"
+      },
+      {
+        "group": "red",
+        "code": "M",
+        "label": "M. Room-air pulse oximetry less than 90%",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": "N.1-N.3",
+        "label": "N. Vital signs below the following parameters (systolic BP by age)",
+        "parent": null
+      },
+      {
+        "group": "red",
+        "code": "N.1",
+        "label": "N.1 Age 0-9 years: Systolic BP less than 70 mmHg + 2x age years",
+        "parent": "N.1-N.3"
+      },
+      {
+        "group": "red",
+        "code": "N.2",
+        "label": "N.2 Age 10-64 years: Systolic BP less than 90 mmHg",
+        "parent": "N.1-N.3"
+      },
+      {
+        "group": "red",
+        "code": "N.3",
+        "label": "N.3 Age older than 65 years: Systolic BP is less than 110 mmHg",
+        "parent": "N.1-N.3"
+      },
+      {
+        "group": "red",
+        "code": "N.4",
+        "label": "N.4 Age 10 and older: Heart rate is greater than Systolic BP",
+        "parent": null
+      },
+      {
+        "group": "yellow",
+        "code": "O",
+        "label": "O. Auto crash with partial or complete ejection",
+        "parent": null
+      },
+      {
+        "group": "yellow",
+        "code": "P",
+        "label": "P. Auto crash with intrusion > 12 inches occupant site, > 18 inches any site, or need for extrication",
+        "parent": null
+      },
+      {
+        "group": "yellow",
+        "code": "Q",
+        "label": "Q. Death in passenger compartment",
+        "parent": null
+      },
+      {
+        "group": "yellow",
+        "code": "R",
+        "label": "R. Child (age 0-9) unrestrained or in unsecure child safety seat",
+        "parent": null
+      },
+      {
+        "group": "yellow",
+        "code": null,
+        "label": "Described: child unrestrained",
+        "parent": "R"
+      },
+      {
+        "group": "yellow",
+        "code": null,
+        "label": "Age 0-9",
+        "parent": "R"
+      },
+      {
+        "group": "yellow",
+        "code": "T",
+        "label": "T. Rider separated from transport vehicle with significant impact (eg. Motorcycle, ATV, horse etc.)",
+        "parent": null
+      },
+      {
+        "group": "yellow",
+        "code": "U",
+        "label": "U. Rollover with unrestrained occupant",
+        "parent": null
+      },
+      {
+        "group": "yellow",
+        "code": "V",
+        "label": "V. Pedestrian/bicycle rider thrown, run over, or with significant impact",
+        "parent": null
+      },
+      {
+        "group": "yellow",
+        "code": "W",
+        "label": "W. Fall from height > 10 feet (all ages)",
+        "parent": null
+      },
+      {
+        "group": "consider",
+        "code": "X.1",
+        "label": "X.1 Patients with minor traumatic injuries also on anti-coagulants or with bleeding disorders",
+        "parent": null
+      },
+      {
+        "group": "consider",
+        "code": "X.2",
+        "label": "X.2 Time-sensitive extremity injury",
+        "parent": null
+      },
+      {
+        "group": "consider",
+        "code": "X.6",
+        "label": "X.6 Low-level falls with significant head impact",
+        "parent": null
+      },
+      {
+        "group": "consider",
+        "code": "X.7",
+        "label": "X.7 Any pregnant patient beyond 20 weeks gestation (uterine fundus palpated at or above the umbilicus) in cardiac arrest, that does not meet obvious death criteria",
+        "parent": null
+      },
+      {
+        "group": "consider",
+        "code": null,
+        "label": "Pregnant beyond 20 weeks",
+        "parent": "X.7"
+      },
+      {
+        "group": "consider",
+        "code": null,
+        "label": "In cardiac arrest (CPR or defibrillation recorded)",
+        "parent": "X.7"
+      },
+      {
+        "group": "burn",
+        "code": "III.A",
+        "label": "III.A Patients with burn injuries are to be identified as major burn criteria (§III.A.1-7); §III.B \"Transport all identified major burn patients to a designated burn center\"",
+        "parent": null
+      }
+    ]
+  }
+}
