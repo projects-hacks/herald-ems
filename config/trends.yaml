@@ -7,3 +7,27 @@ change_rules:
   vitals.spo2: {falls_by: 3, falls_below: 92, text: "SpO2 fell by 3 points or more, or dropped below 92%"}
   vitals.rr: {abs_change: 6, text: "RR changed by 6/min or more"}
   vitals.glucose: {abs_change: 50, text: "Glucose changed by 50 mg/dL or more"}
+
+# Which facts a trend point may come from.
+#
+# Confirmed facts always count. A reading that is still waiting for the medic's tap counts too when it came from one
+# of these sources, so the camera watching the patient monitor produces a trend point and can raise a
+# significant_change alert immediately, instead of staying silent until somebody taps. A camera fact is born
+# unconfirmed by design (herald/core/confirmation.py), so without this the whole monitor-watch loop was invisible.
+#
+# Nothing here changes what leaves the vehicle. The relay (herald/relay/relay.py) and the handoff report
+# (herald/reporting/view.py) read `confirmed_only=True` and are untouched: an unconfirmed reading can raise an alert
+# in the cabin and can never reach the hospital. Every trend and alert built on such a reading is labelled
+# `unconfirmed: true` in the snapshot, with the fact ids to confirm, so the screen asks for the tap.
+unconfirmed_sources: [camera, device]     # values of core/schema.py CapturedBy
+
+# The sentence a screen shows for a change whose newest reading is still unconfirmed. Information about what was
+# read and what it moved from, plus the tap that is needed; never a recommendation about the patient.
+# Fields: {label} {value} {unit} {direction} {delta} {previous}. {unit} is empty when the key has none.
+unconfirmed_text:
+  camera: "Camera read {label} {value}{unit}, {direction} {delta} from {previous} — confirm the reading"
+  device: "Monitor reported {label} {value}{unit}, {direction} {delta} from {previous} — confirm the reading"
+directions:                               # how a direction is worded in the sentence above
+  up: up
+  down: down
+  flat: unchanged
