@@ -68,6 +68,15 @@ Herald now writes the handoff the paramedic reads to the ED, by radio or at the 
    - **DONE:** `last_contact_at` in `ed_receiver`, at the **top level** of the view (`{incidents, last_contact_at}`), because the link belongs to the ambulance, not to one incident. It is set by every `/ping` and `/ingest`, and cleared by `/reset`. It stays null until the medic authorizes a destination, because the rig contacts nobody before that (§3.4, U10).
    - **DONE:** U7 serving. `/classic/` serves `web/`; `/` serves `ui/dist` when `ui/dist/index.html` exists, otherwise `web/`; `HERALD_UI=classic` switches back. `web/index.html` now loads `style.css` and `app.js` relatively (§5.10).
 
+
+### Medic workflow update (2026-09-25)
+
+**Ambulance workspace revision:** the default medic view now uses a fixed-position cabin layout, in-place detail panels, large view, continuous ambient audio capture and deliberate camera freeze/review. This supersedes the sidebar and repeated push-to-talk interaction for the default medic view; the detailed/explain view retains the previous controls. Rationale, sources, implementation limits and validation plan: [AMBULANCE_WORKSPACE.md](AMBULANCE_WORKSPACE.md). Continuous listening never holds the alert queue. No clinical decision rules are changed.
+
+The primary clinical view now follows the incident workflow rather than the data model: Now, Capture, and Handoff are primary; Patient, Vitals, and Audit are secondary record views. Capture is persistent and supports medic voice, patient/bystander voice, typed speech, manual structured entry and camera input without leaving the React screen. A stale WebSocket never covers the last received patient picture; writes pause and the banner makes clear this memory-only view is not a backup. Detailed implementation boundaries are in `docs/MEDIC_UX_IMPLEMENTATION.md`.
+
+The public API adds `POST /api/facts/{fact_id}/correct` with `{ "value": ... }`. A correction rejects the original fact without deleting it, appends a confirmed medic-authored replacement with `manual-correction` provenance, emits an audit trace entry, and broadcasts the new snapshot. Only the current non-rejected fact may be corrected (409 otherwise); invalid values return 400 without mutation and absent facts return 404. Handoff copy distinguishes receiving-system delivery from human acknowledgment; the current contract does not claim viewed or acknowledged status.
+
 ## Glossary
 
 | Term | Meaning in this document |
@@ -2223,6 +2232,8 @@ These run against fixtures (§5.8) and live (U6).
 
 ### UI review contract additions (2026-09-25)
 
+Integration with ambient capture and patient roster: both `X-Herald-Patient` and existing multipart `incident_id` guards remain supported. Request-scoped capture retains camera listeners and ambient confirmation holds. Roster changes clear automatic camera work and ROI. Generic fact correction returns409 for an unresolved medication-label mismatch; only the explicit capture verification endpoint resolves it. These additive checks also apply when using the ambulance workspace.
+
 - React text, audio and device-reading capture sends optional `X-Herald-Patient: <incident id>` to existing `/api/transcript`, `/api/audio`, `/api/facts` (and supported photo capture). Mismatch returns409 before processing. Each admitted request binds its capture service to the original patient throughout asynchronous extraction. This header is a race guard, not authentication.
 - Live label loading prefers `/api/meta`; bundled `/contract/*.json` stays the offline/fixture fallback. Numeric monitor controls accept vocabulary `int`/`float` types and use their labels/units.
 - React uses existing `/api/patients` add and `/{id}/activate` endpoints; `Snapshot.relay.patients[active_patient].sync` is authoritative in multi-patient mode. Packet log entries carry `patient?: string`; pending rows also carry `patient?: string`. Legacy single-patient snapshots fall back to `relay.sync`. No sent/queued badge is shown before authorization.
@@ -2453,6 +2464,10 @@ scripts/                                (repo root)
 ```
 
 ### 5.6 TypeScript contract (`ui/src/lib/types.ts`)
+
+**2026-09-25 ambient capture additions:** `POST /api/audio` and `POST /api/photo` accept optional multipart `incident_id`; a stale ID returns 409 before processing. `/api/audio` also accepts `ambient: bool = false`. Ambient facts always have `captured_by=other`, `role=unknown` (new Role enum value), an unverified-speaker label, and a confirmation hold regardless of extracted attribution. Existing clients remain compatible. Request-scoped capture binds delayed extraction to the original incident. Audio whose incident changes during STT returns 409 without adding the transcript; photo/refinement already running can finish on the original incident but cannot add facts to the new one. This is isolation, not durable incident archival. Snapshot field names are unchanged. Requests are batch jobs; there is no streaming-STT contract or cancel-job endpoint. Browser cancellation does not guarantee cancellation of server-side inference.
+
+**2026-09-25 medic workflow additions:** `POST /api/facts/{fact_id}/correct` accepts `{value}` in the canonical key's native JSON type and returns the appended confirmed fact. Errors: 400 invalid value (no mutation), 404 absent/current-incident mismatch, 409 obsolete/repeated correction. The rejected original and correction trace retain the audit history. `patient.name` and `patient.identifier` are optional canonical string fields requiring an explicit confirmation; both participate in conflict detection. Contract exports were refreshed. The snapshot wire shape is unchanged. Workspace phase is local UI state, not a persisted API field.
 
 These types are derived from `herald/core/snapshot.py` (`Projector.snapshot()`), `herald/relay/relay.py` `status()`, `herald/api/trace.py`, `herald/api/capture.py`, and `ed_receiver/app.py`, as read on 2026-09-23 (after the modular restructure; shapes unchanged), and updated on 2026-09-24 for model-only extraction (also read from `herald/api/routes/capture.py`, `herald/api/routes/system.py`, and `herald/core/schema.py`) and for the county alert checklists and criteria scores (`herald/scoring/criteria.py`, `herald/checklists/`, `herald/api/contract.py`; §5.9c). When the backend changes a field, change it here in the same PR.
 

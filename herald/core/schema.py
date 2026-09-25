@@ -40,6 +40,7 @@ class Role(str, Enum):
     bystander = "bystander"
     device = "device"
     photo = "photo"
+    unknown = "unknown"
 
 
 def source_role(captured_by: "CapturedBy", speaker: Optional[str] = None, role: Optional[Role] = None) -> Role:

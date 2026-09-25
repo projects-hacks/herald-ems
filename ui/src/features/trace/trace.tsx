@@ -4,7 +4,7 @@ import { Camera, Cpu, Keyboard, ListChecks, Mic, Monitor } from "lucide-react";
 import { formatValue, hhmm } from "@/lib/format";
 import type { TranscriptEntry } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/kit";
+import { Badge, IconTile } from "@/components/kit";
 import { AudioEvidence } from "@/components/AudioEvidence";
 import { useHerald } from "@/lib/store";
 import { ActionButton } from "@/components/ActionButton";
@@ -33,11 +33,11 @@ export function TraceEntry({ t, wide = false }: { t: TranscriptEntry; wide?: boo
   const m = t.trace.model;
   const facts = [...t.trace.rules.facts, ...(m.facts ?? [])];
   return (
-    <article className={cn("flex gap-3 border-b border-border-subtle py-3.5 last:border-0", wide ? "px-5" : "px-4")}>
-      <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-surface-2 text-text-muted" aria-hidden><Icon size={15} /></span>
-      <div className="min-w-0 flex-1">
+    <article className={cn("group/entry flex gap-3", wide ? "pl-5" : "pl-4")}>
+      <IconTile icon={Icon} cat="speech" size={30} className="mt-3.5" />
+      <div className={cn("min-w-0 flex-1 border-t border-border-subtle py-3.5 group-first/entry:border-t-0", wide ? "pr-5" : "pr-4")}>
         <p className="flex items-center gap-2 text-meta text-text-muted">
-          <span className="font-semibold text-text-secondary">{t.speaker ?? t.captured_by}</span><span className="num">{hhmm(t.ts)}</span>
+          <span className="font-semibold text-cat-speech-fg">{t.speaker ?? t.captured_by}</span><span className="num">{hhmm(t.ts)}</span>
         </p>
         <p className="mt-0.5 text-body font-medium">“{t.text}”</p>
         {t.trigger && <div className="mt-3 rounded-xl border border-border-subtle p-3">

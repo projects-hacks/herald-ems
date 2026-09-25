@@ -26,7 +26,7 @@ export function PatientStrip({ patients, activePatient, onActivate, disabled = f
         return (
           <button key={patient.id} type="button" aria-pressed={active} disabled={disabled || active}
             onClick={() => onActivate(patient.id)}
-            className={cn("hit flex min-w-40 shrink-0 items-center gap-2 rounded-[var(--radius-control)] border bg-surface-1 px-3 py-2 text-left",
+            className={cn("hit flex min-h-12 min-w-40 shrink-0 items-center gap-2 rounded-[var(--radius-control)] border bg-surface-1 px-3 py-2 text-left",
               active ? "border-accent-fill ring-2 ring-accent-fill/30" : "border-border-subtle",
               "disabled:cursor-default disabled:opacity-100")}>
             <span className={cn("rounded-full px-2 py-0.5 text-meta font-semibold uppercase", TRIAGE_STYLE[triage])}>

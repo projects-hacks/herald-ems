@@ -2,16 +2,17 @@
 // what changed on the screen.
 import { AudioLines } from "lucide-react";
 import { useHerald } from "@/lib/store";
-import { Card, EmptyState, PageHeader } from "@/components/kit";
+import { Card, CardHeader, Count, EmptyState, PageHeader } from "@/components/kit";
 import { TraceEntry } from "@/features/trace/trace";
 
 export function TranscriptPage() {
   const ts = useHerald((s) => s.snapshot?.transcripts) ?? [];
   return (
-    <div className="flex flex-col gap-5 p-6">
+    <div className="flex flex-col gap-5 px-6 pt-5 pb-6">
       <PageHeader title="Transcript" description="What Herald heard, and what it did with it. The last 20 captures, newest first." />
       <Card>
-        {ts.length === 0 ? <EmptyState icon={AudioLines} tone="neutral" title="Nothing heard yet">Use the capture bar, or <a href="/classic/capture.html">take a photo</a>.</EmptyState>
+        <CardHeader icon={AudioLines} cat="speech" title="Captures" actions={ts.length ? <Count n={ts.length} /> : undefined} className="pb-1" />
+        {ts.length === 0 ? <EmptyState icon={AudioLines} cat="speech" title="Nothing heard yet">Use capture below, or <a href="/classic/capture.html">take a photo</a>.</EmptyState>
           : [...ts].reverse().map((t) => <TraceEntry key={t.id} t={t} wide />)}
       </Card>
     </div>

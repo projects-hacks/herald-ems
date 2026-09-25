@@ -1,6 +1,6 @@
 # Tushar UI review follow-up — 2026-09-25
 
-Branch: `feat/ui-review-gaps`, based on main `b0d264c` (including the merged patient-roster backend). Work is in Tushar's clone. The older visual redesign remains separately preserved in its named stash; this change does not restore or overwrite that work. Agentic capture remains on its separate review branch.
+Original branch: `feat/ui-review-gaps`, based on main `b0d264c` (including the merged patient-roster backend). On 2026-09-25, the owner requested integration with `feat/c1-now-screen` and `feat/agentic-capture` into main. The merge preserves the ambulance workspace, guided demo, patient roster, capture guards and authoritative read-aloud report. The named UI stash remains a backup. See [MERGE_VERIFICATION.md](MERGE_VERIFICATION.md) for combined verification and remaining acceptance gates.
 
 | Item | Implementation / remaining gate |
 |---|---|
@@ -15,7 +15,7 @@ Branch: `feat/ui-review-gaps`, based on main `b0d264c` (including the merged pat
 | U10 | Compact tablet vehicle/model/ED status; model unavailable and ED OFFLINE copy; visible toast on link-hotkey failure; no queued-key count before relay authorization. |
 | U11 | ED labels from metadata with raw-key fallback, newest initial call with explicit patient selection preserved, 48 px critical values / 32 px body from UX_PLAN, patient-specific two-second NEW highlights, received contact age, record formatting and full received event history. Physical three-metre readability validation remains. |
 | U13 | Intentionally pending model lock and coordination with Jenil. Existing fixture is not relabeled or represented as a fresh recording. |
-| C1 | Published `feat/agentic-capture` / `88ac480`; PR creation needs authenticated GitHub access. Do not merge without reviewer approval or claim real-model acceptance. Integrating C1 must preserve the newer patient roster, request-scoped capture service and explicit mismatch Keep/Edit guards on all fact-review surfaces. |
+| C1 | Published `feat/agentic-capture` / `88ac480`; owner requested main integration on 2026-09-25. Combined implementation preserves the newer patient roster, request-scoped capture service and explicit mismatch Keep/Edit guards. Real-model and physical-camera acceptance remain pending. |
 | X3 | Shared button minimum 48 px, primary minimum 64 px; capture controls and new-incident primary follow this. |
 
 ## Safety and verification boundaries

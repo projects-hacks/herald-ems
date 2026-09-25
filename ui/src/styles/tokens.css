@@ -1,79 +1,107 @@
-/* Herald design tokens. Visual language: a dashboard in "midnight slate". The app frame (--bg) holds the sidebar;
-   the page sits on an inset canvas (--canvas); cards (--surface-1) sit on the canvas; rows and tiles inside a card
-   are raised (--surface-2). One indigo accent for everything interactive; status colors are used sparingly (dots,
-   icons, badges, thin bars), never as large fills. Semantics follow docs/UX_PLAN.md §2 (priority = color + icon +
-   word, never color alone); scripts/contrast.mjs checks every pair (text >= 4.5:1, controls and fills >= 3:1).
-   Theme: data-theme="dark|light" on <html> (dark is the NOW default). */
+/* Herald design tokens. Visual language: Apple Health (iOS / iPadOS). A grouped background (--bg) with plain cards
+   (--surface-1: white in light, #1C1C1E in dark; no borders, no shadows), rows and fills inside a card (--surface-2),
+   hairline separators, one blue for everything interactive, and a color per clinical category, shown on icon tiles
+   and card titles the way Health shows Heart in pink and Activity in orange.
+
+   Values start from Apple's system colors. Where a system color fails our contrast rules as text (e.g. light-mode
+   green, orange and blue, or white on #007AFF), the darker "increased contrast" variant or apple.com's accessible
+   blue is used instead. Status semantics follow docs/UX_PLAN.md §2 (priority = color + icon + word, never color
+   alone); category colors are identity only and never carry a status. scripts/contrast.mjs checks every pair (text
+   >= 4.5:1, controls and fills >= 3:1). Theme: data-theme="dark|light" on <html> (dark is the NOW default). */
 
 :root,
 [data-theme="dark"] {
-  /* neutrals and surfaces, darkest to lightest */
-  --bg: #08090D;                 /* app frame and sidebar */
-  --canvas: #0D0F14;             /* the inset page */
-  --surface-1: #13161D;          /* cards */
-  --surface-2: #1A1E27;          /* raised: rows, tiles, inputs, hover */
-  --surface-3: #222733;          /* overlays: popovers, sheets, the presenter bar */
-  --border-subtle: #232834;      /* card outlines and dividers (decoration only) */
-  --border-control: #666F83;     /* input and control outlines, dashed "missing" (>= 3:1) */
-  --text-primary: #EDF0F6;
-  --text-secondary: #B3BBC9;
-  --text-muted: #8690A2;
-  --text-disabled: #5D6679;
+  /* surfaces: iOS dark grouped */
+  --bg: #000000;                 /* grouped background: the page behind the cards */
+  --canvas: #000000;
+  --surface-1: #1C1C1E;          /* cards, the sidebar */
+  --surface-2: #2C2C2E;          /* rows, tiles, gray buttons, sheets and popovers inside or above a card */
+  --surface-3: #3A3A3C;          /* hover and pressed fills */
+  --border-subtle: #38383A;      /* hairline separators (decoration only) */
+  --border-control: #7C7C80;     /* input outlines, dashed "missing" (>= 3:1 on cards and rows) */
+  --text-primary: #FFFFFF;
+  --text-secondary: #D1D1D6;
+  --text-muted: #98989F;         /* iOS secondary label */
+  --text-disabled: #636366;
 
-  /* interaction: indigo */
-  --accent: #A5B4FC;             /* links, focus ring, the active nav item's icon */
-  --on-accent: #0B0E14;
-  --accent-fill: #5A52EE;        /* primary buttons: >= 3:1 vs the card, white text >= 4.5:1 */
+  /* interaction: blue */
+  --accent: #409CFF;             /* links, focus ring, the plain-button text */
+  --on-accent: #000000;
+  --accent-fill: #0071E3;        /* filled buttons and the selected sidebar row: white text >= 4.5:1 */
   --on-accent-fill: #FFFFFF;
-  --accent-tint: #1B1E3B;        /* selected / active backgrounds */
-  --capture: #D8B4FE;            /* push-to-talk "listening" only */
-  --scrim: rgb(8 9 13 / .76);
+  --accent-tint: #0B2A4A;        /* tinted buttons and selected backgrounds */
+  --capture: #BF5AF2;            /* push-to-talk "listening" only */
+  --on-capture: #000000;
+  --scrim: rgb(0 0 0 / .72);
 
   /* status sets: fg (text/icon), fill + on-fill (solid badges), tint (soft badge / the one urgent row) */
-  --high-fg: #FB7185;   --high-fill: #E11D48;   --high-on-fill: #FFFFFF;   --high-tint: #2B1119;
-  --medium-fg: #FBBF24; --medium-fill: #F59E0B; --medium-on-fill: #1A1204; --medium-tint: #291F0B;
+  --high-fg: #FF453A;   --high-fill: #D70015;   --high-on-fill: #FFFFFF;   --high-tint: #3B1512;
+  --medium-fg: #FF9F0A; --medium-fill: #FF9F0A; --medium-on-fill: #000000; --medium-tint: #3A2A0C;
   --medium-fill-border: transparent;
-  --low-fg: #38BDF8;    --low-fill: #0EA5E9;    --low-on-fill: #04121A;    --low-tint: #0B2130;
-  --ok-fg: #34D399;     --ok-fill: #047857;     --ok-on-fill: #FFFFFF;     --ok-tint: #0B241D;
+  --low-fg: #64D2FF;    --low-fill: #64D2FF;    --low-on-fill: #001B26;    --low-tint: #0C2A38;
+  --ok-fg: #30D158;     --ok-fill: #1E7B34;     --ok-on-fill: #FFFFFF;     --ok-tint: #0F2E18;
 
-  /* depth: borders carry the structure in dark; shadows only lift overlays */
-  --shadow-1: 0 1px 0 rgb(255 255 255 / .03) inset, 0 1px 2px rgb(0 0 0 / .35);
-  --shadow-2: 0 1px 0 rgb(255 255 255 / .035) inset, 0 1px 3px rgb(0 0 0 / .4);
-  --shadow-3: 0 16px 48px rgb(0 0 0 / .55);
+  /* categories (identity, like Health's Heart / Activity / Sleep): -fg for titles and glyphs, the bare name for
+     the rounded icon tile behind a white glyph */
+  --cat-attention-fg: #FF9F0A; --cat-attention: #FF9F0A;   /* Needs attention */
+  --cat-time-fg: #8A88FF;      --cat-time: #5E5CE6;        /* clocks: LKW, ETA, vitals due */
+  --cat-heart-fg: #FF5A78;     --cat-heart: #FF375F;       /* vitals, NEWS2 */
+  --cat-neuro-fg: #C66DF5;     --cat-neuro: #BF5AF2;       /* stroke scales, exam */
+  --cat-ed-fg: #409CFF;        --cat-ed: #0A84FF;          /* ED handoff, transport */
+  --cat-check-fg: #30D158;     --cat-check: #30D158;       /* the pre-alert checklist */
+  --cat-meds-fg: #63E6E2;      --cat-meds: #00C7BE;        /* medications, allergies */
+  --cat-patient-fg: #98989F;   --cat-patient: #8E8E93;     /* the patient */
+  --cat-speech-fg: #64D2FF;    --cat-speech: #32ADE6;      /* transcript */
+
+  --shadow-1: none;
+  --shadow-2: none;
+  --shadow-3: 0 20px 60px rgb(0 0 0 / .6);
   color-scheme: dark;
 }
 
 [data-theme="light"] {
-  --bg: #E9ECF2;
-  --canvas: #F5F6F9;
+  /* surfaces: iOS light grouped */
+  --bg: #F2F2F7;
+  --canvas: #F2F2F7;
   --surface-1: #FFFFFF;
-  --surface-2: #F2F4F8;
-  --surface-3: #FFFFFF;
-  --border-subtle: #E1E5EC;
-  --border-control: #7B8699;
-  --text-primary: #0F172A;
-  --text-secondary: #334155;
-  --text-muted: #5E6B80;
-  --text-disabled: #94A0B3;
+  --surface-2: #F2F2F7;
+  --surface-3: #E5E5EA;
+  --border-subtle: #E5E5EA;
+  --border-control: #86868B;
+  --text-primary: #1D1D1F;
+  --text-secondary: #3C3C43;
+  --text-muted: #6E6E73;
+  --text-disabled: #AEAEB2;
 
-  --accent: #4338CA;
+  --accent: #0066CC;
   --on-accent: #FFFFFF;
-  --accent-fill: #4F46E5;
+  --accent-fill: #0071E3;
   --on-accent-fill: #FFFFFF;
-  --accent-tint: #EEF0FF;
-  --capture: #7E22CE;
-  --scrim: rgb(245 246 249 / .82);
+  --accent-tint: #E8F1FC;
+  --capture: #8944AB;
+  --on-capture: #FFFFFF;
+  --scrim: rgb(242 242 247 / .8);
 
-  --high-fg: #BE123C;   --high-fill: #E11D48;   --high-on-fill: #FFFFFF;   --high-tint: #FFF1F3;
-  --medium-fg: #A15C07; --medium-fill: #F59E0B; --medium-on-fill: #1A1204; --medium-tint: #FFF8EB;
-  /* amber on white is too light for an edge: light medium badges carry a darker 1 px border */
-  --medium-fill-border: #A15C07;
-  --low-fg: #0369A1;    --low-fill: #0369A1;    --low-on-fill: #FFFFFF;    --low-tint: #EFF8FF;
-  --ok-fg: #047857;     --ok-fill: #047857;     --ok-on-fill: #FFFFFF;     --ok-tint: #ECFDF5;
+  --high-fg: #D70015;   --high-fill: #D70015;   --high-on-fill: #FFFFFF;   --high-tint: #FFE9E8;
+  --medium-fg: #B25000; --medium-fill: #FF9500; --medium-on-fill: #000000; --medium-tint: #FFF3E0;
+  /* system orange on white is too light for an edge: light medium badges carry a darker 1 px border */
+  --medium-fill-border: #B25000;
+  --low-fg: #0071A4;    --low-fill: #0071A4;    --low-on-fill: #FFFFFF;    --low-tint: #E5F4FB;
+  --ok-fg: #1E7B34;     --ok-fill: #1E7B34;     --ok-on-fill: #FFFFFF;     --ok-tint: #E6F6EA;
 
-  --shadow-1: 0 1px 2px rgb(15 23 42 / .06);
-  --shadow-2: 0 1px 2px rgb(15 23 42 / .04), 0 2px 8px rgb(15 23 42 / .04);
-  --shadow-3: 0 16px 48px rgb(15 23 42 / .16);
+  --cat-attention-fg: #B25000; --cat-attention: #FF9500;
+  --cat-time-fg: #3634A3;      --cat-time: #5856D6;
+  --cat-heart-fg: #D30F45;     --cat-heart: #FF2D55;
+  --cat-neuro-fg: #8944AB;     --cat-neuro: #AF52DE;
+  --cat-ed-fg: #0066CC;        --cat-ed: #007AFF;
+  --cat-check-fg: #1E7B34;     --cat-check: #34C759;
+  --cat-meds-fg: #00766E;      --cat-meds: #00C7BE;
+  --cat-patient-fg: #6E6E73;   --cat-patient: #8E8E93;
+  --cat-speech-fg: #0071A4;    --cat-speech: #32ADE6;
+
+  --shadow-1: none;
+  --shadow-2: none;
+  --shadow-3: 0 20px 60px rgb(0 0 0 / .18);
   color-scheme: light;
 }
 
@@ -81,15 +109,16 @@
   /* type scale (§2.5): Shift+T cycles 1 -> 1.25 -> 1.5; every text size is in rem, so it scales the root */
   --type-scale: 1;
 
-  /* radius */
+  /* radius: iOS continuous-corner look approximated with plain radii */
   --radius-chip: 8px;
-  --radius-control: 10px;
-  --radius-card: 16px;
-  --radius-sheet: 20px;
+  --radius-control: 12px;
+  --radius-card: 18px;
+  --radius-sheet: 22px;
+  --radius-tile: 9px;            /* the rounded-square icon tile */
 
   /* layout */
-  --sidebar-w: 220px;
-  --sidebar-rail-w: 76px;
+  --sidebar-w: 248px;
+  --sidebar-rail-w: 80px;
 
   /* z-layers (§2.6) */
   --z-content: 0;

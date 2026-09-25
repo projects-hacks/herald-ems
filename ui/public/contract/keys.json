@@ -1,4 +1,16 @@
 {
+  "patient.name": {
+    "label": "Patient name (reported)",
+    "type": "str",
+    "kind": "history",
+    "require_tap": true
+  },
+  "patient.identifier": {
+    "label": "Patient identifier / wristband",
+    "type": "str",
+    "kind": "history",
+    "require_tap": true
+  },
   "patient.age": {
     "label": "Age",
     "type": "int",

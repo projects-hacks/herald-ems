@@ -14,7 +14,8 @@ import { Badge } from "@/components/kit";
 
 export function AuthorizeForm({ s }: { s: Snapshot }) {
   const [dest, setDest] = useState("");
-  const known = s.facts["transport.destination"];
+  const value = s.facts["transport.destination"];
+  const known = value?.status === "confirmed" ? value : undefined;
   const target = known ? String(known.value) : dest.trim();
   return (
     <div className="flex flex-col gap-3">
@@ -43,10 +44,11 @@ export function useHandoff(s: Snapshot | null) {
   };
 }
 
-export function Figure({ n, label: l, tone, big = false }: { n: number | string; label: string; tone: string; big?: boolean }) {
+/** A figure the Health way: a big rounded number, a gray label under it. */
+export function Figure({ n, label: l, tone, big = false, className }: { n: number | string; label: string; tone: string; big?: boolean; className?: string }) {
   return (
-    <div className="flex min-w-0 flex-col rounded-[12px] bg-surface-2 px-3 py-2">
-      <span className={cn("num font-semibold tracking-display", big ? "text-kpi" : "text-value", tone)}>{n}</span>
+    <div className={cn("flex min-w-0 flex-col", className)}>
+      <span className={cn("rounded-num", big ? "text-kpi" : "text-value leading-7", tone)}>{n}</span>
       <span className="truncate text-meta text-text-muted">{l}</span>
     </div>
   );
@@ -54,15 +56,15 @@ export function Figure({ n, label: l, tone, big = false }: { n: number | string;
 
 export function LinkDownNote() {
   return (
-    <p className="flex items-start gap-2 rounded-[12px] bg-low-tint px-3 py-2 text-body text-low-fg">
-      <WifiOff size={18} aria-hidden className="mt-0.5 shrink-0" />Local AI keeps working. Updates wait on this vehicle and send when the link returns.
+    <p className="flex items-start gap-2 rounded-[14px] bg-low-tint px-3.5 py-2.5 text-body text-low-fg">
+      <WifiOff size={18} aria-hidden className="mt-0.5 shrink-0" />The receiving link is offline. Confirmed updates wait on this vehicle and send when the link returns.
     </p>
   );
 }
 
 export function ReconciledLine({ s }: { s: Snapshot }) {
   if (!reconciled(s)) return null;
-  return <p className="flex items-center gap-1.5 text-meta font-semibold text-ok-fg"><CircleCheck size={16} aria-hidden />Reconciled · 0 lost</p>;
+  return <p className="flex items-center gap-1.5 text-meta font-semibold text-ok-fg"><CircleCheck size={16} aria-hidden />Confirmed updates delivered · clinician receipt unknown</p>;
 }
 
 export function SyncTable({ s, rows }: { s: Snapshot; rows: ErRow[] }) {
@@ -72,14 +74,14 @@ export function SyncTable({ s, rows }: { s: Snapshot; rows: ErRow[] }) {
       {rows.map((row) => {
         const f = s.facts[row.key];
         return (
-          <li key={row.key} className={cn("grid grid-cols-[1.25rem_minmax(0,11rem)_minmax(0,1fr)_auto] items-center gap-3 border-b border-border-subtle px-5 py-2.5 last:border-0",
-            row.state === "sent" ? "text-body text-text-secondary" : "bg-surface-2/50 text-body font-semibold text-text-primary")}>
+          <li key={row.key} className={cn("grid min-h-12 grid-cols-[1.25rem_minmax(0,11rem)_minmax(0,1fr)_auto] items-center gap-3 border-b border-border-subtle px-5 py-2 last:border-0",
+            row.state === "sent" ? "text-body text-text-secondary" : "text-body font-semibold text-text-primary")}>
             {row.state === "sent" ? <CircleCheck size={17} className="text-ok-fg" aria-label="sent" />
               : row.state === "queued" ? <Hourglass size={17} className="text-low-fg" aria-label="queued" /> : <Lock size={17} className="text-medium-fg" aria-label="held" />}
             <span className="truncate">{label(c, row.key)}</span>
-            <span className="truncate" title={row.why}>{row.state === "held" ? (s.relay.sync[row.key] === "sent" ? "ED has an earlier value" : "stays on the vehicle") : f ? factValue(f) : ""}</span>
+            <span className="truncate" title={row.why}>{row.state === "held" ? (s.relay.sync[row.key] === "sent" ? "receiving system has an earlier value" : "stays on the vehicle") : f ? factValue(f) : ""}</span>
             <span className="text-meta font-normal whitespace-nowrap text-text-muted">
-              {row.state === "sent" ? (row.seq ? <span className="num">packet #{row.seq}</span> : "sent")
+              {row.state === "sent" ? "delivered"
                 : row.state === "queued" ? <Badge tone="low">queued</Badge>
                 : row.held === "disagree" ? <Badge tone="medium">sources disagree</Badge> : <Badge tone="medium">needs your tap</Badge>}
             </span>

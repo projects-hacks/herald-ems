@@ -27,9 +27,11 @@ export function connectLive(url = `${location.protocol === "https:" ? "wss" : "w
   let attempt = 0;
   let ping: number | undefined;
   let stopped = false;
+  let reconnect: number | undefined;
   useHerald.setState({ conn: "connecting", connectingSince: performance.now(), source: "live" });
 
   const open = () => {
+    if (stopped) return;
     ws = new WebSocket(url);
     ws.onopen = () => {
       attempt = 0;
@@ -48,7 +50,7 @@ export function connectLive(url = `${location.protocol === "https:" ? "wss" : "w
       if (stopped) return;
       const was = useHerald.getState().conn;
       useHerald.setState({ conn: "closed", ...(was === "open" ? { connectingSince: performance.now() } : {}) });
-      window.setTimeout(open, BACKOFF_MS[Math.min(attempt++, BACKOFF_MS.length - 1)]);
+      reconnect = window.setTimeout(open, BACKOFF_MS[Math.min(attempt++, BACKOFF_MS.length - 1)]);
     };
   };
   open();
@@ -67,6 +69,7 @@ export function connectLive(url = `${location.protocol === "https:" ? "wss" : "w
     window.clearInterval(check);
     window.clearInterval(health);
     window.clearInterval(ping);
+    window.clearTimeout(reconnect);
     ws?.close();
   };
 }

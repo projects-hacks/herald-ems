@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { CaptureControl } from "@/features/capture/CaptureControl";
 import { MismatchCard } from "@/features/capture/MismatchCard";
+import { PatientPage } from "@/pages/PatientPage";
 import { useHerald } from "@/lib/store";
 import { needsTap } from "@/lib/selectors";
 import type { FactView, Snapshot } from "@/lib/types";
@@ -40,6 +41,12 @@ it.each(["fixture", "stale", "disconnected"])("blocks mutations when %s", (condi
 it("keeps older dose mismatches in the queue even when a newer dose exists", () => {
   snapshot.events!["meds.given"][0] = dose;
   expect(needsTap(snapshot).some((f) => f.id === dose.id)).toBe(true);
+});
+it("uses explicit mismatch actions on the Patient page, including older doses", () => {
+  snapshot.events!["meds.given"][0] = dose;
+  render(<PatientPage />);
+  expect(screen.getByRole("button", { name: "Keep as said" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Edit" })).toBeTruthy();
 });
 it("editing requires a typed correction and preserves other dose fields", async () => {
   render(<ul><MismatchCard fact={dose} /></ul>);

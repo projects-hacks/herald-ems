@@ -5,7 +5,7 @@ import { useContract } from "@/lib/contract";
 import { livePatient, submitCapture } from "./client";
 import { useRecorder } from "./useRecorder";
 
-export function CaptureBar() {
+export function CaptureBar({ allowVoice = true }: { allowVoice?: boolean }) {
   const disabled = useHerald((s) => s.source === "fixture" || s.stale || s.conn !== "open");
   const keyboard = useHerald((s) => s.ui.keyboardPtt);
   const activePatient = useHerald((s) => s.snapshot?.incident.id);
@@ -18,13 +18,13 @@ export function CaptureBar() {
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       const target = e.target instanceof HTMLElement ? e.target : null;
-      if (!keyboard || disabled || e.repeat || e.ctrlKey || e.altKey || e.metaKey || target?.closest("input,textarea,select,button,a,[contenteditable=true],[role=dialog]") || document.querySelector('[role="dialog"][data-state="open"]')) return;
+      if (!allowVoice || !keyboard || disabled || e.repeat || e.ctrlKey || e.altKey || e.metaKey || target?.closest("input,textarea,select,button,a,[contenteditable=true],[role=dialog]") || document.querySelector('[role="dialog"]')) return;
       if (e.code === "Space" || e.code === "KeyF") { e.preventDefault(); void recorder.start(e.code === "Space" ? "medic" : "other", speaker); }
     };
     const up = (e: KeyboardEvent) => { if (e.code === "Space" || e.code === "KeyF") void recorder.stop(); };
     window.addEventListener("keydown", down); window.addEventListener("keyup", up);
     return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
-  }, [disabled, keyboard, recorder.start, recorder.stop, speaker]);
+  }, [disabled, allowVoice, keyboard, recorder.start, recorder.stop, speaker]);
   async function submit(kind: "text" | "monitor") {
     if (busy || disabled) return;
     setBusy(true); setError("");
@@ -43,7 +43,7 @@ export function CaptureBar() {
   }
   return <section aria-label="Capture speech and readings" className="shrink-0 border-t border-border-subtle bg-surface-1 px-5 py-3">
     <div className="flex flex-wrap items-center gap-3">
-      {(["medic", "other"] as const).map((source) => <Button key={source} variant={source === "medic" ? "primary" : "secondary"} disabled={disabled || busy}
+      {(["medic", "other"] as const).map((source) => <Button key={source} variant={source === "medic" ? "primary" : "secondary"} disabled={disabled || busy || !allowVoice}
         onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); void recorder.start(source, speaker); }} onPointerUp={() => void recorder.stop()} onPointerCancel={() => void recorder.stop(false)}
         onKeyDown={(e) => { if (!e.repeat && [" ", "Enter"].includes(e.key)) { e.preventDefault(); void recorder.start(source, speaker); } }}
         onKeyUp={(e) => { if ([" ", "Enter"].includes(e.key)) { e.preventDefault(); void recorder.stop(); } }}>

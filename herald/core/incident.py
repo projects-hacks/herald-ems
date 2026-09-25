@@ -9,7 +9,7 @@ import threading
 from typing import Any, Optional
 
 from .confirmation import ConfirmationPolicy
-from .schema import Fact, FactIn, Status, Verification, join_reasons, new_id, utcnow
+from .schema import CapturedBy, Fact, FactIn, Provenance, Role, Status, Verification, join_reasons, new_id, utcnow
 from .vocabulary import Vocabulary, default_vocabulary, norm_value
 
 
@@ -110,6 +110,37 @@ class Incident:
             added.status = Status.confirmed
             self.commit()
             return added
+
+    def correct(self, fact_id: str, value: Any) -> Fact:
+        """An explicit medic correction replaces only the current fact, retaining its evidence."""
+        with self.lock:
+            old = next((fact for fact in self.facts if fact.id == fact_id), None)
+            if old is None:
+                raise KeyError(fact_id)
+            if old.verify and old.verify.status == "mismatch" and not old.verify.resolution:
+                raise RuntimeError("Resolve the medication label mismatch with Keep as said or Edit")
+            if self.latest(old.key) is not old:
+                raise RuntimeError("This field changed. Review its current value before correcting it.")
+            kind = self.vocab.meta(old.key)["type"]
+            valid_type = (
+                isinstance(value, bool) if kind == "bool" else
+                isinstance(value, list) and all(isinstance(item, str) and item.strip() for item in value) if kind == "list" else
+                isinstance(value, (int, float)) and not isinstance(value, bool) if kind in ("int", "float") else
+                isinstance(value, str) and bool(value.strip())
+            )
+            if value is None or not valid_type:
+                raise ValueError(f"Enter a valid {kind} value for {self.vocab.label(old.key)}")
+            if kind == "int" and value != int(value):
+                raise ValueError("Enter a whole number")
+            fin = FactIn(key=old.key, value=value, unit=old.unit, role=Role.medic, speaker="medic correction",
+                         captured_by=CapturedBy.medic, confidence=1.0,
+                         provenance=Provenance(text=f"manual correction of {fact_id}", extractor="manual-correction"))
+            self.validate(fin)  # validate before changing either record
+            corrected = self.ingest(fin, record=False)
+            old.status = Status.rejected
+            corrected.status = Status.confirmed
+            self.commit()
+            return corrected
 
     # ---------- queries ----------
     def history(self, key: str, confirmed_only: bool = False) -> list[Fact]:

@@ -4,7 +4,7 @@
 // When the backend changes a field, change it here in the same PR.
 
 // ---------- enums (core/schema.py) ----------
-export type Role = "medic" | "patient" | "family" | "bystander" | "device" | "photo";
+export type Role = "medic" | "patient" | "family" | "bystander" | "device" | "photo" | "unknown";
 export type CapturedBy = "medic" | "other" | "device" | "camera";
 export type FactStatus = "unconfirmed" | "confirmed" | "rejected";
 /** A record is one event (a medication given, a procedure): only the fields said are present (config/vocabulary.yaml). */

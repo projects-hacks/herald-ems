@@ -29,6 +29,7 @@ class CaptureService:
         self.ctx, self.broadcast = ctx, broadcast
         self.listeners = []
         self._incident = None
+        self.ambient = False
 
     def for_incident(self):
         scoped = CaptureService(self.ctx, self.broadcast)
@@ -62,6 +63,12 @@ class CaptureService:
         facts = []
         before = self._summary()
         for f in facts_in:
+            if self.ambient:
+                f.captured_by = CapturedBy.other
+                f.role = Role.unknown
+                f.speaker = "Ambient audio · speaker unverified"
+                reason = "Ambient speech: verify the words, speaker, and patient before confirming"
+                f.provenance.hold_reason = "; ".join(filter(None, [f.provenance.hold_reason, reason]))
             try:
                 facts.append(self.inc.ingest(f, record=False))
             except ValueError as e:
@@ -191,6 +198,23 @@ class CaptureService:
         return {"photo_id": photo_id, "facts": [f.model_dump(mode="json") for f in facts]}
 
     # ---------- structured readings (monitor panel, device feed) ----------
+    async def correct(self, fact_id: str, value) -> dict:
+        inc, tracer = self.inc, self.ctx.tracer
+        before = tracer.summarize(inc.snapshot())
+        corrected = inc.correct(fact_id, value)
+        said = f"Corrected {self.ctx.vocab.label(corrected.key)} from {corrected.previous_value} to {corrected.value}"
+        inc.transcripts.append({
+            "id": new_id("t"), "ts": utcnow().isoformat(), "text": said, "captured_by": "medic",
+            "speaker": "medic correction", "audio_id": None, "fact_ids": [corrected.id],
+            "extract": {"rules": 0, "llm": None, "ms": 0},
+            "trace": {"heard": {"text": said, "speaker": "medic correction", "source": "structured"},
+                      "rules": {"ms": 0, "facts": [tracer.fact_view(corrected)]},
+                      "model": {"status": "off", "reason": "explicit medic correction; nothing to extract"},
+                      "guard": {"instruction_shaped": None},
+                      "effects": tracer.diff(before, tracer.summarize(inc.snapshot()))}})
+        await self.broadcast()
+        return corrected.model_dump(mode="json")
+
     async def structured(self, facts: list[FactIn]) -> list[dict]:
         """All-or-nothing: one invalid fact rejects the batch (ValueError). One trace entry per call. Drug names are
         coded here like the extractors' (a device or form may send them)."""

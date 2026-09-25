@@ -14,12 +14,19 @@ export async function act(key: string, url: string, body?: unknown, failCopy = "
   try {
     const r = await fetch(url, {
       method: "POST",
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      headers: { "X-Herald-Patient": st.snapshot?.incident.id ?? "", ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(5000),
     });
     if (!r.ok) throw new Error(String(r.status));
-    useHerald.setState({ pending: { ...useHerald.getState().pending, [key]: "sent" } });
+    // The broadcast can arrive before the HTTP response. Re-fetch once so a successful
+    // action never waits forever for a snapshot that already arrived.
+    const state = await fetch("/api/state", { signal: AbortSignal.timeout(5000) });
+    if (!state.ok) throw new Error(String(state.status));
+    useHerald.getState().setSnapshot(await state.json());
+    const pending = { ...useHerald.getState().pending };
+    delete pending[key];
+    useHerald.setState({ pending });
     return true;
   } catch {
     useHerald.setState({ pending: { ...useHerald.getState().pending, [key]: { error: failCopy } } });
@@ -32,6 +39,7 @@ export const api = {
   addPatient: (label: string) => act("patient:add", "/api/patients", { label }),
   confirm: (factId: string) => act(`confirm:${factId}`, `/api/facts/${factId}/confirm`, undefined, "Couldn't confirm. The Herald server didn't answer. Try again."),
   reject: (factId: string) => act(`reject:${factId}`, `/api/facts/${factId}/reject`, undefined, "Couldn't reject. The Herald server didn't answer. Try again."),
+  correct: (factId: string, value: unknown) => act(`correct:${factId}`, `/api/facts/${factId}/correct`, { value }, "Couldn't save the correction. Check the value and try again."),
   authorize: (destination: string) => act("authorize", "/api/relay/authorize", { destination, scope: "stroke pre-alert set" },
     "Couldn't authorize. The Herald server didn't answer. Try again."),
   netem: (mode: "good" | "weak" | "down") => act(`netem:${mode}`, `/api/netem/${mode}`),
