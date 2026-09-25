@@ -13,6 +13,7 @@ from typing import Awaitable, Callable, Optional
 
 from fastapi.concurrency import run_in_threadpool
 
+from ..core.incident import IncidentEnded
 from ..core.schema import CapturedBy, FactIn, Role, join_reasons, new_id, source_role, utcnow
 from .context import AppContext
 
@@ -54,6 +55,7 @@ class CaptureService:
         extracted (ModelUnavailable). Each fact confirms itself only if the confirmation policy allows it
         (the paramedic's own mic, confidence at or above the calibrated bar); everything else needs a tap."""
         ctx = self.ctx
+        self.inc.ensure_open()
         default_role = source_role(captured_by, speaker, role)
         injected = ctx.guard.match(text)
         skip = bool(injected) and ctx.settings.guard_policy == "skip_model"
@@ -88,6 +90,7 @@ class CaptureService:
 
     async def retry_text(self, entry_id: str) -> dict:
         """Retry words preserved while the extraction model was unavailable, without creating a duplicate entry."""
+        self.inc.ensure_open()
         entry = next((entry for entry in self.inc.transcripts if entry["id"] == entry_id), None)
         if entry is None:
             raise KeyError(entry_id)
@@ -106,6 +109,7 @@ class CaptureService:
     async def stt_failure(self, audio_id: str, captured_by: CapturedBy, speaker: Optional[str], error: str,
                           ms: int) -> dict:
         """Keep an evidence-backed trace when speech-to-text fails before words are available."""
+        self.inc.ensure_open()
         before = self._summary()
         stt = {"seconds": None, "chunks": [], "ms": ms, "error": error[:200]}
         entry = {"id": new_id("t"), "ts": utcnow().isoformat(), "text": "[speech-to-text failed]",
@@ -157,8 +161,11 @@ class CaptureService:
     async def photo(self, raw: bytes, mode: str) -> dict:
         ctx, tracer = self.ctx, self.ctx.tracer
         photo_id = new_id("p")
-        ctx.settings.photo_dir.mkdir(parents=True, exist_ok=True)
-        (ctx.settings.photo_dir / f"{photo_id}.jpg").write_bytes(raw)
+        with self.inc.lock:
+            self.inc.ensure_open()
+            ctx.settings.photo_dir.mkdir(parents=True, exist_ok=True)
+            (ctx.settings.photo_dir / f"{photo_id}.jpg").write_bytes(raw)
+            self.inc.register_media("photo", photo_id)
         before = self._summary()
         t0 = time.perf_counter()
         heard = {"text": f"photo ({mode.replace('_', ' ')})", "photo_id": photo_id}
@@ -167,25 +174,31 @@ class CaptureService:
                  "extract": {"rules": 0, "llm": 0, "ms": 0}}
         try:
             facts_in = await run_in_threadpool(ctx.vision.read, raw, mode, photo_id)
+        except IncidentEnded:
+            raise
         except Exception as e:
             # The photo is kept and the failure recorded, so the NOW screen shows it (UX_PLAN §4.3 g).
             entry["trace"] = {"heard": heard, "rules": {"ms": 0, "facts": []},
                               "model": {"status": "error", "name": ctx.vision_model.model_name(), "error": str(e)[:200],
                                         "ms": round((time.perf_counter() - t0) * 1000)},
                               "effects": tracer.diff(before, before)}
-            self.inc.transcripts.append(entry)
+            with self.inc.lock:
+                self.inc.ensure_open()
+                self.inc.transcripts.append(entry)
             await self.broadcast()
             raise
         ms = round((time.perf_counter() - t0) * 1000)
-        rejected: list = []
-        facts = self.ingest_batch(facts_in, rejected)
-        entry["fact_ids"] = [f.id for f in facts]
-        entry["extract"] = {"rules": 0, "llm": len(facts), "ms": ms}
-        entry["trace"] = {"heard": heard, "rules": {"ms": 0, "facts": []},
-                          "model": {"status": "done", "name": ctx.vision_model.model_name(), "ms": ms,
-                                    "facts": [tracer.fact_view(f) for f in facts], "rejected": rejected},
-                          "effects": tracer.diff(before, self._summary())}
-        self.inc.transcripts.append(entry)
+        with self.inc.lock:
+            self.inc.ensure_open()
+            rejected: list = []
+            facts = self.ingest_batch(facts_in, rejected)
+            entry["fact_ids"] = [f.id for f in facts]
+            entry["extract"] = {"rules": 0, "llm": len(facts), "ms": ms}
+            entry["trace"] = {"heard": heard, "rules": {"ms": 0, "facts": []},
+                              "model": {"status": "done", "name": ctx.vision_model.model_name(), "ms": ms,
+                                        "facts": [tracer.fact_view(f) for f in facts], "rejected": rejected},
+                              "effects": tracer.diff(before, self._summary())}
+            self.inc.transcripts.append(entry)
         await self.broadcast()
         return {"photo_id": photo_id, "facts": [f.model_dump(mode="json") for f in facts]}
 
@@ -193,6 +206,7 @@ class CaptureService:
     async def structured(self, facts: list[FactIn]) -> list[dict]:
         """All-or-nothing: one invalid fact rejects the batch (ValueError). One trace entry per call. Drug names are
         coded here like the extractors' (a device or form may send them)."""
+        self.inc.ensure_open()
         tracer = self.ctx.tracer
         if self.ctx.coder:
             facts = self.ctx.coder.code(facts)

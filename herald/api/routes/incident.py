@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from ...core.incident import IncidentEnded
 from ...core.schema import Status
 from . import get_ctx, get_hub
 
@@ -19,10 +20,18 @@ class NewIncident(BaseModel):
 
 @router.post("/incident")
 async def new_incident(body: NewIncident, c=Depends(get_ctx), h=Depends(get_hub)):
+    previous_cleanup = c.end_incident()
     c.new_incident(body.dispatch)
     c.relay.reset()
     await h.broadcast()
-    return c.full_state()
+    return {**c.full_state(), "previous_call_cleanup": previous_cleanup}
+
+
+@router.post("/incident/end")
+async def end_incident(c=Depends(get_ctx), h=Depends(get_hub)):
+    cleanup = c.end_incident()
+    await h.broadcast()
+    return cleanup
 
 
 @router.get("/state")
@@ -36,6 +45,8 @@ async def fact_action(fact_id: str, action: str, c=Depends(get_ctx), h=Depends(g
         raise HTTPException(400, "action must be confirm or reject")
     try:
         f = c.incident.set_status(fact_id, ACTIONS[action])
+    except IncidentEnded as e:
+        raise HTTPException(409, str(e)) from None
     except KeyError:
         raise HTTPException(404)
     await h.broadcast()

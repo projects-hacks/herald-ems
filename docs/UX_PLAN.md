@@ -1221,7 +1221,7 @@ The interval comes from `HERALD_REASSESS_MIN` (default 10) and appears in the `r
 | S7 Action error | — | Inline error on that row | Inline error on that button | Inline error on Authorize | — |
 | S8 Extraction model not running | Header chip HIGH "Extraction model not running ({llm_model})"; in medic mode the ticker slot shows the HIGH line (§3.1.14) | Unchanged: existing facts stay; nothing new arrives from speech | Unchanged | Unchanged | New cards show the words and MODEL "not running · nothing extracted" (§4.3 e) |
 | S9 Replay | REPLAY banner above the header | Actions disabled | Actions disabled | Actions disabled | Normal; ▶ disabled ("audio isn't included in the recording") |
-| S10 New incident requested | — | — | — | — | Dialog: "Start a new incident? This clears the current patient from this screen and resets the ED relay." `[ Start new incident ]` `[ Cancel ]` → `POST /api/incident` |
+| S10 New incident requested | — | — | — | — | Dialog: "Start a new incident? This ends the current call, permanently deletes its audio and photos, clears the patient from this screen, and resets the ED relay." `[ Start new incident ]` `[ Cancel ]` → `POST /api/incident` |
 | S11 Extraction error on one utterance | Header chip MEDIUM "Extraction error" until the next `done` | Unchanged | Unchanged | Unchanged | That card: MODEL "failed after {s} s · Nothing was extracted from these words" (§4.3 d) |
 | S12 Held facts (said together with a command) | Count and chips unchanged: held facts don't count until confirmed | "Held · check" rows first in "Needs your tap", each with its hold reason and `[ Confirm · said with a command ]` | Code status, if held, shows the same reason in its `confirm_required` card | "Held · needs your tap" | Guard line under HEARD and `lock` rows (§4.3 l) |
 
@@ -2591,8 +2591,15 @@ export interface RelayStatus {
 }
 
 // ---------- the snapshot (app.full_state()) ----------
+export interface MediaDisposal {
+  at: string;
+  deleted: { audio: string[]; photo: string[] };
+  missing: { audio: string[]; photo: string[] };
+  invalid: { audio: string[]; photo: string[] };
+}
 export interface Snapshot {
-  incident: { id: string; dispatch: string | null; started: string };
+  incident: { id: string; dispatch: string | null; started: string; ended_at: string | null;
+              media_disposal: MediaDisposal | null };
   summary: string;
   readiness: Readiness[];
   needs_attention: { missing: NeedItem[]; unknown: NeedItem[] };
@@ -2648,6 +2655,8 @@ export type CaptureResponse =
 export interface CaptureUnavailable { detail: string }     // 503: extraction model not served; the entry is still on /ws
 // POST /api/transcripts/{id}/retry re-runs only a transcript preserved with model status "unavailable".
 // POST /api/audio returns 503 on speech-to-text failure after recording a trace entry whose `stt.error` is set.
+// POST /api/incident/end returns MediaDisposal, closes the call to further writes, and is idempotent.
+// POST /api/incident also disposes the previous call's media before creating the replacement incident.
 
 // ---------- ED receiver (ed_receiver/app.py view()) ----------
 export interface EdIncident {
@@ -3103,7 +3112,8 @@ export interface HandoffReport {
   format: { id: "mist" | "medical"; label: string; title: string; source: string };
   formats: { id: string; label: string }[];
   selected_by: string;                           // "checklist:trauma" | "default" | "request"
-  incident: { id: string; dispatch: string | null; started: string };
+  incident: { id: string; dispatch: string | null; started: string; ended_at: string | null;
+              media_disposal: MediaDisposal | null };
   county: { id: string; name: string };
   as_of: string;                                 // time of the last fact (ISO)
   open_checklists: ChecklistId[];

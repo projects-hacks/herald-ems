@@ -28,6 +28,7 @@ from ..scoring import ScaleRegistry, default_scales
 from ..telemetry import Telemetry
 from ..terminology import MedicationCoder, build_coder
 from .contract import UIContract
+from .media import dispose_incident_media
 from .trace import TraceRecorder
 
 
@@ -63,6 +64,10 @@ class AppContext:
     def new_incident(self, dispatch: Optional[str]) -> Incident:
         self.incident = Incident(dispatch, vocabulary=self.vocab, policy=self.policy, projector=self.projector)
         return self.incident
+
+    def end_incident(self) -> dict:
+        return dispose_incident_media(self.incident, audio_dir=self.settings.audio_dir,
+                                      photo_dir=self.settings.photo_dir)
 
     def pre_alert_scope(self) -> str:
         """Describe the current checklist truthfully; authorization never relies on caller-provided wording."""

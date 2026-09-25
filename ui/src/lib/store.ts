@@ -19,7 +19,7 @@ export interface UiState {
   /** Push-to-talk is held (U4 sets it): alerts that arrive meanwhile wait until release (§3.1.8, P4). */
   heldAlerts: boolean;
   page: Page; sidebarCollapsed: boolean;
-  confirmNewIncident: boolean;
+  confirmNewIncident: boolean; confirmEndIncident: boolean;
 }
 
 export interface FixtureState { name: string; index: number; total: number; playing: boolean; speed: number }
@@ -92,6 +92,7 @@ export function initialUi(search = typeof location === "undefined" ? "" : locati
     page: page && PAGES.includes(page) ? page : "overview",
     sidebarCollapsed: p.sidebarCollapsed ?? narrow,
     confirmNewIncident: false,
+    confirmEndIncident: false,
   };
 }
 

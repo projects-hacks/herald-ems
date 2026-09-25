@@ -13,6 +13,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from ...core.incident import IncidentEnded
 from ...core.schema import CapturedBy, FactIn, Role, new_id
 from ..capture import ModelUnavailable
 from . import get_capture, get_ctx
@@ -32,6 +33,8 @@ class TranscriptIn(BaseModel):
 async def post_transcript(body: TranscriptIn, cap=Depends(get_capture)):
     try:
         return await cap.text(body.text, body.captured_by, body.role, body.speaker, None, body.use_llm)
+    except IncidentEnded as e:
+        raise HTTPException(409, str(e)) from None
     except ModelUnavailable as e:
         raise HTTPException(503, str(e))
 
@@ -40,27 +43,46 @@ async def post_transcript(body: TranscriptIn, cap=Depends(get_capture)):
 async def post_audio(file: UploadFile = File(...), captured_by: CapturedBy = Form(CapturedBy.medic),
                      speaker: Optional[str] = Form(None), language: Optional[str] = Form(None),
                      use_llm: bool = Form(True), c=Depends(get_ctx), cap=Depends(get_capture)):
+    try:
+        c.incident.ensure_open()
+    except IncidentEnded as e:
+        raise HTTPException(409, str(e)) from None
     raw = await file.read()
     try:
         audio, sr = sf.read(io.BytesIO(raw), dtype="float32")
     except Exception as e:
         raise HTTPException(400, f"send 16-bit PCM WAV audio ({e})")
     audio_id = new_id("a")
-    c.settings.audio_dir.mkdir(parents=True, exist_ok=True)
-    sf.write(c.settings.audio_dir / f"{audio_id}.wav", audio, sr)
+    with c.incident.lock:
+        try:
+            c.incident.ensure_open()
+        except IncidentEnded as e:
+            raise HTTPException(409, str(e)) from None
+        c.settings.audio_dir.mkdir(parents=True, exist_ok=True)
+        sf.write(c.settings.audio_dir / f"{audio_id}.wav", audio, sr)
+        c.incident.register_media("audio", audio_id)
     t0 = time.perf_counter()
     try:
         result = await run_in_threadpool(c.stt.transcribe, np.asarray(audio), sr, language)
     except Exception as e:
         ms = round((time.perf_counter() - t0) * 1000)
-        await cap.stt_failure(audio_id, captured_by, speaker, str(e), ms)
+        try:
+            await cap.stt_failure(audio_id, captured_by, speaker, str(e), ms)
+        except IncidentEnded as ended:
+            raise HTTPException(409, str(ended)) from None
         raise HTTPException(503, "speech-to-text failed; recording kept for retry") from None
     result["ms"] = round((time.perf_counter() - t0) * 1000)
     if not result["text"]:
+        try:
+            c.incident.ensure_open()
+        except IncidentEnded as e:
+            raise HTTPException(409, str(e)) from None
         return {"transcript": None, "facts": [], "stt": result}
     try:
         return await cap.text(result["text"], captured_by, None, speaker, audio_id, use_llm,
                               {"seconds": result["seconds"], "ms": result["ms"], "chunks": result["chunks"]})
+    except IncidentEnded as e:
+        raise HTTPException(409, str(e)) from None
     except ModelUnavailable as e:
         raise HTTPException(503, str(e))
 
@@ -69,6 +91,8 @@ async def post_audio(file: UploadFile = File(...), captured_by: CapturedBy = For
 async def retry_transcript(entry_id: str, cap=Depends(get_capture)):
     try:
         return {"transcript": await cap.retry_text(entry_id)}
+    except IncidentEnded as e:
+        raise HTTPException(409, str(e)) from None
     except KeyError:
         raise HTTPException(404) from None
     except ModelUnavailable as e:
@@ -83,6 +107,8 @@ async def post_photo(file: UploadFile = File(...), mode: str = Form("monitor"), 
     raw = await file.read()
     try:
         return await cap.photo(raw, mode)
+    except IncidentEnded as e:
+        raise HTTPException(409, str(e)) from None
     except Exception as e:
         raise HTTPException(503, f"vision model unavailable or failed: {str(e)[:200]}")
 
@@ -92,6 +118,8 @@ async def post_facts(facts: list[FactIn], cap=Depends(get_capture)):
     """Structured facts (the simulated monitor panel, or a device feed). One trace entry per call."""
     try:
         return await cap.structured(facts)
+    except IncidentEnded as e:
+        raise HTTPException(409, str(e)) from None
     except ValueError as e:
         raise HTTPException(400, str(e))
 

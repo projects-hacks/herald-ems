@@ -134,7 +134,10 @@ export interface ProtocolStatus {
 
 // ---------- the snapshot (api/context.py full_state()) ----------
 export interface Snapshot {
-  incident: { id: string; dispatch: string | null; started: string };
+  incident: {
+    id: string; dispatch: string | null; started: string; ended_at: string | null;
+    media_disposal: MediaDisposal | null;
+  };
   summary: string;
   readiness: Readiness[];
   needs_attention: { missing: NeedItem[]; unknown: NeedItem[] };
@@ -154,6 +157,12 @@ export interface Snapshot {
   relay: RelayStatus;
   netem: "good" | "weak" | "down" | null;
   protocols?: ProtocolStatus;            // absent when protocol lookup is off
+}
+export interface MediaDisposal {
+  at: string;
+  deleted: { audio: string[]; photo: string[] };
+  missing: { audio: string[]; photo: string[] };
+  invalid: { audio: string[]; photo: string[] };
 }
 export type NowMessage = { type: "state"; state: Snapshot } | { type: "pong"; t: string };
 

@@ -33,5 +33,7 @@ export const api = {
   authorize: (destination: string) => act("authorize", "/api/relay/authorize", { destination, scope: "stroke pre-alert set" },
     "Couldn't authorize. The Herald server didn't answer. Try again."),
   netem: (mode: "good" | "weak" | "down") => act(`netem:${mode}`, `/api/netem/${mode}`),
+  endIncident: () => act("end-incident", "/api/incident/end", undefined,
+    "Couldn't end the call. Media has not been confirmed deleted; try again."),
   newIncident: (dispatch: string | null) => act("incident", "/api/incident", { dispatch }),
 };

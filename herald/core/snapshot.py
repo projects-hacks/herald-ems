@@ -67,7 +67,9 @@ class Projector:
             events = {k: [self.fact_view(f) for f in inc.facts if f.key == k and f.status != Status.rejected]
                       for k, m in self.vocab.keys.items() if m.get("merge") == "each"}
             return {
-                "incident": {"id": inc.id, "dispatch": inc.dispatch, "started": inc.started.isoformat()},
+                "incident": {"id": inc.id, "dispatch": inc.dispatch, "started": inc.started.isoformat(),
+                             "ended_at": inc.ended_at.isoformat() if inc.ended_at else None,
+                             "media_disposal": inc.media_disposal},
                 "summary": summary + (f" · {complaint}" if complaint else ""),
                 "readiness": readiness,
                 "needs_attention": {"missing": missing, "unknown": unknown},

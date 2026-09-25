@@ -28,11 +28,24 @@ class Incident:
         self.facts: list[Fact] = []
         self.transcripts: list[dict] = []
         self.audit_log: list[dict] = []
+        self.ended_at = None
+        self.media_ids: dict[str, set[str]] = {"audio": set(), "photo": set()}
+        self.media_disposal: Optional[dict] = None
         self.news2_history: list[dict] = []   # score history, recorded once per utterance by the projector
         self.ed_sync: dict[str, dict] = {}
         self.lock = threading.RLock()
 
     # ---------- ingest ----------
+    def ensure_open(self) -> None:
+        if self.ended_at is not None:
+            raise IncidentEnded("this incident has ended; start a new incident before capturing more data")
+
+    def register_media(self, kind: str, media_id: str) -> None:
+        """Attach generated evidence to this call while holding the same lock used to end it."""
+        with self.lock:
+            self.ensure_open()
+            self.media_ids[kind].add(media_id)
+
     def validate(self, fin: FactIn) -> Any:
         """Raise ValueError if `ingest` would reject this fact (lets a batch be all-or-nothing)."""
         return self.vocab.validate(fin.key, fin.value)
@@ -40,6 +53,7 @@ class Incident:
     def ingest(self, fin: FactIn, record: bool = True) -> Fact:
         value = self.validate(fin)
         with self.lock:
+            self.ensure_open()
             prev = self.latest(fin.key)
             data = fin.model_dump()
             data["value"] = value
@@ -52,6 +66,7 @@ class Incident:
 
     def set_status(self, fact_id: str, status: Status, actor: str = "medic") -> Fact:
         with self.lock:
+            self.ensure_open()
             for f in self.facts:
                 if f.id == fact_id:
                     previous = f.status
@@ -106,3 +121,7 @@ class Incident:
 
     def snapshot(self) -> dict:
         return self.projector.snapshot(self)
+
+
+class IncidentEnded(RuntimeError):
+    """A write was attempted after the crew ended the call."""
