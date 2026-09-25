@@ -147,6 +147,17 @@ export interface ProtocolStatus {
   last_sync: string | null; destination_audit_ok: boolean;
   documents: { id: string; title: string; effective: string }[];
 }
+export interface ProtocolPassage {
+  doc: string; title: string | null; section: string; heading: string; page: number;
+  text: string;                          // heading + body as printed, shown verbatim
+  parents: string[]; score: number; effective: string | null; text_layer_uncertain: boolean;
+}
+export interface ProtocolAnswer {
+  query: string;
+  answerable: boolean | null;            // null: no reranker ran (or it failed)
+  reranked: boolean; chosen?: number; error?: string;
+  results: ProtocolPassage[];
+}
 
 // ---------- the snapshot (api/context.py full_state()) ----------
 export interface Snapshot {
