@@ -91,5 +91,5 @@ def test_fake_speech_extraction_emits_verify_intent_without_phrase_matching(tmp_
             if entry["transcript"]["trace"]["model"]["status"] != "running": break
             await asyncio.sleep(.01)
         assert ctx.speech_in_flight == 0
-        assert any(intent.purpose == "verify" for intent, _, _ in ctx.capture_agent.pending)
+        assert any(intent.purpose == "verify" for intent, _, _, _ in ctx.capture_agent.pending)
     asyncio.run(run())
