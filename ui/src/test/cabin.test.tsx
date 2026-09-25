@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CabinApp } from "@/features/cabin/CabinApp";
 import { CameraCapture } from "@/features/cabin/CameraCapture";
@@ -16,17 +16,20 @@ describe("ambulance workspace", () => {
     Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: vi.fn() } });
   });
   afterEach(() => { cleanup(); vi.restoreAllMocks(); });
-  it("opens with explicit microphone off and never requests devices automatically", () => {
+  it("starts listening and watching on its own in a live call", () => {
     render(<CabinApp />);
-    expect(screen.getByRole("button", { name: "Start listening" })).toBeTruthy();
-    expect(screen.getByText("Not listening")).toBeTruthy();   // the presence pill is the whole system status
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalled();                       // a copilot, not a recorder to remember
+    expect(screen.queryByRole("contentinfo")).toBeNull();                                // no capture footer
+  });
+  it("requests nothing when automatic capture is off, and offers one control to start", () => {
+    useHerald.setState({ ui: initialUi("?capture=off") });
+    render(<CabinApp />);
     expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Start listening" })).toBeTruthy();
+    expect(screen.getByText(/Paused — tap to listen and watch/)).toBeTruthy();
     expect(screen.getByRole("region", { name: "How the patient is moving" })).toBeTruthy();
     expect(screen.getByRole("region", { name: "Herald is doing" })).toBeTruthy();
-    // controls only in the dock: no status prose, no disclaimers
-    const dock = within(screen.getByRole("contentinfo"));
-    expect(dock.queryByText(/camera/i, { selector: "p, span, small" })).toBeNull();
-    expect(dock.queryByText(/Microphone off|Record only when authorized|processed on the vehicle/)).toBeNull();
+    expect(screen.queryByText(/Record only when authorized|processed on the vehicle/)).toBeNull();   // no disclaimers on Now
   });
   it("opens the county protocol search from the header", () => {
     render(<CabinApp />);
@@ -34,14 +37,14 @@ describe("ambulance workspace", () => {
     expect(screen.getByRole("dialog", { name: "County protocols" })).toBeTruthy();
   });
   it("exposes bounded push-to-talk and typed notes without starting the microphone", () => {
-    render(<CabinApp />);
-    fireEvent.click(screen.getByRole("button", { name: "Type" }));
+    useHerald.setState({ ui: initialUi("?capture=off") }); render(<CabinApp />);
+    fireEvent.click(screen.getByRole("button", { name: "Type a note" }));
     expect(screen.getByRole("button", { name: /Hold to talk · medic/ })).toBeTruthy();
     expect(screen.getByLabelText("Spoken or typed note")).toBeTruthy();
     expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
   });
   it("opens the camera workspace without activating a device", () => {
-    render(<CabinApp />);
+    useHerald.setState({ ui: initialUi("?capture=off") }); render(<CabinApp />);
     fireEvent.click(screen.getByRole("button", { name: "Camera" }));
     expect(screen.getByRole("heading", { name: "Capture visual evidence" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Start listening" })).toBeTruthy();
@@ -80,6 +83,7 @@ describe("ambulance workspace", () => {
     const request = new Promise<MediaStream>((done) => { resolve = done; });
     vi.mocked(navigator.mediaDevices.getUserMedia).mockReturnValue(request);
     const stop = vi.fn();
+    useHerald.setState({ ui: initialUi("?capture=off") });
     render(<CabinApp />);
     fireEvent.click(screen.getByRole("button", { name: "Camera" }));
     fireEvent.mouseDown(screen.getByRole("tab", { name: "Take a photo" }), { button: 0, ctrlKey: false });

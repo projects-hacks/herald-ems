@@ -7,6 +7,7 @@ export function MonitorWatch({ onStatus }: { onStatus: (status: MonitorStatus) =
   const patient = useHerald((s) => s.snapshot?.incident.id);
   const blocked = useHerald((s) => s.source !== "live" || s.stale || s.conn !== "open");
   const capture = useHerald((s) => s.snapshot?.capture);
+  const paused = useHerald((s) => s.ui.capturePaused);
   const video = useRef<HTMLVideoElement>(null);
   const session = useRef<MonitorCapture | null>(null);
   const changed = useRef(onStatus); changed.current = onStatus;
@@ -26,6 +27,12 @@ export function MonitorWatch({ onStatus }: { onStatus: (status: MonitorStatus) =
   useEffect(() => {
     if (capture && !capture.auto && status.active) session.current?.stop("Automatic monitoring was paused.");
   }, [capture?.auto]);
+  useEffect(() => {   // continuous: watching starts with the call and follows the pause control in the header
+    const s = session.current;
+    if (!s || blocked || !patient) return;
+    if (paused) { if (status.active || status.starting) s.stop("Paused"); }
+    else if (!status.active && !status.starting && !status.error) void s.start(roi).catch(() => {});
+  }, [paused, blocked, patient]);
   return <section className="monitor-watch" aria-label="Continuous monitor watch">
     <h2>Watch the monitor through the journey</h2>
     <p>Aim at the equipment. After one start, this camera keeps sending frames while you use other care pages. The vehicle selects usable stills, reads changes, and holds proposed readings for review.</p>

@@ -46,7 +46,7 @@ describe("copilot screen selectors", () => {
     expect(presence(ok)).toEqual({ tone: "ok", text: "Listening · watching the monitor" });
     expect(presence({ ...ok, listening: false, monitorWatching: false }).tone).toBe("idle");
     expect(presence({ ...ok, micError: "Microphone needs HTTPS or localhost." })).toEqual({ tone: "down", text: "Microphone blocked by the browser — open Herald via localhost" });
-    expect(presence({ ...ok, health: { llm_available: false } as Health }).text).toMatch(/Extraction model down/);
+    expect(presence({ ...ok, health: { llm_available: false } as Health }).text).toMatch(/not becoming facts/);
     expect(presence({ ...ok, offline: true }).tone).toBe("down");
     expect(presence({ ...ok, replay: true }).tone).toBe("replay");
   });
@@ -54,7 +54,9 @@ describe("copilot screen selectors", () => {
     const eta = { ...fact("e", "transport.eta_min", 12, { status: "confirmed" }), label: "ETA" };
     const pending = { ...fact("g", "transport.destination", 0, { status: "unconfirmed" }), value: "Regional CSC" } as FactView;
     const line = patientLine({ ...base, facts: { ...base.facts, "transport.eta_min": eta, "transport.destination": pending } });
-    expect(line).toContain("ETA 12 min");
-    expect(line).not.toContain("Regional CSC");
+    expect(line).not.toContain("ETA");                    // the ETA counts down in the situation bar only: one ETA on screen
+    expect(line).not.toContain("Regional CSC");            // an unconfirmed destination is not stated
+    const sure = { ...pending, status: "confirmed" } as FactView;
+    expect(patientLine({ ...base, facts: { ...base.facts, "transport.destination": sure } })).toMatch(/[^·] → Regional CSC$/);
   });
 });

@@ -49,7 +49,15 @@ export class AmbientCapture {
       context.createMediaStreamSource(stream).connect(node); node.connect(mute); mute.connect(context.destination);
       stream.getAudioTracks().forEach((t) => { t.onended = () => this.fail("Microphone disconnected. Capture stopped; check the record for missing speech."); });
       context.onstatechange = () => { if (context.state === "suspended" && this.state.listening) this.fail("Audio suspended by the browser. Tap Resume listening when ready."); };
-      await context.resume();
+      void context.resume();
+      if (context.state === "suspended") {        // started without a tap: the browser holds audio until the first touch
+        this.update({ message: "Tap anywhere to start listening" });
+        await new Promise<void>((done) => {
+          const go = () => { void context.resume().then(() => done()); };
+          document.addEventListener("pointerdown", go, { once: true }); document.addEventListener("keydown", go, { once: true });
+          context.addEventListener?.("statechange", () => { if (context.state === "running") done(); });
+        });
+      }
       if (token !== this.generation || this.disposed) return;
       this.update({ starting: false, listening: true, message: "Listening · short clips processed locally" });
     } catch (e) { if (token === this.generation && !this.disposed) this.fail(e instanceof Error ? e.message : "Microphone unavailable"); }

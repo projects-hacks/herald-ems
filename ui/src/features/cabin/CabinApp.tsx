@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Activity, BookOpen, Camera, ChevronLeft, FileText, Info, Keyboard, Mic, Moon, Pause, Settings2, Sun, Users, WifiOff } from "lucide-react";
+import { Activity, BookOpen, Camera, ChevronLeft, FileText, Info, Keyboard, Moon, Settings2, Sun, Users, WifiOff } from "lucide-react";
 import { ManualEntry } from "@/components/ManualEntry";
 import { PatientRoster } from "@/components/PatientRoster";
 import { CaptureBar } from "@/features/capture/CaptureBar";
@@ -87,9 +87,13 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
       {panel ? <button className="copilot-back" onClick={close} aria-label="Back to now"><ChevronLeft size={18} />Now</button>
         : <span className="copilot-mark" aria-label="Herald"><Activity size={22} strokeWidth={2.6} aria-hidden /></span>}
       <h1 className="copilot-patient">{s ? patientLine(s) : "Waiting for the vehicle"}</h1>
-      <PresencePill p={pill} />
+      <PresencePill p={pill} paused={ui.capturePaused} disabled={isReplay || ambient.blocked}
+        onToggle={() => setUi({ capturePaused: !ui.capturePaused })} />
       {isReplay && player && <ReplayBar player={player} />}
       <div className="copilot-header-actions">
+        {s?.capture?.auto && <CaptureControl stopOnly />}   {/* the vehicle's connected camera: a direct stop */}
+        <button className="cabin-button" aria-label="Camera" aria-pressed={panel === "camera"} onClick={() => open("camera")}><Camera size={19} /></button>
+        <button className="cabin-button" aria-label="Type a note" aria-pressed={panel === "notes"} onClick={() => open("notes")}><Keyboard size={19} /></button>
         <button className="cabin-button" aria-label="Record" aria-pressed={panel === "record"} onClick={() => openRecord("facts")}><FileText size={19} /><span className="patients-button-label">Record</span></button>
         <button className="cabin-button" aria-label="Protocols" onClick={() => setProtocols(true)}><BookOpen size={19} /><span className="patients-button-label">Protocols</span></button>
         {multi && <button className="cabin-button" aria-label="Patients" onClick={() => open("patients")}><Users size={19} /><span className="patients-button-label">Patients</span></button>}
@@ -133,6 +137,8 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
         {panel === "settings" && <div className="cabin-settings workspace-page-surface"><h1 className="workspace-page-heading">Settings</h1>
           <div className="cabin-actions">{([1, 1.25, 1.5] as const).map((scale) => <button className="cabin-button" key={scale} aria-pressed={ui.typeScale === scale} onClick={() => setUi({ typeScale: scale })}>Text {scale * 100}%</button>)}
             <button className="cabin-button" onClick={() => setUi({ theme: ui.theme === "dark" ? "light" : "dark" })}>{ui.theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}{ui.theme === "dark" ? "Daylight theme" : "Night theme"}</button></div>
+          <label className="copilot-switch"><input type="checkbox" checked={ui.autoCapture} onChange={(e) => setUi({ autoCapture: e.target.checked, capturePaused: !e.target.checked })} />
+            Listen and watch automatically when a call starts</label>
           <div className="cabin-actions"><button className="cabin-button" onClick={() => setProtocols(true)}>Search protocols</button>
             <button className="cabin-button" disabled={recording || ambient.status.queued > 0 || photo.busy} onClick={() => setUi({ confirmNewIncident: true })}>New incident…</button>
             <button className="cabin-button" onClick={() => setUi({ presentationMode: true })}>Guided demo</button><button className="cabin-button" onClick={() => setUi({ mode: "explain" })}>Detailed application view</button></div>
@@ -141,16 +147,6 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
         </div>}
       </section>
     </main>
-    <footer className="copilot-dock">
-      {s?.capture?.auto && <CaptureControl stopOnly />}
-      <button className={`cabin-button copilot-mic ${recording ? "recording" : "primary"}`} disabled={ambient.blocked || (!recording && ui.heldAlerts)}
-        style={recording ? { ["--level" as string]: String(Math.min(1, ambient.status.level * 4)) } : undefined}
-        onClick={() => recording ? ambient.pause() : void ambient.start()}>
-        {recording ? <Pause size={24} /> : <Mic size={24} />}{ambient.status.listening ? "Listening — pause" : ambient.status.starting ? "Starting…" : "Start listening"}
-        {ambient.status.queued > 0 && <span className="sr-only">{ambient.status.queued} clips processing</span>}</button>
-      {panel !== "camera" && <button className="cabin-button" onClick={() => open("camera")}><Camera size={23} />Camera</button>}
-      {panel !== "notes" && <button className="cabin-button" onClick={() => open("notes")}><Keyboard size={21} />Type</button>}
-    </footer>
     <ProtocolSearch open={protocols} onClose={() => setProtocols(false)} />
   </div></div>;
 }

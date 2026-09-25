@@ -154,7 +154,7 @@
 .copilot-replay { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 12px; border-radius: 999px;
   background: var(--surface-2); border: 1px solid var(--border-subtle); font-size: .875rem; color: var(--text-secondary); }
 .copilot-replay b { font-family: var(--font-mono); color: var(--text-primary); }
-.copilot-replay button { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: var(--accent); }
+.copilot-replay button { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--accent); }
 @media (max-width: 760px) { .copilot-mark { display: none; } }
 
 /* ---------- what Herald knows: fields appear as they are said ---------- */
@@ -166,7 +166,7 @@
   border: 1px solid transparent; transition: background var(--dur-medium1) var(--ease-standard), border-color var(--dur-medium1); }
 .known-group dt { font-size: .8125rem; color: var(--text-muted); }
 .known-group dd { margin: 2px 0 0; font-size: 1.125rem; font-weight: 700; color: var(--text-primary); line-height: 1.3; overflow-wrap: anywhere; }
-.known-group dd small { display: block; font-size: .75rem; font-weight: 700; color: var(--medium-fg); letter-spacing: .02em; }
+.known-group dd small { display: block; font-size: .8125rem; font-weight: 700; color: var(--medium-fg); letter-spacing: .02em; }
 .known-group [data-status="unconfirmed"] dd { text-decoration: underline dotted color-mix(in srgb, var(--medium-fg) 70%, transparent); text-underline-offset: 4px; }
 .known-group [data-safety] { border-color: color-mix(in srgb, var(--medium-fg) 45%, transparent); }
 .known-group [data-new] { border-color: color-mix(in srgb, var(--accent) 60%, transparent);
@@ -191,7 +191,7 @@
 .sit-clock .num { font-family: var(--font-mono); font-weight: 700; color: var(--text-primary); }
 .sit-clock[data-overdue] { border-color: color-mix(in srgb, var(--high-fg) 60%, transparent); }
 .sit-clock[data-overdue] .num { color: var(--high-fg); }
-.protocol-more summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 700; color: var(--low-fg); }
+.protocol-more summary { min-height: 48px; display: flex; align-items: center; cursor: pointer; font-weight: 700; color: var(--low-fg); }
 .protocol-more[open] summary { margin-bottom: 8px; }
 .movement-strip-mono, .copilot-movement li strong { font-family: var(--font-mono); }
 .protocol-points { list-style: none; margin: 0 0 4px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
@@ -212,3 +212,20 @@
 @media (max-width: 760px) {
   .copilot .workspace-page .card, .copilot .workspace-page-surface { -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
 }
+
+/* the header is the only sticky band on the copilot screen; stale/restored notices scroll with the page under it */
+.copilot .copilot-header { z-index: 40; }
+.copilot .cabin-sticky-status { position: static; }
+.sit-clock small, .sit-pending { font-size: .8125rem; font-weight: 700; color: var(--medium-fg); font-style: normal; }
+.sit-clock[data-unconfirmed] { border-style: dashed; border-color: color-mix(in srgb, var(--medium-fg) 55%, transparent); }
+.ed-link-down { margin: 0; padding: 8px 12px; border-radius: 10px; font-weight: 700; background: var(--high-tint); color: var(--high-fg); }
+
+/* one centred column for header and content on wide displays; type grows with the screen, never below the floors */
+html:has(.copilot) { font-size: clamp(16px, calc(0.3vw + 11px), 19px); }
+.copilot .cabin-main { max-width: 1760px; }
+.copilot-header { padding-inline: max(28px, calc((100% - 1760px) / 2 + 28px)); }
+.presence-pill { min-height: 48px; cursor: pointer; }
+.presence-pill:disabled { cursor: default; }
+.presence-pill:not(:disabled):hover { border-color: var(--glass-border-hi); }
+.copilot-switch { display: flex; align-items: center; gap: 12px; min-height: 48px; font-weight: 600; }
+.copilot-switch input { width: 24px; height: 24px; accent-color: var(--accent); }

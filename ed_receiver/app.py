@@ -110,7 +110,9 @@ async def ingest(req: Request):
             if k == "stroke.lkw":
                 inc.pop("lkw_at", None)
             inc["history"].setdefault(k, []).append({"v": v, "t": now()})
-        inc["fields"][k] = {"v": v, "seq": p["q"], "t": now()}
+            inc["fields"][k] = {"v": v, "seq": p["q"], "t": now()}
+        # an unchanged value keeps the sequence and time it first arrived with: a full sync re-sends everything, and
+        # re-stamping would reset the ETA countdown and mark every field as just updated
     for key in p.get("rm", []):
         if key == "stroke.lkw":
             inc.pop("lkw_at", None)

@@ -192,17 +192,19 @@ function FindingRow({ a, s, onSeen }: { a: Alert; s: Snapshot; onSeen?: () => vo
         title={<>STEMI Alert criteria met</>} meta={<span>{a.criteria.join(" · ")}</span>} actions={seen} />;
     case "race_positive":
       return <Row icon={Brain} cat="neuro" badge={<PriorityBadge p={p} />} title={<>RACE <span className="num">{a.score}</span> of 9: large-vessel screen positive</>}
-        meta={<span>Threshold ≥ 5. Parts and published accuracy are on the RACE tile.</span>} actions={seen} />;
+        meta={<span>Threshold ≥ 5. Parts and accuracy: Record → Trends &amp; scores.</span>} actions={seen} />;
     case "gfast_positive":
       return <Row icon={Brain} cat="neuro" badge={<PriorityBadge p={p} />} title={<>G.F.A.S.T. <span className="num">{a.score}</span> of 4: screen positive</>}
         meta={<span>{a.county_rule}</span>} actions={seen} />;
     case "significant_change": {
-      const d = a.series[a.series.length - 1] - a.series[0];
+      const d = a.series.length ? a.series[a.series.length - 1] - a.series[0] : 0;
       return <Row icon={TrendingUp} cat={catOf(a.key)} badge={<PriorityBadge p={p} />} title={<>{a.label} changed <span className="num">{a.series.join(" → ")}</span></>}
         meta={<span className="num">{d > 0 ? "+" : ""}{d} since the first reading</span>} actions={seen} />;
     }
-    default:
-      return null;
+    default: {   // an alert type added in config (config/scores/*.yaml) that this screen has no special row for
+      const x = a as { label?: string; type: string };
+      return <Row icon={ShieldAlert} cat="attention" badge={<PriorityBadge p={p} />} title={x.label ?? x.type} actions={seen} />;
+    }
   }
 }
 

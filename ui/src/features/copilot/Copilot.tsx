@@ -15,10 +15,14 @@ import { useHerald } from "@/lib/store";
 import { Sparkline } from "@/components/Sparkline";
 import { ActionButton } from "@/components/ActionButton";
 
-export function PresencePill({ p }: { p: Presence }) {
-  return <span className="presence-pill" data-tone={p.tone} role={p.tone === "down" ? "alert" : "status"}>
-    {p.tone === "down" ? <TriangleAlert size={16} aria-hidden /> : <span className="presence-dot" aria-hidden />}{p.text}
-  </span>;
+/** The whole system status, and the one capture control: tap to pause or resume listening and watching. */
+export function PresencePill({ p, paused, disabled, onToggle }: { p: Presence; paused: boolean; disabled?: boolean; onToggle: () => void }) {
+  const live = p.tone === "ok";
+  return <button type="button" className="presence-pill" data-tone={p.tone} disabled={disabled} onClick={onToggle}
+    aria-label={live && !paused ? "Pause listening" : "Start listening"}>
+    {p.tone === "down" ? <TriangleAlert size={16} aria-hidden /> : <span className="presence-dot" aria-hidden />}
+    <span role={p.tone === "down" ? "alert" : "status"}>{paused ? "Paused — tap to listen and watch" : p.text}</span>
+  </button>;
 }
 
 const KIND_ICON: Record<ActivityKind, typeof Ear> = { heard: Ear, read: Monitor, checked: ShieldCheck, found: BookOpenCheck, sent: Send };
@@ -72,7 +76,8 @@ export function EdCard({ onHandoff }: { onHandoff: () => void }) {
     {!ed.configured ? <p>No receiving ED set for this vehicle.</p> : !ed.authorized ? <p>Nothing yet — sharing not authorized. Confirmed facts stay on this vehicle.</p>
       : ed.sent.length ? <p className="ed-sent">{ed.sent.slice(0, 8).join(" · ")}{ed.sent.length > 8 ? ` · +${ed.sent.length - 8} more` : ""}</p>
       : <p>Nothing sent yet.</p>}
-    {ed.lastAck && <p className="ed-meta">Last received {hhmm(ed.lastAck)}{s.relay.link === "down" ? " · link down, updates held" : ""}</p>}
+    {ed.lastAck && <p className="ed-meta">Last delivered {hhmm(ed.lastAck)} (system acknowledgement)</p>}
+    {ed.authorized && s.relay.link === "down" && <p className="ed-link-down" role="status">Link to the ED is down — updates are held on this vehicle</p>}
     {ed.waiting > 0 && <p className="ed-meta">{ed.waiting} captured {ed.waiting === 1 ? "fact waits" : "facts wait"} for your confirmation before sending</p>}
     <div className="ed-actions">
       {ed.configured && !ed.authorized && <ActionButton pendingKey="authorize" variant="primary" className="min-h-16"
@@ -134,7 +139,7 @@ export function PatientKnown({ onRecord }: { onRecord: () => void }) {
   if (!s) return null;
   const groups = patientKnown(s, GROUPS);
   if (!groups.length) return <section className="copilot-known glass-1" aria-labelledby="known-h"><h2 id="known-h"><UserRound size={16} aria-hidden />Patient</h2>
-    <p className="activity-empty">Nothing heard yet. Details appear here as they are said.</p></section>;
+    <p className="activity-empty">Nothing confirmed yet. Details appear here as you confirm them.</p></section>;
   return <section className="copilot-known glass-1" aria-labelledby="known-h">
     <h2 id="known-h"><UserRound size={16} aria-hidden />Patient</h2>
     {groups.map((g) => <div key={g.name} className="known-group" data-group={g.name}>
@@ -161,16 +166,21 @@ export function SituationBar() {
   const lkw = clock("lkw"), eta = clock("eta"), due = clock("reassess");
   return <div className="situation-bar" role="group" aria-label="Situation">
     {s.readiness.map((r) => {
-      const missing = r.items.filter((i) => i.state !== "done").map((i) => i.label);
+      const missing = r.items.filter((i) => i.state === "missing").map((i) => i.label);
+      const toConfirm = r.items.filter((i) => i.state === "pending").length;
       return <span key={r.id} className="sit-ready" data-ready={r.ready || undefined}>
         <b>{r.label}</b>
         <span className="sit-meter" aria-hidden>{r.items.map((i) => <i key={i.key} data-state={i.state} />)}</span>
         <span className="num">{r.done} of {r.total}</span>
         {r.ready ? <em>ready</em> : missing.length ? <em>missing {missing.slice(0, 2).join(", ").toLowerCase()}{missing.length > 2 ? ` +${missing.length - 2}` : ""}</em> : null}
+        {!r.ready && toConfirm > 0 && <em className="sit-pending">{toConfirm} to confirm</em>}
       </span>;
     })}
-    {lkw && <span className="sit-clock"><b>LKW</b> {lkw.label.replace(/^LKW\s*/, "")} <span className="num">+{span(clockSeconds(lkw, at, now))}</span></span>}
-    {eta && (() => { const left = clockSeconds(eta, at, now); return <span className="sit-clock"><b>ETA</b> <span className="num">{left > 0 ? hhmmss(left).replace(/^00:/, "") : "arriving"}</span></span>; })()}
+    {lkw && <span className="sit-clock" data-unconfirmed={s.facts["stroke.lkw"]?.status === "unconfirmed" || undefined}><b>LKW</b> {lkw.label.replace(/^LKW\s*/, "")} <span className="num">+{span(clockSeconds(lkw, at, now))}</span>
+      {s.facts["stroke.lkw"]?.status === "unconfirmed" && <small>not confirmed</small>}</span>}
+    {eta && (() => { const left = clockSeconds(eta, at, now); const tentative = s.facts["transport.eta_min"]?.status === "unconfirmed";
+      return <span className="sit-clock" data-unconfirmed={tentative || undefined}><b>ETA</b> <span className="num">{left > 0 ? hhmmss(left).replace(/^00:/, "") : `due ${span(-left)} ago`}</span>
+        {tentative && <small>not confirmed</small>}</span>; })()}
     {due && (() => { const left = clockSeconds(due, at, now); return <span className="sit-clock" data-overdue={left <= 0 || undefined}><b>Vitals</b>
       <span className="num">{left > 0 ? `due in ${hhmmss(left).replace(/^00:/, "")}` : "due now"}</span></span>; })()}
   </div>;

@@ -76,7 +76,7 @@ export function activity(s: Snapshot, limit = 6, label: (key: string) => string 
     fresh.forEach((k) => delivered.add(k));
     if (!fresh.length) continue;
     const names = fresh.slice(0, 3).map(label).join(", ") + (fresh.length > 3 ? ` +${fresh.length - 3} more` : "");
-    lines.push({ id: `s:${p.seq}:${p.ts}`, ts: p.ts, kind: "sent", text: `Sent ${names} to ${dest} — received` });
+    lines.push({ id: `s:${p.seq}:${p.ts}`, ts: p.ts, kind: "sent", text: `Sent ${names} to ${dest} — delivered` });
   }
   return lines.sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, limit);
 }
@@ -104,7 +104,7 @@ export function presence(o: {
 }): Presence {
   if (o.replay) return { tone: "replay", text: "Demo replay · recorded scenario" };
   if (o.offline) return { tone: "down", text: o.hasSnapshot ? "Offline — vehicle server disconnected, showing last state" : "Connecting to the vehicle…" };
-  if (o.health?.llm_available === false) return { tone: "down", text: "Extraction model down — speech is kept but not becoming facts" };
+  if (o.health?.llm_available === false) return { tone: "down", text: "Speech is not becoming facts right now — words are kept; enter key facts by hand" };
   if (o.micError) return { tone: "down", text: /https|localhost|secure/i.test(o.micError) ? "Microphone blocked by the browser — open Herald via localhost" : `Microphone stopped — ${o.micError}` };
   if (o.cameraError) return { tone: "down", text: `Camera stopped — ${o.cameraError}` };
   const doing = [o.listening && "Listening", o.monitorWatching && "watching the monitor"].filter(Boolean) as string[];
@@ -121,8 +121,8 @@ export function patientLine(s: Snapshot): string {
   const summary = s.summary || "";
   const parts = [summary && summary.includes(" · ") ? summary
     : [summary, s.incident.dispatch].filter(Boolean).join(" · ") || "New patient"];
-  const eta = f("transport.eta_min"), dest = f("transport.destination");
-  if (eta || dest) parts.push([eta && `ETA ${formatValue(eta.value)} min`, dest && `→ ${factValue(dest)}`].filter(Boolean).join(" "));
+  const dest = f("transport.destination");   // the ETA counts down in the situation bar; one ETA on screen, not two
+  if (dest) parts[parts.length - 1] += ` → ${factValue(dest)}`;
   return parts.join(" · ");
 }
 
@@ -142,10 +142,11 @@ export function edHas(s: Snapshot, label: (key: string) => string): EdHas {
 /** Whatever has been heard or read, grouped; the fields exist because they were said, not because a form has them.
  *  Vitals are left to the monitor and the movement strip; the safety keys lead. */
 export const SAFETY_KEYS = ["allergies", "meds.anticoagulant", "code_status"];
-const HIDE = (k: string) => k.startsWith("vitals.") || k.startsWith("score.") || k === "transport.eta_min" || k === "transport.destination";
+const HIDE = (k: string) => k.startsWith("vitals.") || k.startsWith("score.") || k.startsWith("exam.") || k === "transport.eta_min"
+  || k === "transport.destination" || k === "meds.list";   // exam items add up into the scores; the medication list repeats the anticoagulant
 export interface KnownGroup { name: string; facts: FactView[] }
 export function patientKnown(s: Snapshot, groups: [string, (key: string) => boolean][]): KnownGroup[] {
-  const facts = Object.values(s.facts).filter((f) => f.status !== "rejected" && !HIDE(f.key));
+  const facts = Object.values(s.facts).filter((f) => f.status === "confirmed" && !HIDE(f.key));   // unconfirmed ones wait in Needs you
   const safety = SAFETY_KEYS.map((k) => facts.find((f) => f.key === k)).filter((f): f is FactView => !!f);
   const rest = facts.filter((f) => !SAFETY_KEYS.includes(f.key));
   const out: KnownGroup[] = safety.length ? [{ name: "Safety", facts: safety }] : [];

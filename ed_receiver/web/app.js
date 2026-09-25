@@ -41,7 +41,7 @@ function render(view) {
   if (max > prior && display) highlights[selected] = { until: Date.now() + display.highlight_ms, keys: new Set(fieldKeys(incident).filter((key) => isNewField(incident.fields[key], prior))) };
   const recent = highlights[selected]?.until > Date.now() ? highlights[selected].keys : new Set();
   const ids = Object.keys(view.incidents).sort((a, b) => (triageRank[triage(view.incidents[a])] ?? 1) - (triageRank[triage(view.incidents[b])] ?? 1) || view.incidents[b].first_at.localeCompare(view.incidents[a].first_at));
-  $('patients').innerHTML = ids.map((id, i) => `<button data-index="${i}" aria-pressed="${id === selected}"><span class="triage">${esc(triage(view.incidents[id]))}</span> · ${esc(view.incidents[id].label || id)}</button>`).join('');
+  $('patients').innerHTML = ids.map((id, i) => `<button data-index="${i}" aria-pressed="${id === selected}">${triage(view.incidents[id]) === 'unknown' ? '' : `<span class="triage ${esc(triage(view.incidents[id]))}">${esc(triage(view.incidents[id]))}</span> · `}${esc(view.incidents[id].label || id)}</button>`).join('');
   $('patients').querySelectorAll('button').forEach((b) => b.onclick = () => { selected = ids[Number(b.dataset.index)]; manualSelection = true; render(lastView); });
   $('patients').hidden = ids.length < 2;               // a patient picker only when there is more than one patient
   $('banner').hidden = !recent.size;
@@ -57,7 +57,7 @@ function render(view) {
     return `<div class="row ${recent.has(key) ? 'new' : ''}"><span>${esc(label(key))}</span><b${elapsed !== null ? ` data-clock="${esc(String(field.v))}" data-since="${esc(incident.lkw_at)}"` : ''}>${value}</b></div>`;
   };
   const acknowledgements = incident.acknowledgements || [];
-  $('root').innerHTML = `<div class="grid"><section class="card"><h2>${esc(incident.label || selected)} · received facts</h2>${fieldKeys(incident).map(row).join('') || '<p>No fields received yet</p>'}</section><section class="card"><h2>Link and packets</h2><p>${incident.applied.length} packets · ${incident.duplicates} duplicates ignored</p><p>${incident.queued_on_rig} queued on the vehicle · ${incident.bytes} bytes received</p><p><button id="ack-received">Mark received</button> <button id="ack-cath">Cath lab activated</button></p>${acknowledgements.length ? `<p>Clinician acknowledgement: ${esc(acknowledgements.at(-1).status.replaceAll('_', ' '))}</p>` : '<p>No clinician acknowledgement recorded.</p>'}<details><summary>Packet history</summary>${[...incident.packets].reverse().map((p) => `<p class="packet">${esc(incident.label || selected)} · #${p.seq} · ${esc(p.tier)} · ${p.bytes} B<br>${esc(p.keys.map(label).join(' · '))}</p>`).join('')}</details></section></div>${incident.timeline.length ? `<details class="card"><summary>Received event history</summary>${incident.timeline.map((t) => `<p>${esc(hhmm(t.t))} · ${esc(label(t.k))}: ${esc(formatValue(t.v))}</p>`).join('')}</details>` : ''}`;
+  $('root').innerHTML = `<div class="grid"><section class="card"><h2>${esc(incident.label || selected)} · received facts</h2>${fieldKeys(incident).map(row).join('') || '<p>No fields received yet</p>'}</section><section class="card"><h2>Receiving team</h2><p><button id="ack-received">Mark received</button> <button id="ack-cath">Cath lab activated</button></p>${acknowledgements.length ? `<p>Clinician acknowledgement: ${esc(acknowledgements.at(-1).status.replaceAll('_', ' '))}</p>` : '<p>No clinician acknowledgement recorded.</p>'}<details><summary>Link and packets</summary><p>${incident.applied.length} packets · ${incident.duplicates} duplicates ignored · ${incident.queued_on_rig} queued on the vehicle · ${incident.bytes} bytes</p>${[...incident.packets].reverse().map((p) => `<p class="packet">${esc(incident.label || selected)} · #${p.seq} · ${esc(p.tier)} · ${p.bytes} B<br>${esc(p.keys.map(label).join(' · '))}</p>`).join('')}</details></section></div>${incident.timeline.length ? `<details class="card"><summary>Received event history</summary>${incident.timeline.map((t) => `<p>${esc(hhmm(t.t))} · ${esc(label(t.k))}: ${esc(formatValue(t.v))}</p>`).join('')}</details>` : ''}`;
   $('ack-received').onclick = () => acknowledge(selected, 'received');
   $('root').insertAdjacentHTML('beforeend', renderJourney(incident, labels));
   $('ack-cath').onclick = () => acknowledge(selected, 'cath_lab_activated');
@@ -95,7 +95,10 @@ function incoming(incident) {
     <div class="who">${esc(incident.label || selected)}</div><div class="dest">${dest ? `to ${esc(formatValue(dest))}` : 'destination not received'}</div></div>
     <div class="eta"><b ${arrival ? `data-arrival="${arrival}"` : ''}>${arrival ? countdown(arrival) : '—'}</b><span>${arrival ? 'ETA' : 'ETA not received'}</span></div>`;
 }
-const countdown = (arrival) => { const s = Math.max(0, Math.round((arrival - Date.now()) / 1000)); return s ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : 'arriving'; };
+const countdown = (arrival) => {
+  const s = Math.round((arrival - Date.now()) / 1000);
+  return s > 0 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : `due +${Math.floor(-s / 60)} min`;   // overdue says so
+};
 function contact() {
   const at = lastView?.last_contact_at;
   $('contact').textContent = at ? `Last vehicle contact: ${hhmm(at)} · ${Math.max(0, Math.floor((Date.now() - new Date(at).getTime()) / 1000))} s ago` : 'Last vehicle contact: unknown';
