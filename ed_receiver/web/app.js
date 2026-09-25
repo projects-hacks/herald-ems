@@ -35,7 +35,7 @@ function render(view) {
   lastView = view;
   contact();
   const newest = newestPatient(view.incidents);
-  if (!newest) { $('root').textContent = 'No incoming patients. Waiting for the ambulance…'; $('patients').replaceChildren(); $('report').hidden = true; $('banner').hidden = true; selected = null; reportVersion = ''; return; }
+  if (!newest) { $('incoming').hidden = true; $('root').textContent = 'No incoming patients. Waiting for the ambulance…'; $('patients').replaceChildren(); $('report').hidden = true; $('banner').hidden = true; selected = null; reportVersion = ''; return; }
   if (!manualSelection || !view.incidents[selected]) selected = newest;
   const incident = view.incidents[selected], max = Math.max(0, ...incident.applied), prior = seen[selected] ?? 0;
   if (max > prior && display) highlights[selected] = { until: Date.now() + display.highlight_ms, keys: new Set(fieldKeys(incident).filter((key) => isNewField(incident.fields[key], prior))) };
@@ -43,6 +43,7 @@ function render(view) {
   const ids = Object.keys(view.incidents).sort((a, b) => (triageRank[triage(view.incidents[a])] ?? 1) - (triageRank[triage(view.incidents[b])] ?? 1) || view.incidents[b].first_at.localeCompare(view.incidents[a].first_at));
   $('patients').innerHTML = ids.map((id, i) => `<button data-index="${i}" aria-pressed="${id === selected}"><span class="triage">${esc(triage(view.incidents[id]))}</span> · ${esc(view.incidents[id].label || id)}</button>`).join('');
   $('patients').querySelectorAll('button').forEach((b) => b.onclick = () => { selected = ids[Number(b.dataset.index)]; manualSelection = true; render(lastView); });
+  $('patients').hidden = ids.length < 2;               // a patient picker only when there is more than one patient
   $('banner').hidden = !recent.size;
   $('banner').textContent = `UPDATE · ${incident.label || selected} · ${incident.dest || 'Destination not received'}`;
   // A time value reads "13:04 · 1 h 12 m ago"; other values carry the key's unit ("142 mg/dL"). The label span
@@ -63,11 +64,38 @@ function render(view) {
   seen[selected] = max;
   const factsSection = $('root').querySelector('section');
   const critical = display?.critical_keys ?? [];
-  factsSection.innerHTML = `<h2>${esc(incident.label || selected)} · Critical</h2><div class="critical">${critical.map(row).join('')}</div><h2>Vitals, exam, logistics</h2>${fieldKeys(incident).filter((key) => !critical.includes(key)).map(row).join('')}`;
+  // Critical band: one tile per critical key, with a status word; not received is striped, never blank.
+  const tile = (key) => {
+    const field = incident.fields[key], meta = labels[key] ?? {};
+    if (!field) return `<div class="tile missing"><small>${esc(label(key))} · <em>not received</em></small><b>—</b></div>`;
+    const elapsed = key === 'stroke.lkw' ? observedElapsed(incident.lkw_at) : null;
+    const value = elapsed !== null ? `${formatValue(field.v)} · ${elapsed} ago` : `${formatValue(field.v)}${meta.unit ? ` ${meta.unit}` : ''}`;
+    const fresh = field.seq === max;
+    return `<div class="tile ${fresh ? 'new' : ''}"><small>${esc(label(key))} · <em>${fresh ? 'latest update' : 'received'}</em></small><b${elapsed !== null ? ` data-clock="${esc(String(field.v))}" data-since="${esc(incident.lkw_at)}"` : ''}>${esc(value)}</b></div>`;
+  };
+  // What the latest packet changed, in one line the charge nurse can read from across the room.
+  const latest = fieldKeys(incident).filter((key) => incident.fields[key].seq === max && max > 0);
+  const changed = latest.length && incident.applied.length > 1 ? `<div class="changed"><h2>Changed in the latest update</h2>${latest.slice(0, 4).map((key) =>
+    `<span>${esc(label(key))}</span><b>${esc(formatValue(incident.fields[key].v))}${labels[key]?.unit ? ` ${esc(labels[key].unit)}` : ''}</b>`).join('')}</div>` : '';
+  factsSection.innerHTML = `<h2>Critical</h2><div class="critical">${critical.map(tile).join('')}</div>${changed}<h2>Vitals, exam, logistics</h2>${fieldKeys(incident).filter((key) => !critical.includes(key)).map(row).join('')}`;
+  incoming(incident);
   const version = `${selected}:${max}`;
   if (reportVersion !== version) { reportVersion = version; void loadReport(selected, version); }
   contact();
 }
+// The one thing to prepare for: who is coming, with what, to where, and how long until they arrive.
+function incoming(incident) {
+  const el = $('incoming'), f = incident.fields;
+  const what = f['impression.primary']?.v ?? f['complaint.chief']?.v;
+  const dest = incident.dest || f['transport.destination']?.v;
+  const eta = f['transport.eta_min'];
+  const arrival = eta && typeof eta.v === 'number' ? new Date(eta.t).getTime() + eta.v * 60000 : null;
+  el.hidden = false;
+  el.innerHTML = `<div class="what"><div class="kicker">INCOMING${what ? ` · ${esc(String(what).toUpperCase())}` : ''}</div>
+    <div class="who">${esc(incident.label || selected)}</div><div class="dest">${dest ? `to ${esc(formatValue(dest))}` : 'destination not received'}</div></div>
+    <div class="eta"><b ${arrival ? `data-arrival="${arrival}"` : ''}>${arrival ? countdown(arrival) : '—'}</b><span>${arrival ? 'ETA' : 'ETA not received'}</span></div>`;
+}
+const countdown = (arrival) => { const s = Math.max(0, Math.round((arrival - Date.now()) / 1000)); return s ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : 'arriving'; };
 function contact() {
   const at = lastView?.last_contact_at;
   $('contact').textContent = at ? `Last vehicle contact: ${hhmm(at)} · ${Math.max(0, Math.floor((Date.now() - new Date(at).getTime()) / 1000))} s ago` : 'Last vehicle contact: unknown';
@@ -79,6 +107,7 @@ function connect() {
   ws.onclose = () => { $('connection').textContent = 'SCREEN OFFLINE · showing last received data'; setTimeout(connect, 1000); };
 }
 function tickClocks() {
+  document.querySelectorAll('b[data-arrival]').forEach((el) => { el.textContent = countdown(Number(el.dataset.arrival)); });
   document.querySelectorAll('b[data-clock]').forEach((el) => {
     const elapsed = observedElapsed(el.dataset.since);
     if (elapsed !== null) el.textContent = `${el.dataset.clock} · ${elapsed} ago`;

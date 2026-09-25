@@ -1,8 +1,9 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ED · Incoming patients</title><link rel="stylesheet" href="/screen.css"></head>
-<body><header><h1>Emergency department · Incoming</h1><p id="connection" role="status">Connecting…</p><p id="contact">Last vehicle contact: unknown</p></header>
-<main><p id="banner" role="status" hidden></p><nav id="patients" aria-label="Incoming patients"></nav>
+<body><header><div class="brand"><span class="mark" aria-hidden="true">✚</span><span>Emergency department · Incoming</span></div>
+<p id="connection" role="status">Connecting…</p><p id="contact">Last vehicle contact: unknown</p></header>
+<main><section id="incoming" aria-live="polite" hidden></section><p id="banner" role="status" hidden></p><nav id="patients" aria-label="Incoming patients"></nav>
 <div id="root">No incoming patients. Waiting for the ambulance…</div>
 <section class="card" id="report" hidden aria-label="Received handoff report"></section></main>
 <script type="module" src="/app.js"></script></body></html>
