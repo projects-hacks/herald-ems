@@ -78,11 +78,21 @@ Say:
 
 ## If a judge asks for technical detail
 
-Select **Clinical view** or press `Shift+P`. Use only these three points:
+Select **Clinical view** or press `Shift+P`. Use only these points:
 
-- Published scores and checklists are deterministic code; the model only extracts facts.
-- Nothing uncertain leaves the ambulance until a human confirms it.
-- Speech, vision and extraction run locally; the screen reports zero cloud AI calls.
+- **Scores are deterministic code; the model only extracts facts.** For this Santa Clara County stroke case the routing scale is **G.F.A.S.T. 4 of 4 → 700-A13 routing** (Protocol 700-A13: 4 of 4 routes to a Comprehensive Stroke Center unless the center is more than 45 minutes away). NEWS2 and RACE are computed and shown beside it as supporting context — RACE is not the county's routing rule, so lead with G.F.A.S.T.
+- **Nothing uncertain leaves the ambulance until a human confirms it.** Model-only facts are held below the confidence bar and wait for a medic's tap.
+- **Everything runs locally; the screen reports zero cloud AI calls.** Speech is Whisper (large-v3-turbo), fact extraction is the fine-tuned local model served as `ems-e-v2-fp8`, and photo reading is the local vision model served as `qwen3vl-fp8`.
+
+### The agent loop (what actually runs)
+
+If asked "is this just a chatbot / does it call some cloud tool?", describe the real loop — do not invent tool calls:
+
+1. **Listen.** Continuous short-clip capture on the vehicle; Whisper transcribes each clip locally.
+2. **Structure.** The local extractor turns speech into structured facts with per-fact confidence and provenance (who said it, linked to the audio).
+3. **Watch (agentic capture, merged as S9).** When the camera is on, Herald sends at most one frame per second and reads on a budget (about one vision read every ten seconds, a single request in flight, speech gets priority). The status shows **Herald sees: off / watching / reading**.
+4. **Hold for a human.** Every camera reading and every low-confidence fact is proposed, never auto-applied; a matching label never establishes dose, route, or patient. No treatment advice is given.
+5. **Relay.** Only confirmed essentials are sent to the ER over the weak-link relay; raw audio and photos stay on the vehicle.
 
 Press `Shift+P` again to return to the guided story.
 
