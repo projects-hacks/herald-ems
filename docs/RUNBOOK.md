@@ -30,18 +30,25 @@ The watchdog line matters for a second reason: the box hard-hung four times on 2
 `efi_pstore` backend. Each time the SBSA watchdog reset it after 60 s and systemd brought everything back. If the
 machine reboots mid-rehearsal, that is the known fault: re-run this checklist from step 1 rather than debugging it.
 
-**The ship stack is not final.** `herald-f` (run F, MODEL_PLAN §0l) trained on speech, photos, protocol
-reranking, figure transcription and translation, and it **passed** on speech and photos but **failed its own
+**The shipped stack is `ems-e-v2-fp8` (speech) + untuned `qwen3vl-fp8` (photos, reranking, figures,
+translation) + Whisper large-v3-turbo — this is the demo default, run it unless you have a specific reason
+not to.** `herald-f` (run F, MODEL_PLAN §0l) trained on speech, photos, protocol reranking, figure
+transcription and translation, and it **passed** on speech and photos but **failed its own
 protocol-reranking kept-ability gate** (right passage first 0.731 vs a required ≥0.788; see MODEL_CARD.md
-and `eval/results.jsonl`). So there is no single "final model label" yet — pick one of these three config
-options, defined by `scripts/serve_models.sh`:
+and `eval/results.jsonl`). herald-f does not ship: it is published separately as a research artifact. Two
+optional, experimental configurations exist if you deliberately want herald-f's speech/photo numbers or a
+lighter fallback, both defined in `scripts/serve_models.sh`:
 
-1. **Default (what README.md documents):** `ems-e-v2-fp8` (speech) + `qwen3vl-fp8` (photos, reranking,
-   figures, translation) — two untuned-vs-fine-tuned-but-not-run-F models, both fully gated.
-2. **Split stack** (§7 below): `herald-f` for speech **and** photos only, `qwen3vl-fp8` for reranking,
-   figures and translation — gets herald-f's speech/photo gains without its rerank regression.
-3. **4B fallback:** `herald-f4b-fp8` (text-only) + untuned `qwen3vl-fp8` — weaker than both of the above on
-   every measured number (MODEL_CARD.md); use only if the 30B stack will not fit or will not start.
+1. **Default (what README.md documents, and what this runbook's commands below use):** `ems-e-v2-fp8`
+   (speech) + `qwen3vl-fp8` (photos, reranking, figures, translation) — both fully gated, this is the ship
+   stack.
+2. **Split stack, optional/experimental** (§7 below): `herald-f` for speech **and** photos only,
+   `qwen3vl-fp8` for reranking, figures and translation — gets herald-f's speech/photo gains without its
+   rerank regression, but has never been run resident together on this box; rehearse it before relying on
+   it.
+3. **4B fallback, optional/experimental:** `herald-f4b-fp8` (text-only) + untuned `qwen3vl-fp8` — weaker
+   than both of the above on every measured number (MODEL_CARD.md); use only if the 30B stack will not fit
+   or will not start.
 
 Whichever you start, it must be `Ready` in `zrt status`. Do not start a duplicate service. If it is absent,
 give Rajeev the output of `zrt status`; model starts take minutes and require shared-memory planning.
