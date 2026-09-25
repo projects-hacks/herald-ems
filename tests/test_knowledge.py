@@ -281,3 +281,30 @@ def test_every_qa_gold_citation_resolves_to_a_section_that_holds_the_quote(kb):
             with_items = " ".join(s.text for s in kb.sections if s.doc_id == doc
                                   and (s.number == r["section"] or s.number.startswith(r["section"] + ".")))
             assert flat(r["answer_quote"]) in flat(with_items), r["id"]
+
+
+def test_a_lead_in_section_carries_the_items_listed_under_it(kb):
+    """602 §VI.E.1 ends "Stroke shall be transported to:"; the destinations are its sub-items. A quote of it must hold
+    the rule, and the sub-items stay their own citable sections."""
+    by = {(s.doc_id, s.number): s for s in kb.sections}
+    lead = by[("602", "VI.E.1")]
+    subs = [s for (d, n), s in by.items() if d == "602" and n.startswith("VI.E.1.")]
+    assert subs, "the destinations are sub-items of VI.E.1"
+    assert subs[0].text in lead.items
+    hit = next(r for r in kb.search("stroke alert patients destination comprehensive stroke center", 8) if (r["doc"], r["section"]) == ("602", "VI.E.1"))
+    assert not hit["text"].rstrip().endswith(":")             # a quote of the lead-in holds its items
+
+
+def test_the_lead_in_carry_is_bounded_and_stops_at_the_next_sibling():
+    from herald.knowledge.sections import SectionSplitter
+    from herald.config import load_yaml
+    cfg = load_yaml("knowledge.yaml")
+    split = SectionSplitter(cfg["heading_styles"], cfg["running_line_share"], cfg["glyph_error_pattern"],
+                            cfg.get("running_line_band"), 60).split
+    text = "\n".join(["I. Destinations", "A. Stroke patients shall be transported to:", "1. The closest center.",
+                      "2. Another center that is further away than the first one.", "B. Trauma patients go elsewhere."])
+    s = {x.number: x for x in split("t", [(1, text)], "outline")}
+    assert "1. The closest center." in s["I.A"].items         # within the budget
+    assert "Another center" not in s["I.A"].items            # over the 60-character budget
+    assert "Trauma" not in s["I.A"].items                    # the next sibling is not a sub-item
+    assert "closest" not in s["I.A"].text                    # the indexed text is unchanged

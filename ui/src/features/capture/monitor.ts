@@ -1,6 +1,7 @@
 import { authHeaders } from "@/lib/authToken";
 
-export interface MonitorStatus { active: boolean; starting: boolean; sent: number; message: string; error: boolean }
+/** `stream` is the live camera, so the copilot screen can show what Herald is looking at (a preview, never stored). */
+export interface MonitorStatus { active: boolean; starting: boolean; sent: number; message: string; error: boolean; stream?: MediaStream | null }
 export const monitorIdle: MonitorStatus = { active: false, starting: false, sent: 0, message: "Camera off", error: false };
 export interface MonitorRegion { x0: number; y0: number; x1: number; y1: number }
 
@@ -71,7 +72,7 @@ export class MonitorCapture {
       if (token !== this.generation) return;
       const status = await this.request("/api/capture/auto", { on: true });
       if (token !== this.generation) return;
-      this.update({ starting: false, active: true, message: "Watching · waiting for a usable monitor frame" });
+      this.update({ starting: false, active: true, stream: this.stream, message: "Watching · waiting for a usable monitor frame" });
       const tick = async () => {
         if (token !== this.generation) return;
         try { await this.frame(token); }
@@ -104,7 +105,7 @@ export class MonitorCapture {
     this.stream?.getTracks().forEach((track) => { track.onended = null; track.stop(); }); this.stream = undefined;
     if (this.socket) { this.socket.onclose = null; this.socket.onerror = null; this.socket.onmessage = null; this.socket.close(); this.socket = undefined; }
     this.video.srcObject = null;
-    this.update({ active: false, starting: false, message, error });
+    this.update({ active: false, starting: false, stream: null, message, error });
   }
   dispose() { this.disposed = true; this.stop(); }
 }

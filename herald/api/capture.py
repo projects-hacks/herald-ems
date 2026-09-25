@@ -20,6 +20,10 @@ from .context import AppContext
 
 Broadcast = Callable[[], Awaitable[None]]
 
+# The speaker of ambient cabin speech is never inferred. The screen shows this label on the fact as it is and leaves
+# it out of the activity line (ui/src/lib/format.ts UNIDENTIFIED_SPEAKER, the same string).
+AMBIENT_SPEAKER = "Speaker not identified"
+
 
 class ModelUnavailable(RuntimeError):
     """The extraction model isn't serving: Herald does not extract without it."""
@@ -71,7 +75,7 @@ class CaptureService:
             if self.ambient:
                 f.captured_by = CapturedBy.other
                 f.role = Role.unknown
-                f.speaker = "Ambient audio · speaker unverified"
+                f.speaker = AMBIENT_SPEAKER
                 reason = "Ambient speech: verify the words, speaker, and patient before confirming"
                 f.provenance.hold_reason = "; ".join(filter(None, [f.provenance.hold_reason, reason]))
             try:

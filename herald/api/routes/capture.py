@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 from ...core.incident import IncidentEnded
 from ...core.schema import CapturedBy, FactIn, Role, new_id
-from ..capture import ModelUnavailable
+from ..capture import AMBIENT_SPEAKER, ModelUnavailable
 from . import get_capture, get_ctx
 
 router = APIRouter(prefix="/api")
@@ -53,7 +53,7 @@ async def post_audio(file: UploadFile = File(...), captured_by: CapturedBy = For
         raise HTTPException(409, "Patient changed; this recording was not added to the current incident")
     cap.ambient = ambient
     if ambient:
-        captured_by, speaker = CapturedBy.other, "Ambient audio · speaker unverified"
+        captured_by, speaker = CapturedBy.other, AMBIENT_SPEAKER
     raw = await file.read()
     try:
         audio, sr = sf.read(io.BytesIO(raw), dtype="float32")
@@ -85,6 +85,8 @@ async def post_audio(file: UploadFile = File(...), captured_by: CapturedBy = For
         raise HTTPException(409, "Patient changed during transcription; review the previous recording separately")
     result["ms"] = round((time.perf_counter() - t0) * 1000)
     if not result["text"]:
+        # Nothing heard, or a clip the speech gates dropped (`result["dropped"]`: no speech, another language, a
+        # looping decode; counted in telemetry): no transcript entry, no extraction, nothing on the screen.
         try:
             c.incident.ensure_open()
         except IncidentEnded as e:
@@ -92,7 +94,8 @@ async def post_audio(file: UploadFile = File(...), captured_by: CapturedBy = For
         return {"transcript": None, "facts": [], "stt": result}
     try:
         return await cap.text(result["text"], captured_by, Role.unknown if ambient else None, speaker, audio_id, use_llm,
-                              {"seconds": result["seconds"], "ms": result["ms"], "chunks": result["chunks"]})
+                              {"seconds": result["seconds"], "ms": result["ms"], "chunks": result["chunks"],
+                               "language": result.get("language")})
     except IncidentEnded as e:
         raise HTTPException(409, str(e)) from None
     except ModelUnavailable as e:

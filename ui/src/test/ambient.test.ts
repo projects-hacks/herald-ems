@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AmbientCapture, type AmbientStatus } from "@/features/cabin/ambient";
+import { Endpointer } from "@/features/cabin/endpoint";
 import { join, wav } from "@/features/cabin/pcm";
 
 describe("continuous capture", () => {
@@ -25,7 +26,9 @@ describe("continuous capture", () => {
     capture = new AmbientCapture("patient-1", (s) => states.push(s));
   });
   afterEach(() => { capture.dispose(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
-  const block = () => node.port.onmessage?.({ data: new Float32Array(128000).fill(0.1) });
+  const said = () => node.port.onmessage?.({ data: new Float32Array(16000).fill(0.1) });     // one second of speech
+  const quiet = () => node.port.onmessage?.({ data: new Float32Array(16000) });               // one second of silence
+  const block = () => { said(); quiet(); };                                                   // an utterance, ended by a pause
   const settle = async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); };
 
   it("does not capture until explicitly started", () => {
@@ -42,7 +45,7 @@ describe("continuous capture", () => {
     expect(states.at(-1)?.listening).toBe(true);
   });
   it("stops tracks and flushes a partial clip on pause", async () => {
-    await capture.start(); node.port.onmessage?.({ data: new Float32Array(16000) });
+    await capture.start(); said();
     capture.pause(); await settle();
     expect(stop).toHaveBeenCalledOnce();
     expect(fetch).toHaveBeenCalledOnce();
@@ -69,8 +72,36 @@ describe("continuous capture", () => {
     expect(stop).toHaveBeenCalledOnce();
   });
   it("discards unsent audio on dispose, without starting another upload", async () => {
-    await capture.start(); node.port.onmessage?.({ data: new Float32Array(16000) }); capture.dispose();
+    await capture.start(); said(); capture.dispose();
     expect(stop).toHaveBeenCalledOnce(); expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("speech endpointing", () => {
+  const rate = 16000;
+  const blocks = (seconds: number, level: number) => Array.from({ length: Math.round(seconds * 10) }, () => new Float32Array(rate / 10).fill(level));
+  const feed = (e: Endpointer, bs: Float32Array[]) => bs.map((b) => e.push(b)).filter(Boolean) as Float32Array[][];
+  it("sends nothing for silence or steady room noise", () => {
+    const e = new Endpointer(rate);
+    expect(feed(e, [...blocks(20, 0), ...blocks(20, 0.004)])).toEqual([]);
+    expect(e.end()).toBeNull();
+  });
+  it("sends one utterance when the speaker pauses, with a little audio from before it", () => {
+    const e = new Endpointer(rate);
+    const out = feed(e, [...blocks(1, 0), ...blocks(2, 0.1), ...blocks(1, 0)]);
+    expect(out).toHaveLength(1);
+    const seconds = out[0].reduce((n, b) => n + b.length, 0) / rate;
+    expect(seconds).toBeGreaterThan(2.7); expect(seconds).toBeLessThan(3.2);
+  });
+  it("does not send a cough-length burst", () => {
+    const e = new Endpointer(rate);
+    expect(feed(e, [...blocks(1, 0), ...blocks(0.2, 0.2), ...blocks(1.5, 0)])).toEqual([]);
+  });
+  it("cuts a long monologue so no clip exceeds Whisper's window", () => {
+    const e = new Endpointer(rate);
+    const out = feed(e, blocks(40, 0.1));
+    expect(out.length).toBeGreaterThanOrEqual(2);
+    for (const u of out) expect(u.reduce((n, b) => n + b.length, 0) / rate).toBeLessThanOrEqual(15.1);
   });
 });
 

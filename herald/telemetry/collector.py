@@ -15,7 +15,7 @@ from __future__ import annotations
 import subprocess
 import threading
 import time
-from collections import deque
+from collections import Counter, deque
 from contextlib import contextmanager, nullcontext
 from typing import Optional
 
@@ -54,6 +54,7 @@ class Telemetry:
         self.vision_calls = 0
         self.stt_calls = 0
         self.stt_audio_s = 0.0
+        self.stt_dropped: Counter = Counter()          # clips the speech gates dropped, by reason (stt_gates.py)
         self._gen_hist: deque = deque(maxlen=30)       # (t, generation_tokens_total) from the model server
         self._sampler: Optional[threading.Thread] = None
         self.util_now: Optional[float] = None
@@ -95,6 +96,12 @@ class Telemetry:
         with self.lock:
             self.stt_calls += 1
             self.stt_audio_s += float(audio_seconds)
+
+    def record_stt_dropped(self, reason: str) -> None:
+        """A clip the speech gates did not read (no speech, another language, a looping decode). Its audio still
+        counts above: the encoder ran, and a cloud API would have billed it."""
+        with self.lock:
+            self.stt_dropped[reason] += 1
 
     # ---------- power sampling ----------
     def start(self) -> None:
@@ -164,6 +171,7 @@ class Telemetry:
             energy_wh = self.energy_j / 3600.0
             pt, ct, stt_min = self.prompt_tokens, self.completion_tokens, self.stt_audio_s / 60.0
             calls = {"llm": self.llm_calls, "vision": self.vision_calls, "stt": self.stt_calls}
+            stt_dropped = dict(self.stt_dropped)
             attributed_wh = self.energy_j_attributed / 3600.0
             recent_requests = list(self.request_energy)[-20:]
         r = self.rates
@@ -185,6 +193,7 @@ class Telemetry:
             "tokens": {"prompt": pt, "completion": ct},
             "calls": calls,
             "stt_audio_min": round(stt_min, 2),
+            "stt_dropped": stt_dropped,                # clips not read, by gate reason (herald/models/stt_gates.py)
             "cost": {
                 "local_usd": round(local_usd, 5),
                 "cloud_equivalent_usd": round(cloud_llm + cloud_stt, 5),

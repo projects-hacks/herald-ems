@@ -1,6 +1,7 @@
 @font-face{font-family:"Inter";src:url(/fonts/inter-latin-wght-normal.woff2) format("woff2");font-weight:100 900;font-display:swap}
 /* The ED wall, read from 3 m. The same visual system as the medic's screen (a cool navy base, blue for the
    hospital side, cyan for what just arrived, amber hazard stripes for what has not), Inter bundled. */
+[hidden]{display:none!important}
 :root{--bg:#070B14;--fg:#EEF3FA;--muted:#8C9AB0;--line:rgb(255 255 255 / .08);--glass:rgb(13 19 32 / .66);--blue:#7FB2FF;--lime:#22D3EE;
   --amber:#FBBF24;--red:#F87171;--ok:#34D399;--sans:"Inter",system-ui,sans-serif;--mono:"Inter",system-ui,sans-serif;
   --head:"Inter",system-ui,sans-serif;font-size:24px;color-scheme:dark}
@@ -45,7 +46,8 @@ h3{font-size:24px;margin:18px 0 8px}p{margin:8px 0}
 .changed{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 28px;padding:18px 24px;border-radius:18px;border:1px solid rgb(34 211 238 / .5);
   background:rgb(34 211 238 / .07);margin:18px 0}
 .changed h2{flex-basis:100%;color:var(--lime);margin:0}
-.changed b{font-size:44px;font-family:var(--mono)}
+.changed b{font-size:44px;font-family:var(--mono);color:var(--fg)}
+.changed b s{color:var(--muted);text-decoration-thickness:2px;font-weight:500}
 .changed span{font-size:26px;color:var(--muted)}
 /* the rest: quiet rows */
 .grid{display:grid;grid-template-columns:2fr 1fr;gap:24px}
@@ -62,5 +64,5 @@ button{cursor:pointer}button[aria-pressed=true]{outline:3px solid var(--blue)}bu
 .journey-trend ol{display:flex;flex-wrap:wrap;gap:20px;list-style:none;padding:0}.journey-trend li{display:grid;gap:4px;padding:10px 20px;border-left:3px solid var(--blue)}
 .journey strong{font-size:var(--body-size,32px);font-family:var(--mono)}.journey time{font-size:22px;color:var(--muted)}.journey>ol>li{margin:14px 0}
 @media(max-width:1000px){.grid{grid-template-columns:1fr}:root{font-size:20px}#incoming .who{font-size:44px}#incoming .eta b{font-size:60px}header,main{padding:14px}}
-@media(prefers-reduced-motion:no-preference){.tile.new,.changed{animation:arrive .6s cubic-bezier(.05,.7,.1,1) both}}
-@keyframes arrive{from{transform:translateY(8px);opacity:.3}to{transform:none;opacity:1}}
+@media(prefers-reduced-motion:no-preference){.tile.new,.changed{animation:arrive .6s cubic-bezier(.05,.7,.1,1) backwards}}
+@keyframes arrive{from{transform:translateY(8px);box-shadow:0 0 0 6px rgb(34 211 238 / .35)}to{transform:none}}

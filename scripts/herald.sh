@@ -39,6 +39,12 @@ ok()   { printf '    \033[32mok\033[0m  %s\n' "$*"; }
 warn() { printf '    \033[33m!!\033[0m  %s\n' "$*"; }
 die()  { printf '\033[31mherald: %s\033[0m\n' "$*" >&2; exit 1; }
 listening() { ss -ltn "sport = :$1" 2>/dev/null | grep -q LISTEN; }
+# the app binds IPv4 only: a listener on another address (an SSH tunnel on [::1]:8100) does not block it
+taken_v4() {   # host, port
+  local host="$1" port="$2"
+  ss -ltn4 "sport = :$port" 2>/dev/null | awk 'NR>1 {print $4}' \
+    | grep -qE "^(${host//./\\.}|0\.0\.0\.0|\*):$port\$|^[^:]+:$port\$$( [ "$host" = 0.0.0.0 ] || echo '__none__' )"
+}
 pid_alive() { [ -f "$RUN/$1.pid" ] && kill -0 "$(cat "$RUN/$1.pid")" 2>/dev/null; }
 served() { curl -sf --max-time 5 "$ZRT_URL/models" 2>/dev/null | "$PY" -c "import json,sys; sys.exit(0 if sys.argv[1] in [m['id'] for m in json.load(sys.stdin)['data']] else 1)" "$1"; }
 mem_avail_gb() { awk '/MemAvailable/ {printf "%d", $2/1048576}' /proc/meminfo; }
@@ -148,7 +154,7 @@ ensure_link_and_ed() {
 start_app() {
   say "Herald app"
   if pid_alive app; then stop_pid app; fi                       # always restart ours so it runs this checkout's code
-  if listening "$PORT"; then die "port $PORT is used by a process this script did not start: HERALD_PORT=<free port> scripts/herald.sh up"; fi
+  if taken_v4 "${HERALD_BIND_HOST:-127.0.0.1}" "$PORT"; then die "port $PORT is used by a process this script did not start: HERALD_PORT=<free port> scripts/herald.sh up"; fi
   systemctl --user is-active --quiet herald-memguard.service 2>/dev/null && ok "memory guard active" || warn "memory guard not running (scripts/memguard.sh install)"
   HERALD_STT_PRELOAD=1 HERALD_LLM_MODEL="$LLM" HERALD_VISION_MODEL="$VISION" HERALD_ED_URL="http://127.0.0.1:$LINK_PORT" \
     start_bg app "$PY" -m uvicorn herald.app:app --host "${HERALD_BIND_HOST:-127.0.0.1}" --port "$PORT"
