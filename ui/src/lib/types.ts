@@ -108,6 +108,13 @@ export interface TranscriptEntry {
   stt?: SttInfo | null; trace: Trace;
 }
 
+// ---------- mass-casualty patient roster (TASK_SPECS S5) ----------
+export type TriageCategory = "immediate" | "delayed" | "minimal" | "expectant" | "dead";
+export interface PatientSummary {
+  id: string; label: string; triage: TriageCategory | null; summary: string;
+  readiness_done: number; readiness_total: number;
+}
+
 // ---------- relay (relay/relay.py status()) ----------
 export type LinkState = "good" | "weak" | "down" | "unknown" | "not configured";
 export interface RelayLogEntry {
@@ -133,6 +140,8 @@ export interface ProtocolStatus {
 // ---------- the snapshot (api/context.py full_state()) ----------
 export interface Snapshot {
   incident: { id: string; dispatch: string | null; started: string };
+  patients: PatientSummary[];
+  active_patient: string;
   summary: string;
   readiness: Readiness[];
   needs_attention: { missing: NeedItem[]; unknown: NeedItem[] };

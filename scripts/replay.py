@@ -41,6 +41,25 @@ for step in sc["steps"]:
     if "incident" in step:
         c.post("/api/incident", json={"dispatch": step["incident"]}).raise_for_status()
         print(f"[incident] {step['incident']}")
+    elif "patient" in step:
+        roster = c.get("/api/patients").raise_for_status().json()["patients"]
+        match = next((row for row in roster if row["label"] == step["patient"]), None)
+        if match:
+            state = c.post(f"/api/patients/{match['id']}/activate").raise_for_status().json()
+            action = "activated"
+        else:
+            state = c.post("/api/patients", json={"label": step["patient"]}).raise_for_status().json()
+            action = "created"
+        print(f"[patient] {action} {step['patient']} ({state['active_patient']})")
+    elif "link" in step:
+        mode = step["link"]
+        c.post(f"/api/netem/{mode}").raise_for_status()
+        print(f"[link] {mode}")
+    elif "authorize" in step:
+        destination = step["authorize"]
+        c.post("/api/relay/authorize", json={"destination": destination,
+                                             "scope": step.get("scope", "mass-casualty pre-alert set")}).raise_for_status()
+        print(f"[relay] authorized {destination}")
     elif "say" in step:
         text = step["say"].replace("LKW_TIME", lkw)
         body = {"text": text, "captured_by": step.get("by", "medic"), "speaker": step.get("speaker"),

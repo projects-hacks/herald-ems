@@ -14,6 +14,9 @@ h2{margin:0 0 8px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;co
 .crit b{color:var(--bad)}.new{background:#fff8c5;transition:background 3s}
 .pkt{font:12px ui-monospace,monospace;padding:3px 0;border-bottom:1px dashed #eaeef2}
 .muted{color:var(--muted)}
+.patients{display:flex;gap:8px;overflow-x:auto}.patient{min-width:190px;text-align:left;background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 11px;cursor:pointer}
+.patient.active{outline:3px solid #0969da}.chip{display:inline-block;border-radius:999px;padding:2px 8px;margin-right:6px;color:#fff;font-size:11px;font-weight:800;text-transform:uppercase}
+.chip.immediate{background:#cf222e}.chip.delayed{background:#bf8700}.chip.minimal{background:#1a7f37}.chip.expectant{background:#8250df}.chip.dead{background:#57606a}.chip.unknown{background:#6e7781}
 </style></head><body>
 <header><b>EMERGENCY DEPARTMENT · INCOMING</b><span id="meta" class="muted"></span></header>
 <main>
@@ -23,18 +26,27 @@ h2{margin:0 0 8px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;co
 <script>
 const LABELS={"alert.readiness":"Pre-alert","code_status":"Code status","meds.anticoagulant":"Anticoagulant","allergies":"Allergies","stroke.lkw":"Last known well","complaint.chief":"Chief complaint","score.news2":"NEWS2","score.race":"RACE stroke scale","vitals.sbp":"SBP","vitals.dbp":"DBP","vitals.hr":"HR","vitals.spo2":"SpO2","vitals.rr":"RR","vitals.glucose":"Glucose","vitals.consciousness":"ACVPU","stroke.deficits":"Deficits","transport.eta_min":"ETA (min)","transport.destination":"Destination","patient.age":"Age","patient.sex":"Sex","stroke.onset_witnessed":"Onset witnessed","vitals.temp":"Temp °C","vitals.on_oxygen":"On oxygen","meds.list":"Medications"};
 const CRIT=["alert.readiness","meds.anticoagulant","allergies","code_status","stroke.lkw","score.race","score.news2"];
+const TRIAGE_RANK={immediate:0,delayed:1,minimal:2,expectant:3,dead:4,unknown:1};
+const triageOf=p=>{const v=p.fields["triage.category"]?.v;return Object.hasOwn(TRIAGE_RANK,v)?v:"unknown"};
 const esc=s=>String(s??"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 const fmt=v=>Array.isArray(v)?(v.length?v.join(", "):"none reported"):v===true?"yes":v===false?"no":v;
-let lastSeq=0;
+let selectedId=null,lastView=null;const lastSeq={};
 function render(d){
-  const ids=Object.keys(d.incidents); if(!ids.length){root.innerHTML='<span class="muted">No incoming patients. Waiting for the ambulance…</span>';banner.className="banner";return;}
-  const inc=d.incidents[ids[ids.length-1]], f=inc.fields, maxSeq=Math.max(0,...inc.applied);
-  if(maxSeq>lastSeq){banner.className="banner show";setTimeout(()=>banner.className="banner show",10);}
+  lastView=d;
+  const ids=Object.keys(d.incidents).sort((a,b)=>{
+    const ta=triageOf(d.incidents[a]),tb=triageOf(d.incidents[b]);
+    return (TRIAGE_RANK[ta]??TRIAGE_RANK.unknown)-(TRIAGE_RANK[tb]??TRIAGE_RANK.unknown)||d.incidents[a].first_at.localeCompare(d.incidents[b].first_at);
+  });
+  if(!ids.length){root.innerHTML='<span class="muted">No incoming patients. Waiting for the ambulance…</span>';banner.className="banner";return;}
+  if(!selectedId||!d.incidents[selectedId])selectedId=ids[0];
+  const inc=d.incidents[selectedId], f=inc.fields, maxSeq=Math.max(0,...inc.applied), previous=lastSeq[selectedId]||0;
+  if(maxSeq>previous){banner.className="banner show";setTimeout(()=>banner.className="banner show",10);}
   const head=[f["alert.readiness"]?.v,f["patient.age"]?.v&&(f["patient.age"].v+" "+(f["patient.sex"]?.v||"")),f["transport.eta_min"]?.v&&("ETA "+f["transport.eta_min"].v+" min")].filter(Boolean).join(" · ");
   banner.textContent="🚨 UPDATE · "+(head||"incoming patient");
   const row=k=>{const x=f[k];if(!x)return"";const h=inc.history[k]||[];const trend=h.length>1?` <span class="muted">(${h.map(e=>esc(fmt(e.v))).join(" → ")})</span>`:"";return `<div class="row ${CRIT.includes(k)?"crit":""} ${x.seq===maxSeq&&maxSeq>lastSeq?"new":""}"><span>${esc(LABELS[k]||k)}</span><b>${esc(fmt(x.v))}${trend}</b></div>`;};
   const order=Object.keys(LABELS).filter(k=>f[k]);
-  root.innerHTML=`<div class="grid"><div>
+  const roster=ids.length>1?`<div class="card"><h2>Incoming patients · triage priority</h2><div class="patients">${ids.map((id,index)=>{const p=d.incidents[id],triage=triageOf(p);return `<button class="patient ${id===selectedId?"active":""}" data-patient-index="${index}"><span class="chip ${triage}">${triage}</span><b>${esc(p.label||id)}</b><br><span class="muted">${esc(p.fields["complaint.chief"]?.v||"No chief complaint yet")}</span></button>`}).join("")}</div></div>`:"";
+  root.innerHTML=roster+`<div class="grid"><div>
     <div class="card"><h2>Critical</h2>${CRIT.map(row).join("")||'<span class="muted">—</span>'}</div>
     <div class="card"><h2>Vitals, exam, logistics</h2>${order.filter(k=>!CRIT.includes(k)).map(row).join("")}</div>
     ${inc.timeline.length?`<div class="card"><h2>Full timeline (synced on a good link)</h2>${inc.timeline.map(t=>`<div class="pkt">${new Date(t.t).toLocaleTimeString()} · ${esc(LABELS[t.k]||t.k)} = ${esc(fmt(t.v))} · ${esc(t.s||t.r)}</div>`).join("")}</div>`:""}
@@ -46,7 +58,8 @@ function render(d){
       <div class="row"><span>Still queued on the rig</span><b>${inc.queued_on_rig}</b></div></div>
     <div class="card"><h2>Packets</h2>${[...inc.packets].reverse().map(p=>`<div class="pkt">#${p.seq} ${p.tier} · ${p.bytes} B · ${new Date(p.at).toLocaleTimeString()}<br><span class="muted">${esc(p.keys.join(", "))}</span></div>`).join("")}</div>
   </div></div>`;
-  meta.textContent=inc.dest?("→ "+inc.dest):""; lastSeq=maxSeq;
+  root.querySelectorAll("[data-patient-index]").forEach(el=>el.onclick=()=>{selectedId=ids[Number(el.dataset.patientIndex)];render(lastView)});
+  meta.textContent=inc.dest?("→ "+inc.dest):""; lastSeq[selectedId]=maxSeq;
 }
 function connect(){const ws=new WebSocket(`${location.protocol==="https:"?"wss":"ws"}://${location.host}/ws`);ws.onmessage=e=>render(JSON.parse(e.data));ws.onclose=()=>setTimeout(connect,1000);}
 connect();
