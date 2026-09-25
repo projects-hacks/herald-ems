@@ -35,6 +35,11 @@ async def telemetry(c=Depends(get_ctx)):
     egress_snapshot = c.egress.snapshot()
     snap["cloud_ai_calls"] = egress_snapshot["cloud_ai_calls"]
     snap["cloud_calls_refused"] = egress_snapshot["cloud_calls_refused"]
+    # E3: bytes kept on this box, per open incident (herald/relay/relay.py `_incident_local_bytes`) -- the other
+    # half of the defensibility story next to energy: not just cheaper inference, less ever leaves the vehicle.
+    relay_status = c.relay.status()
+    snap["local_bytes"] = relay_status["local_bytes"]
+    snap["local_bytes_by_patient"] = {pid: row["local_bytes"] for pid, row in relay_status["patients"].items()}
     return snap
 
 

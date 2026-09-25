@@ -4,6 +4,11 @@ Measured: GPU power from `nvidia-smi` (sampled every second and integrated into 
 only, so energy is a floor), token counts from our own calls and from the model server's Prometheus counters,
 and speech seconds transcribed. The cost assumptions are content with sources (config/telemetry.yaml),
 overridable by environment, and always returned next to the numbers. Cloud AI calls made by Herald: 0.
+
+E3: `track()` attributes energy to one inference request as power x that request's own elapsed time -- the
+sampled power integrated over exactly the window that request was in flight (`energy_j`, read before and after),
+not a share of the whole process's since-start total. `energy_wh` (below) stays the session total for context;
+`snapshot()["requests"]` is the per-request, defensible number.
 """
 from __future__ import annotations
 
@@ -11,12 +16,20 @@ import subprocess
 import threading
 import time
 from collections import deque
+from contextlib import contextmanager, nullcontext
 from typing import Optional
 
 import httpx
 
 from ..config import load_yaml
 from .prometheus import parse_prometheus
+
+
+def tracking(usage, kind: str):
+    """E3: attribute one inference call's GPU energy to itself, when `usage` is a real `Telemetry` (it has
+    `track()`); any other `UsageRecorder` (a minimal test double, or none) just runs the call untracked."""
+    track = getattr(usage, "track", None)
+    return track(kind) if track else nullcontext()
 
 
 def load_rates(overrides: Optional[dict] = None) -> tuple[dict[str, float], dict[str, str], str]:
@@ -44,6 +57,30 @@ class Telemetry:
         self._gen_hist: deque = deque(maxlen=30)       # (t, generation_tokens_total) from the model server
         self._sampler: Optional[threading.Thread] = None
         self.util_now: Optional[float] = None
+        self.request_energy: deque = deque(maxlen=200)  # E3: bounded per-request attribution log
+        self.energy_j_attributed = 0.0                  # sum of `track()` deltas: the genuinely measured share
+
+    # ---------- per-request attribution (E3) ----------
+    @contextmanager
+    def track(self, kind: str):
+        """Wrap one inference call (`with telemetry.track("text"): ...`): the GPU energy sampled between entry
+        and exit is this call's own, not a slice of the running total. A caller with no `Telemetry` (tests, a
+        fake model) never needs this -- it is only reached through the real `LocalLLMClient` / `WhisperSTT`."""
+        t0 = time.time()
+        with self.lock:
+            e0 = self.energy_j
+        try:
+            yield
+        finally:
+            dt = time.time() - t0
+            with self.lock:
+                de = max(0.0, self.energy_j - e0)
+                self.energy_j_attributed += de
+                self.request_energy.append({
+                    "kind": kind, "duration_s": round(dt, 3), "energy_j": round(de, 4),
+                    "energy_wh": round(de / 3600.0, 6),
+                    "watts_avg": round(de / dt, 2) if dt > 0 else None,
+                })
 
     # ---------- recording (called by llm.py / stt.py) ----------
     def record_llm(self, usage: dict, kind: str = "text") -> None:
@@ -127,6 +164,8 @@ class Telemetry:
             energy_wh = self.energy_j / 3600.0
             pt, ct, stt_min = self.prompt_tokens, self.completion_tokens, self.stt_audio_s / 60.0
             calls = {"llm": self.llm_calls, "vision": self.vision_calls, "stt": self.stt_calls}
+            attributed_wh = self.energy_j_attributed / 3600.0
+            recent_requests = list(self.request_energy)[-20:]
         r = self.rates
         local_usd = energy_wh / 1000.0 * r["electricity_usd_per_kwh"]
         cloud_llm = pt / 1e6 * r["cloud_llm_usd_per_1m_in"] + ct / 1e6 * r["cloud_llm_usd_per_1m_out"]
@@ -137,7 +176,12 @@ class Telemetry:
             "power_w_avg_60s": round(sum(recent) / len(recent), 1) if recent else None,
             "gpu_util_pct": self.util_now,
             "memory_bandwidth": None,   # not exposed by nvidia-smi on GB10 unified memory (utilization.memory reads 0 under load)
-            "energy_wh": round(energy_wh, 3),
+            "energy_wh": round(energy_wh, 3),          # since this process started (a floor: docstring above)
+            "requests": {                              # E3: energy attributed per request (power x its own time),
+                "attributed_energy_wh": round(attributed_wh, 6),   # not a share of the since-start total
+                "count": len(self.request_energy),
+                "recent": recent_requests,
+            },
             "tokens": {"prompt": pt, "completion": ct},
             "calls": calls,
             "stt_audio_min": round(stt_min, 2),

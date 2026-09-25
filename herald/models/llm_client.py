@@ -10,6 +10,7 @@ import httpx
 
 from ..core.ports import UsageRecorder
 from ..egress import EgressPolicy
+from ..telemetry import tracking
 
 
 class LocalLLMClient:
@@ -88,8 +89,9 @@ class LocalLLMClient:
             **({"logprobs": True} if logprobs else {}),
             **({"top_logprobs": top_logprobs} if logprobs and top_logprobs else {}),
         }
-        r = httpx.post(f"{self.base_url}/chat/completions", json=body, timeout=self.timeout)
-        r.raise_for_status()
+        with tracking(self.usage, "vision" if image_b64 else "text"):
+            r = httpx.post(f"{self.base_url}/chat/completions", json=body, timeout=self.timeout)
+            r.raise_for_status()
         data = r.json()
         u = data.get("usage") or {}
         if self.usage:

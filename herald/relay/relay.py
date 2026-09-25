@@ -316,15 +316,28 @@ class Relay:
         self.log.append(entry)
         return entry
 
+    def _incident_audio_bytes(self, inc) -> int:
+        """This incident's own registered clips only (`inc.media_ids["audio"]`), not every .wav on disk."""
+        if not self.audio_dir:
+            return 0
+        total = 0
+        for audio_id in inc.media_ids.get("audio", ()):
+            try:
+                total += os.path.getsize(Path(self.audio_dir) / f"{audio_id}.wav")
+            except OSError:
+                continue
+        return total
+
+    def _incident_local_bytes(self, inc) -> int:
+        """E3: what this one incident kept on this box -- its facts plus its own audio clips -- so the "kept
+        local" story is defensible per patient, not just as one number across every open call."""
+        return len(_compact([f.model_dump(mode="json") for f in inc.facts])) + self._incident_audio_bytes(inc)
+
     def status(self) -> dict:
         pend = self.pending() if self.authorized else []
         incidents = self._incidents()
-        local_bytes = sum(len(_compact([f.model_dump(mode="json") for f in inc.facts])) for inc in incidents)
-        if self.audio_dir:
-            try:
-                local_bytes += sum(os.path.getsize(p) for p in Path(self.audio_dir).glob("*.wav"))
-            except OSError:
-                pass
+        local_bytes_by_patient = {inc.id: self._incident_local_bytes(inc) for inc in incidents}
+        local_bytes = sum(local_bytes_by_patient.values())
         patients = {}
         for inc in incidents:
             critical = self.critical_values(inc)
@@ -334,6 +347,7 @@ class Relay:
                 "pending": sum(1 for row in pend if row[5].id == inc.id),
                 "sync": {key: "sent" if acked.get(key) == value else "queued"
                          for key, value in critical.items()},
+                "local_bytes": local_bytes_by_patient[inc.id],
             }
         sync = patients[incidents[0].id]["sync"] if len(incidents) == 1 else {}
         return {
