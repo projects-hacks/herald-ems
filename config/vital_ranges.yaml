@@ -42,10 +42,23 @@ source_news2: >-
 vitals:
   vitals.spo2:
     unit: "%"
-    # NEWS2 scale 1: <=91 -> 3 pts, 92-93 -> 2, 94-95 -> 1, >=96 -> 0.
+    # NEWS2 SCALE 1 (the default, target 94-98%): <=91 -> 3 pts, 92-93 -> 2, 94-95 -> 1, >=96 -> 0.
     bands:
       - {at_or_below: 91, severity: critical}
       - {from: 92, to: 96, severity: abnormal}
+    # NEWS2 SCALE 2, for hypercapnic (chronic type 2 respiratory failure, usually COPD) patients whose TARGET range
+    # is 88-92%. On this scale a normal SpO2 is a problem (too high, risk of losing hypoxic drive) and the target
+    # band is not coloured. From the RCP NEWS2 Scale 2 chart, on air: >=93 scores 3, 88-92 scores 0 (target),
+    # 86-87 -> 1, 84-85 -> 2, <=83 -> 3. So critical = <=83 or >=93 on air, abnormal = 84-87, target 88-92 neutral.
+    #   RCP NEWS2 (Dec 2017), Scale 2; target 88-92% per BTS/GOLD for chronic hypercapnic respiratory failure.
+    # This scale applies ONLY when a clinician says so (the chart's own note: "ONLY use Scale 2 under the direction
+    # of a qualified clinician"), so it is gated on the patient.spo2_scale fact being 2 -- never inferred. Default
+    # (no such fact) is Scale 1 above.
+    scale_2_bands:
+      - {at_or_below: 83, severity: critical}
+      - {from: 84, to: 88, severity: abnormal}
+      - {from: 88, to: 93, severity: normal}
+      - {at_or_above: 93, severity: critical}
 
   vitals.sbp:
     unit: mmHg

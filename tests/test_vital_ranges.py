@@ -95,3 +95,31 @@ def test_bands_agree_with_the_news2_chart():
     for key, three_value in [("vitals.spo2", 88), ("vitals.sbp", 85), ("vitals.hr", 135),
                              ("vitals.rr", 6)]:
         assert ranges.severity(key, three_value) == "critical", f"{key}={three_value} scores 3 in NEWS2, expected critical"
+
+
+# ── SpO2 Scale 2 (hypercapnic / COPD, target 88-92%), from the RCP NEWS2 Scale 2 chart ──
+SCALE_2 = [
+    (83, "critical"), (84, "abnormal"), (87, "abnormal"),
+    (88, None), (90, None), (92, None),          # the target band is not coloured
+    (93, "critical"), (97, "critical"),          # on this scale a "normal" saturation is too high
+]
+
+
+@pytest.mark.parametrize("value, expected", SCALE_2)
+def test_spo2_scale_2_boundary(ranges, value, expected):
+    assert ranges.severity("vitals.spo2", value, spo2_scale=2) == expected, f"scale 2 SpO2 {value}"
+
+
+def test_scale_2_changes_only_spo2(ranges):
+    """Scale 2 re-bands SpO2 and nothing else: HR, RR and SBP keep their normal bands."""
+    for key, value in [("vitals.hr", 135), ("vitals.rr", 6), ("vitals.sbp", 85)]:
+        assert ranges.severity(key, value, spo2_scale=2) == ranges.severity(key, value)
+
+
+def test_same_saturation_reads_differently_on_the_two_scales(ranges):
+    assert ranges.severity("vitals.spo2", 90) == "critical"          # scale 1: well below target
+    assert ranges.severity("vitals.spo2", 90, spo2_scale=2) is None  # scale 2: on target
+
+
+def test_scale_2_still_withdraws_when_not_applicable(ranges):
+    assert ranges.severity("vitals.spo2", 80, spo2_scale=2, applicable=False) is None

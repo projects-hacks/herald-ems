@@ -290,3 +290,19 @@ def test_severity_colours_before_an_age_is_known():
     snap = inc.snapshot()
     assert snap["scores"]["news2"]["applicability"] != "excluded"
     assert snap["facts"]["vitals.spo2"]["severity"] == "critical"
+
+
+def test_scale_2_applies_only_once_the_medic_confirms_it():
+    """A COPD patient's on-target SpO2 of 90 must not be painted critical -- but only when the medic has confirmed
+    Scale 2. patient.spo2_scale is require_tap (RCP: Scale 2 under clinician direction only), so an unconfirmed
+    proposal leaves the patient on Scale 1."""
+    inc = Incident("inc")
+    said(inc, "patient.age", 72)
+    said(inc, "vitals.spo2", 90)
+    scale = said(inc, "patient.spo2_scale", 2)
+    assert scale.status == Status.unconfirmed                               # never auto-confirmed
+    assert inc.snapshot()["facts"]["vitals.spo2"]["severity"] == "critical"  # still Scale 1 until confirmed
+    inc.set_status(scale.id, Status.confirmed)
+    assert "severity" not in inc.snapshot()["facts"]["vitals.spo2"]          # on target on Scale 2
+    said(inc, "vitals.spo2", 97)                                             # too high on Scale 2
+    assert inc.snapshot()["facts"]["vitals.spo2"]["severity"] == "critical"

@@ -189,6 +189,18 @@ keys:
     label: Supplemental oxygen
     type: bool
     kind: measure
+  patient.spo2_scale:
+    # Which NEWS2 SpO2 scale applies: 1 (default, target 94-98%) or 2 (hypercapnic / chronic type 2 respiratory
+    # failure, usually COPD, target 88-92%). RCP: Scale 2 is used ONLY under the direction of a qualified clinician,
+    # so this is a medic-set flag (require_tap), never inferred from speech. It re-bands the SpO2 severity colouring
+    # (config/vital_ranges.yaml) so a COPD patient's on-target 90% is not painted abnormal.
+    label: SpO2 target scale (NEWS2)
+    type: int
+    kind: history
+    range:
+    - 1
+    - 2
+    require_tap: true
   vitals.consciousness:
     label: Consciousness (ACVPU)
     type: str
