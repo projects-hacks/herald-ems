@@ -147,16 +147,15 @@ Everything runs locally.
      `HERALD_TTS_BIN`, `HERALD_TTS_VOICE_ES`).
    - `espeak-ng` is now installed system-wide (1.51), so Kokoro is possible later, but Kokoro pulls torch and must
      never be pip-installed into the zgx env.
-4. **Whisper, the language-aware prompt and the loop guard move into S3** (they were TRAINING_PLAN §9 item 3 /
-   Kiro's Phase 7 step 2):
-   - Return the detected language from `WhisperSTT` (`herald/models/stt.py` was refactored: `transcribe_many`,
-     `_mono16k`; keep that API).
-   - When the language is Spanish, use a priming prompt with **no drug names**, from config
-     (`config/prompts/stt_prompt_es.txt`, or none). The English prompt made "alergias" come out as "Eliquis" in the
-     30-clip check (`runs/es_speech/whisper/report.json`).
-   - Add a repetition-loop guard (one clean clip looped "lo vi" about 20 times): drop a segment whose n-gram repeats
-     more than K times, with K in config.
-   - Re-run the 30-clip check before and after.
+4. **Whisper changes stay with the model owner (Kiro, Phase 7): S3 only uses them.** Kiro changes
+   `herald/models/stt.py`:
+   - `WhisperSTT` returns the detected `language` in its result dict (keep the `transcribe_many` / `_mono16k` API);
+   - the priming prompt depends on the language (no drug names for Spanish; "alergias" was heard as "Eliquis" in
+     `runs/es_speech/whisper/report.json`);
+   - a repetition-loop guard.
+
+   S3 **does not edit `stt.py`**. Build the interpreter against a fake STT that returns `{"text", "language"}` and
+   switch to the real one when Kiro's change lands.
 5. **Safety check on every translation** (deterministic, no model):
    - every number, drug name and negation word in the source must appear in the translation; numbers are compared
      after the spoken-number parser, `config/numbers.yaml` en/es;
