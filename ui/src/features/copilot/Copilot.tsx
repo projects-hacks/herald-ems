@@ -1,7 +1,7 @@
 // The copilot screen's own regions: the presence pill, what Herald did, how the
 // patient moved, and what the ED has. Everything here is a clinical outcome or an action; system status appears
 // only when something has stopped working.
-import { ArrowDownRight, ArrowUpRight, BookOpenCheck, Download, Ear, FileText, Share2, UserRound, Monitor, Pause, Play, RotateCcw, Send, ShieldCheck, SkipForward, TriangleAlert } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BookOpenCheck, Download, Ear, FileText, Share2, Monitor, Pause, Play, RotateCcw, Send, ShieldCheck, SkipForward, TriangleAlert } from "lucide-react";
 import type { FixturePlayer } from "@/lib/ws";
 import type { ProtocolCue } from "@/lib/types";
 import { api } from "@/lib/api";
@@ -27,12 +27,14 @@ export function PresencePill({ p, paused, disabled, onToggle }: { p: Presence; p
 
 const KIND_ICON: Record<ActivityKind, typeof Ear> = { heard: Ear, read: Monitor, checked: ShieldCheck, found: BookOpenCheck, sent: Send };
 
-export function HeraldActivity({ onAll }: { onAll: () => void }) {
+/** What Herald heard, read, checked, found and sent, newest first. Not a clinical view, so it lives on the Record
+ *  page (the What Herald did tab) rather than on Now; `onAll` adds a link when it is shown as a summary. */
+export function HeraldActivity({ onAll, limit = 6 }: { onAll?: () => void; limit?: number }) {
   const s = useHerald((st) => st.snapshot);
   const contract = useContract();
   const name = (k: string) => contract?.keys[k]?.label ?? (k.startsWith("score.") ? (s?.scores as unknown as Record<string, { name?: string } | undefined> | undefined)?.[k.slice(6)]?.name : undefined)
     ?? (k.startsWith("alert.") ? "pre-alert status" : k.split(".").at(-1)!.replace(/_/g, " "));
-  const lines = s ? activity(s, 6, name) : [];
+  const lines = s ? activity(s, limit, name) : [];
   return <section className="copilot-activity" aria-labelledby="activity-h">
     <h2 id="activity-h">What Herald did</h2>
     {lines.length ? <ol className="herald-timeline">{lines.map((l) => { const Icon = KIND_ICON[l.kind]; return <li key={l.id} data-kind={l.kind}>
@@ -41,7 +43,7 @@ export function HeraldActivity({ onAll }: { onAll: () => void }) {
       <time>{hhmm(l.ts)}</time>
     </li>; })}</ol> : <p className="activity-empty">Nothing yet. Herald records what it hears, reads and sends here.</p>}
     {s && setAside(s) > 0 && <p className="activity-aside">Set aside {setAside(s)} {setAside(s) === 1 ? "remark" : "remarks"} with nothing clinical in {setAside(s) === 1 ? "it" : "them"}</p>}
-    {lines.length > 0 && <button className="activity-all" onClick={onAll}>Full record</button>}
+    {lines.length > 0 && onAll && <button className="activity-all" onClick={onAll}>Full record</button>}
   </section>;
 }
 
@@ -139,6 +141,9 @@ export function ProtocolCues() {
   return <section className="copilot-protocol" aria-labelledby="protocol-h">
     <h2 id="protocol-h"><BookOpenCheck size={16} aria-hidden />County protocol</h2>
     <p className="protocol-note">Found by Herald in the county’s documents · quoted, not advice</p>
+    {/* One card per recognised situation, side by side; the row scrolls sideways when there are more than fit, so
+        the protocol takes one band of the screen instead of a tall column. Focusable, so a keyboard can scroll it. */}
+    <div className="protocol-strip" tabIndex={0} aria-label="County passages, scroll sideways for more">
     {cues.map((c) => <article key={c.id} className="protocol-cue" data-state={c.state} data-asked={c.asked || undefined}>
       <h3>{c.asked ? <><span className="cue-asked">You asked</span>“{c.query}”</> : c.title}</h3>
       {c.state === "searching" && <p className="protocol-status" role="status">Finding the county passage…</p>}
@@ -152,6 +157,7 @@ export function ProtocolCues() {
       {c.state === "found" && <details className="protocol-more"><summary>Full county text{c.passages[0]?.effective ? ` · effective ${c.passages[0].effective}` : ""}</summary>
         {c.passages.map((p) => <Passage key={`${p.doc}-${p.section}`} p={p} />)}</details>}
     </article>)}
+    </div>
   </section>;
 }
 
@@ -168,25 +174,33 @@ export function ReplayBar({ player }: { player: FixturePlayer }) {
 }
 
 /** What Herald knows so far: fields appear as they are heard or read. Unconfirmed values say so; the newest glows. */
-export function PatientKnown({ onRecord }: { onRecord: () => void }) {
+/** The patient as one bar under the patient line, instead of its own card. Safety facts (allergies, anticoagulant,
+ *  code status) lead as warning chips, because a medic must never have to look for them; the rest of the confirmed
+ *  history follows as compact chips. Age, sex and complaint are in the patient line above, so they are not repeated.
+ *  Confirmed facts only: an unconfirmed value waits in Needs you. Details opens Record -> Facts & sources. */
+const IN_PATIENT_LINE = new Set(["patient.age", "patient.sex", "complaint.chief"]);
+export function PatientBar({ onDetails, limit = 6 }: { onDetails: () => void; limit?: number }) {
   const s = useHerald((st) => st.snapshot);
   const now = useNow();
   if (!s) return null;
-  const groups = patientKnown(s, GROUPS);
-  if (!groups.length) return <section className="copilot-known glass-1" aria-labelledby="known-h"><h2 id="known-h"><UserRound size={16} aria-hidden />Patient</h2>
-    <p className="activity-empty">Nothing confirmed yet. Details appear here as you confirm them.</p></section>;
-  return <section className="copilot-known glass-1" aria-labelledby="known-h">
-    <h2 id="known-h"><UserRound size={16} aria-hidden />Patient</h2>
-    {groups.map((g) => <div key={g.name} className="known-group" data-group={g.name}>
-      <h3>{g.name}</h3>
-      <dl>{g.facts.map((f) => <div key={f.id} data-status={f.status} data-safety={SAFETY_KEYS.includes(f.key) || undefined}
-        data-new={now - Date.parse(f.ts) < 20000 || undefined}>
-        <dt>{f.label}</dt><dd>{factValue(f)}{f.status === "unconfirmed" && <small>not confirmed</small>}</dd>
-      </div>)}</dl>
-    </div>)}
-    <button className="activity-all" onClick={onRecord}>Sources</button>
-  </section>;
+  const facts = patientKnown(s, GROUPS).flatMap((g) => g.facts).filter((f) => !IN_PATIENT_LINE.has(f.key));
+  const safety = facts.filter((f) => SAFETY_KEYS.includes(f.key));
+  const rest = facts.filter((f) => !SAFETY_KEYS.includes(f.key));
+  const shown = [...safety, ...rest.slice(0, Math.max(0, limit - safety.length))];
+  const more = facts.length - shown.length;
+  return <div className="patient-bar" role="group" aria-label="Patient">
+    {shown.length ? shown.map((f) => {
+      const value = factValue(f);
+      return <span key={f.id} className="patient-chip" data-safety={SAFETY_KEYS.includes(f.key) || undefined}
+        data-new={now - Date.parse(f.ts) < 20000 || undefined} title={`${f.label}: ${value}`}>
+        {SAFETY_KEYS.includes(f.key) && <TriangleAlert size={13} aria-hidden />}
+        <b>{f.label}</b><span>{value}</span>
+      </span>;
+    }) : <span className="patient-empty">No history confirmed yet</span>}
+    <button className="patient-details" onClick={onDetails}>{more > 0 ? `+${more} more · Details` : "Details"}</button>
+  </div>;
 }
+
 
 const span = (sec: number) => { const m = Math.floor(Math.abs(sec) / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} m` : `${m} min`; };
 

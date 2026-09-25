@@ -24,7 +24,7 @@ import "./workspace.css";
 import "./capture-workspace.css";
 import "../copilot/copilot.css";
 import type { WorkspacePanel } from "./WorkspaceNav";
-import { EdCard, HeraldActivity, MovementStrip, PatientKnown, PresencePill, ProtocolCues, ReplayBar, SituationBar } from "@/features/copilot/Copilot";
+import { EdCard, HeraldActivity, MovementStrip, PatientBar, PresencePill, ProtocolCues, ReplayBar, SituationBar } from "@/features/copilot/Copilot";
 import { HeraldLive } from "@/features/copilot/Live";
 import "../copilot/live.css";
 import type { FixturePlayer } from "@/lib/ws";
@@ -100,6 +100,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
           onClick={() => setUi({ theme: ui.theme === "dark" ? "light" : "dark" })}>{ui.theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}</button>
         <button className="cabin-button" aria-label="Settings" onClick={() => open("settings")}><Settings2 size={19} /></button>
       </div>
+      {!panel && <PatientBar onDetails={() => openRecord("facts")} />}   {/* the patient, as a bar: safety facts first */}
       {!panel && <SituationBar />}
     </header>
     <div className="cabin-sticky-status"><ConnectBand /><StaleOverlay /><RestoredCallBanner />{multi && <PatientRoster />}</div>
@@ -108,18 +109,15 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
       {!panel && <HeraldLive p={pill} paused={ui.capturePaused} disabled={isReplay || ambient.blocked} level={ambient.status.level}
         waitingTap={!!ambient.status.waitingTap} monitor={monitor} onCamera={() => open("camera")}
         onToggle={() => setUi({ capturePaused: !ui.capturePaused })} />}
+      {/* Now, in order of what a medic needs: the county passage for this situation as one sideways-scrolling
+          band, then Needs you beside how the patient is moving and what the ED has. What Herald did is a record of
+          the system, not of the patient, so it is on the Record page (What Herald did tab), not here. */}
+      {!panel && <ProtocolCues />}
       <div hidden={!!panel} className="copilot-grid">
         <div className="copilot-primary"><AttentionQueue className="copilot-needs" /></div>
-        <div className="copilot-rest">   {/* on a landscape screen: two columns that scroll together beside Needs you */}
-          <div className="copilot-side">
-            <ProtocolCues />
-            <PatientKnown onRecord={() => openRecord("facts")} />
-          </div>
-          <div className="copilot-side">
-            <HeraldActivity onAll={() => openRecord("transcript")} />
-            <MovementStrip onTrends={() => openRecord("trends")} />
-            <EdCard onHandoff={() => open("handoff")} />
-          </div>
+        <div className="copilot-rest">
+          <MovementStrip onTrends={() => openRecord("trends")} />
+          <EdCard onHandoff={() => open("handoff")} />
         </div>
       </div>
       <section hidden={!panel} ref={page} tabIndex={-1} className="workspace-page" aria-label={panel ? TITLES[panel] : undefined}>
@@ -129,12 +127,12 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
           {panel === "review" && <AttentionQueue />}
           {(panel === "patient" || panel === "record") && <div className="copilot-record">
             <div className="copilot-segments" role="tablist" aria-label="Record views">
-              {([["facts", "Facts & sources"], ["trends", "Trends & scores"], ["transcript", "Transcript"]] as const).map(([v, label]) =>
+              {([["facts", "Facts & sources"], ["trends", "Trends & scores"], ["transcript", "What Herald did"]] as const).map(([v, label]) =>
                 <button key={v} role="tab" aria-selected={recordView === v} onClick={() => setRecordView(v)}>{label}</button>)}
             </div>
             {(recordView === "facts" || panel === "patient") && <PatientPage />}
             {recordView === "trends" && panel === "record" && <><StatTiles clocks={false} /><TrendsPage /></>}
-            {recordView === "transcript" && panel === "record" && <TranscriptPage onReview={() => open(null)} />}
+            {recordView === "transcript" && panel === "record" && <><HeraldActivity limit={40} /><TranscriptPage onReview={() => open(null)} /></>}
           </div>}
           {panel === "patients" && <div className="workspace-page-surface"><h1 className="workspace-page-heading">Manage patients</h1><PatientRoster /></div>}
           {panel === "handoff" && <HandoffPage />}
