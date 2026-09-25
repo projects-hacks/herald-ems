@@ -60,7 +60,7 @@ def test_synthetic_rehearsal_through_capture_api(tmp_path):
     client.post("/api/capture/roi", json={"x0": 0, "y0": 0, "x1": 1, "y1": 1})
     feed(0, stable=True)
     assert client.get("/api/state").json()["facts"]["vitals.hr"]["value"] == 95
-    now[0] += 16; feed(1, stable=True)
+    now[0] += capture_config()["monitor"]["min_interval_s"] + 1; feed(1, stable=True)  # past the configured spacing
     assert client.get("/api/state").json()["facts"]["vitals.hr"]["value"] == 110
     assert all(f.status.value == "unconfirmed" for f in ctx.incident.facts)
     client.delete("/api/capture/roi")
