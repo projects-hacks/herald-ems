@@ -11,13 +11,19 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="Herald ED receiver")
 INCIDENTS: dict[str, dict] = {}
 CLIENTS: set[WebSocket] = set()
 LINK = {"last_contact_at": None}   # any request from the ambulance (packet or idle probe)
+
+
+class Acknowledgement(BaseModel):
+    status: str
+    note: str | None = None
 
 
 def now() -> str:
@@ -88,6 +94,18 @@ async def reset():
     LINK["last_contact_at"] = None
     await push()
     return {"ok": True}
+
+
+@app.post("/incidents/{incident_id}/acknowledgements")
+async def acknowledge(incident_id: str, body: Acknowledgement):
+    if body.status not in {"received", "cath_lab_activated"}:
+        raise HTTPException(400, "status must be received or cath_lab_activated")
+    if incident_id not in INCIDENTS:
+        raise HTTPException(404, "unknown incident")
+    ack = {"at": now(), "status": body.status, "note": body.note}
+    INCIDENTS[incident_id].setdefault("acknowledgements", []).append(ack)
+    await push()
+    return ack
 
 
 @app.websocket("/ws")

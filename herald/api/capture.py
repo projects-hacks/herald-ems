@@ -32,6 +32,10 @@ class CaptureService:
     def inc(self):
         return self.ctx.incident
 
+    async def _saved_broadcast(self) -> None:
+        self.ctx.persist()
+        await self.broadcast()
+
     def _summary(self) -> dict:
         return self.ctx.tracer.summarize(self.inc.snapshot())
 
@@ -81,7 +85,7 @@ class CaptureService:
                                         if injected and not skip else {})},
                            "effects": {"readiness": [], "alerts_new": [], "scores": [], "gaps_closed": []}}}
         self.inc.transcripts.append(entry)
-        await self.broadcast()
+        await self._saved_broadcast()
         if model["status"] == "running":
             asyncio.create_task(self._extract(entry, text, captured_by, default_role, speaker, audio_id, injected))
         elif model["status"] == "unavailable":
@@ -102,7 +106,7 @@ class CaptureService:
         speaker, text = entry.get("speaker"), entry["text"]
         default_role = source_role(captured_by, speaker)
         entry["trace"]["model"] = {"status": "running", "name": self.ctx.text_model.model_name(), "retry": True}
-        await self.broadcast()
+        await self._saved_broadcast()
         asyncio.create_task(self._extract(entry, text, captured_by, default_role, speaker, entry.get("audio_id"), None))
         return entry
 
@@ -120,7 +124,7 @@ class CaptureService:
                            "model": {"status": "error", "error": f"speech-to-text failed: {error[:160]}"},
                            "guard": {"instruction_shaped": None}, "effects": self.ctx.tracer.diff(before, before)}}
         self.inc.transcripts.append(entry)
-        await self.broadcast()
+        await self._saved_broadcast()
         return entry
 
     @staticmethod
@@ -155,7 +159,7 @@ class CaptureService:
         except Exception as e:
             entry["trace"]["model"] = {"status": "error", "name": name, "error": str(e)[:200],
                                        "ms": round((time.perf_counter() - t0) * 1000)}
-        await self.broadcast()
+        await self._saved_broadcast()
 
     # ---------- photo ----------
     async def photo(self, raw: bytes, mode: str) -> dict:
@@ -185,7 +189,7 @@ class CaptureService:
             with self.inc.lock:
                 self.inc.ensure_open()
                 self.inc.transcripts.append(entry)
-            await self.broadcast()
+            await self._saved_broadcast()
             raise
         ms = round((time.perf_counter() - t0) * 1000)
         with self.inc.lock:
@@ -199,7 +203,7 @@ class CaptureService:
                                         "facts": [tracer.fact_view(f) for f in facts], "rejected": rejected},
                               "effects": tracer.diff(before, self._summary())}
             self.inc.transcripts.append(entry)
-        await self.broadcast()
+        await self._saved_broadcast()
         return {"photo_id": photo_id, "facts": [f.model_dump(mode="json") for f in facts]}
 
     # ---------- structured readings (monitor panel, device feed) ----------
@@ -236,5 +240,5 @@ class CaptureService:
                           "model": {"status": "off", "reason": "structured readings; nothing to extract"},
                           "guard": {"instruction_shaped": None},
                           "effects": tracer.diff(before, self._summary())}})
-        await self.broadcast()
+        await self._saved_broadcast()
         return [f.model_dump(mode="json") for f in added]

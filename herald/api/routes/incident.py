@@ -27,6 +27,7 @@ async def new_incident(body: NewIncident, c=Depends(get_ctx), h=Depends(get_hub)
     previous_cleanup = c.end_incident()
     c.new_incident(body.dispatch)
     c.relay.reset()
+    c.persist()
     await h.broadcast()
     return {**c.full_state(), "previous_call_cleanup": previous_cleanup}
 
@@ -53,6 +54,7 @@ async def fact_action(fact_id: str, action: str, c=Depends(get_ctx), h=Depends(g
         raise HTTPException(409, str(e)) from None
     except KeyError:
         raise HTTPException(404)
+    c.persist()
     await h.broadcast()
     return f.model_dump(mode="json")
 
@@ -86,5 +88,6 @@ async def confirm_facts(body: BulkConfirm, c=Depends(get_ctx), h=Depends(get_hub
             c.incident.set_status(fact_id, Status.confirmed)
             confirmed.append(fact_id)
     if confirmed:
+        c.persist()
         await h.broadcast()
     return {"confirmed": confirmed, "skipped": skipped}

@@ -38,6 +38,7 @@ async def add_patient(body: NewPatient, context=Depends(get_ctx), hub=Depends(ge
     except IncidentEnded as e:
         raise HTTPException(409, str(e)) from None
     context.roster.add(body.label)
+    context.persist()
     await hub.broadcast()
     return context.full_state()
 
@@ -48,5 +49,6 @@ async def activate_patient(patient_id: str, context=Depends(get_ctx), hub=Depend
         context.roster.activate(patient_id)
     except KeyError:
         raise HTTPException(404, f"unknown patient '{patient_id}'") from None
+    context.persist()
     await hub.broadcast()
     return context.full_state()

@@ -43,6 +43,7 @@ class Settings(BaseModel):
     ui: str = "new"                               # "classic" serves web/ at / as well
     root: Path = ROOT                             # the repo: web/, ui/dist/
     data_dir: Optional[Path] = None               # captured audio and photos (default: <root>/data)
+    persistence: bool = True                       # encrypted recovery for unfinished calls only
     # protocol lookup (P9): build the county knowledge base (embeddings on CPU, cached per document version)
     knowledge: bool = True
     protocol_mirror: Optional[str] = None        # base URL of a document mirror: <mirror>/<county>/<doc_id>.pdf
@@ -76,6 +77,10 @@ class Settings(BaseModel):
     @property
     def photo_dir(self) -> Path:
         return (self.data_dir or self.root / "data") / "photos"
+
+    @property
+    def state_dir(self) -> Path:
+        return (self.data_dir or self.root / "data") / "state"
 
     @property
     def terminology_index(self) -> Path:
@@ -112,6 +117,7 @@ class Settings(BaseModel):
             toxiproxy_url=e.get("TOXIPROXY_URL", cls.model_fields["toxiproxy_url"].default),
             ui=e.get("HERALD_UI", "new"),
             data_dir=Path(e["HERALD_DATA_DIR"]) if e.get("HERALD_DATA_DIR") else None,
+            persistence=e.get("HERALD_PERSISTENCE", "1") == "1",
             knowledge=e.get("HERALD_KNOWLEDGE", "1") == "1",
             protocol_mirror=opt("HERALD_PROTOCOL_MIRROR"),
             terminology=e.get("HERALD_TERMINOLOGY", "1") == "1",

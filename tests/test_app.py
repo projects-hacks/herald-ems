@@ -7,8 +7,9 @@ import soundfile as sf
 from fastapi.testclient import TestClient
 
 from ed_receiver import app as ed_mod
-from fakes import FakeModel, FakeVision, make_client, test_settings as fake_settings
+from fakes import FakeModel, FakeSTT, FakeVision, make_client, test_settings as fake_settings
 from herald.api import build_context, create_app
+from herald.core.schema import CapturedBy, FactIn, Role
 
 MONITOR = {"captured_by": "device", "role": "device", "speaker": "monitor", "confidence": 0.99,
            "provenance": {"extractor": "manual"}}
@@ -117,6 +118,29 @@ def test_ed_receiver_removes_withdrawn_facts_once_and_keeps_an_audit_event():
     c.post("/ingest", json={"i": "inc-1", "q": 2, "tier": "critical", "f": {},
                               "rm": ["meds.anticoagulant"], "x": 0})
     assert len(c.get("/state").json()["incidents"]["inc-1"]["audit"]) == 1
+
+
+def test_ed_receiver_records_human_acknowledgement():
+    c = TestClient(ed_mod.app)
+    c.post("/reset")
+    c.post("/ingest", json={"i": "inc-1", "q": 1, "tier": "critical", "f": {}, "x": 0})
+    response = c.post("/incidents/inc-1/acknowledgements", json={"status": "received", "note": "triage notified"})
+    assert response.status_code == 200 and response.json()["status"] == "received"
+    assert c.get("/state").json()["incidents"]["inc-1"]["acknowledgements"][0]["note"] == "triage notified"
+
+
+def test_unfinished_call_is_restored_from_an_encrypted_local_file(tmp_path):
+    settings = fake_settings(data_dir=tmp_path, persistence=True)
+    first = build_context(settings, text_model=FakeModel(name=None), stt=FakeSTT(), vision=FakeVision())
+    first.incident.ingest(FactIn(key="vitals.hr", value=116, captured_by=CapturedBy.medic, role=Role.medic,
+                                 confidence=0.99))
+    first.persist()
+    stored = settings.state_dir / "active-call.fernet"
+    assert stored.exists() and b"vitals.hr" not in stored.read_bytes()
+    restored = build_context(settings, text_model=FakeModel(name=None), stt=FakeSTT(), vision=FakeVision())
+    assert restored.restored is True and restored.incident.values()["vitals.hr"] == 116
+    restored.end_incident()
+    assert not stored.exists()
 
 
 def test_relay_scope_is_derived_from_the_active_checklist_not_the_client_label():
