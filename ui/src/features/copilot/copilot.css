@@ -335,3 +335,42 @@ html:has(.copilot) { font-size: clamp(16px, calc(0.3vw + 11px), 19px); }
   .copilot:not(.workspace-task) .protocol-strip .protocol-cue { max-height: 7.5rem; padding-block: 8px; }
 }
 .activity-aside { margin: 0; font-size: .875rem; color: var(--text-muted); }
+
+/* ---------- Now as an instrument panel (supersedes the stacked bands above) ----------
+   Needs you owns the left column from just under the header to the bottom of the screen: nothing sits above it.
+   Herald's live view, how the patient is moving and what the ED has form the next column; the county's words for
+   this situation get their own column on a wide screen, and share the second column on a 1280 tablet. Each column
+   scrolls inside itself, so no region can push the priority down. */
+.patient-bar, .situation-bar { flex: 0 1 auto; flex-basis: auto; }        /* one row under the patient line when they fit */
+.copilot-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.copilot-side:empty { display: none; }
+.copilot-side .herald-live { margin: 0; grid-template-columns: auto minmax(0, 1fr); gap: 14px; padding: 14px 16px; }
+.copilot-side .live-eye { grid-column: 1 / -1; max-width: none; }
+.copilot-side .live-orb { width: 64px; height: 64px; }
+.copilot-side .orb-core { width: 46px; height: 46px; }
+.copilot:not(.workspace-task) .copilot-side .live-heard blockquote { font-size: 1.125rem; -webkit-line-clamp: 3; }
+.copilot:not(.workspace-task) .copilot-side .live-chips { flex-wrap: wrap; overflow: visible; }
+.copilot-side .copilot-protocol { padding: 16px 18px; }
+.copilot-side .protocol-strip { flex-direction: column; overflow: visible; scroll-snap-type: none; padding: 0; gap: 12px; }
+.copilot-side .protocol-strip .protocol-cue { flex: none; max-height: none; overflow: visible; }
+@media (min-width: 1100px) and (min-height: 640px) {
+  .copilot:not(.workspace-task) .copilot-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; }
+  .copilot:not(.workspace-task) .copilot-rest { display: flex; flex-direction: column; gap: 16px; min-height: 0;
+    overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }
+}
+@media (min-width: 1400px) and (min-height: 640px) {
+  .copilot:not(.workspace-task) .copilot-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.9fr); }
+  .copilot:not(.workspace-task) .copilot-rest { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: stretch; overflow: hidden; padding-right: 0; }
+  .copilot:not(.workspace-task) .copilot-rest:has(> .copilot-side-protocol:empty) { grid-template-columns: minmax(0, 1fr); }
+  .copilot:not(.workspace-task) .copilot-side { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }
+}
+.copilot:not(.workspace-task) .copilot-side .protocol-strip .protocol-cue { max-height: none; overflow: visible; }
+@media (min-width: 1100px) and (max-width: 1399px) and (min-height: 640px) {
+  /* one shared column: Herald, then the county's words, then the patient's trend and the ED */
+  .copilot:not(.workspace-task) .copilot-side { display: contents; }
+  .copilot:not(.workspace-task) .copilot-rest > .copilot-side > .herald-live { order: 1; }
+  .copilot:not(.workspace-task) .copilot-rest > .copilot-side > .copilot-protocol { order: 2; }
+  .copilot:not(.workspace-task) .copilot-rest > .copilot-side > .copilot-movement { order: 3; }
+  .copilot:not(.workspace-task) .copilot-rest > .copilot-side > .copilot-ed { order: 4; }
+}

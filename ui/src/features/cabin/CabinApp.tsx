@@ -106,18 +106,21 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
     <div className="cabin-sticky-status"><ConnectBand /><StaleOverlay /><RestoredCallBanner />{multi && <PatientRoster />}</div>
     <main id="workspace-main" tabIndex={-1} className="cabin-main">
       <span ref={urgentLive} className="sr-only" role="alert" />
-      {!panel && <HeraldLive p={pill} paused={ui.capturePaused} disabled={isReplay || ambient.blocked} level={ambient.status.level}
-        waitingTap={!!ambient.status.waitingTap} warning={ambient.status.warning} monitor={monitor} onCamera={() => open("camera")}
-        onToggle={() => setUi({ capturePaused: !ui.capturePaused })} />}
-      {/* Now, in order of what a medic needs: the county passage for this situation as one sideways-scrolling
-          band, then Needs you beside how the patient is moving and what the ED has. What Herald did is a record of
-          the system, not of the patient, so it is on the Record page (What Herald did tab), not here. */}
-      {!panel && <ProtocolCues />}
+      {/* Now, laid out like an instrument panel: the medic's decisions (Needs you) get the tallest, most stable
+          region at the top left; Herald's live view, how the patient is moving and what the ED has sit beside it;
+          the county's words for this situation have their own column on wide screens. What Herald did is a record
+          of the system, not of the patient, so it is on the Record page, not here. */}
       <div hidden={!!panel} className="copilot-grid">
         <div className="copilot-primary"><AttentionQueue className="copilot-needs" /></div>
         <div className="copilot-rest">
-          <MovementStrip onTrends={() => openRecord("trends")} />
-          <EdCard onHandoff={() => open("handoff")} />
+          <div className="copilot-side copilot-side-live">
+            {!panel && <HeraldLive p={pill} paused={ui.capturePaused} disabled={isReplay || ambient.blocked} level={ambient.status.level}
+              waitingTap={!!ambient.status.waitingTap} warning={ambient.status.warning} monitor={monitor} onCamera={() => open("camera")}
+              onToggle={() => setUi({ capturePaused: !ui.capturePaused })} />}
+            <MovementStrip onTrends={() => openRecord("trends")} />
+            <EdCard onHandoff={() => open("handoff")} />
+          </div>
+          <div className="copilot-side copilot-side-protocol">{!panel && <ProtocolCues />}</div>
         </div>
       </div>
       <section hidden={!panel} ref={page} tabIndex={-1} className="workspace-page" aria-label={panel ? TITLES[panel] : undefined}>

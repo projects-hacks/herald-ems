@@ -34,13 +34,14 @@ class FactVerifier:
         self.model = model
         self.system = load_text("prompts/fact_verify.md")
 
-    def check(self, words: str, facts: list[FactIn], dispatch: Optional[str] = None) -> tuple[list[FactIn], list[dict]]:
+    def check(self, words: str, facts: list[FactIn], dispatch: Optional[str] = None) -> tuple[list[FactIn], list[dict]]:   # noqa: ARG002
         """(kept, discarded). A fact the model did not answer for is kept (it stays unconfirmed and needs a tap);
         if the model cannot be asked at all, the caller keeps every fact and records why."""
         if not facts:
             return [], []
         listed = "\n".join(f"[{i + 1}] {f.key} = {json.dumps(f.value, ensure_ascii=False)}" for i, f in enumerate(facts))
-        user = (f"Call: {dispatch or 'not stated'}\nOverheard words: \"{words}\"\n\nProposed facts:\n{listed}")
+        # the words alone: given the dispatch ("fall"), the model kept a "fall" complaint that the words never said
+        user = f"Overheard words: \"{words}\"\n\nProposed facts:\n{listed}"
         data = self.model.chat_json(self.system, user, schema=schema_for(len(facts)), max_tokens=MAX_TOKENS)
         verdict = {a["n"]: a for a in data.get("facts", []) if isinstance(a.get("n"), int)}
         kept, discarded = [], []

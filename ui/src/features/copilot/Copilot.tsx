@@ -136,14 +136,17 @@ function Passage({ p }: { p: ProtocolCue["passages"][number] }) {
  *  per situation on the screen; the rest are a tap away. */
 export function ProtocolCues() {
   const cues = useHerald((st) => st.snapshot?.protocol_cues);   // select the stored array: a fresh [] would re-render forever
-  if (!cues?.length) return null;
+  if (!cues?.length) return <section className="copilot-protocol protocol-waiting" aria-labelledby="protocol-h">
+    <h2 id="protocol-h"><BookOpenCheck size={16} aria-hidden />County protocol</h2>
+    <p className="protocol-status">When Herald recognises the situation (a stroke, STEMI, sepsis or trauma call) or you ask
+      “show me the protocol for …”, the county’s own rule appears here, quoted and cited.</p>
+  </section>;   // the column is always there, so nothing on Now jumps when the first passage arrives
   const shown = new Set<string>();                        // a passage appears once, under the first situation that found it
   return <section className="copilot-protocol" aria-labelledby="protocol-h">
     <h2 id="protocol-h"><BookOpenCheck size={16} aria-hidden />County protocol</h2>
     <p className="protocol-note">Found by Herald in the county’s documents · quoted, not advice</p>
-    {/* One card per recognised situation, side by side; the row scrolls sideways when there are more than fit, so
-        the protocol takes one band of the screen instead of a tall column. Focusable, so a keyboard can scroll it. */}
-    <div className="protocol-strip" tabIndex={0} aria-label="County passages, scroll sideways for more">
+    {/* One card per recognised situation, newest situation first, in the protocol's own column. */}
+    <div className="protocol-strip">
     {cues.map((c) => <article key={c.id} className="protocol-cue" data-state={c.state} data-asked={c.asked || undefined}>
       <h3>{c.asked ? <><span className="cue-asked">You asked</span>“{c.query}”</> : c.title}</h3>
       {c.state === "searching" && <p className="protocol-status" role="status">Finding the county passage…</p>}

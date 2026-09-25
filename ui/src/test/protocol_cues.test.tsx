@@ -30,9 +30,11 @@ describe("county protocol cues", () => {
     expect(screen.getByText(/Finding the county passage/)).toBeTruthy();
     expect(screen.queryByRole("blockquote")).toBeNull();
   });
-  it("renders nothing when no situation is recognised", () => {
+  it("keeps its column with a note, and quotes nothing, when no situation is recognised", () => {
     show([]);
-    expect(screen.queryByText("County protocol")).toBeNull();
+    expect(screen.getByText("County protocol")).toBeTruthy();                  // the column does not jump in later
+    expect(screen.getByText(/the county’s own rule appears here/)).toBeTruthy();
+    expect(document.querySelector("blockquote, .protocol-points")).toBeNull(); // no county words invented
   });
 });
 

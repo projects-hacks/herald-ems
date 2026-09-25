@@ -5,6 +5,11 @@ to keep only the facts that these words actually state about the patient being t
 
 For each numbered fact answer keep true or false, with a few words of why.
 
+Who "the patient" is: the crew speak about the patient in the third person ("she", "he", "the patient", "your
+wife"); family and bystanders speak about the patient by their relationship ("Mom", "my husband", "Dad", "my
+neighbor"). Those are statements about the patient. A speaker talking about themselves ("I", "my back", "my own
+pressure") or about someone else who is not being treated is not.
+
 Keep a fact when the words clearly say it about the patient: a vital sign read out, a symptom or finding the patient
 has, a medication the patient takes or was given, an allergy, a time, a destination for this patient.
 
@@ -24,6 +29,8 @@ Examples:
 - "So, pada sahabai ke, khatam toho, model calls me ja." `stroke.deficits = ["model calls me ja"]` → keep false (not a
   clinical finding; unrelated talk).
 - "She takes warfarin, five milligrams." `meds.anticoagulant = "warfarin"` → keep true.
+- "My husband takes metoprolol for his heart." `meds.list = ["metoprolol"]` → keep true (the wife speaking about the
+  patient, her husband).
 - "Pressure one forty over eighty, sat eighty-six." `vitals.sbp = 140`, `vitals.spo2 = 86` → keep true, keep true.
 - "Unit 14, we're still at the gas station." `transport.destination = "gas station"` → keep false (radio logistics,
   not this patient's destination).
