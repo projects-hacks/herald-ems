@@ -21,6 +21,7 @@ from typing import Any, Awaitable, Callable, Optional
 
 from ..core.ports import Transport
 from ..core.schema import utcnow
+from ..egress import EgressPolicy
 from ..scoring import ScaleRegistry, default_scales
 from .tiers import RelayTiers, default_tiers
 
@@ -40,12 +41,13 @@ class Relay:
     def __init__(self, incident_getter: Callable, ed_url: Optional[str] = None,
                  transport: Optional[Transport] = None, probe: Optional[Callable[[], Awaitable[None]]] = None,
                  tiers: Optional[RelayTiers] = None, scales: Optional[ScaleRegistry] = None,
-                 audio_dir: Optional[Path] = None):
+                 audio_dir: Optional[Path] = None, egress: Optional[EgressPolicy] = None):
         self.get_incident = incident_getter
         self.ed_url = ed_url
         self.tiers = tiers or default_tiers()
         self.scales = scales or default_scales()
         self.audio_dir = audio_dir
+        self.egress = egress    # E1: the real network path (below) always checks this before a packet leaves
         self._transport = transport
         self._probe = probe
         self.last_probe = 0.0
@@ -223,6 +225,10 @@ class Relay:
             elif self._transport:
                 return                      # injected transports (tests) are not probed
             else:
+                if self.egress:
+                    decision = self.egress.decide(self.ed_url, purpose="relay:probe", link_state=self.link_state())
+                    if decision.action != "allow":
+                        raise RuntimeError(f"egress policy: {decision.reason}")
                 import httpx
                 async with httpx.AsyncClient(timeout=2.0) as c:
                     (await c.get(f"{self.ed_url.rstrip('/')}/ping")).raise_for_status()
@@ -241,6 +247,10 @@ class Relay:
         wire = _compact({k: v for k, v in packet.items() if not k.startswith("_")})
         if self._transport:
             return await self._transport(wire)
+        if self.egress:
+            decision = self.egress.decide(self.ed_url, purpose="relay:packet", link_state=self.link_state())
+            if decision.action != "allow":
+                raise RuntimeError(f"egress policy: {decision.reason}")
         import httpx
         async with httpx.AsyncClient(timeout=3.0) as c:
             r = await c.post(f"{self.ed_url.rstrip('/')}/ingest", content=wire,

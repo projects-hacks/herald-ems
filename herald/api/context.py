@@ -21,6 +21,7 @@ from ..core.roster import PatientRoster
 from ..core.snapshot import Projector
 from ..core.trends import TrendRules
 from ..core.vocabulary import Vocabulary, default_vocabulary
+from ..egress import EgressPolicy, default_policy
 from ..extraction import ModelExtractor
 from ..extraction.guard import InstructionGuard, default_guard
 from ..knowledge import KnowledgeService
@@ -61,6 +62,7 @@ class AppContext:
     contract: UIContract
     link: LinkEmulator
     handoff: HandoffBuilder
+    egress: EgressPolicy           # E1: the one decision point every outbound HTTP call passes through
     coder: Optional[MedicationCoder] = None      # drug names -> RxNorm; None when the index isn't built
     relay: Optional[Relay] = None
     knowledge: Optional[KnowledgeService] = None
@@ -167,6 +169,11 @@ class AppContext:
             snap["capture"] = self.capture_agent.status()
         if self.knowledge is not None:
             snap["protocols"] = self.knowledge.status()
+        # E1: the real, measured decision (herald/egress/policy.py), not a literal -- core/snapshot.py has no I/O
+        # and cannot know it, so the composition root fills it in here, the same way relay/protocols are merged in.
+        egress_snapshot = self.egress.snapshot()
+        snap["counters"]["cloud_ai_calls"] = egress_snapshot["cloud_ai_calls"]
+        snap["counters"]["cloud_calls_refused"] = egress_snapshot["cloud_calls_refused"]
         return snap
 
 
@@ -191,14 +198,16 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
     trends = TrendRules.from_config()
     projector = Projector(vocab, scales, checklists, counties, trends, ZoneInfo(s.timezone), s.reassess_min)
     tel = telemetry or Telemetry(s.metrics_url, s.price_overrides)
-    model = text_model or LocalLLMClient(s.llm_url, s.llm_model, usage=tel)
-    seeing = vision_model or (text_model if text_model is not None else LocalLLMClient(s.llm_url, s.vision_model, usage=tel))
+    egress = default_policy(s)
+    model = text_model or LocalLLMClient(s.llm_url, s.llm_model, usage=tel, egress=egress)
+    seeing = vision_model or (text_model if text_model is not None
+                              else LocalLLMClient(s.llm_url, s.vision_model, usage=tel, egress=egress))
     # Split stack (TRAINING_PLAN §7a): reranking, figure transcription and translation can run on a different label
     # from photo reading, for when a fine-tune wins speech and photos but loses the base model's kept abilities.
     # Unset (the default and today's stack) it is the *same object* as `seeing`, so nothing about the single-model
     # path changes. Extraction (`model`) and photo reading (`seeing`) are never moved by this setting.
-    knowing = knowledge_model or (LocalLLMClient(s.llm_url, s.knowledge_model, usage=tel) if s.knowledge_model
-                                  else seeing)
+    knowing = knowledge_model or (LocalLLMClient(s.llm_url, s.knowledge_model, usage=tel, egress=egress)
+                                  if s.knowledge_model else seeing)
     coder = build_coder(s, vocab, normalizer)
     model_extractor = ModelExtractor(model, vocabulary=vocab, finetuned_labels=s.finetuned_models, coder=coder)
     ctx = AppContext(
@@ -210,11 +219,12 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
         model_extractor=model_extractor,
         tracer=TraceRecorder(vocab, tiers),
         contract=UIContract(vocab, tiers, trends, checklists, counties, scales),
-        link=LinkEmulator(s.toxiproxy_url), coder=coder,
+        link=LinkEmulator(s.toxiproxy_url), egress=egress, coder=coder,
         handoff=build_handoff(default_handoff_config(), vocab, scales, checklists, s),
         persistence=IncidentStore(s.state_dir, s.state_key_path) if s.persistence else None)
     ctx.new_incident(s.dispatch)
-    ctx.relay = Relay(lambda: ctx.roster.incidents(), s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir)
+    ctx.relay = Relay(lambda: ctx.roster.incidents(), s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir,
+                      egress=egress)
     ctx.restored = ctx.restore()
     if s.knowledge:
         if embedder is None and text_model is None:        # real deployment; tests pass their own (or none)
@@ -224,7 +234,7 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
             embedder = HFEmbedder(e["model"], e["query_prefix"], e["device"], offline=s.models_offline)
         ctx.knowledge = KnowledgeService(lambda: counties.active, s.protocols_dir, ctx.relay.link_state,
                                          embedder=embedder or None, reranker=LLMReranker(knowing), vision=knowing,
-                                         fetch=protocol_fetch, mirror=s.protocol_mirror)
+                                         fetch=protocol_fetch, mirror=s.protocol_mirror, egress=egress)
     return ctx
 
 

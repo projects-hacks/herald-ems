@@ -32,6 +32,13 @@ async def relay_authorize(body: Authorize, c=Depends(get_ctx), h=Depends(get_hub
 
 @router.post("/relay/config")
 async def relay_config(body: RelayConfig, c=Depends(get_ctx), h=Depends(get_hub)):
+    """B7: the ED URL is gated by the same egress policy every outbound call passes through (E1). A host that
+    isn't this box's local model server and isn't on config/egress.yaml's allow-list (or this deployment's own
+    HERALD_ED_URL/HERALD_PROTOCOL_MIRROR) is refused here, before it is ever stored or dialed."""
+    if body.ed_url:
+        decision = c.egress.decide(body.ed_url, purpose="relay:config")
+        if decision.action == "deny":
+            raise HTTPException(403, f"ED URL refused by egress policy: {decision.reason}")
     c.relay.set_ed_url(body.ed_url)
     c.persist()
     await h.broadcast()

@@ -263,6 +263,7 @@ def test_relay_scope_is_derived_from_the_active_checklist_not_the_client_label()
 
 def test_changing_ed_url_clears_the_previous_receivers_acknowledgements():
     c, context = make_client()
+    context.egress.allow_hosts |= {"ed-a", "ed-b"}   # B7: /api/relay/config only accepts an allow-listed ED host
     c.post("/api/facts", json=[{"key": "vitals.hr", "value": 90, **MONITOR}])
     fact_id = c.get("/api/state").json()["facts"]["vitals.hr"]["id"]
     c.post(f"/api/facts/{fact_id}/confirm")
