@@ -171,3 +171,25 @@ def test_endpoint_defaults_to_the_document_and_keeps_the_collection():
         "Trauma handover (MIST)"
     assert client.get("/api/handoff/fhir?type=xml").status_code == 400
     assert client.get("/api/handoff/fhir?format=nope").status_code == 400
+
+
+def test_important_values_are_bold_and_gaps_are_not():
+    inc = Incident("fall")
+    for k, v in [("patient.age", 72), ("patient.sex", "M"), ("trauma.mechanism", "fall 15 feet from a ladder"),
+                 ("vitals.sbp", 84), ("vitals.dbp", 50), ("vitals.hr", 118), ("meds.anticoagulant", "apixaban")]:
+        said(inc, k, v)
+    divs = {s["title"]: s["text"]["div"] for s in document().build(inc)["entry"][0]["resource"]["section"]}
+    assert "<b>BP 84/50 mmHg</b>" in divs["S: Signs"]
+    assert "<b>HR 118/min</b>" in divs["S: Signs"]
+    assert "<b>Anticoagulant: apixaban</b>" in divs["Allergies, medications, history"]
+    assert "<b>Trauma Alert criteria (Policy 605) met</b>" in divs["Alert and patient"]       # met alert
+    assert "<li>RR: not yet known</li>" in divs["S: Signs"] or "<li>Respiratory rate: not yet known</li>" in \
+        divs["S: Signs"]                                                                       # a gap stays plain
+    assert "<b>NEWS2" not in divs["S: Signs"]                                                  # not in emphasis
+    assert "<li>72-year-old male</li>" in divs["Alert and patient"]                            # not a vital
+
+
+def test_emphasis_typo_is_a_startup_problem():
+    doc = document()
+    doc.cfg = {**doc.cfg, "emphasis": ["vitals.hrr", "@nope"]}
+    assert len([p for p in doc.problems() if "emphasis" in p]) == 2

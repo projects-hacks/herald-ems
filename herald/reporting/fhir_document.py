@@ -31,9 +31,13 @@ def _ref(r: dict) -> str:
     return f"{r['resourceType']}/{r['id']}"
 
 
-def _narrative(items: list[str], source: Optional[str] = None) -> dict:
-    """FHIR Narrative: XHTML in a div with the XHTML namespace, every value escaped (R4 §2.4 Narrative)."""
-    body = "<ul>" + "".join(f"<li>{escape(t)}</li>" for t in items) + "</ul>" if items else ""
+def _narrative(items: list, source: Optional[str] = None) -> dict:
+    """FHIR Narrative: XHTML in a div with the XHTML namespace, every value escaped (R4 §2.4 Narrative). An item is
+    a string, or (text, bold) for a line the reader should find at a glance (`<b>` is allowed narrative XHTML)."""
+    def li(item) -> str:
+        text, bold = item if isinstance(item, tuple) else (item, False)
+        return f"<li><b>{escape(text)}</b></li>" if bold else f"<li>{escape(text)}</li>"
+    body = "<ul>" + "".join(li(t) for t in items) + "</ul>" if items else ""
     if source:
         body += f"<p>Source: {escape(source)}</p>"
     return {"status": "generated", "div": f'<div xmlns="{XHTML}">{body}</div>'}
@@ -53,6 +57,10 @@ class FhirDocument:
         out = [f"fhir_codes.yaml: document.{k} is missing" for k in _REQUIRED if k not in self.cfg]
         words = self.cfg.get("words", {})
         out += [f"fhir_codes.yaml: document.words.{k} is missing" for k in _WORDS if k not in words]
+        for k in self.cfg.get("emphasis", []):
+            known = k[1:] in self.export.scales if k.startswith("@") else k in self.export.vocab.keys
+            if not known:
+                out.append(f"fhir_codes.yaml: document.emphasis {k} is not a vocabulary key or score")
         return out
 
     # ---------- the document ----------
@@ -82,10 +90,24 @@ class FhirDocument:
                 "entry": [{"fullUrl": f"{base}/{_ref(r)}", "resource": r} for r in resources],
             }
 
+    def _emphasized(self, line: dict, scores: dict) -> bool:
+        """Bold a line that states a confirmed value of a key in `document.emphasis` (vitals, allergies,
+        anticoagulant) or a score in it that is positive / met (an alert criterion). Never bold: a "not yet known"
+        line, a trend series, an incomplete or negative score. Bold marks a value the receiver must not miss."""
+        if line["status"] != "confirmed" or not set(line["keys"]) & set(self.cfg.get("emphasis", [])):
+            return False
+        if line["kind"] == "fact":
+            return True
+        if line["kind"] == "score":
+            r = scores.get(line["keys"][0][1:], {})
+            return r.get("positive") is True or r.get("met") is True
+        return False
+
     # ---------- resources ----------
     def _composition(self, incident, report: dict, pid: str, encounter: dict, device: dict,
                      by_fact: dict[str, list[str]], present: set[str]) -> dict:
         words, hwords = self.cfg["words"], self.handoff.cfg.words
+        scores = incident.snapshot()["scores"]           # the same confirmed-only results the report used
         sections = [{"title": words["about_title"],
                      "text": _narrative([words["about"]], report["format"]["source"])}]
         for sec in report["sections"]:
@@ -98,7 +120,8 @@ class FhirDocument:
                 refs += [r for k in ln["keys"] if k.startswith("@")
                          for r in [f"Observation/{self.export.score_id(k[1:], incident)}"] if r in present]
             section: dict[str, Any] = {"title": sec["label"],
-                                       "text": _narrative([ln["text"] for ln in sec["lines"]], sec.get("source"))}
+                                       "text": _narrative([(ln["text"], self._emphasized(ln, scores)) for ln in sec["lines"]],
+                                                          sec.get("source"))}
             if refs:
                 section["entry"] = [{"reference": r} for r in dict.fromkeys(refs)]
             sections.append(section)
