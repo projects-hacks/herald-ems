@@ -59,7 +59,9 @@ export function rankAlerts(alerts: Alert[], arrival: Record<string, number> = {}
  *  they were heard. */
 export function needsTap(s: Snapshot): FactView[] {
   const inAlert = new Set(s.alerts.flatMap((a) => ("facts" in a ? a.facts.map((f) => f.id) : [])));
-  return allFacts(s).filter((f) => f.status === "unconfirmed" && (!inAlert.has(f.id) || (f.verify?.status === "mismatch" && !f.verify.resolution)))
+  // Readings offered as one tap per monitor frame (snapshot.capture_groups) are not asked for again one by one.
+  const batched = new Set((s.capture_groups ?? []).flatMap((g) => g.batch_fact_ids));
+  return allFacts(s).filter((f) => f.status === "unconfirmed" && !batched.has(f.id) && (!inAlert.has(f.id) || (f.verify?.status === "mismatch" && !f.verify.resolution)))
     .sort((a, b) => a.ts.localeCompare(b.ts));
 }
 

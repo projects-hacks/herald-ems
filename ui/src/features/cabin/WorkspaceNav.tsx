@@ -1,16 +1,16 @@
-import { Activity, ArrowUpRight, AudioLines, BookOpen, ChartNoAxesCombined, ClipboardCheck, FileText, LayoutDashboard, LockKeyhole, Settings2, ShieldCheck, UserRound, type LucideIcon } from "lucide-react";
+import { Activity, ArrowUpRight, AudioLines, BookOpen, Camera, ChartNoAxesCombined, FileText, LayoutDashboard, LockKeyhole, Settings2, ShieldCheck, UserRound, type LucideIcon } from "lucide-react";
 import { useHerald } from "@/lib/store";
 import type { FixturePlayer } from "@/lib/ws";
 import { Pause, Play, RotateCcw, SkipForward } from "lucide-react";
 
 export type WorkspacePanel = "review" | "patient" | "patients" | "trends" | "notes" | "handoff" | "camera" | "settings" | "protocols" | null;
 const ITEMS: { panel: WorkspacePanel; label: string; short: string; icon: LucideIcon }[] = [
-  { panel: null, label: "Overview", short: "Overview", icon: LayoutDashboard },
-  { panel: "review", label: "Review queue", short: "Review", icon: ClipboardCheck },
-  { panel: "patient", label: "Patient record", short: "Patient", icon: UserRound },
-  { panel: "trends", label: "Vitals & trends", short: "Vitals", icon: ChartNoAxesCombined },
-  { panel: "notes", label: "Capture timeline", short: "Notes", icon: AudioLines },
+  { panel: null, label: "Now", short: "Now", icon: LayoutDashboard },
+  { panel: "patient", label: "Patient record", short: "Record", icon: UserRound },
+  { panel: "trends", label: "Trends & scores", short: "Trends", icon: ChartNoAxesCombined },
+  { panel: "notes", label: "Transcript & notes", short: "Notes", icon: AudioLines },
   { panel: "handoff", label: "ED handoff", short: "Handoff", icon: FileText },
+  { panel: "camera", label: "Camera & monitor watch", short: "Camera", icon: Camera },
   { panel: "protocols", label: "Protocol library", short: "Protocols", icon: BookOpen },
 ];
 
@@ -30,7 +30,7 @@ export function WorkspaceNav({ panel, onOpen, count, player }: { panel: Workspac
     <p className="workspace-nav-label">PATIENT CARE</p>
     <nav aria-label="Care workspace" className="workspace-nav">
       {ITEMS.map(({ panel: value, label, short, icon: Icon }) => <button key={label} type="button" aria-label={label} title={label} aria-current={panel === value ? "page" : undefined} onClick={() => onOpen(value)}>
-        <Icon size={20} strokeWidth={1.8} /><span>{label}</span><small className="workspace-nav-short">{short}</small>{value === "review" && count > 0 && <span className="workspace-nav-count">{count}</span>}
+        <Icon size={20} strokeWidth={1.8} /><span>{label}</span><small className="workspace-nav-short">{short}</small>{value === null && count > 0 && <span className="workspace-nav-count">{count}</span>}
       </button>)}
     </nav>
     <div className="workspace-sidebar-bottom">

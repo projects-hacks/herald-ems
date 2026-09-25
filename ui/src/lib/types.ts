@@ -186,6 +186,7 @@ export interface ProtocolAnswer {
 // ---------- the snapshot (api/context.py full_state()) ----------
 export interface Snapshot {
   capture?: CaptureStatus;
+  capture_groups?: CaptureGroup[];      // absent on older vehicles and recorded fixtures
   incident: {
     id: string; dispatch: string | null; started: string; ended_at: string | null;
     media_disposal: MediaDisposal | null;
@@ -212,6 +213,13 @@ export interface Snapshot {
   relay: RelayStatus;
   netem: "good" | "weak" | "down" | null;
   protocols?: ProtocolStatus;            // absent when protocol lookup is off
+}
+
+/** One camera frame's still-unconfirmed readings (herald/core/corroboration.py, docs/API_CONTRACT.md). */
+export interface CaptureGroup {
+  frame_id: string; trigger: string | null; photo_id: string | null; ts: string;
+  batch_fact_ids: string[];              // one POST /api/readings/{frame_id}/confirm confirms all of these
+  individual: { id: string; key: string; label: string; reason: string | null }[];
 }
 
 export interface CaptureStatus {
