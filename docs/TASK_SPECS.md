@@ -126,6 +126,65 @@ Everything runs locally.
 
 **Invariants:** translation never adds information. The original is always kept and viewable. No cloud calls: the translator uses `LocalLLMClient`, which refuses non-local URLs.
 
+### S3 revision (Fri 2026-09-25): what changed since this spec was written. It overrides the table above where they differ.
+1. **Spanish facts don't need translating first.** Run F trains the extractor on 829 Mexican Spanish lines
+   (batches 32–39): Spanish speech goes **straight to the extractor**, which returns the same English canonical facts,
+   and the Spanish utterance is already kept as the fact's evidence (`provenance.text`). Translation is for the medic
+   to **read** (an English line under the Spanish on screen) and for **speaking to the patient**.
+   - Keep a measured fallback: a setting `HERALD_INTERPRETER_FACT_PATH=direct|translate_first` (default `direct`).
+   - Measure both on `eval/gold_es_v1.jsonl` (60 lines; command in `eval/README_gold_es.md`), 3 runs each, once
+     `herald-f` serves. The better one is the default; write the numbers in MODEL_PLAN.
+2. **The translator model and prompt already exist.** Use the served general model, `ctx.vision_model` (label
+   `herald-f` after the switch; `qwen3vl-fp8` before), with **`config/prompts/translate.yaml`**, not a new
+   `translate.md`: `system` plus the `directions.en_es` and `directions.es_en` templates.
+   - Call it exactly the way `scripts/build_replay_set.py` does (`chat_json`, JSON mode, no strict schema). The
+     fine-tuned model was trained to keep this ability with this exact request, so any other prompt is untested.
+3. **TTS: use Piper, not Kokoro.** Piper is ONNX, runs on the CPU, needs no torch, and works on this box now.
+   - Binary: `~/.venvs/piper-es/bin/piper`.
+   - Mexican Spanish voices: `~/.venvs/piper-es/voices/es_MX-claude-high.onnx` and `es_MX-ald-medium.onnx`. English
+     voices are in `~/.cache/piper-voices/` if a read-back is ever needed.
+   - `PiperTTS` implements `SpeechSynthesizer`, calling the binary through `subprocess` (the paths are settings:
+     `HERALD_TTS_BIN`, `HERALD_TTS_VOICE_ES`).
+   - `espeak-ng` is now installed system-wide (1.51), so Kokoro is possible later, but Kokoro pulls torch and must
+     never be pip-installed into the zgx env.
+4. **Whisper, the language-aware prompt and the loop guard move into S3** (they were TRAINING_PLAN §9 item 3 /
+   Kiro's Phase 7 step 2):
+   - Return the detected language from `WhisperSTT` (`herald/models/stt.py` was refactored: `transcribe_many`,
+     `_mono16k`; keep that API).
+   - When the language is Spanish, use a priming prompt with **no drug names**, from config
+     (`config/prompts/stt_prompt_es.txt`, or none). The English prompt made "alergias" come out as "Eliquis" in the
+     30-clip check (`runs/es_speech/whisper/report.json`).
+   - Add a repetition-loop guard (one clean clip looped "lo vi" about 20 times): drop a segment whose n-gram repeats
+     more than K times, with K in config.
+   - Re-run the 30-clip check before and after.
+5. **Safety check on every translation** (deterministic, no model):
+   - every number, drug name and negation word in the source must appear in the translation; numbers are compared
+     after the spoken-number parser, `config/numbers.yaml` en/es;
+   - if one is missing, the screen shows "check the translation", and the Spanish audio **is not played
+     automatically**; the medic can still tap ▶ after reading.
+   - Herald only translates the medic's own words. It never writes its own questions or instructions to the patient
+     (AGENTS invariant 3).
+6. **No GPU until `herald-f` serves** (about Fri 3 AM PDT; the 30B is training). Build everything against fakes.
+   - Whisper checks can run on the **CPU** now: `CUDA_VISIBLE_DEVICES=""` through
+     `scripts/run_job.py --name s3-whisper-cpu --need-gib 6 -- …`, without `--gpu`, because the training run refuses
+     other GPU jobs.
+   - The translator and extractor measurements wait for `herald-f`.
+7. **UI.** The React NOW screen is Tushar's. Build the interpreter panel as a separate component
+   (`ui/src/features/interpreter/InterpreterPanel.tsx`: "Patient speaks" and "Say to patient" buttons, the last
+   exchange in both languages, ▶ for the Spanish audio, the "check the translation" warning) against your contract in
+   UX_PLAN §5, then tell Tushar where to place it. The React mic port (his list) is what "Patient speaks" records with;
+   until it lands, use the classic `web/` push-to-talk path.
+8. **Eval.** `eval/interpreter_v1.jsonl`:
+   - 20 English medic lines (questions, instructions, reassurance) with reference Spanish;
+   - 20 Mexican Spanish patient or family lines with reference English;
+   - written independently of the training data (don't open `data/annotated`), reviewed by a Spanish speaker if one
+     is on the team.
+
+   Report, 3 runs each:
+   - the safety-check pass rate (numbers, drugs and negations preserved);
+   - a 0–2 human faithfulness score per line;
+   - the round-trip latency (speech in → English on screen; English in → Spanish audio out).
+
 ---
 
 ## S4. Speaker diarization: can one mic tell the medic from the family? (M8 → Collaborator 2)
