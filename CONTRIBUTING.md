@@ -23,6 +23,12 @@ Alternative with no key on the Nano: SSH agent forwarding from your laptop (`For
 
 Everyone must be a collaborator on `projects-hacks/herald-ems`. The keys live under the shared login, so remove them from GitHub after the event.
 
+## Training tooling
+
+`requirements.txt` is only what the app itself needs. If you're training or merging a LoRA (`scripts/train_lora.py`,
+`train_vlm_lora.py`, `merge_lora.py`, `merge_vlm_lora.py`), also install `requirements-train.txt`
+(`pip install -r requirements.txt -r requirements-train.txt`) in the `zgx` env.
+
 ## Shared secrets (Hugging Face token)
 
 One file for the whole team, loaded by every `hp18` shell: `~/.config/herald/secrets.env` (mode 600, outside the repo). Fill in `HF_TOKEN` and `HF_REPO_ID`, then open a new terminal. Use a fine-grained token with write access to the team's adapter repo only, and revoke it after the event. Never paste tokens into the repo, chat, or notebooks.
