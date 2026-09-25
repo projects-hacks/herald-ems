@@ -419,3 +419,102 @@ its shebang, which resolved to the system `python3` instead of the environment's
 **The pattern worth keeping:** three separate "model failures" were harness failures, and in each case the tell was a
 number that was *too clean* — 0.0 across two different models, a `None`, an identical failure everywhere. A gate that
 fails identically for every candidate is measuring the harness.
+
+
+---
+
+## 11. Verification on the stack that ships
+
+Everything here was measured against `ems-e-v2-fp8` + `herald-f` co-resident (58.6 GB of 121.6, 41.8 GB free), with
+the app on `:8103`, Whisper preloaded, the ED receiver on `:8200` and the Toxiproxy link on `:9000`.
+
+### 11a. End-to-end integration, clean
+
+`scripts/integration_flow.py`, saved to `runs/integration/ship_stack.log`:
+
+| step | result |
+|---|---|
+| egress allow-list | `allow_hosts: [127.0.0.1]`, 151 local allows, **0 denials**, 0 cloud calls, 0 refused |
+| speech → facts | **14 facts in 4.04 s**, values all correct; high-confidence facts auto-confirmed, the three at 0.53–0.67 left unconfirmed |
+| confirm one fact | `stroke.deficits` unconfirmed → confirmed |
+| photo, monitor | **6/6 exact against gold in 5.50 s**, every fact `unconfirmed` with `role=photo` |
+| POLST form | **0 facts — abstention**, which is what its gold expects |
+| one-tap reading confirm | **not exercised**: needs `provenance.frame_id`, which only the camera capture path stamps |
+| FHIR R4 export | `Bundle`, 6 entries (1 `Patient`, 5 `Observation`) against 9 confirmed facts |
+| relay → ED | authorized to Regional, scope "Stroke alert pre-alert set", **21 fields delivered** |
+
+The photo read is worth naming: on `cam_04_handheld_light.jpg` `herald-f` returned all six values exactly, including
+`hr=96` and `spo2=94` — the pair it swaps on the six-degradation worst case (§8). It also returns a `crop` box per
+reading, so each value is traceable to a region of the photo.
+
+**Four of the "defects" this script first reported were bugs in the script, and one of those was a false pass.** They
+are listed because the false pass is the instructive one:
+
+1. It flagged the Whisper entry as a phantom model called `None` — Whisper runs in-process with no `served_as`.
+2. It reported **0 facts from speech**, which was correct deduplication: it ran against the incident the soak had
+   filled with the same stroke call 163 times, so every fact already existed. It now opens a fresh incident.
+3. It called an empty `capture_groups` a defect. It is by design — see below.
+4. It posted `/api/relay/authorize` with no body and got 422; the endpoint requires `{"destination": ...}`.
+5. **The false pass:** the POLST step matched "any fact with a `photo_id`" and so reported the *previous monitor
+   read's* six vitals as its own, in 0.17 s, scored them against an empty gold row, and called it a pass. Facts are
+   now keyed to the `photo_id` the upload returned, a sub-0.5 s vision call is flagged as impossible, and a missing
+   gold row says so instead of scoring `0/0`.
+
+### 11b. What the one-tap reading confirm still has not verified
+
+`POST /api/readings/{frame_id}/confirm` groups readings by `provenance.frame_id`, which the agentic capture reader
+stamps on frames it takes from the camera. A manual `POST /api/photo` leaves `frame_id` and `trigger` null (verified in
+the snapshot), so it forms no group. There is **no `/dev/video*` on this box**, so the path cannot be exercised here at
+all. Its unit tests pass; its end-to-end behaviour is unverified and is a named gap, not a passed check.
+
+This matters because that endpoint is the mitigation for the HR/SpO₂ label swap in §8: a swap should surface as two
+implausible steps and be asked about separately. That reasoning is sound and tested at the unit level, but it has never
+run against a camera.
+
+### 11c. 30-minute soak
+
+`scripts/soak.py`, stroke scenario on a loop, `runs/soak/ship_soak.jsonl`:
+
+| | |
+|---|---|
+| duration | 1803.8 s of a 1800 s target |
+| iterations / model calls | 163 / **1467** |
+| model errors | **1** |
+| iteration errors, relay failures | **0 / 0** |
+| scenario steps | 326 done, **0 skipped** |
+| latency p95 | 2633 ms overall; first 5 min 2596 ms, last 5 min 2794 ms, **drift 7.6%** against a 20% bar |
+| memory | final growth **−1.03 GB** (it ended with more free than it started), peak growth 1.63 GB |
+| competing jobs | none |
+| `no usable frame before request expired` | **0 occurrences** — the capture-intent deadline fix holds |
+
+`soak.py` reports `passed: false`, and it is right to, because its `model_errors_zero` check failed. **The one error
+was the `/api/state` 500 in §11d**, at elapsed 195 s, inside the protocol-index build window — an app fault, not a
+model fault. Every other criterion passed. The soak has **not** been re-run against the fix.
+
+Two honest limits on this soak. It drives `/api/photo` only twice in 30 minutes, so it is a strong test of the speech
+path, memory and thermals and a **weak** test of continuous monitor-watch: "0 invented monitor values" over two reads
+is not a claim worth making. And it ran with no microphone, so the speech leg is text in, not audio in.
+
+### 11d. A 500 on the medic screen, found by reading the log
+
+`GET /api/state` returned 500 twice during startup: `JSONDecodeError: Expecting value: line 1 column 1 (char 0)` from
+`KnowledgeBase._manifest()`. It guarded for `manifest.json` being absent but not for it being **empty or half-written**,
+and the file is rewritten while the protocol index builds on first start. `summary()` feeds `full_state()`, so for the
+first minute or two of a cold start every poll of the screen the medic is looking at failed — the window the demo opens
+in. Fixed to degrade to `{}`.
+
+Six tests cover it and were checked against the old code: five of six fail without the fix. The first version of those
+tests passed for the wrong reason — they wrote `manifest.json` to `<protocols_dir>` while the code reads
+`<protocols_dir>/<county id>` — so they now assert `kb.dir` is the directory they wrote to. That is the third time
+today a test or gate passed for the wrong reason, and the second time the tell was a number that was too clean.
+
+### 11e. Latency on a quiet endpoint
+
+`ems-e-v2-fp8`, held-out `gold_v2`, nothing else touching the GPU: **p50 1154 ms, p95 2443 ms**, first call 3035 ms,
+43.4 decode tokens/s, with f1 0.948, role accuracy 0.972 and G.F.A.S.T. f1 0.961 on the same pass. Whisper adds 0.47 s
+warm, 4.20 s cold. Under vision contention the speech leg was separately measured at 6.63 s (§8).
+
+### 11f. Suites
+
+962 Python tests and 148 UI tests pass on the merge of `origin/main` into this branch. The 968 figure in later commits
+includes the six manifest tests.

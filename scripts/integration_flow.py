@@ -68,13 +68,19 @@ def main() -> None:
     # rollback entry. Only a component the app is actually using may not be missing, so compare against /api/health.
     serving = {health.get("llm_model"), health.get("vision_model")}
     for m in stack["models"]:
-        label = str(m.get("served_as"))
+        served_as = m.get("served_as")
+        label = served_as or "(whisper)"
         print(f"  {label:16s} {m['status']}")
-        if label in serving and "not served" in m["status"]:
-            BUGS.append(f"/api/stack shows {label} as {m['status']!r}, but the app is using it: "
+        # The speech-to-text entry has no `served_as` at all: Whisper runs in-process, not behind a ZRT label, and
+        # /api/stack computes its status from stt.ready(). Comparing it against the ZRT labels reports a phantom
+        # model called "None", which is a bug in this check and not in the stack.
+        if served_as is None:
+            continue
+        if served_as in serving and "not served" in m["status"]:
+            BUGS.append(f"/api/stack shows {served_as} as {m['status']!r}, but the app is using it: "
                         f"config/stack.yaml is missing the entry for the component it serves")
-        if label not in serving and m["status"] == "ready":
-            BUGS.append(f"/api/stack shows {label} ready, but the app is not using it (serving {serving})")
+        if served_as not in serving and m["status"] == "ready":
+            BUGS.append(f"/api/stack shows {served_as} ready, but the app is not using it (serving {serving})")
 
     print("\n=== 0. egress allow-list (every outbound call goes through it) ===")
     try:
@@ -88,6 +94,17 @@ def main() -> None:
     except urllib.error.HTTPError as e:
         print(f"  HTTP {e.code}: {e.read()[:200]!r}")
         BUGS.append(f"/api/egress returned HTTP {e.code}")
+
+    # A FRESH INCIDENT FIRST. Herald deduplicates: a fact already in the incident is not added again. Run this against
+    # an incident that already holds the same call -- after a soak that replayed the stroke scenario 163 times, say --
+    # and a perfectly healthy extractor yields zero NEW facts, which reads exactly like a broken model. Measured: the
+    # extraction returned status "done" in 4 s and added nothing, because all 27 facts were already there.
+    print("\n=== starting a fresh incident so `new facts` means something ===")
+    try:
+        inc = call(f"{a.url}/api/incident", "POST", {})
+        print(f"  incident {(inc.get('incident') or inc).get('id', inc)}")
+    except urllib.error.HTTPError as e:
+        print(f"  could not start one (HTTP {e.code}); counting new facts against the current incident instead")
 
     print("\n=== 1. speech -> facts (the app's own capture path) ===")
     line = ("Valley this is Medic 12, stroke alert. 71 year old female, last known well 0915, "
@@ -139,38 +156,79 @@ def main() -> None:
             BUGS.append(f"{label} returned HTTP {e.code}")
             continue
         dt = time.perf_counter() - t0
-        pf = out.get("facts") or out.get("added") or []
-        if not pf:                      # same async shape as /api/transcript: wait for the snapshot
-            seen = set()
+        # Key the facts to THIS upload's photo_id. Matching "any fact with a photo_id" made the POLST step report the
+        # previous monitor read's six vitals as its own, in 0.17 s, and then score them against an empty gold and
+        # call it a pass -- a false PASS, which is worse than a false failure. The photo_id is stamped on provenance
+        # by herald/api/capture.py, so it is the only honest join key.
+        def find_photo_id(obj):
+            if isinstance(obj, dict):
+                if isinstance(obj.get("photo_id"), str):
+                    return obj["photo_id"]
+                for v in obj.values():
+                    got = find_photo_id(v)
+                    if got:
+                        return got
+            elif isinstance(obj, list):
+                for v in obj:
+                    got = find_photo_id(v)
+                    if got:
+                        return got
+            return None
+
+        photo_id = find_photo_id(out)
+        if not photo_id:
+            BUGS.append(f"{label}: POST /api/photo returned no photo_id, so its facts cannot be told apart from an "
+                        f"earlier photo's")
+        pf = [f for f in (out.get("facts") or out.get("added") or [])
+              if not photo_id or (f.get("provenance") or {}).get("photo_id") == photo_id]
+        if not pf and photo_id:         # same async shape as /api/transcript: wait for the snapshot
             for _ in range(60):
                 time.sleep(1)
                 snap2 = call(f"{a.url}/api/state")
                 cand = [f for f in snap2["facts"].values()
-                        if (f.get("provenance") or {}).get("photo_id")]
-                if cand and len(cand) != len(seen):
-                    seen = set(id(c) for c in cand)
+                        if (f.get("provenance") or {}).get("photo_id") == photo_id]
+                if cand:
                     pf = cand
                     break
-        print(f"  {dt:.2f}s, {len(pf)} facts")
+        print(f"  {dt:.2f}s, {len(pf)} facts for photo_id={photo_id}")
+        if dt < 0.5 and pf:
+            BUGS.append(f"{label} returned {len(pf)} facts in {dt:.2f}s, which is too fast for a vision call: "
+                        f"they are probably another photo's")
         show(pf)
-        if not pf:
-            BUGS.append(f"{label} returned 0 facts")
+        # Whether 0 facts is a defect depends on the gold. For a form the model cannot read, abstaining is the SAFE
+        # answer and the documented behaviour (POLST: 3 of 10 read, 7 empty, 0 wrong code_status), and the gold row
+        # for such a form lists no facts. Flagging it as a bug would push toward guessing on forms.
+        gold_row = None
+        gold_file = ROOT / Path(photo).parent / "gold.jsonl"
+        if gold_file.exists():
+            gold_row = next((json.loads(ln) for ln in gold_file.read_text().splitlines()
+                             if json.loads(ln).get("file") == Path(photo).name), None)
+        expects_facts = gold_row is None or bool(
+            dict(gold_row["facts"]) if isinstance(gold_row["facts"], list) else gold_row["facts"])
+        if not pf and expects_facts:
+            BUGS.append(f"{label} returned 0 facts while its gold expects some")
+        elif not pf:
+            print("  0 facts, and the gold expects none: abstention, which is the safe failure for a form")
         elif any(f.get("status") == "confirmed" for f in pf):
             BUGS.append(f"{label} returned a CONFIRMED fact: photo readings must start unconfirmed "
                         f"(AGENTS.md invariant 4)")
         gold_path = ROOT / Path(photo).parent / "gold.jsonl"
         if gold_path.exists():
             want = Path(photo).name
-            for ln in gold_path.read_text().splitlines():
-                r = json.loads(ln)
-                if r["file"] == want:
-                    g = dict(r["facts"]) if isinstance(r["facts"], list) else r["facts"]
-                    got = {f["key"]: f["value"] for f in pf}
-                    ok = sum(1 for k, v in g.items() if str(got.get(k)) == str(v))
-                    print(f"  against gold: {ok}/{len(g)} exact   gold={g}")
-                    if ok < len(g):
-                        BUGS.append(f"{label} read {ok}/{len(g)} of gold")
-                    break
+            row = next((json.loads(ln) for ln in gold_path.read_text().splitlines()
+                        if json.loads(ln).get("file") == want), None)
+            if row is None:
+                # "0/0 exact" against an empty gold silently passes. Say the gold is missing instead of scoring air.
+                print(f"  no gold row for {want} in {gold_path.relative_to(ROOT)}: not scored here")
+            else:
+                g = dict(row["facts"]) if isinstance(row["facts"], list) else row["facts"]
+                got = {f["key"]: f["value"] for f in pf}
+                ok = sum(1 for k, v in g.items() if str(got.get(k)) == str(v))
+                print(f"  against gold: {ok}/{len(g)} exact   gold={g}")
+                if not g:
+                    print("  (the gold row lists no facts: abstention is the expected answer)")
+                elif ok < len(g):
+                    BUGS.append(f"{label} read {ok}/{len(g)} of gold")
 
     print("\n=== 4b. one-tap reading confirm (POST /api/readings/{frame_id}/confirm) ===")
     # One monitor frame yields HR/BP/SpO2/RR at once, so the medic confirms the reading as a set. Readings the
@@ -181,8 +239,23 @@ def main() -> None:
     groups = snap.get("capture_groups") or []
     print(f"  capture_groups: {len(groups)}")
     if not groups:
-        BUGS.append("no capture_groups in the snapshot after a monitor photo: the one-tap reading confirm has "
-                    "nothing to act on")
+        # NOT a defect. BatchConfirmation.frame_ids() keys off provenance.frame_id, which the agentic capture reader
+        # stamps on frames it grabs from the camera. A manual POST /api/photo has frame_id=null and trigger=null
+        # (verified in the snapshot), so it forms no group by design. Exercising this endpoint therefore needs the
+        # capture path with a real camera, and this box has no /dev/video*. Say that instead of inventing a bug.
+        photo_facts = [f for f in snap["facts"].values() if (f.get("provenance") or {}).get("photo_id")]
+        framed = [f for f in photo_facts if (f.get("provenance") or {}).get("frame_id")]
+        cams = sorted(Path("/dev").glob("video*"))
+        print(f"  {len(photo_facts)} photo facts, {len(framed)} carrying a frame_id; cameras present: "
+              f"{[c.name for c in cams] or 'none'}")
+        print("  SKIPPED, not failed: one-tap reading confirm groups by provenance.frame_id, which only the camera "
+              "capture path stamps. A manual photo upload cannot produce a group.")
+        if framed:
+            BUGS.append(f"{len(framed)} photo facts carry a frame_id but capture_groups is empty: the grouping "
+                        f"is dropping frames it should batch")
+        if cams:
+            BUGS.append(f"a camera exists ({[c.name for c in cams]}) but this run did not exercise the capture "
+                        f"path, so one-tap reading confirm is still unverified end to end")
     for g in groups[:2]:
         print(f"    frame={g.get('frame_id')} trigger={g.get('trigger')} "
               f"batchable={len(g.get('batch_fact_ids') or [])} individual={len(g.get('individual') or [])}")
@@ -234,12 +307,25 @@ def main() -> None:
         BUGS.append(f"/api/handoff/fhir returned HTTP {e.code}")
 
     print("\n=== 5. relay -> ED ===")
+    # POST /api/relay/authorize takes a REQUIRED body, {"destination": "<name>"} (herald/api/routes/relay.py
+    # Authorize). Calling it with no body returns 422, which looks like a broken relay and is not one. The medic
+    # picks a destination on the screen, so take one the county actually offers.
+    dest = "Regional"
     try:
-        auth = call(f"{a.url}/api/relay/authorize", "POST")
-        print(f"  authorize: {json.dumps(auth)[:160]}")
+        county = call(f"{a.url}/api/county")
+        active = county.get("active") or {}
+        names = [d.get("name") or d.get("id") for d in (active.get("destinations") or []) if isinstance(d, dict)]
+        if names:
+            dest = names[0]
+        print(f"  destinations offered: {names or '(none listed; using ' + dest + ')'}")
+    except urllib.error.HTTPError:
+        pass
+    try:
+        auth = call(f"{a.url}/api/relay/authorize", "POST", {"destination": dest})
+        print(f"  authorize -> {dest}: {json.dumps(auth)[:200]}")
     except urllib.error.HTTPError as e:
-        print(f"  authorize HTTP {e.code}: {e.read()[:160]!r}")
-        BUGS.append(f"relay authorize returned HTTP {e.code}")
+        print(f"  authorize HTTP {e.code}: {e.read()[:200]!r}")
+        BUGS.append(f"relay authorize with destination={dest!r} returned HTTP {e.code}")
     for _ in range(12):
         time.sleep(2)
         ed = call(f"{a.ed}/state", timeout=10)
