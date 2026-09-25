@@ -164,11 +164,13 @@ export function SeverityBadge({ severity, className }: { severity: "abnormal" | 
  *  Shown wherever a value appears, not only in the full Facts tab, so a photo-read vital is never mistaken for a
  *  spoken one on the tiles. `aria-label` carries the word for screen readers. */
 export function SourceIcon({ capturedBy, hasAudio, className }: {
-  capturedBy: "camera" | "device" | "voice" | "typed" | string; hasAudio?: boolean; className?: string;
+  capturedBy: "medic" | "other" | "device" | "camera"; hasAudio?: boolean; className?: string;
 }) {
+  // camera -> a photo, device -> a monitor feed, an audio clip -> spoken, otherwise typed. A spoken value is
+  // captured_by "medic"/"other" with an audio_id, not a distinct source value, so voice is keyed off hasAudio.
   const [Icon, label] = capturedBy === "camera" ? [Camera, "photo"]
     : capturedBy === "device" ? [Monitor, "monitor"]
-    : hasAudio || capturedBy === "voice" ? [Mic, "voice"] : [Keyboard, "typed"];
+    : hasAudio ? [Mic, "voice"] : [Keyboard, "typed"];
   return <Icon size={13} aria-label={label} className={cn("shrink-0 text-text-muted", className)} />;
 }
 

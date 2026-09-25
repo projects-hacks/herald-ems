@@ -48,23 +48,53 @@ export function HeraldActivity({ onAll }: { onAll: () => void }) {
 export function MovementStrip({ onTrends }: { onTrends: () => void }) {
   const s = useHerald((st) => st.snapshot);
   const contract = useContract();
-  const moved = (s?.changed ?? []).filter((c) => c.significant || c.unconfirmed);
   if (!s) return null;
+  // Show a vital here when it MOVED (significant), when a reading is WAITING (unconfirmed), or when its latest value
+  // is OUT OF RANGE (severity) even though it did not move -- the last case is the UI-review fix: a dangerous-but-
+  // steady value used to be silent on this panel. Severity is backend-computed and already withdrawn for patients
+  // the adult ranges do not fit (children, pregnancy), so this panel inherits that scope for free.
+  const moved = s.changed.filter((c) => c.significant || c.unconfirmed || c.severity);
+  const shownKeys = new Set(moved.map((c) => c.key));
+  // A vital with only one reading has no trend row, so an abnormal single reading would be missed. Pick those up
+  // from the confirmed facts: latest value carries severity, not already shown as a trend.
+  const abnormalStill = Object.values(s.facts).filter(
+    (f) => f.severity && f.key.startsWith("vitals.") && f.status === "confirmed" && !shownKeys.has(f.key));
+  const anything = moved.length > 0 || abnormalStill.length > 0;
   return <section className="copilot-movement" aria-labelledby="movement-h">
     <h2 id="movement-h">How the patient is moving</h2>
-    {moved.length ? <ul>{moved.map((c) => {
-      const minutes = c.times.length > 1 ? Math.round((Date.parse(c.times.at(-1)!) - Date.parse(c.times[0])) / 60000) : 0;
-      return <li key={c.key}>
-        {c.direction === "down" ? <ArrowDownRight size={20} aria-hidden /> : <ArrowUpRight size={20} aria-hidden />}
-        <strong>{c.label} {c.series.join(" → ")}{contract?.keys[c.key]?.unit ? ` ${contract.keys[c.key].unit}` : ""}</strong>
-        <span>{minutes ? `over ${minutes} min` : hhmm(c.times.at(-1))}</span>
-        <Sparkline values={c.series} width={96} height={28} label={`${c.label} trend`} />
-        {c.unconfirmed && c.unconfirmed_fact_ids?.length ? <ActionButton pendingKey={`confirm-many:${c.unconfirmed_fact_ids.slice().sort().join(",")}`}
-          onClick={() => api.confirmMany(c.unconfirmed_fact_ids!)} busyText="Saving…">Confirm latest reading</ActionButton> : null}
-        {c.unconfirmed && <small>Unconfirmed reading — not sent to the ED</small>}
-      </li>; })}</ul> : <p>No change in confirmed readings so far.</p>}
+    {anything ? <ul>{[
+      ...moved.map((c) => {
+        const minutes = c.times.length > 1 ? Math.round((Date.parse(c.times.at(-1)!) - Date.parse(c.times[0])) / 60000) : 0;
+        const unit = contract?.keys[c.key]?.unit ? ` ${contract.keys[c.key].unit}` : "";
+        return <li key={c.key} data-severity={c.severity} aria-label={c.severity ? `${c.label}, ${c.severity}` : undefined}>
+          {c.direction === "down" ? <ArrowDownRight size={20} aria-hidden /> : <ArrowUpRight size={20} aria-hidden />}
+          <strong>{c.label} {c.series.join(" → ")}{unit}</strong>
+          {c.severity && <SeverityTag severity={c.severity} />}
+          <span>{minutes ? `over ${minutes} min` : hhmm(c.times.at(-1))}</span>
+          <Sparkline values={c.series} width={96} height={28} label={`${c.label} trend`} />
+          {c.unconfirmed && c.unconfirmed_fact_ids?.length ? <ActionButton pendingKey={`confirm-many:${c.unconfirmed_fact_ids.slice().sort().join(",")}`}
+            onClick={() => api.confirmMany(c.unconfirmed_fact_ids!)} busyText="Saving…">Confirm latest reading</ActionButton> : null}
+          {c.unconfirmed && <small>Unconfirmed reading — not sent to the ED</small>}
+        </li>;
+      }),
+      ...abnormalStill.map((f) => (
+        <li key={f.key} data-severity={f.severity} aria-label={`${f.label}, ${f.severity}`}>
+          <span className="movement-flat" aria-hidden>—</span>
+          <strong>{f.label} {factValue(f)}</strong>
+          <SeverityTag severity={f.severity!} />
+          <span>steady · {hhmm(f.ts)}</span>
+        </li>
+      )),
+    ]}</ul> : <p>No change in confirmed readings so far.</p>}
     <button className="activity-all" onClick={onTrends}>Trends</button>
   </section>;
+}
+
+/** A word + icon for a vital's severity, so this panel signals it the same way as the tiles, never colour alone. */
+function SeverityTag({ severity }: { severity: "abnormal" | "critical" }) {
+  return <span className="movement-severity" data-severity={severity}>
+    <TriangleAlert size={13} aria-hidden />{severity === "critical" ? "critical" : "out of range"}
+  </span>;
 }
 
 export function EdCard({ onHandoff }: { onHandoff: () => void }) {

@@ -31,9 +31,20 @@ class VitalRanges:
     def keys(self) -> list[str]:
         return list(self._bands)
 
-    def severity(self, key: str, value: Any) -> Optional[Severity]:
+    def severity(self, key: str, value: Any, *, applicable: bool = True) -> Optional[Severity]:
         """The severity band for a value, or None. `normal` bands exist in config to pin the boundaries in tests and
-        to make a mid-range value explicit; they return None here, because normal gets no colour."""
+        to make a mid-range value explicit; they return None here, because normal gets no colour.
+
+        `applicable` is the scope gate. These bands are derived from the adult NEWS2 chart (config/vital_ranges.yaml),
+        which RCP does not validate for children or documented pregnancy, and which uses a different SpO2 target for
+        hypercapnic (scale-2) patients. Herald already withdraws the NEWS2 SCORE for exactly those patients
+        (config/scores/news2.yaml applicability); this colouring is derived from the same chart, so it withdraws with
+        it. When `applicable` is False the value shows in the neutral colour with no severity word, because a red or
+        amber tuned to adult ranges would be actively wrong for that patient -- a paediatric HR of 120 is normal, a
+        COPD target SpO2 of 90 is on target. Silence is the safe failure; a wrong colour is not. The caller passes
+        whether the NEWS2 applicability for this patient is anything other than 'excluded'."""
+        if not applicable:
+            return None
         bands = self._bands.get(key)
         if not bands:
             return None

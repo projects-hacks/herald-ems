@@ -234,3 +234,59 @@ def test_an_unconfirmed_camera_reading_never_reaches_a_report_line():
     assert "168" not in report["text"]
     # The report says so itself, rather than silently dropping the reading.
     assert any(row["label"] == "Systolic BP" for row in report["not_yet_confirmed"])
+
+
+# ---------- clinical severity on the snapshot, and its scope ----------
+def test_snapshot_colours_an_abnormal_but_stable_vital():
+    """An SpO2 that is low and NOT moving must still carry a severity in the snapshot: the finding the UI review was
+    about (a dangerous-but-steady value was previously silent). It is on the fact and on the trend row."""
+    inc = Incident("inc")
+    said(inc, "patient.age", 68)
+    said(inc, "vitals.spo2", 84)
+    said(inc, "vitals.spo2", 84)                     # no change: significant is False
+    snap = inc.snapshot()
+    assert snap["facts"]["vitals.spo2"]["severity"] == "critical"
+    trend = trend_for(snap, "vitals.spo2")
+    assert trend["severity"] == "critical" and trend["significant"] is False   # abnormal without moving
+
+
+def test_snapshot_severity_matches_the_screenshot_values():
+    inc = Incident("inc")
+    said(inc, "patient.age", 68)
+    for key, value, expected in [("vitals.hr", 104, "abnormal"), ("vitals.spo2", 84, "critical"),
+                                 ("vitals.sbp", 146, None), ("vitals.dbp", 92, None)]:
+        said(inc, key, value)
+        assert inc.snapshot()["facts"][key].get("severity") == expected, f"{key}={value}"
+
+
+def test_severity_withdraws_for_a_child():
+    """Generic EMS copilot, not adults only. NEWS2 is not valid below 16 and withdraws itself; the NEWS2-derived
+    colouring must withdraw with it, or a paediatric HR of 120 (normal for a child) would be painted abnormal."""
+    inc = Incident("inc")
+    said(inc, "patient.age", 7)
+    said(inc, "vitals.hr", 120)
+    said(inc, "vitals.spo2", 84)
+    snap = inc.snapshot()
+    assert snap["scores"]["news2"]["applicability"] == "excluded"          # NEWS2 itself is out
+    assert "severity" not in snap["facts"]["vitals.hr"]                     # so no adult colour
+    assert "severity" not in snap["facts"]["vitals.spo2"]
+
+
+def test_severity_withdraws_in_documented_pregnancy():
+    inc = Incident("inc")
+    said(inc, "patient.age", 30)
+    said(inc, "patient.pregnancy_weeks", 26)
+    said(inc, "vitals.hr", 120)
+    snap = inc.snapshot()
+    assert snap["scores"]["news2"]["applicability"] == "excluded"
+    assert "severity" not in snap["facts"]["vitals.hr"]
+
+
+def test_severity_colours_before_an_age_is_known():
+    """Before an age is spoken NEWS2 is `incomplete`, not `excluded`; the working assumption on an EMS call is an
+    adult, so an out-of-range value is still flagged. It withdraws only once a paediatric age actually arrives."""
+    inc = Incident("inc")
+    said(inc, "vitals.spo2", 84)
+    snap = inc.snapshot()
+    assert snap["scores"]["news2"]["applicability"] != "excluded"
+    assert snap["facts"]["vitals.spo2"]["severity"] == "critical"

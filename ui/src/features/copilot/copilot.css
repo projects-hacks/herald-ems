@@ -69,6 +69,13 @@
 .heard-what { flex: 1 1 9rem; min-width: 0; display: flex; flex-direction: column; }
 .heard-label { font-size: .875rem; color: var(--text-muted); font-weight: 600; }
 .heard-value { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); overflow-wrap: anywhere; line-height: 1.25; }
+/* A vital being confirmed shows its clinical severity: the value takes the priority colour and the word sits under
+   it, never colour alone. Backend-computed and scope-gated (no colour for children / documented pregnancy). */
+.heard-facts li[data-severity="abnormal"] .heard-value { color: var(--medium-fg); }
+.heard-facts li[data-severity="critical"] .heard-value { color: var(--high-fg); }
+.heard-severity { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-size: .75rem; font-weight: 700; }
+.heard-severity[data-severity="abnormal"] { color: var(--medium-fg); }
+.heard-severity[data-severity="critical"] { color: var(--high-fg); }
 .heard-actions { display: flex; gap: 4px; margin-left: auto; }
 
 /* ---------- quiet side panels: ruled, not boxed ---------- */
@@ -91,6 +98,15 @@
 .copilot-movement li > svg { color: var(--medium-fg); }
 .copilot-movement li span { font-size: .875rem; color: var(--text-muted); }
 .copilot-movement li small { flex-basis: 100%; font-size: .8125rem; color: var(--medium-fg); font-weight: 700; }
+/* Clinical severity of the latest value: the number takes the priority colour AND the SeverityTag word+icon sits
+   beside it, so it is never colour alone (IEC 60601-1-8 / WCAG). Backend-computed and already scope-gated. */
+.copilot-movement li[data-severity="abnormal"] strong { color: var(--medium-fg); }
+.copilot-movement li[data-severity="critical"] strong { color: var(--high-fg); }
+.movement-flat { font-family: var(--font-mono); font-size: 1.3rem; color: var(--text-muted); }
+.movement-severity { display: inline-flex; align-items: center; gap: 4px; font-size: .8125rem; font-weight: 700;
+  padding: 1px 8px; border-radius: 999px; }
+.movement-severity[data-severity="abnormal"] { color: var(--medium-fg); background: var(--medium-tint); }
+.movement-severity[data-severity="critical"] { color: var(--high-fg); background: var(--high-tint); }
 
 .copilot-ed { border-top-color: color-mix(in srgb, var(--low-fg) 45%, var(--glass-border)); }
 .copilot-ed .ed-sent { color: var(--text-primary); font-weight: 700; line-height: 1.5; }

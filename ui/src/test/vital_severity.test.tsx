@@ -55,9 +55,11 @@ describe("vital severity on the medic screen", () => {
       key: "vitals.spo2", label: "SpO2", series: [84, 84], times: [new Date().toISOString(), new Date().toISOString()],
       delta: 0, direction: "flat", significant: false, severity: "critical",
     }] });
-    const card = screen.getByLabelText("SpO2, critical");
-    expect(card.textContent).toContain("critical");
-    expect(card.textContent).not.toContain("big change");   // it did not move
+    // The same abnormal-stable vital shows both on the Trends-tab card and on the live movement panel; both are
+    // correct. Assert a Trends-tab card carries "critical" without a "big change" badge.
+    const cards = screen.getAllByLabelText("SpO2, critical");
+    expect(cards.length).toBeGreaterThan(0);
+    expect(cards.some((c) => c.textContent?.includes("critical") && !c.textContent?.includes("big change"))).toBe(true);
   });
 
   it("announces the newest confirmed reading in a polite live region", () => {
@@ -70,5 +72,32 @@ describe("vital severity on the medic screen", () => {
   it("marks a monitor-read value with its source, not only in the Facts tab", () => {
     openTrends({ ...base, facts: { "vitals.spo2": fact({ captured_by: "device", severity: "critical" }) }, changed: [] });
     expect(screen.getByText("Latest confirmed readings").closest("section")!.querySelector('[aria-label="monitor"]')).toBeTruthy();
+  });
+
+  it("colours an out-of-range value on the live 'How the patient is moving' panel, even when it did not move", () => {
+    // The panel a medic watches during the call, not the Trends tab. A steady-but-critical vital used to be silent
+    // here. It is surfaced from confirmed facts when there is no trend row (single reading).
+    useHerald.setState({
+      snapshot: { ...base, facts: { "vitals.spo2": fact({ severity: "critical" }) }, changed: [] },
+      source: "live", stale: false, conn: "open", ui: initialUi(""),
+    });
+    render(<CabinApp />);
+    const movement = screen.getByRole("region", { name: "How the patient is moving" });
+    expect(movement.textContent).toContain("critical");
+    expect(movement.textContent).not.toContain("big change");
+  });
+
+  it("shows severity on a lone value the medic is asked to confirm in 'Needs you'", () => {
+    // A single spoken unconfirmed vital renders as a TapRow in the attention queue; its severity must show at the
+    // point of the confirm decision.
+    const unconfirmed = fact({ id: "u1", status: "unconfirmed", captured_by: "medic", severity: "critical",
+      provenance: { audio_id: "a1", text: "sats are 84", frame_id: null } as unknown as Snapshot["facts"][string]["provenance"] });
+    useHerald.setState({
+      snapshot: { ...base, facts: { "vitals.spo2": unconfirmed } },
+      source: "live", stale: false, conn: "open", ui: initialUi(""),
+    });
+    render(<CabinApp />);
+    const needs = screen.getByRole("region", { name: /Needs you/ });
+    expect(needs.textContent).toContain("critical");
   });
 });

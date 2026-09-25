@@ -4,7 +4,7 @@
 // New alerts are announced politely (HIGH assertively). Seen findings fold into "Seen" at the end.
 import {
   Brain, Camera, ChevronDown, ChevronRight, CircleCheck, CircleDashed, Gauge, GitCompareArrows, Inbox, Keyboard, Mic,
-  Monitor, OctagonAlert, ShieldAlert, TrendingUp, type LucideIcon,
+  Monitor, OctagonAlert, ShieldAlert, TrendingUp, TriangleAlert, type LucideIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAttention } from "@/hooks/useAttention";
@@ -22,7 +22,7 @@ import { AudioEvidence } from "@/components/AudioEvidence";
 import { activeSync } from "@/lib/selectors";
 import { CorrectFactDialog } from "@/components/CorrectFactDialog";
 import { catOf } from "@/lib/categories";
-import { Badge, Button, CAT_ICON, Card, CardHeader, Count, EmptyState, IconTile, Section, type Cat } from "@/components/kit";
+import { Badge, Button, CAT_ICON, Card, CardHeader, Count, EmptyState, IconTile, Section, SeverityBadge, type Cat } from "@/components/kit";
 
 const NEWS2_SUFFIX = / \(for NEWS2\)$/;
 type Contradiction = Extract<Alert, { type: "contradiction" }>;
@@ -32,8 +32,9 @@ type CodeStatus = Extract<Alert, { type: "confirm_required" }>;
 
 /** tone paints the card's edge: high (danger), check (a decision waiting), live (Herald's own reading, one tap),
  *  info (a finding to note). Colour is never the only signal: every row also has its icon and words. */
-function Row({ icon, cat, title, badge, value, was, meta, actions, urgent, flash, tone, children }: {
+function Row({ icon, cat, title, badge, value, severity, was, meta, actions, urgent, flash, tone, children }: {
   icon?: LucideIcon; cat: Cat; title: React.ReactNode; badge?: React.ReactNode; value?: React.ReactNode; was?: string;
+  severity?: "abnormal" | "critical";
   meta?: React.ReactNode; actions?: React.ReactNode; urgent?: boolean; flash?: boolean; tone?: "high" | "check" | "live" | "info";
   children?: React.ReactNode;
 }) {
@@ -46,8 +47,11 @@ function Row({ icon, cat, title, badge, value, was, meta, actions, urgent, flash
             <span className="font-semibold text-text-primary">{title}</span>{badge}
           </p>
           {value !== undefined && (
-            <p className="mt-0.5 text-critical font-semibold leading-snug">
-              {value}{was && <span className="ml-2 text-body font-normal text-text-muted">was {was}</span>}
+            <p className={cn("mt-0.5 flex flex-wrap items-center gap-2 text-critical font-semibold leading-snug",
+              severity === "critical" ? "text-high-fg" : severity === "abnormal" ? "text-medium-fg" : undefined)}>
+              {value}
+              {severity && <SeverityBadge severity={severity} />}
+              {was && <span className="text-body font-normal text-text-muted">was {was}</span>}
             </p>
           )}
           {meta && <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-meta text-text-muted">{meta}</p>}
@@ -109,7 +113,7 @@ function ReadingRow({ c }: { c: ReadingCard }) {
 
 function TapRow({ f }: { f: FactView }) {
   return (
-    <Row cat={catOf(f.key)} title={f.label} value={factValue(f)}
+    <Row cat={catOf(f.key)} title={f.label} value={factValue(f)} severity={f.severity}
       was={f.previous_value !== null && f.previous_value !== undefined ? factValue({ value: f.previous_value, unit: f.unit }) : undefined}
       meta={<FactMeta f={f} />} actions={<ConfirmActions fact={f} />} />
   );
@@ -126,8 +130,13 @@ function HeardGroup({ facts }: { facts: FactView[] }) {
     <Row icon={sourceIconOf(first)} cat={catOf(first.key)} title={words ? <span className="heard-quote">“{words.length > 140 ? `${words.slice(0, 139).trimEnd()}…` : words}”</span>
         : vitals.length === facts.length ? <>Monitor reading · <span className="num">{readingText(facts)}</span></> : `${facts.length} values from one photo`}
       meta={<FactMeta f={first} />}>
-      <ul className="heard-facts">{facts.map((f) => <li key={f.id}>
-        <span className="heard-what"><span className="heard-label">{f.label}</span><span className="heard-value">{factValue(f)}</span></span>
+      <ul className="heard-facts">{facts.map((f) => <li key={f.id} data-severity={f.severity}>
+        <span className="heard-what"><span className="heard-label">{f.label}</span>
+          <span className="heard-value">{factValue(f)}</span>
+          {/* A value the medic is being asked to confirm shows its clinical severity, so an out-of-range reading is
+              obvious at the point of decision. Backend-computed and scope-gated (no colour for children/pregnancy). */}
+          {f.severity && <span className="heard-severity" data-severity={f.severity}><TriangleAlert size={12} aria-hidden />{f.severity === "critical" ? "critical" : "out of range"}</span>}
+        </span>
         <span className="heard-actions">
           <ActionButton pendingKey={`confirm:${f.id}`} onClick={() => api.confirm(f.id)} busyText="Saving…" variant={held ? "primary" : undefined}>Confirm</ActionButton>
           <CorrectFactDialog fact={f} />

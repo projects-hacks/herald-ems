@@ -44,18 +44,27 @@ class Projector:
             inc.news2_history.append({"ts": utcnow().isoformat(), "score": n["score"],
                                       "complete": n["complete"], "band": n["band"]})
 
-    def fact_view(self, f: Fact) -> dict:
+    def fact_view(self, f: Fact, vitals_applicable: bool = True) -> dict:
         d = f.model_dump(mode="json")
         d["label"] = self.vocab.label(f.key)
         d["unit"] = f.unit or self.vocab.meta(f.key).get("unit")
         # Absolute clinical severity of this value, so the screen can colour an abnormal-but-steady reading, not only
         # a changing one (config/vital_ranges.yaml). None for everything that has no coloured band (non-vitals,
         # diastolic BP, mid-range values); the field is only added when there is a severity to show, so the snapshot
-        # shape for non-vitals is unchanged.
-        severity = self.vital_ranges.severity(f.key, f.value)
+        # shape for non-vitals is unchanged. `vitals_applicable` withdraws the colouring for the patients the adult
+        # NEWS2 chart is not valid for (paediatric, documented pregnancy) -- see VitalRanges.severity.
+        severity = self.vital_ranges.severity(f.key, f.value, applicable=vitals_applicable)
         if severity:
             d["severity"] = severity
         return d
+
+    def _vitals_applicable(self, results: dict) -> bool:
+        """Whether the adult NEWS2-derived severity colouring applies to this patient. It withdraws for exactly the
+        patients NEWS2 itself withdraws for: `excluded` means paediatric or documented pregnancy (config/scores/
+        news2.yaml applicability). `incomplete` (age not yet known) still colours, because before an age is spoken
+        the working assumption on an EMS call is an adult and an out-of-range value is worth flagging; the moment a
+        paediatric age arrives the colouring withdraws."""
+        return results.get("news2", {}).get("applicability") != "excluded"
 
     # ---------- the picture ----------
     def snapshot(self, inc) -> dict:
@@ -70,12 +79,13 @@ class Projector:
             alert_ids = self.checklists.active(inc.dispatch, complaint, all_vals, results_all)
             readiness, items = self._readiness(alert_ids, vals, all_vals, results, results_all, started)
             missing, unknown = self._needs_attention(readiness, items, alert_ids, vals, all_vals, results)
-            changed = self._trends(inc)
+            vitals_applicable = self._vitals_applicable(results_all)
+            changed = self._trends(inc, vitals_applicable)
             alerts = self._alerts(inc, changed, results, county, vals)
             summary = " ".join([str(all_vals["patient.age"])] if "patient.age" in all_vals else [])
             if "patient.sex" in all_vals:
                 summary = f"{summary} {str(all_vals['patient.sex']).upper()[:1]}".strip()
-            latest = {f.key: self.fact_view(f) for f in inc.facts if f.status != Status.rejected}
+            latest = {f.key: self.fact_view(f, vitals_applicable) for f in inc.facts if f.status != Status.rejected}
             # event keys (vocabulary merge "each": a dose given, a procedure) keep every event, in order; `facts`
             # still holds the latest one per key for screens that show one value
             events = {k: [self.fact_view(f) for f in inc.facts if f.key == k and f.status != Status.rejected]
@@ -162,7 +172,7 @@ class Projector:
         return [f for f in inc.history(key)
                 if f.status == Status.confirmed or self.trends.counts_unconfirmed(f.captured_by.value)]
 
-    def _trends(self, inc) -> list[dict]:
+    def _trends(self, inc, vitals_applicable: bool = True) -> list[dict]:
         changed = []
         for key in self.trends.keys():
             h = self._trend_points(inc, key)
@@ -170,7 +180,7 @@ class Projector:
                 series = [f.value for f in h]
                 waiting = [f for f in h if f.status != Status.confirmed]
                 direction = "up" if series[-1] > series[-2] else ("down" if series[-1] < series[-2] else "flat")
-                latest_severity = self.vital_ranges.severity(key, series[-1])
+                latest_severity = self.vital_ranges.severity(key, series[-1], applicable=vitals_applicable)
                 row = {"key": key, "label": self.vocab.label(key), "series": series,
                        "times": [(f.provenance.observed_at or f.ts).isoformat() for f in h], "delta": series[-1] - series[0],
                        "direction": direction,

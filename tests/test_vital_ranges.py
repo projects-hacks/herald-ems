@@ -62,6 +62,15 @@ def test_a_key_with_no_bands_is_neutral(ranges):
     assert ranges.severity("vitals.not_a_vital", 5) is None
 
 
+def test_severity_withdraws_when_not_applicable(ranges):
+    """The adult NEWS2-derived colouring must withdraw for the patients NEWS2 itself excludes (paediatric,
+    documented pregnancy). A value that would be critical for an adult shows NO severity when applicable is False,
+    because a paediatric HR of 120 is normal and a red tuned to adults would be actively wrong."""
+    for key, value in [("vitals.spo2", 84), ("vitals.hr", 135), ("vitals.rr", 6), ("vitals.sbp", 85)]:
+        assert ranges.severity(key, value, applicable=True) is not None      # abnormal for an adult
+        assert ranges.severity(key, value, applicable=False) is None         # withdrawn for the excluded patient
+
+
 def test_every_boundary_lands_in_exactly_one_band(ranges):
     """No overlap and no gap: sweeping across each vital's boundaries, severity changes only at the documented edges,
     and a value never matches two bands (the engine returns the first, so a duplicate would be a silent config error)."""

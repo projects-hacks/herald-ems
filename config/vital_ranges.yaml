@@ -11,6 +11,17 @@
 #     the model work; this is the UI-review finding, owner sign-off 2026-09-25).
 #   - THIS file is absolute clinical SEVERITY: where a value sits, regardless of whether it moved.
 #
+# SCOPE, and how it withdraws (this is a GENERIC EMS copilot, not a stroke tool). These bands are the ADULT NEWS2
+# ranges. RCP does not validate NEWS2 for children or documented pregnancy, and NEWS2 uses a different SpO2 target
+# for hypercapnic (scale-2) patients such as COPD on controlled oxygen. So this colouring WITHDRAWS for exactly the
+# patients NEWS2 itself withdraws for: herald/core/vital_severity.py takes an `applicable` gate, and the snapshot
+# passes it from the live NEWS2 applicability (config/scores/news2.yaml) -- when NEWS2 is `excluded` (age < 16 or
+# pregnancy_weeks present), no vital is coloured, because a red tuned to adults is actively wrong for a child (a
+# paediatric HR of 120 is normal) or a woman whose obstetric physiology differs. Silence is the safe failure; a
+# wrong colour is not. KNOWN GAP, recorded not hidden: there is no scale-2 (COPD target 88-92%) handling yet, so a
+# hypercapnic patient on target oxygen would still read amber on SpO2; there is no fact on this vehicle that marks a
+# patient as scale-2, so it cannot be gated on until one exists. Documented for the clinical reviewer.
+#
 # The boundaries are taken from the SAME published NEWS2 chart the score on the screen already uses
 # (config/scores/news2.yaml), so a tile's colour can never contradict the NEWS2 band beside it. `critical` is the
 # value range that scores NEWS2's maximum 3 points for that parameter; `abnormal` is the range that scores 1-2. A
