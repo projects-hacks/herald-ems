@@ -1,4 +1,4 @@
-import { activeSync, allFacts, clinicianReceipt } from "@/lib/selectors";
+import { activeSync, allFacts, clinicianReceipt, reconciled, reconciledDuplicates } from "@/lib/selectors";
 import { useHerald } from "@/lib/store";
 
 /** Counts belong to the active patient; a system acknowledgment is not a clinician receipt. */
@@ -10,11 +10,13 @@ export function RelaySummary() {
     { label: "Queued fields", value: sync.filter((status) => status === "queued").length, tone: "queued" },
     { label: "Held for review", value: s ? allFacts(s).filter((fact) => fact.status === "unconfirmed").length : 0, tone: "held" },
   ];
+  const dupes = s ? reconciledDuplicates(s) : null;
   return <div className="handoff-summary">
     <p>{!s ? "Waiting for relay status" : s.relay.authorized ? "Sharing authorized" : "Sharing not authorized · confirmed facts stay on this vehicle"}</p>
     <dl className="relay-summary" aria-label="Active patient sharing status">
       {counts.map(({ label, value, tone }) => <div key={tone} data-state={tone}><dt>{label}</dt><dd>{s ? value : "—"}</dd></div>)}
     </dl>
+    {s && reconciled(s) && <p className="workspace-caption" role="status">Reconciled{dupes !== null ? ` · ${dupes} duplicate${dupes === 1 ? "" : "s"} resent by a retry, ignored by the receiving system` : ""}.</p>}
     <p className="workspace-caption">Raw audio, photos and unverified facts stay on this vehicle. Delivery confirms system receipt; {s ? clinicianReceipt(s) : "clinician receipt unknown"}.</p>
   </div>;
 }

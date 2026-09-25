@@ -149,6 +149,11 @@ export function reconciled(s: Snapshot): boolean {
   return !!r.authorized && r.link === "good" && !r.pending.some((p) => patientPacket(s, p.patient)) && Object.values(activeSync(s)).every((v) => v === "sent")
     && r.log.some((l) => patientPacket(s, l.patient) && l.tier === "full" && l.result === "acked");
 }
+/** P3.2: the ED's own count of sequence numbers it told the vehicle it already had — never estimated from a
+ * sequence gap. Older recorded fixtures may predate this field, so it is optional; absent means unknown. */
+export function reconciledDuplicates(s: Snapshot): number | null {
+  return typeof s.relay.duplicates_acked === "number" ? s.relay.duplicates_acked : null;
+}
 
 // ---------- patient picture groups (§3.1.9) ----------
 export const GROUPS: [string, (key: string) => boolean][] = [

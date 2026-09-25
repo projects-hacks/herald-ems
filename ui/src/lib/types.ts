@@ -148,7 +148,7 @@ export interface RelayStatus {
   authorized: { destination: string; scope: string; at: string } | null;
   link: LinkState; pending: { patient?: string; key: string; priority: number; why: string }[];
   sync: Record<string, "sent" | "queued">; bytes_sent: number; local_bytes: number;
-  kept_local_pct: number; packets_acked: number; retries: number; last_ack_at: string | null;
+  kept_local_pct: number; packets_acked: number; retries: number; duplicates_acked?: number; last_ack_at: string | null;
   clinician_acknowledgements?: Record<string, { at: string; status: "received" | "cath_lab_activated"; note?: string | null }[]>;
   log: RelayLogEntry[];
 }

@@ -29,6 +29,33 @@ describe("handoff claims", () => {
     expect(screen.getByRole("region", { name: "Read-aloud handoff" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Download handoff draft" })).toBeTruthy();
   });
+  it("shows a reconciled counter with a real duplicate count once the ED is caught up (P3.2)", () => {
+    const s = structuredClone(snapshot);
+    s.relay = {
+      ...s.relay, configured: true, link: "good", pending: [],
+      authorized: { destination: "Valley Medical", scope: "stroke pre-alert set", at: "now" },
+      sync: Object.fromEntries(Object.keys(s.relay.sync).map((k) => [k, "sent"])),
+      log: [{ ts: "now", seq: 1, tier: "full", bytes: 100, keys: [], why: [], removed: [], queued_after: 0, result: "acked", patient: s.incident.id }],
+      duplicates_acked: 2,
+    };
+    useHerald.setState({ snapshot: s });
+    render(<HandoffPage />);
+    expect(screen.getByText(/reconciled · 2 duplicates/)).toBeTruthy();
+  });
+  it("omits the duplicate count, rather than guessing, when an older snapshot predates the field", () => {
+    const s = structuredClone(snapshot);
+    s.relay = {
+      ...s.relay, configured: true, link: "good", pending: [],
+      authorized: { destination: "Valley Medical", scope: "stroke pre-alert set", at: "now" },
+      sync: Object.fromEntries(Object.keys(s.relay.sync).map((k) => [k, "sent"])),
+      log: [{ ts: "now", seq: 1, tier: "full", bytes: 100, keys: [], why: [], removed: [], queued_after: 0, result: "acked", patient: s.incident.id }],
+    };
+    delete s.relay.duplicates_acked;
+    useHerald.setState({ snapshot: s });
+    render(<HandoffPage />);
+    expect(screen.getByRole("region", { name: "Read-aloud handoff" })).toBeTruthy();
+    expect(screen.queryByText(/reconciled ·/)).toBeNull();
+  });
   it("shows the recorded scenario's snapshot report expanded in replay mode, not an unavailable notice", () => {
     useHerald.setState({ snapshot: structuredClone(snapshot), source: "fixture" });
     render(<HandoffPage />);
