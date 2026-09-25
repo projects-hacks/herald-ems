@@ -93,15 +93,32 @@ manual observations ─┘           trends · clocks · NEWS2 · RACE · G.F.A.
 
 ## Run it
 
+**The one rebuild path, clean clone to running app, on the ZGX Nano (aarch64, GB10, CUDA 13), in the `zgx`
+conda env:**
+
 ```bash
-# on the ZGX Nano, in the `zgx` conda env (torch 2.14 + CUDA 13)
-pip install -r requirements.txt
-python scripts/build_rxnorm_index.py         # RxNorm drug-name index (public NLM download + RxNav brand names) -> data/terminology/
-scripts/serve_models.sh                       # qwen3vl-fp8 (photos) + ems-e-v2-fp8 (extraction) via HP Z Runtime on :8080
+git clone <this repo> && cd herald-ems
+scripts/setup.sh                              # checks the platform, installs requirements.txt (pinned
+                                               # against the env's torch/transformers so pip can't move them),
+                                               # builds ui/dist (npm ci && npm run build, needs node >= 22 --
+                                               # `--skip-ui` to skip), builds the RxNorm drug-name index
+                                               # (public NLM download + RxNav brand names) -> data/terminology/
+                                               # (`--skip-rxnorm` to skip), and runs the test suite. Idempotent;
+                                               # re-run any time. It does NOT start any model server -- see below.
+scripts/serve_models.sh                       # qwen3vl-fp8 (photos, reranking, figures, translation) +
+                                               # ems-e-v2-fp8 (speech -> facts) via HP Z Runtime on :8080;
+                                               # needs ~/.config/herald/secrets.env (HF_TOKEN/HF_REPO_ID) for
+                                               # the private fine-tuned repo -- see CONTRIBUTING.md
 HERALD_LLM_MODEL=ems-e-v2-fp8 HERALD_VISION_MODEL=qwen3vl-fp8 PORT=8100 scripts/run_dev.sh
 ```
 
 Open `http://localhost:8100`. Browsers only allow the microphone on `localhost` or HTTPS, so from a laptop, forward the port first (`ssh -L 8100:localhost:8100 <user>@<nano>`). Hold **Space** to talk as the medic, and **F** for a patient or family member.
+
+**Containerized alternative:** `docker compose up --build herald` builds `ui/dist` and pre-fetches the public
+STT/embedding weights (Whisper large-v3-turbo, bge-base-en-v1.5) into the image in one `docker build`, so it
+needs no separate npm or model-download step — but it still expects `scripts/serve_models.sh` running on the
+host first (ZRT/the fine-tuned models are not containerized; see the Dockerfile's top comment and
+`docker-compose.yml`). `docker compose --profile full up --build` also starts the mock ED receiver.
 
 For continuous observation, choose **Start listening** and **Camera → Start monitor watch**, granting each device explicitly. Adjust the monitor region and return to the overview; camera capture continues across care pages. Hiding the browser tab, changing patient or losing the connection stops the camera. For a second-laptop equipment simulation, open `/monitor.html`, start its synthetic journey and point the observing camera at that display. It sends no facts directly to Herald. Real inference must use an approved serving instance; see the capture setup above.
 
