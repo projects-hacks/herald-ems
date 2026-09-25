@@ -151,8 +151,10 @@ def select_gates(cfg: dict, level: dict, want_gates: set | None = None,
 
 def job_cmd(cfg: dict, gate: dict, level: dict, dump: Path) -> list[str]:
     """The exact argv for one bench run: run_job.py wrapping the bench (MEMORY_SAFETY §4, never the bench alone)."""
-    cmd = [str(ROOT / "scripts" / "run_job.py"), "--name", f"gate-{gate['id']}", "--need-gib", str(cfg["need_gib"]),
-           "--wait", "1800", "--", sys.executable]
+    # run_job.py must be invoked with THIS interpreter, not via its shebang: the shebang resolves to the system
+    # python3, which has no yaml, so every gate died with ModuleNotFoundError before reaching the bench.
+    cmd = [sys.executable, str(ROOT / "scripts" / "run_job.py"), "--name", f"gate-{gate['id']}",
+           "--need-gib", str(cfg["need_gib"]), "--wait", "1800", "--", sys.executable]
     return cmd + [c.format(label=level["label"], dump=str(dump)) for c in gate["cmd"]]
 
 

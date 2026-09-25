@@ -1,0 +1,106 @@
+# The demo condition: a camera pointed at a LARGE, BRIGHT laptop screen running the monitor simulator.
+#
+# Why this set exists. We had two data points and neither was the demo: `monitor_01_dark.jpg` is a clean render with
+# `degradations: []` (read 6/6), and `data/photos/real/` is 2021 phone photos of a fingertip oximeter (58% of photos
+# fully correct, with fabrication). Pointing a camera at a laptop screen is a third thing: the display is big, bright
+# and high-contrast, but the camera adds moire between the pixel grid and the sensor, a specular highlight from room
+# lighting, keystone from being held at an angle, and hand blur. None of the existing monitor specs STACK those.
+#
+# The values are deliberately the same across the set, so the only variable is the degradation. `light` style is the
+# bright, high-contrast case the reviewer asked about; `dark` is the simulator's default theme.
+#
+#   python eval/photos/make_photos.py --specs eval/photos/specs_camera_screen.yaml --out-dir eval/photos/camera_screen
+#
+# Gold comes from the rendering parameters only, never from a model (make_photos.py).
+seed: 4271
+canvas: [1024, 768]          # same canvas as the main set, so only the camera differs
+jpeg_quality: 90            # the per-item `jpeg` degradation is what varies, not this
+items:
+  # ---- baseline: the same layout with no camera at all, to separate "layout" from "camera" ----
+  - id: cam_00_clean_light
+    device: bedside_monitor
+    style: light
+    mode: monitor
+    values: {vitals.hr: 96, vitals.spo2: 94, vitals.sbp: 148, vitals.dbp: 88, vitals.rr: 22, vitals.temp: 38.2}
+    temp_unit: C
+    degrade: []
+
+  # ---- one degradation at a time, so a failure can be attributed ----
+  - id: cam_01_moire_light
+    device: bedside_monitor
+    style: light
+    mode: monitor
+    values: {vitals.hr: 96, vitals.spo2: 94, vitals.sbp: 148, vitals.dbp: 88, vitals.rr: 22, vitals.temp: 38.2}
+    temp_unit: C
+    degrade: [{kind: moire, period: 9, angle: 12, strength: 0.22}]
+
+  - id: cam_02_glare_light
+    device: bedside_monitor
+    style: light
+    mode: monitor
+    values: {vitals.hr: 96, vitals.spo2: 94, vitals.sbp: 148, vitals.dbp: 88, vitals.rr: 22, vitals.temp: 38.2}
+    temp_unit: C
+    degrade: [{kind: glare, at: [0.62, 0.30], size: 0.30, strength: 0.72}]
+
+  - id: cam_03_angle_light
+    device: bedside_monitor
+    style: light
+    mode: monitor
+    values: {vitals.hr: 96, vitals.spo2: 94, vitals.sbp: 148, vitals.dbp: 88, vitals.rr: 22, vitals.temp: 38.2}
+    temp_unit: C
+    degrade: [{kind: perspective, strength: 0.16}]
+
+  # ---- stacked: handheld camera on a bright screen, which is what the demo actually is ----
+  - id: cam_04_handheld_light
+    device: bedside_monitor
+    style: light
+    mode: monitor
+    values: {vitals.hr: 96, vitals.spo2: 94, vitals.sbp: 148, vitals.dbp: 88, vitals.rr: 22, vitals.temp: 38.2}
+    temp_unit: C
+    degrade:
+      - {kind: moire, period: 9, angle: 12, strength: 0.20}
+      - {kind: glare, at: [0.62, 0.30], size: 0.28, strength: 0.65}
+      - {kind: perspective, strength: 0.14}
+      - {kind: blur, radius: 1.1}
+      - {kind: jpeg, quality: 78}
+
+  - id: cam_05_handheld_dark
+    device: bedside_monitor
+    style: dark
+    mode: monitor
+    values: {vitals.hr: 96, vitals.spo2: 94, vitals.sbp: 148, vitals.dbp: 88, vitals.rr: 22, vitals.temp: 38.2}
+    temp_unit: C
+    degrade:
+      - {kind: moire, period: 9, angle: 12, strength: 0.20}
+      - {kind: glare, at: [0.62, 0.30], size: 0.28, strength: 0.65}
+      - {kind: perspective, strength: 0.14}
+      - {kind: blur, radius: 1.1}
+      - {kind: jpeg, quality: 78}
+
+  # ---- the bad-but-plausible case: further away, steeper angle, more shake ----
+  - id: cam_06_worst_light
+    device: bedside_monitor
+    style: light
+    mode: monitor
+    values: {vitals.hr: 96, vitals.spo2: 94, vitals.sbp: 148, vitals.dbp: 88, vitals.rr: 22, vitals.temp: 38.2}
+    temp_unit: C
+    degrade:
+      - {kind: moire, period: 7, angle: 24, strength: 0.30}
+      - {kind: glare, at: [0.48, 0.38], size: 0.36, strength: 0.80}
+      - {kind: perspective, strength: 0.22}
+      - {kind: motion_blur, length: 7}
+      - {kind: jpeg, quality: 62}
+
+  - id: cam_07_worst_dark
+    device: bedside_monitor
+    style: dark
+    mode: monitor
+    values: {vitals.hr: 96, vitals.spo2: 94, vitals.sbp: 148, vitals.dbp: 88, vitals.rr: 22, vitals.temp: 38.2}
+    temp_unit: C
+    degrade:
+      - {kind: moire, period: 7, angle: 24, strength: 0.30}
+      - {kind: glare, at: [0.48, 0.38], size: 0.36, strength: 0.80}
+      - {kind: perspective, strength: 0.22}
+      - {kind: motion_blur, length: 7}
+      - {kind: low_light, level: 0.72}
+      - {kind: jpeg, quality: 62}

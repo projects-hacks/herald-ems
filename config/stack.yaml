@@ -5,6 +5,19 @@ models:
      component: text_model, role: "speech-to-facts extraction (fine-tuned on this box, served in FP8)"}
   - {id: "Qwen/Qwen3-VL-30B-A3B-Instruct-FP8 (Apache-2.0)", served_as: "qwen3vl-fp8", component: vision_model,
      role: "photo reading (monitors, pill bottles, forms)"}
+  # Run F: ONE Qwen3-VL-30B-A3B + merged LoRA doing speech, photos, reranking, figures and translation. It is listed
+  # for both components because the same label serves both: /api/stack computes status per component from the label
+  # actually being served, so without this entry a box serving herald-f reported BOTH shipped models as
+  # "not served (serving herald-f)" on the AI-stack screen -- found during app integration, 2026-09-25.
+  - {id: "rajeev-chaurasia/herald-extractor-lora-merged-f (Qwen3-VL-30B-A3B + LoRA, run F epoch 2)",
+     served_as: "herald-f", component: text_model,
+     role: "speech-to-facts extraction (fine-tuned on this box, served in FP8)"}
+  - {id: "rajeev-chaurasia/herald-extractor-lora-merged-f (Qwen3-VL-30B-A3B + LoRA, run F epoch 2)",
+     served_as: "herald-f", component: vision_model,
+     role: "photo reading (monitors, pill bottles, forms)"}
+  - {id: "rajeev-chaurasia/herald-extractor-lora-merged-f4b (Qwen3-4B-Instruct-2507 + LoRA, run F 4B)",
+     served_as: "herald-f4b-fp8", component: text_model,
+     role: "speech-to-facts extraction, the text-only fallback (TRAINING_PLAN §7)"}
 services:
   - {name: Deterministic scoring engine, detail: "NEWS2, RACE, G.F.A.S.T., 2021 field triage; published tables as reviewed data, unit-tested"}
   - {name: Gap-first alert checklists, detail: "stroke / STEMI pre-alert readiness from county configuration"}

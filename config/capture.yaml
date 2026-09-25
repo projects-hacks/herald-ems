@@ -22,7 +22,14 @@ rate:
 monitor:
   roi_margin: 0.10          # Ten percent of ROI width/height on each side, clipped to image.
   stable_frames: 2          # Two successive usable ROI frames before automatic monitor reading.
-  min_interval_s: 15        # Minimum interval between monitor-watch reads.
+  min_interval_s: 30        # Minimum interval between monitor-watch reads. Raised 15 -> 30 (owner, 2026-09-25)
+                            # from MEASURED CONTENTION, not from a clinical rule: on one served 30B a monitor read
+                            # takes 5.4 s alone and 7.2 s while speech is being processed, and the speech leg goes
+                            # 3.3 s -> 6.6 s against an ~8 s ambient clip cadence (scripts/measure_capture_overlap.py).
+                            # At 15 s the camera was busy ~40% of the time, so most clips paid the contended cost and
+                            # sat at an 83% duty cycle; at 30 s it is ~18%. Vitals do not change meaningfully in
+                            # fifteen seconds, so the clinical cost is nil -- but if the contention changes (a second
+                            # served model, a faster read), this number is the one to revisit, not a safety limit.
   max_interval_s: 60        # Permit a repeat point after a minute, even if values are unchanged.
   # gate: the monitor-watch gate profile. These values REPLACE the matching keys of the global `gate:` block when the
   # agent assesses the camera ROI for monitor-watch. The global values stay as they are: they protect the one-shot
