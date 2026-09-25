@@ -88,7 +88,7 @@ export function PreAlertCard({ className }: { className?: string }) {
         ) : (
           <p className="text-body text-text-muted">No pre-alert checklist for this dispatch yet.</p>
         )}
-        <div className="flex flex-col gap-2.5 rounded-[14px] border border-border-subtle p-3">
+        <div className="flex flex-col gap-2.5 rounded-[18px] bg-surface-2 p-3.5">
           <div className="flex items-center gap-2">
             <h3 className="label-caps shrink-0 text-text-muted">ED sync</h3>
             {relay.authorized && (

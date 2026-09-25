@@ -21,10 +21,19 @@ class Settings(BaseModel):
     llm_url: str = "http://127.0.0.1:8080/v1"
     llm_model: Optional[str] = None               # extraction model label; None = first model the server lists
     vision_model: Optional[str] = "qwen3vl-fp8"   # photo reading needs a vision model (the fine-tune is text-only)
+    knowledge_model: Optional[str] = None         # split stack (TRAINING_PLAN §7a): the label that does protocol
+                                                  # reranking, figure transcription and translation. None (default) =
+                                                  # the same client as photo reading, which is today's single-model
+                                                  # stack. Set it only when a fine-tune wins speech and photos but
+                                                  # loses the base model's kept abilities. One URL serves both: the
+                                                  # ZRT proxy routes by label on 127.0.0.1:8080 (proxy.json), so no
+                                                  # second endpoint setting is needed.
     metrics_url: str = "http://127.0.0.1:8080/metrics"
     finetuned_models: tuple[str, ...] = ("ems",)  # labels that take the fine-tuned prompt (plus any "ems-*")
     stt_model: str = "openai/whisper-large-v3-turbo"
     warm_stt: bool = True
+    stt_preload: bool = False                     # load Whisper before serving (demo): memory claimed up front, a
+                                                  # failed load stops startup (docs/MEMORY_SAFETY.md)
     models_offline: bool = True                   # load local models from their folders; never contact a model hub
     # patient state
     auto_confirm: Optional[float] = None        # None = config/confirmation.yaml (calibrated per model)
@@ -48,6 +57,9 @@ class Settings(BaseModel):
     protocol_mirror: Optional[str] = None        # base URL of a document mirror: <mirror>/<county>/<doc_id>.pdf
     # drug and allergen names -> RxNorm (S6); the index is built by scripts/build_rxnorm_index.py
     terminology: bool = True
+    # memory guard (scripts/memguard.py) status, shown in /api/health
+    memguard_status: Path = Path.home() / ".local/state/herald/memguard.json"
+    memguard_stale_s: float = 5.0                 # heartbeat older than this = the guard is not running
     # cost-comparison overrides (defaults in config/telemetry.yaml)
     price_overrides: dict[str, float] = {}
 
@@ -96,10 +108,12 @@ class Settings(BaseModel):
             llm_url=e.get("HERALD_LLM_URL", cls.model_fields["llm_url"].default),
             llm_model=opt("HERALD_LLM_MODEL"),
             vision_model=e.get("HERALD_VISION_MODEL", cls.model_fields["vision_model"].default) or None,
+            knowledge_model=opt("HERALD_KNOWLEDGE_MODEL"),
             metrics_url=e.get("HERALD_ZRT_METRICS", cls.model_fields["metrics_url"].default),
             finetuned_models=tuple(m.strip() for m in e.get("HERALD_FINETUNED_MODELS", "ems").split(",") if m.strip()),
             stt_model=e.get("HERALD_STT_MODEL", cls.model_fields["stt_model"].default),
             warm_stt=e.get("HERALD_WARM_STT", "1") == "1",
+            stt_preload=e.get("HERALD_STT_PRELOAD", "0") == "1",
             models_offline=e.get("HERALD_MODELS_OFFLINE", "1") == "1",
             auto_confirm=float(e["HERALD_AUTO_CONFIRM"]) if e.get("HERALD_AUTO_CONFIRM") else None,
             guard_policy=e.get("HERALD_GUARD_POLICY", "unconfirm"),
@@ -115,6 +129,9 @@ class Settings(BaseModel):
             knowledge=e.get("HERALD_KNOWLEDGE", "1") == "1",
             protocol_mirror=opt("HERALD_PROTOCOL_MIRROR"),
             terminology=e.get("HERALD_TERMINOLOGY", "1") == "1",
+            memguard_status=Path(e["HERALD_MEMGUARD_STATUS"]) if e.get("HERALD_MEMGUARD_STATUS")
+            else cls.model_fields["memguard_status"].default,
+            memguard_stale_s=float(e.get("HERALD_MEMGUARD_STALE_S") or 5.0),
             price_overrides=prices,
         )
         return cls(**fields)

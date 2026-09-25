@@ -1,0 +1,51 @@
+# Number words by language: how numbers are said, so the grounding validator (config/grounding.yaml,
+# herald/extraction/numbers.py) can check that a number the model wrote was actually said. This is measurement data
+# for a safety check that only ever drops a fact, never an extraction word list. A language is added by adding a
+# block here and naming it in grounding.yaml's `spoken_numbers.languages`.
+#
+# Tables (every table is optional except units/teens/tens):
+#   units    single digits (also the digits after a decimal point)
+#   teens    words that alone are a number below 100 and never take a following unit ("fifteen", "veintidós")
+#   tens     multiples of ten that may take a following unit ("forty two", "cuarenta y dos")
+#   hundred  multiplier words after a unit ("two hundred")
+#   hundreds words that alone are a multiple of 100 and may take a number below 100 after them ("ciento ochenta")
+#   thousand multiplier words ("four thousand", "dos mil")
+#   bare_thousand  true when the thousand word alone means 1000 ("mil quinientos" = 1500)
+#   point    decimal point words; joiners: words allowed inside a number ("a hundred and ten", "treinta y dos")
+#   one      words for "one" that count only before a multiplier ("a hundred")
+#   half     words for one half after a joiner ("treinta y siete y medio" = 37.5)
+#   fold_accents  true: accents are ignored when matching words (Whisper writes "veintidós" or "veintidos")
+#   not_alone  number words that are also everyday words of another listed language: they count only next to another
+#              number word ("ciento once" 111), never alone (English "once a day", "two mil" are not 11 or 1000).
+#              Alone they are dropped, the safe side for a check that only drops facts.
+en:
+  units: {zero: 0, oh: 0, o: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9}
+  teens: {ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
+          eighteen: 18, nineteen: 19}
+  tens: {twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90}
+  hundred: [hundred]
+  thousand: [thousand]
+  point: [point]
+  joiners: [and]
+  one: [a, an]                     # "a hundred and ten"
+# Spanish as spoken in Mexico (Real Academia Española, "Numerales cardinales", Diccionario panhispánico de dudas):
+# 16-19 and 21-29 are single words, other tens join a unit with "y" ("treinta y dos"), "cien" alone and "ciento" before
+# a smaller number, 200-900 are single words, "mil" alone is 1000. Decimals are said with "punto" in Mexico ("treinta
+# y siete punto cinco"), "coma" elsewhere; a half is "y medio" ("treinta y ocho y medio" = 38.5).
+es:
+  fold_accents: true
+  units: {cero: 0, uno: 1, un: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9}
+  teens: {diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciséis: 16, diecisiete: 17,
+          dieciocho: 18, diecinueve: 19, veintiuno: 21, veintiún: 21, veintiuna: 21, veintidós: 22, veintitrés: 23,
+          veinticuatro: 24, veinticinco: 25, veintiséis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29}
+  tens: {veinte: 20, treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90}
+  hundreds: {cien: 100, ciento: 100, doscientos: 200, doscientas: 200, trescientos: 300, trescientas: 300,
+             cuatrocientos: 400, cuatrocientas: 400, quinientos: 500, quinientas: 500, seiscientos: 600,
+             seiscientas: 600, setecientos: 700, setecientas: 700, ochocientos: 800, ochocientas: 800,
+             novecientos: 900, novecientas: 900}
+  thousand: [mil]
+  bare_thousand: true
+  point: [punto, coma]
+  joiners: [y]
+  half: [medio, media]
+  not_alone: [once, mil, coma]    # English "once a day", "five hundred mil", "diabetic coma"

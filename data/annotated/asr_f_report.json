@@ -1,0 +1,229 @@
+{
+ "speech": "Piper TTS voices (not human speech), synthetic cabin noise, production Whisper path",
+ "clips": 1500,
+ "kept": 1299,
+ "wer": {
+  "snr15": {
+   "rate": 0.106,
+   "errors": 743,
+   "n": 7007
+  },
+  "all": {
+   "rate": 0.1318,
+   "errors": 3706,
+   "n": 28118
+  },
+  "clean": {
+   "rate": 0.1296,
+   "errors": 897,
+   "n": 6923
+  },
+  "snr8": {
+   "rate": 0.1752,
+   "errors": 1270,
+   "n": 7247
+  },
+  "snr3": {
+   "rate": 0.1147,
+   "errors": 796,
+   "n": 6941
+  }
+ },
+ "number_error": {
+  "snr15": {
+   "rate": 0.091,
+   "errors": 71,
+   "n": 780
+  },
+  "all": {
+   "rate": 0.0951,
+   "errors": 306,
+   "n": 3218
+  },
+  "clean": {
+   "rate": 0.1138,
+   "errors": 95,
+   "n": 835
+  },
+  "snr8": {
+   "rate": 0.1042,
+   "errors": 87,
+   "n": 835
+  },
+  "snr3": {
+   "rate": 0.069,
+   "errors": 53,
+   "n": 768
+  }
+ },
+ "drug_error": {
+  "snr15": {
+   "rate": 0.4375,
+   "errors": 28,
+   "n": 64
+  },
+  "all": {
+   "rate": 0.4533,
+   "errors": 102,
+   "n": 225
+  },
+  "snr3": {
+   "rate": 0.4746,
+   "errors": 28,
+   "n": 59
+  },
+  "snr8": {
+   "rate": 0.4912,
+   "errors": 28,
+   "n": 57
+  },
+  "clean": {
+   "rate": 0.4,
+   "errors": 18,
+   "n": 45
+  }
+ },
+ "drug_misrecognitions_top20": [
+  [
+   "metoprolol -> metaprolol",
+   11
+  ],
+  [
+   "apixaban -> a pixabin",
+   4
+  ],
+  [
+   "rivaroxaban -> river rock 7",
+   4
+  ],
+  [
+   "lisinopril -> lisinoprol",
+   3
+  ],
+  [
+   "amlodipine -> amlidipine",
+   2
+  ],
+  [
+   "lisinopril -> roll",
+   2
+  ],
+  [
+   "fentanyl -> fentanyl roman",
+   1
+  ],
+  [
+   "midazolam -> (dropped)",
+   1
+  ],
+  [
+   "ipratropium -> imbitropium",
+   1
+  ],
+  [
+   "ipratropium -> a",
+   1
+  ],
+  [
+   "lamotrigine -> lamatrogen",
+   1
+  ],
+  [
+   "sevelamer -> sevillamer",
+   1
+  ],
+  [
+   "adenosine -> adenocine",
+   1
+  ],
+  [
+   "aspirin -> aspirin prehote",
+   1
+  ],
+  [
+   "atropine -> 30",
+   1
+  ],
+  [
+   "digoxin -> 30",
+   1
+  ],
+  [
+   "metoprolol -> 30",
+   1
+  ],
+  [
+   "atorvastatin -> adorvastetin",
+   1
+  ],
+  [
+   "aspirin -> to aspirin",
+   1
+  ],
+  [
+   "amitriptyline -> amitriptalan",
+   1
+  ]
+ ],
+ "reasons": {
+  "kept": 1299,
+  "TTS artifact (IV read as a Roman numeral)": 30,
+  "unintelligible (WER > 0.5)": 25,
+  "grounding lost: vitals.glucose": 20,
+  "grounding lost: vitals.etco2": 18,
+  "grounding lost: vitals.sbp": 14,
+  "number lost: patient.age": 14,
+  "grounding lost: vitals.hr": 10,
+  "grounding lost: transport.eta_min": 7,
+  "grounding lost: meds.given": 7,
+  "grounding lost: exam.gfast.speech": 7,
+  "grounding lost: vitals.consciousness": 7,
+  "grounding lost: vitals.gcs_total": 6,
+  "grounding lost: vitals.rr": 6,
+  "grounding lost: vitals.spo2": 5,
+  "hallucination (repeats or too long)": 5,
+  "grounding lost: vitals.gcs_verbal": 4,
+  "grounding lost: exam.gfast.gaze": 3,
+  "number lost: exam.gfast": 3,
+  "grounding lost: vitals.dbp": 3,
+  "number lost: vitals.temp": 2,
+  "number lost: vitals.gcs_motor": 1,
+  "grounding lost: exam.race.leg": 1,
+  "grounding lost: exam.race.aphasia_agnosia": 1,
+  "grounding lost: code_status": 1,
+  "number lost: exam.race": 1
+ },
+ "reasons_by_condition": {
+  "snr15": {
+   "TTS artifact (IV read as a Roman numeral)": 9,
+   "kept": 325,
+   "grounding lost": 27,
+   "unintelligible (WER > 0.5)": 9,
+   "number lost": 5
+  },
+  "clean": {
+   "kept": 322,
+   "number lost": 6,
+   "grounding lost": 31,
+   "TTS artifact (IV read as a Roman numeral)": 9,
+   "hallucination (repeats or too long)": 1,
+   "unintelligible (WER > 0.5)": 6
+  },
+  "snr8": {
+   "kept": 329,
+   "grounding lost": 30,
+   "TTS artifact (IV read as a Roman numeral)": 5,
+   "hallucination (repeats or too long)": 2,
+   "number lost": 6,
+   "unintelligible (WER > 0.5)": 3
+  },
+  "snr3": {
+   "kept": 323,
+   "grounding lost": 32,
+   "TTS artifact (IV read as a Roman numeral)": 7,
+   "unintelligible (WER > 0.5)": 7,
+   "hallucination (repeats or too long)": 2,
+   "number lost": 4
+  }
+ }
+}

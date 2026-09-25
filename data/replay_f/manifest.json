@@ -1,0 +1,17 @@
+{
+ "teacher": "qwen3vl-fp8",
+ "rows": {
+  "rerank": 177,
+  "translate": 240,
+  "figure": 45
+ },
+ "dev": 46,
+ "seconds": 1587,
+ "prompt_sha256": {
+  "prompts/protocol_rerank.md": "34334535cbf0ac96",
+  "prompts/figure_transcribe.md": "4af37616fd6bb524",
+  "prompts/figure_transcribe_chart.md": "545d4b9d000da338",
+  "prompts/translate.yaml": "60094f68a4ef41c0",
+  "prompts/replay_question.md": "c1a392f0019f8680"
+ }
+}

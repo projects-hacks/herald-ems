@@ -36,10 +36,10 @@ class VisionReader:
             key, value = f.get("key"), f.get("value")
             if key is None or value in (None, "", []) or not self._plausible(key, value):
                 continue
-            prov = Provenance(photo_id=photo_id, crop=f.get("box"), extractor=tag,
+            prov = Provenance(photo_id=photo_id, crop=_box(f.get("box")), extractor=tag,
                               text=f.get("strength") and f"{value} {f['strength']}")
             common = dict(role=Role.photo, speaker=mode.replace("_", " "), captured_by=CapturedBy.camera,
-                          confidence=float(f.get("confidence", 0.8)), provenance=prov)
+                          confidence=_confidence(f.get("confidence")), provenance=prov)
             out.append(FactIn(key=key, value=value, **common))
         sbp = next((f.value for f in out if f.key == "vitals.sbp"), None)
         dbp = next((f.value for f in out if f.key == "vitals.dbp"), None)
@@ -55,3 +55,21 @@ class VisionReader:
             return lo <= float(value) <= hi
         except (TypeError, ValueError):
             return False
+
+
+def _box(box) -> Optional[list[float]]:
+    """The model's box for the reading, or None when it is not four numbers (a malformed box must not cost the
+    reading itself: the photo stays the evidence)."""
+    if isinstance(box, (list, tuple)) and len(box) == 4:
+        try:
+            return [float(x) for x in box]
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _confidence(c) -> float:
+    try:
+        return min(1.0, max(0.0, float(c)))
+    except (TypeError, ValueError):
+        return 0.8

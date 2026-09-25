@@ -33,7 +33,7 @@ describe("store", () => {
   });
 
   it("URL parameters override preferences", () => {
-    expect(initialUi("?theme=light&type=1.5&mode=explain")).toMatchObject({ theme: "light", typeScale: 1.5, mode: "explain" });
+    expect(initialUi("?theme=light&type=1.5&mode=explain&present=1")).toMatchObject({ theme: "light", typeScale: 1.5, mode: "explain", presentationMode: true });
     expect(initialUi("?type=3")).toMatchObject({ typeScale: 1 });
   });
 });

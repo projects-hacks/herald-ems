@@ -10,10 +10,10 @@ export function HandoffPage() {
   if (!s) return null;
   const r = s.relay;
   const header = <PageHeader title="ED handoff" description={r.authorized ? `Pre-alert to ${r.authorized.destination} · ${r.authorized.scope}` : "What the receiving team has, what's queued, and what stays on the vehicle."} />;
-  if (!r.configured) return <div className="flex flex-col gap-5 p-6">{header}<Card><EmptyState icon={Send} tone="neutral" title="The ED link isn't set up">Set HERALD_ED_URL on this vehicle to send pre-alerts.</EmptyState></Card></div>;
-  if (!r.authorized) return <div className="flex flex-col gap-5 p-6">{header}<Card className="max-w-md p-5"><AuthorizeForm s={s} /></Card></div>;
+  if (!r.configured) return <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-7 max-lg:p-5">{header}<Card><EmptyState icon={Send} tone="neutral" title="The ED link isn't set up">Set HERALD_ED_URL on this vehicle to send pre-alerts.</EmptyState></Card></div>;
+  if (!r.authorized) return <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-7 max-lg:p-5">{header}<Card className="max-w-md p-5"><AuthorizeForm s={s} /></Card></div>;
   return (
-    <div className="flex flex-col gap-5 p-6">
+    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-7 max-lg:p-5">
       {header}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Figure big n={h.sent} label="fields sent" tone="text-ok-fg" />

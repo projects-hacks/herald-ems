@@ -31,7 +31,7 @@ function Tile({ icon: Icon, label, value, unit, mono, quiet, badge, footer, onOp
       <span className="flex min-h-5 min-w-0 items-center gap-2 truncate text-meta text-text-muted">{footer}</span>
     </>
   );
-  const cls = "card flex min-w-0 flex-col justify-between gap-1 px-4 py-3 text-left";
+  const cls = "metric-tile flex min-w-0 flex-col justify-between gap-1 px-4 py-3.5 text-left";
   return onOpen
     ? <button type="button" onClick={onOpen} aria-label={aria} className={cn(cls, "transition-colors duration-[var(--dur-short3)] hover:border-border-control/60 hover:bg-surface-2")}>{body}</button>
     : <div className={cls} role="group" aria-label={aria}>{body}</div>;
@@ -117,7 +117,7 @@ export function StatTiles() {
   const [detail, setDetail] = useState<ScoreDetail | null>(null);
   if (!s) return null;
   return (
-    <div className="grid shrink-0 grid-cols-[repeat(auto-fit,minmax(10.5rem,1fr))] gap-3" aria-label="Clocks and scores">
+    <div className="metric-strip shrink-0" aria-label="Clocks and scores">
       <ClockTiles s={s} />
       <ScoreTiles s={s} open={setDetail} />
       <ScoreSheet d={detail} onClose={() => setDetail(null)} />

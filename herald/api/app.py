@@ -5,6 +5,8 @@ the app has no side effects (tests construct it freely)."""
 from __future__ import annotations
 
 import asyncio
+import logging
+import time
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -18,13 +20,31 @@ from .routes import capture as capture_routes
 from .routes import handoff, incident, protocols, relay, system
 
 
+log = logging.getLogger("herald")
+
+
+def preload_stt(stt) -> None:
+    """HERALD_STT_PRELOAD=1: load and warm Whisper before the server accepts requests. The demo's speech memory is
+    then claimed before anything else can take it, and a failed load stops startup instead of the first utterance."""
+    t0 = time.monotonic()
+    try:
+        getattr(stt, "warm", lambda: None)()
+    except Exception as e:
+        raise RuntimeError(f"HERALD_STT_PRELOAD: speech-to-text failed to load: {type(e).__name__}: {e}") from e
+    if not stt.ready():
+        raise RuntimeError("HERALD_STT_PRELOAD: speech-to-text is not ready after loading")
+    log.warning("speech-to-text preloaded in %.1f s", time.monotonic() - t0)
+
+
 def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
     ctx = ctx or build_context()
     hub = Hub(ctx.full_state)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        if ctx.settings.warm_stt:
+        if ctx.settings.stt_preload:                       # demo: claim Whisper's memory now; fail loudly here
+            preload_stt(ctx.stt)
+        elif ctx.settings.warm_stt:
             asyncio.get_running_loop().run_in_executor(None, getattr(ctx.stt, "warm", lambda: None))
         task = asyncio.create_task(ctx.relay.run_forever(hub.broadcast))
         ctx.telemetry.start()

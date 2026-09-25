@@ -41,7 +41,7 @@ export function PatientPage() {
   const groups = groupFacts(Object.values(s.facts));
   const rejected = s.timeline.filter((f) => f.status === "rejected");
   return (
-    <div className="flex flex-col gap-5 p-6">
+    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-7 max-lg:p-5">
       <PageHeader title="Patient" description="Every current fact, grouped, with who said it and whether it's confirmed." />
       {groups.length === 0 && <Card><EmptyState icon={UserRound} tone="neutral" title="Nothing captured yet">Facts appear here as Herald hears them.</EmptyState></Card>}
       <div className="columns-1 gap-4 md:columns-2 2xl:columns-3 [&>*]:mb-4 [&>*]:break-inside-avoid">

@@ -1,0 +1,255 @@
+# The run F gate table (docs/TRAINING_PLAN.md §6): "all must pass to lock".
+#
+# This file is the CONTENT; scripts/run_gates.py is the engine. A gate is added or retuned here, never by editing the
+# runner. Every threshold cites the line of §6 it comes from, so a number traces back to the decision that set it.
+#
+# Levels are the models being compared. They are served ONE AT A TIME (one GPU), and the runner never starts a server
+# itself: `zrt serve` runs in the foreground and dies with the shell that launched it (AGENTS.md pitfalls), so the
+# runner checks whether the label answers and otherwise stops with the exact command to run detached.
+#
+# "Every deciding number is run 3 times and the spread is reported" (HARD RULE 3). The runner reports median and
+# spread, and compares medians against the group's baseline level.
+#
+# Metric names are the real keys the benches print, verified against the code:
+#   eval/bench_extract.py        -> one JSON line: f1, precision, recall, role_acc, gfast_f1, free_text_presence_f1,
+#                                   groups.<name>.{precision,recall,f1}, latency_ms_p50, latency_ms_p95
+#   eval/adversarial_bench.py    -> one line per run: items, passed, failures
+#   eval/calibrate_confidence.py -> a header line, then one line per threshold: threshold, auto_confirmed, wrong_auto
+#   eval/vision_bench.py         -> one line per task, tagged bench: "vision:<task>"
+#       vision:photos    f1, precision, recall, strict_f1, false_fact_images (= invented facts), exact_image_acc,
+#                        strength_acc, json_invalid, errors, latency_ms_p50, latency_ms_p95
+#       vision:rerank    top1, top3, top1_given_retrieved, refusal_on_unanswerable, retrieval_ceiling, latency_ms_p50
+#                        (these are RATES, so §6's 41/52, 43/52 and 4/7 appear here as 0.788, 0.827 and 0.571)
+#       vision:flowchart node_recall, edge_recall, added_word_rate, unsupported_steps
+
+runs: 3
+report_dir: runs/gates
+results: runs/gates/results.jsonl
+need_gib: 6                       # a bench holds no weights; it calls the served model over HTTP
+endpoint: http://127.0.0.1:8080/v1
+
+levels:
+  # ---- the reference stack that run F has to beat, or at least not lose to ----
+  e-v2:
+    label: ems-e-v2-fp8
+    serve: ems                    # scripts/serve_models.sh ems
+    groups: [speech]
+    baseline_for: [speech]        # §6 "not worse than E v2"
+  untuned-vision:
+    label: qwen3vl-fp8
+    serve: vision                 # scripts/serve_models.sh vision
+    groups: [photos, kept]
+    baseline_for: [photos, kept]  # §6 "no worse than the untuned model's baseline"
+
+  # ---- the run F candidates ----
+  f4b:
+    label: herald-f4b-fp8
+    repo: "${HF_REPO_ID}-merged-f4b"
+    serve_note: "text-only Qwen3-4B run F; serve with E v2's arguments: --gpu-memory-fraction 0.12 --quantization=fp8"
+    groups: [speech]              # no vision: the 4B run F adapter is CAUSAL_LM, text only
+  f-e1:
+    label: herald-f-e1
+    repo: "${HF_REPO_ID}-merged-f-e1"
+    serve_note: "epoch-1 adapter merged; scripts/serve_models.sh herald-f-dry prints the argument shape"
+    groups: [speech, photos, kept]
+  f-e2:
+    label: herald-f
+    repo: "${HF_REPO_ID}-merged-f"
+    serve_note: "epoch-2 adapter merged; fallback --quantization=fp8 if fp8_per_block will not start on sm_121"
+    groups: [speech, photos, kept]
+
+# Every gate: how to run it, which numbers to pull out, and what has to be true.
+# `cmd` runs through scripts/run_job.py. {label} is the served label; {dump} a per-(level,gate,run) dump path.
+# `select` picks the stdout JSON line by field value when a bench prints more than one.
+# Checks: {metric, op, value} against a constant, or {metric, op, vs: baseline, margin} against the baseline median.
+#   ops: ">=", "<=", "not_worse_than" (>= baseline - margin), "not_above" (<= baseline + margin)
+#
+# `blocking: true` marks a gate that an epoch must pass to ship AT ALL, whatever its speech and photo numbers are
+# (TRAINING_PLAN §6a, owner 2026-09-25): the kept-ability gates. Epoch 1 ships if epoch 2 fails these and epoch 1
+# passes them. The report lists blocking failures separately, because they change which adapter ships rather than
+# just lowering a number.
+gates:
+
+# ───────────────────────────── speech ─────────────────────────────
+- id: gold_v2
+  group: speech
+  title: held-out gold v2, the only set claims are judged on
+  cmd: [eval/bench_extract.py, --extractor, llm, --model, '{label}', --gold, eval/gold_v2.jsonl,
+        --gfast-gold, eval/gold_v2_gfast.jsonl, --group-gold, 'broad=eval/gold_v2_broad.jsonl', --dump, '{dump}']
+  metrics: {f1: f1, precision: precision, recall: recall, role_acc: role_acc, gfast_f1: gfast_f1,
+            broad_f1: groups.broad.f1, p50: latency_ms_p50, p95: latency_ms_p95}
+  checks:
+  - {metric: f1, op: not_worse_than, vs: baseline, margin: 0.01}   # §6 "CI lower bound > -0.01"
+  - {metric: gfast_f1, op: '>=', value: 0.95}                      # §6 "G.F.A.S.T. >= 0.95"
+  - {metric: p95, op: not_above, vs: baseline, margin: 0}          # §6 "p95 <= E v2's, measured the same way"
+
+- id: gold_v3
+  group: speech
+  title: every-call v3
+  cmd: [eval/bench_extract.py, --extractor, llm, --model, '{label}', --gold, eval/gold_v3.jsonl, --dump, '{dump}']
+  metrics: {f1: f1, role_acc: role_acc}
+  checks:
+  - {metric: f1, op: '>=', value: 0.92}                            # §6 "every-call v3 >= 0.92"
+
+- id: gold_ctx
+  group: speech
+  title: the call's dispatch / context set
+  cmd: [eval/bench_extract.py, --extractor, llm, --model, '{label}', --gold, eval/gold_ctx.jsonl, --dump, '{dump}']
+  metrics: {f1: f1, role_acc: role_acc}
+  checks:
+  - {metric: f1, op: '>=', value: 0.91}                            # §6 "dispatch set >= 0.91"
+
+- id: gold_es
+  group: speech
+  title: Mexican Spanish
+  cmd: [eval/bench_extract.py, --extractor, llm, --model, '{label}', --gold, eval/gold_es_v1.jsonl, --dump, '{dump}']
+  metrics: {f1: f1, role_acc: role_acc}
+  checks:
+  - {metric: f1, op: not_worse_than, vs: baseline, margin: 0.01}
+
+- id: gold_newkeys
+  group: speech
+  title: the six new vocabulary keys (§8 item 1)
+  cmd: [eval/bench_extract.py, --extractor, llm, --model, '{label}', --gold, eval/gold_newkeys_v1.jsonl,
+        --dump, '{dump}']
+  metrics: {f1: f1, role_acc: role_acc, free_text_f1: free_text_presence_f1}
+  checks:
+  - {metric: f1, op: '>=', value: 0.80}     # no prior published number for these keys; 0.80 is run F's bar
+
+- id: recall_floors
+  group: speech
+  title: trauma.criteria and infection.suspected recall
+  cmd: [eval/bench_extract.py, --extractor, llm, --model, '{label}', --gold, eval/gold_v2.jsonl,
+        --keys, 'trauma.criteria,infection.suspected', --dump, '{dump}']
+  metrics: {recall: recall, precision: precision, f1: f1}
+  checks:
+  - {metric: recall, op: '>=', value: 0.6}                         # §6 "recall >= 0.6"
+
+- id: adversarial_seen
+  group: speech
+  title: adversarial v1, the 25 seen attacks
+  cmd: [eval/adversarial_bench.py, --extractor, llm, --model, '{label}', --set, eval/adversarial_v1.jsonl,
+        --runs, '1']
+  metrics: {passed: passed, items: items}
+  checks:
+  - {metric: passed, op: '>=', value: 19}                          # §6 ">= 19/25 seen"
+
+- id: adversarial_unseen
+  group: speech
+  title: adversarial v2, the 40 unseen attacks
+  cmd: [eval/adversarial_bench.py, --extractor, llm, --model, '{label}', --set, eval/adversarial_v2.jsonl,
+        --runs, '1']
+  metrics: {passed: passed, items: items}
+  checks:
+  - {metric: passed, op: '>=', value: 24}                          # §6 ">= 24/40 unseen"
+
+- id: calibration
+  group: speech
+  title: confidence at the configured threshold, held-out
+  # config/confirmation.yaml auto_confirm_threshold is 0.8 (team lead, 2026-09-24); E v2 scored wrong=1 there, which is
+  # exactly the bar. If the refit moves the threshold, change it here and in config/confirmation.yaml together.
+  cmd: [eval/calibrate_confidence.py, --model, '{label}', --gold, eval/gold_v2.jsonl,
+        --gfast-gold, eval/gold_v2_gfast.jsonl, --threshold, '0.8', --dump, '{dump}']
+  select: {threshold: 0.8}                                         # the per-threshold row, not the header line
+  metrics: {wrong_auto: wrong_auto, auto_confirmed: auto_confirmed, precision: precision}
+  checks:
+  - {metric: wrong_auto, op: '<=', value: 1}                       # §6 "held-out auto-confirmed wrong <= 1"
+
+- id: calibration_sweep
+  group: speech
+  title: the full threshold sweep, for the refit decision
+  report_only: true                                                # informational: a person picks the threshold
+  cmd: [eval/calibrate_confidence.py, --model, '{label}', --gold, eval/gold_v2.jsonl,
+        --gfast-gold, eval/gold_v2_gfast.jsonl]
+  metrics: {auroc: auroc, wrong_facts: wrong_facts, eligible_facts: eligible_facts}
+
+# ───────────────────────────── photos ─────────────────────────────
+- id: photos_synthetic
+  group: photos
+  title: eval/photos, the published photo number
+  cmd: [eval/vision_bench.py, --model, '{label}', --tasks, photos, --runs, '1']
+  select: {bench: 'vision:photos'}
+  metrics: {f1: f1, strict_f1: strict_f1, invented: false_fact_images, exact_image_acc: exact_image_acc,
+            p50: latency_ms_p50, p95: latency_ms_p95}
+  checks:
+  - {metric: f1, op: '>=', value: 0.98}                            # §6 "eval/photos F1 >= 0.98"
+  - {metric: invented, op: not_above, vs: baseline, margin: 0}     # §6 "invented facts <= the untuned model"
+  - {metric: p95, op: not_above, vs: baseline, margin: 0}          # §6 "p95 <= the untuned model"
+
+- id: photos_forms_polst
+  group: photos
+  title: POLST / DNR forms, 60 held out
+  cmd: [eval/vision_bench.py, --model, '{label}', --tasks, photos, --runs, '1',
+        --photo-dir, eval/forms_polst, --gold, eval/forms_polst/gold.jsonl]
+  select: {bench: 'vision:photos'}
+  metrics: {f1: f1, invented: false_fact_images, p95: latency_ms_p95}
+  checks:
+  - {metric: f1, op: not_worse_than, vs: baseline, margin: 0}
+  - {metric: invented, op: not_above, vs: baseline, margin: 0}
+
+- id: photos_real
+  group: photos
+  title: photos the team took, 97
+  cmd: [eval/vision_bench.py, --model, '{label}', --tasks, photos, --runs, '1',
+        --photo-dir, data/photos/real, --gold, data/photos/real/labels.jsonl]
+  select: {bench: 'vision:photos'}
+  metrics: {f1: f1, invented: false_fact_images, strength_acc: strength_acc}
+  checks:
+  - {metric: f1, op: not_worse_than, vs: baseline, margin: 0}      # §6 "real photos >= the untuned model"
+  - {metric: invented, op: not_above, vs: baseline, margin: 0}
+
+- id: photos_web
+  group: photos
+  title: openly licensed photographs of other people's monitors
+  requires_file: data/photos/web/labels.jsonl                      # hand-written answer key; skipped until it exists
+  cmd: [eval/vision_bench.py, --model, '{label}', --tasks, photos, --runs, '1',
+        --photo-dir, data/photos/web, --gold, data/photos/web/labels.jsonl]
+  select: {bench: 'vision:photos'}
+  metrics: {f1: f1, invented: false_fact_images}
+  checks:
+  - {metric: f1, op: not_worse_than, vs: baseline, margin: 0}
+
+# ──────────────────────── kept abilities ────────────────────────
+- id: rerank
+  group: kept
+  blocking: true                   # §6a: an epoch failing this cannot ship
+  title: protocol reranking, all 59 questions
+  cmd: [eval/vision_bench.py, --model, '{label}', --tasks, rerank, --runs, '1']
+  select: {bench: 'vision:rerank'}
+  metrics: {top1: top1, top3: top3, first_given_retrieved: top1_given_retrieved,
+            refusals: refusal_on_unanswerable, ceiling: retrieval_ceiling, p50: latency_ms_p50}
+  checks:                          # §6 baseline measured Thu 19:30 UTC, 3 runs identical, as rates
+  - {metric: top1, op: '>=', value: 0.788}                         # 41/52
+  - {metric: top3, op: '>=', value: 0.827}                         # 43/52, the retrieval ceiling
+  - {metric: refusals, op: '>=', value: 0.571}                     # 4/7
+
+- id: figure
+  group: kept
+  blocking: true                   # §6a
+  title: 700-A13 flowchart transcription
+  cmd: [eval/vision_bench.py, --model, '{label}', --tasks, flowchart, --runs, '1']
+  select: {bench: 'vision:flowchart'}
+  metrics: {nodes: node_recall, edges: edge_recall, added_words: added_word_rate}
+  checks:
+  - {metric: nodes, op: '>=', value: 0.875}                        # §6 baseline nodes 0.875
+  - {metric: edges, op: '>=', value: 0.857}                        # §6 baseline edges 0.857
+  - {metric: added_words, op: not_above, vs: baseline, margin: 0}  # §6 "no added words"
+
+# ───────────────── judged by a human, listed so the report is complete ─────────────────
+- id: translation_spot_check
+  group: kept
+  blocking: true                # §6a: a kept ability, so it blocks shipping too
+  title: 10 EN<->ES lines, faithful
+  manual: true                  # §6: no scorer exists, a person reads them
+- id: demo_stroke
+  group: demo
+  title: scenarios/stroke_demo.json 6/6
+  manual: true                  # scripts/replay.py against a running app; not a bench
+- id: demo_shift
+  group: demo
+  title: scenarios/shift_demo.json end to end
+  manual: true
+- id: soak
+  group: demo
+  title: 30-minute soak
+  manual: true                  # docs/MEMORY_SAFETY.md; restore config/memguard.yaml vllm_keep first

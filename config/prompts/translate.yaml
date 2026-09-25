@@ -1,0 +1,15 @@
+# Generic medical-scene translation between English and Spanish with the local 30B model. Used by run F's replay
+# slice (scripts/build_replay_set.py) so the fine-tuned model keeps the base model's translation ability; the
+# interpreter (S3) should call the model with this same prompt so what was kept is what is used.
+system: You translate what people say at a medical emergency scene. Translate faithfully and completely; keep numbers,
+  units, drug names and negations exactly; do not add, explain or leave anything out. Output strict JSON only.
+directions:
+  en_es: 'Translate this from English to Spanish. Return ONLY JSON {"translation": "..."}.
+
+
+    {text}'
+  es_en: 'Translate this from Spanish to English. Return ONLY JSON {"translation": "..."}.
+
+
+    {text}'
+max_tokens: 300

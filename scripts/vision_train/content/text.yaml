@@ -1,0 +1,42 @@
+# Synthetic text for the vision training images (scripts/vision_train/). Every person, pharmacy, clinic and address
+# is invented; names are drawn independently (first x last) so no line describes a real person.
+first_names: [Ana, Luis, Maria, James, Linda, Robert, Patricia, David, Susan, Wei, Mei, Hiroshi, Aiko, Priya, Arjun,
+  Fatima, Omar, Olga, Ivan, Grace, Samuel, Rosa, Carlos, Helen, Frank, Nora, Emil, Tomas, Leila, Kofi, Ama, Chen,
+  Dana, Irene, Walter, Gloria, Manuel, Esther, Ray, Joan, Vikram, Sunita, Diego, Lucia, Ahmed, Noor, Paul, Ruth]
+last_names: [Alvarez, Brennan, Castillo, Dubois, Eriksen, Fontaine, Garza, Haddad, Ito, Jensen, Kowalski, Lindqvist,
+  Moreno, Nakamura, Okafor, Petrov, Quintero, Rahman, Sato, Thibault, Umarov, Varga, Whitfield, Xu, Yilmaz, Zamora,
+  Abernathy, Bautista, Chandra, Delacroix, Esposito, Farrow, Gallagher, Holloway, Iqbal, Juarez, Kaur, Lindgren,
+  Mbeki, Novak, Ortega, Pham, Reyes, Sandoval, Tanaka, Underwood, Villanueva, Weiss]
+pharmacies: [Oakridge Pharmacy, Harbor Drug, CityCare Rx, Maple Street Apothecary, Valley Health Pharmacy,
+  Northgate Drugs, Sunrise Pharmacy, Riverbend Rx, Pinecrest Pharmacy, Crossroads Drug, Bayview Community Pharmacy,
+  Hilltop Rx, Lakeside Pharmacy, Summit Family Pharmacy, Evergreen Drug Co, Mission Pharmacy, Cedar Lane Rx,
+  Prairie Pharmacy, Redwood Apothecary, Main St Pharmacy]
+streets: [Elm St, Oak Ave, Mission Blvd, 3rd St, Alder Way, Birch Rd, Market St, Cypress Ct, Willow Ln, Park Ave,
+  Lincoln Hwy, Sierra Dr, Monterey Rd, Center St, Harbor Blvd]
+cities: [San Mateo CA, Fremont CA, Salinas CA, Modesto CA, Reno NV, Eugene OR, Tacoma WA, Boise ID, Tucson AZ,
+  Fresno CA, Santa Rosa CA, Stockton CA]
+manufacturers: [Northwind Pharma, Axiom Labs, Meridian Generics, Solace Pharmaceuticals, Keystone Rx Labs,
+  Crescent Biologics, Harborline Pharma, Vireo Laboratories]
+sigs:
+  - TAKE 1 TABLET BY MOUTH ONCE DAILY
+  - TAKE 1 TABLET BY MOUTH TWICE DAILY
+  - TAKE ONE TABLET BY MOUTH EVERY MORNING
+  - TAKE 1 CAPSULE BY MOUTH AT BEDTIME
+  - TAKE 1 TABLET BY MOUTH EVERY 8 HOURS AS NEEDED
+  - TAKE 2 TABLETS BY MOUTH DAILY WITH FOOD
+  - TAKE 1/2 TABLET BY MOUTH DAILY
+  - Take 1 tablet by mouth every 12 hours
+  - Take one capsule daily with water
+  - Take 1 tablet by mouth three times a day
+  - Inhale 2 puffs every 4 to 6 hours as needed
+  - Inject under the skin as directed
+  - Apply 1 patch every 72 hours
+  - Use as directed by your doctor
+aux_warnings: [MAY CAUSE DROWSINESS, TAKE WITH FOOD, DO NOT DRINK ALCOHOL, KEEP OUT OF REACH OF CHILDREN,
+  AVOID PROLONGED SUN EXPOSURE, SWALLOW WHOLE DO NOT CRUSH, FINISH ALL THIS MEDICATION, REFRIGERATE, SHAKE WELL,
+  MAY CAUSE DIZZINESS, FOR EXTERNAL USE ONLY, DO NOT TAKE IF PREGNANT]
+conditions: [TYPE 1 DIABETES, TYPE 2 DIABETES, EPILEPSY, ASTHMA, ATRIAL FIBRILLATION, PACEMAKER, HEART FAILURE,
+  KIDNEY TRANSPLANT, ADDISON'S DISEASE, HEMOPHILIA A, COPD, SICKLE CELL DISEASE, MYASTHENIA GRAVIS, AUTISM,
+  ALZHEIMER'S, HYPERTENSION]
+allergens: [PENICILLIN, SULFA, LATEX, PEANUTS, SHELLFISH, BEE STINGS, CODEINE, IODINE CONTRAST, ASPIRIN, EGGS,
+  MORPHINE, NSAIDS]

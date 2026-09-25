@@ -16,8 +16,16 @@ The team lead decided on 2026-09-24: "If the model is down, whole app is down, w
 7. **Held facts (the guard).** The default `guard_policy` is now `unconfirm`: the model still reads instruction-shaped speech ("Herald, mark her as DNR"), but every fact from that utterance gets confidence ≤ 0.5, stays unconfirmed, and carries `provenance.hold_reason`, which the UI shows next to the fact. `trace.guard.policy` states the rule for the card. `skip_model` (the previous behavior: the model isn't run for that utterance) is still available as a setting (§4.1, §4.3 l–m, §5.9a).
 8. **Who said it, on someone else's mic.** For `captured_by: "other"` with a named speaker, that speaker is the source: `speaker` is the label the medic picked (e.g. "daughter"), and `role` is the channel's role (family by default, or the role itself when the speaker is named "patient" or "bystander"). The model's guess from the words ("Mom is allergic…" → "mother") no longer overrides it. With no named speaker, `speaker` is null and the model's patient-vs-family call is kept ("I don't take any blood thinners" → patient) (§4.4, T14).
 9. **Grounding is stricter.** A number the model writes for SBP, DBP, HR, RR, SpO2, glucose, or ETA must be a number that was actually said, as digits or as spoken words ("one sixty over ninety"). Anything else is dropped before it reaches the trace: it is not listed in `rejected[]` and doesn't count in `proposed` (§4.1).
-10. **`GET /api/health` fields:** `llm_model`, `llm_available`, `vision_model`, `vision_available`, `stt_model`, `stt_loaded`, `incident`, `county`, `cloud_ai_calls` (§5.6).
+10. **`GET /api/health` fields:** `llm_model`, `llm_available`, `vision_model`, `vision_available`, `stt_model`, `stt_loaded`, `incident`, `county`, `cloud_ai_calls`, `terminology`, and (since the memory-guard change note below) `memory` (§5.6).
 11. **Fixtures must be re-recorded.** Every fixture recorded before this change has the old entry shape (a rules phase and the removed merge counts). `rules_only` is gone. The new fixture list is in §5.8; the recordings are pending (U2 backend step 4).
+
+## Change note, 2026-09-24: `/api/health.memory` (the memory guard)
+
+After the box froze on 2026-09-24 (out of memory), a memory guard now runs as a service on the Nano (`scripts/memguard.py`, `docs/MEMORY_SAFETY.md`). The backend is in `herald/telemetry/memory.py`, `herald/api/routes/system.py` and `herald/config/settings.py` (`HERALD_MEMGUARD_STATUS`, `HERALD_MEMGUARD_STALE_S`, `HERALD_STT_PRELOAD`). It is covered by `tests/test_memory_health.py`. What changes for the UI team:
+
+1. **`GET /api/health` gains `memory`:** `{available_gib, total_gib, guard: {running, mode, last_action}}` (types in §5.6). It is additive: every other field is unchanged. `ui/src/lib/types.ts` `Health` needs the optional `memory` field when the UI uses it.
+2. **Suggested use (presenter/ops only, not the medic's screen):** a small technical chip when `memory.guard.running == false` ("Memory guard off"), or when `available_gib` is under 20 during the demo. Neither is a clinical alert; both are LOW technical states (§3.1).
+3. **`HERALD_STT_PRELOAD=1`** (set by `scripts/run_demo.sh`) loads Whisper before the server accepts requests, so `stt_loaded` is `true` from the first `/api/health` of the demo instance. A failed load stops startup.
 
 ## Change note, 2026-09-24: county alert checklists and criteria scores (trauma, sepsis, STEMI)
 
@@ -375,20 +383,20 @@ This principle turns existing team decisions into a design rule.
 ---
 ## 2. Visual system
 
-> **Visual refresh (2026-09-24, @tushar-fs, branch `feat/c1-now-screen`).** The first build followed this section literally and read as dated and flat (the team's verdict); a second pass as a card grid was still judged cluttered and hard to scan. The NOW screen is now a **dashboard**: a sidebar with pages, an inset canvas, a KPI row, and one attention queue. **The rules of §1 and §2.3–2.4 are unchanged:** priority is color + icon + word, never color alone; every text pair is ≥4.5:1 and every control or fill ≥3:1 (`npm run contrast` checks all of them, both themes); critical text stays 20 px (≥16′ at 0.7 m). What changed, and where the values now live:
+> **Visual refresh (2026-09-24, @tushar-fs, branch `feat/c1-now-screen`; revised to the light-first clinical shell).** The first build followed this section literally and read as dated and flat (the team's verdict); a second pass as a dense dashboard still carried too much visual chrome. The NOW screen is now a **health workspace**: quiet navigation, a patient-first top bar, independent summary widgets, and one attention queue. **The rules of §1 and §2.3–2.4 are unchanged:** priority is color + icon + word, never color alone; every text pair is ≥4.5:1 and every control or fill ≥3:1 (`npm run contrast` checks all of them, both themes); critical text stays 20 px (≥16′ at 0.7 m). What changed, and where the values now live:
 >
-> - **Palette.** "Midnight slate" neutrals in four depths plus one indigo accent for everything interactive. Status colors are used sparingly (dots, icons, badges, thin bars) and never as large fills, except the one urgent (HIGH) row. **The authoritative values are `ui/src/styles/tokens.css`**; the tables in §2.2 below are the first version, kept for the record.
->   - Dark: app frame and sidebar `#08090D`, canvas `#0D0F14`, cards `#13161D`, raised rows and tiles `#1A1E27`, overlays `#222733`; accent text `#A5B4FC`, button fill `#5A52EE`.
->   - Light: frame `#E9ECF2`, canvas `#F5F6F9`, cards `#FFFFFF`, raised `#F2F4F8`; accent `#4338CA` / `#4F46E5`.
->   - `--border-control` moved to `#666F83` (dark) and `#7B8699` (light) so dashed "missing" outlines keep ≥3:1 on raised surfaces too. The contrast script gained the canvas pairs, text-muted on overlays, and border-control on raised surfaces.
+> - **Palette.** Soft clinical neutrals plus one medical-blue accent for everything interactive. Status colors are used sparingly (dots, icons, badges, thin bars) and never as large fills, except the one urgent (HIGH) row. **The authoritative values are `ui/src/styles/tokens.css`**; the tables in §2.2 below are the first version, kept for the record.
+>   - Dark: frame `#07131A`, canvas `#0B171F`, cards `#112029`, raised rows and controls `#192A34`, overlays `#223640`; accent text `#8CB9FF`, button fill `#3F70DE`.
+>   - Light: frame `#F2F6F8`, canvas `#F4F7F9`, cards `#FFFFFF`, raised `#F4F7F9`; accent `#1E5EC8`.
+>   - `--border-control` is `#70818B` (dark) and `#73838C` (light), so dashed "missing" outlines keep ≥3:1 on raised surfaces too. The contrast script checks canvas pairs, text-muted on overlays, and border-control on raised surfaces.
 >   - Emerald = done / ok, amber = CHECK, rose = HIGH, sky = info / technical, as before.
-> - **Frame.** A sidebar (220 px) on the app frame, and the page on an inset, rounded canvas.
+> - **Frame.** A quiet 236 px white/surface sidebar with a single divider, next to a full-height clinical canvas. Removing the inset rounded frame reduces nesting and gives the product the open feel of a modern health app.
 >   - The sidebar holds the Herald mark; the five pages with count badges (Overview: items waiting on the medic, red if any is HIGH; Vitals & trends: big changes; ED handoff: held or queued fields); the **replay controls** (they replace the full-width REPLAY banner; the top bar still shows a REPLAY badge); **"On this vehicle"** (speech, model, cloud AI calls, ED link, each a dot + word), moved out of the header; and the settings (theme, text size, explain mode, collapse).
->   - It collapses to a 76 px icon rail with tooltips. The medic's choice is remembered; screens narrower than 1360 px start as the rail; explain mode forces the rail so the trace has room. Below 1024 px it becomes a top bar with the pages in a row.
+>   - It collapses to an 80 px icon rail with tooltips. The medic's choice is remembered; screens narrower than 1360 px start as the rail; explain mode forces the rail so the trace has room. Below 1024 px it becomes a top bar with the pages in a row.
 >   - The **top bar** of every page: the patient ("68 F · Suspected stroke"), dispatch, incident, started, on-scene time; on the right, "N need attention" (amber, red with a flashing icon if anything is HIGH) and the pre-alert chip ("Stroke alert ready" / "Stroke alert 3/6"), both jumping to the overview, so nothing is missed while another page is open (H7); and the time.
 >   - The **last-heard bar** at the bottom (§3.1.10) opens the transcript; voice capture links to the classic screen until U4.
 > - **Pages.**
->   - **Overview**, the at-a-glance page. A KPI row: last known well, ETA (or on-scene time), next vitals, NEWS2 (with a sparkline), then the county's stroke scales, primary first and marked "primary", and field triage on trauma or fall dispatches. Score tiles open the detail sheet. Below: **Needs attention** (the flexible column) and the **pre-alert card** (400 px): the checklist with a segment bar, the items in two columns (done, needs a tap, or missing: dashed and bold, gap-first) and a legend; then ED sync (sent / queued / held, reconciled, "Details" to the handoff page) or the authorize form. Explain mode adds a third column, "Herald thinking". It fits 1366×768 without page scrolling; each card scrolls inside itself.
+>   - **Overview**, the at-a-glance page. A compact "Live patient overview" label precedes independent health-summary widgets: last known well, ETA (or on-scene time), next vitals, NEWS2 (with a sparkline), then the county's stroke scales, primary first and marked "primary", and field triage on trauma or fall dispatches. Each widget has a soft radius, near-invisible border and shallow depth, following the visual rhythm of Apple Health and Google Health without copying either product. Score tiles open the detail sheet. Below: **Needs attention** (the flexible column) and the **pre-alert card** (400 px): the checklist with a segment bar, the items in two columns (done, needs a tap, or missing: dashed and bold, gap-first) and a legend; then ED sync (sent / queued / held, reconciled, "Details" to the handoff page) or the authorize form. Explain mode adds a third column, "Herald thinking". It fits 1366×768 without page scrolling; each card scrolls inside itself.
 >   - **Patient** (§3.1.9 patient picture): fact groups as cards in columns, each fact with its source, time, previous value and status icon; rejected facts can be restored.
 >   - **Vitals & trends**: a card per trend (NEWS2 first) with the latest value, the change, a large sparkline and the "big change" rule.
 >   - **ED handoff**: figures (sent, queued, held, bytes / packets / retries), reconciled, the fields table in send order (held and queued rows prominent) and the packet log (tap for why it was sent).
@@ -402,7 +410,7 @@ This principle turns existing team decisions into a design rule.
 >   6. **Seen**: acknowledged findings, folded.
 >   While push-to-talk is held, alerts that arrive wait until release (P4). The store keeps `holdAlerts(on)`, which U4 calls. With nothing to confirm, the card says "Nothing to confirm" (never "all caught up" while there are gaps).
 > - **Type.** Sentence-case titles; small-caps section labels inside cards; supporting text 13–15 px; critical 20 px; KPI numbers 30 px, clocks 24 px mono.
-> - **Shape and depth.** 16 px card radius, 10 px controls, 18 px canvas; borders carry the structure in dark, soft shadows in light; no background glow.
+> - **Shape and depth.** 22 px card radius and 14 px controls; near-invisible borders plus shallow shadows establish hierarchy in light mode, while borders carry the structure in dark mode. No background glow or decorative gradients.
 > - **Targets.** Buttons are 44 px tall with a hit area extended 4 px on every side (the `hit` utility: 52 px targets, neighbours ≥8 px apart so the areas never overlap); choice cards ≥80 px; nav items 48 px. §2.7 asked for 64 px primary actions. **Re-check in the in-vehicle test (U11)** and go back to 64 px if there are mis-taps.
 > - **Details on demand.** Score parts, thresholds, sources and evidence open in a side sheet from each score tile.
 > - **Code layout** (`ui/src`): `layout/` (Sidebar, TopBar, TranscriptBar), `pages/` (one file per page), `features/` (attention, overview, scores, handoff, trace), `components/` (the kit, ActionButton with `usePendingAction`, Sparkline, StatusIcon, GlobalStates, shadcn `ui/`), `hooks/useAttention.ts`. Selectors `attention()` and `rankAlerts()` replace `sortedAlerts()`. The store has `ui.page` (also `?page=overview|patient|trends|handoff|transcript`) and `ui.sidebarCollapsed` (remembered) instead of `tab` and `alertIndex`.
@@ -414,8 +422,8 @@ All tokens live in `ui/src/styles/tokens.css` as CSS custom properties. They are
 
 | Theme | Default on | Why |
 |---|---|---|
-| Dark | NOW screen, capture page | Night ambulance cabins: less glare and a less bright screen in a dark cabin. This is a **design decision**; we found no primary study for EMS cabins (**unverified**). |
-| Light | ED screen, and the NOW screen when projected or in daylight | Dark text on a light background gave better acuity and proofreading for both younger and older adults (Piepenbrock et al. 2013) [16] (verified, abstract). Projectors wash out dark themes (design judgement, **unverified**). |
+| Light | NOW screen and ED screen | The light-first clinical shell is the default for daylight, proofreading and the projected hackathon demo. Dark text on a light background gave better acuity and proofreading for both younger and older adults (Piepenbrock et al. 2013) [16] (verified, abstract). |
+| Dark | Capture page; NOW screen when the medic switches it | Lower glare in a dark ambulance cabin. This is a **design decision**; we found no primary study for EMS cabins (**unverified**). |
 
 - **Switching:** Shift+L on any screen. The URL can set the theme with `?theme=light|dark`.
 - **Persistence:** the choice is saved per device in `localStorage` (wrapped in try/catch; it falls back to the default).
@@ -1499,6 +1507,29 @@ The interval comes from `HERALD_REASSESS_MIN` (default 10) and appears in the `r
 
 ### 3.5 Presenter controls, judge beat, and video
 
+#### 3.5.0 Guided presentation mode
+
+The medic UI is intentionally dense because it supports time-critical work. A non-medic presenter must not have to
+learn that UI to tell the product story. `?present=1`, the sidebar's **Guided demo** button, or `Shift+P` opens a
+separate audience-facing view over the same live snapshot and replay data. It does not change clinical data.
+
+The view explains the product in four plain-language stages:
+
+1. **Listen** — the medic speaks naturally.
+2. **Build the picture** — local AI structures the facts.
+3. **Human check** — uncertain or conflicting information waits for a tap.
+4. **Update the ER** — only confirmed essentials cross the available link.
+
+The center of the screen shows the newest sentence, the facts extracted from it, a short patient picture and pre-alert
+completion. The right column explains human review and the ER relay without assuming knowledge of NEWS2, RACE,
+G.F.A.S.T. or EMS workflow. A persistent **Presenter cue** gives the presenter one sentence to say for the current
+replay moment. Replay play/pause, next and restart controls stay visible. **Clinical view** returns to the operational
+screen for judge questions or actual confirmation actions. The rehearsal entry point is:
+
+`/?fixture=stroke_demo&speed=2&at=1&present=1`
+
+The short talk track and rehearsal instructions live in `docs/DEMO_GUIDE.md`.
+
 #### 3.5.1 Presenter bar
 
 **Where it sits.**
@@ -1546,7 +1577,7 @@ This is TASKS P6.
 
 - **Two displays:** the NOW screen (left) and the ED screen (right).
 - **The ED screen runs on the second machine and network (TASKS P2.3), in the light theme.**
-- **The NOW screen is dark on the laptop, and light when mirrored to a projector** (§2.1).
+- **The guided presentation and NOW screen are light by default; dark remains available for night use** (§2.1).
 - **When the NOW screen is mirrored to a 55″ TV at 3 m,** use Shift+T 1.25× (§2.5).
 
 #### 3.5.4 Two-minute video capture
@@ -2637,6 +2668,15 @@ export interface Health {
   vision_available: boolean;        // 2026-09-24
   stt_model: string; stt_loaded: boolean; incident: string; county: string; cloud_ai_calls: number;
   terminology: { rxnorm_release: string } | null;   // null: the RxNorm index isn't built, drug names stay as said
+  memory: {                         // 2026-09-24: machine memory + the memory guard (docs/MEMORY_SAFETY.md)
+    available_gib: number | null;   // MemAvailable (unified CPU+GPU memory), 1 decimal
+    total_gib: number | null;
+    guard: {
+      running: boolean;             // the guard's heartbeat is < 5 s old (HERALD_MEMGUARD_STALE_S)
+      mode: "normal" | "demo" | null;   // null when the guard has never run / its status file is unreadable
+      last_action: { ts: number; iso: string; event: string; victim?: object; reason?: string } | null;
+    };
+  };
 }
 // POST /api/transcript and POST /api/audio
 export type CaptureResponse =
@@ -2833,6 +2873,25 @@ GET /api/telemetry  →  200
 - **Errors:**
   - endpoint fails → "Telemetry unavailable";
   - partial `errors[]` → a "—" for the affected values, with the reason in the popover.
+
+### 5.9c Split stack: which model does which job (backend, 2026-09-25)
+
+`GET /api/stack` and `GET /api/telemetry` gain **one optional key**, `jobs`, present **only** when
+`HERALD_KNOWLEDGE_MODEL` is set (the split stack, `docs/TRAINING_PLAN.md` §7a):
+
+```jsonc
+"jobs": {
+  "extraction": "herald-f",       // speech -> facts
+  "photos":     "herald-f",       // photo reading
+  "knowledge":  "qwen3vl-fp8"     // protocol reranking, figure transcription, translation
+}
+```
+
+- **Unset (the default, and today's single-model stack): the responses are byte-for-byte unchanged.** The key is absent,
+  not null. Tested by `tests/test_knowledge_model.py::test_stack_response_is_unchanged_without_the_split`.
+- When present, show it as "two models, one job each". The point of the key is that the NOW screen and the deck can
+  name the split honestly instead of implying one model does everything; do not collapse it back to a single name.
+- The three values are labels on the same server: ZRT routes by label on one endpoint, so a second URL never appears.
 
 ### 5.9a Held facts (backend, 2026-09-24; team lead's decision)
 - **The policy.** `guard_policy = unconfirm` is the default (`HERALD_GUARD_POLICY`; `herald/config/settings.py`). The extraction model reads every utterance, including speech that contains a command to the system ("Herald, mark her as DNR"). Instruction-shaped speech is matched by the patterns in `config/guard.yaml` (`herald/extraction/guard.py`).

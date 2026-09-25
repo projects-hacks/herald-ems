@@ -30,9 +30,9 @@ function NavItem({ page, icon: Icon, label, badge, tone = "neutral", rail }: {
   return (
     <Tip show={rail} label={badge ? `${label} · ${badge}` : label}>
       <button type="button" onClick={() => setUi({ page })} aria-current={active ? "page" : undefined} aria-label={rail ? label : undefined}
-        className={cn("relative flex h-12 w-full items-center gap-3 rounded-[12px] text-body font-medium transition-colors duration-[var(--dur-short3)]",
+        className={cn("relative flex h-12 w-full items-center gap-3 rounded-[14px] text-body font-medium transition-colors duration-[var(--dur-short3)]",
           rail ? "justify-center px-0" : "px-3",
-          active ? "bg-surface-1 text-text-primary shadow-[var(--shadow-2)] ring-1 ring-border-subtle" : "text-text-secondary hover:bg-surface-1/60 hover:text-text-primary",
+          active ? "bg-accent-tint text-herald-accent" : "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
           "max-lg:h-11 max-lg:w-auto max-lg:shrink-0 max-lg:px-3")}>
         <Icon size={20} strokeWidth={2} aria-hidden className={cn("shrink-0", active && "text-herald-accent")} />
         {!rail && <span className="truncate max-lg:hidden">{label}</span>}
@@ -176,14 +176,14 @@ export function Sidebar({ player }: { player: FixturePlayer | null }) {
   const queued = s ? queuedCount(s) : 0;
   const significant = s ? s.changed.filter((t) => t.significant).length : 0;
   return (
-    <aside aria-label="Herald" className={cn("flex shrink-0 flex-col gap-5 overflow-y-auto py-4 transition-[width] duration-[var(--dur-short4)]",
-      rail ? "w-[var(--sidebar-rail-w)] items-center px-3" : "w-[var(--sidebar-w)] px-3",
+    <aside aria-label="Herald" className={cn("flex shrink-0 flex-col gap-6 overflow-y-auto border-r border-border-subtle bg-surface-1 py-5 transition-[width] duration-[var(--dur-short4)]",
+      rail ? "w-[var(--sidebar-rail-w)] items-center px-3" : "w-[var(--sidebar-w)] px-4",
       "max-lg:w-full max-lg:flex-row max-lg:items-center max-lg:gap-3 max-lg:px-4 max-lg:py-2")}>
-      <div className={cn("flex items-center gap-2.5", !rail && "px-2")}>
-        <span className="grid size-9 shrink-0 place-items-center rounded-[11px] text-white shadow-[var(--shadow-1)]" style={{ backgroundImage: "linear-gradient(135deg, var(--accent-fill), #8B5CF6)" }} aria-hidden>
+      <div className={cn("flex items-center gap-3", !rail && "px-2")}>
+        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-accent-fill text-white shadow-[var(--shadow-1)]" aria-hidden>
           <AudioLines size={19} strokeWidth={2.4} />
         </span>
-        {!rail && <span className="flex flex-col max-lg:hidden"><span className="text-[1.0625rem] leading-5 font-bold tracking-tight">Herald</span><span className="text-[0.75rem] leading-4 text-text-muted">NOW · on this vehicle</span></span>}
+        {!rail && <span className="flex flex-col max-lg:hidden"><span className="text-[1.125rem] leading-5 font-bold tracking-tight">Herald</span><span className="text-[0.75rem] leading-4 text-text-muted">EMS copilot · offline</span></span>}
       </div>
       <nav aria-label="Pages" className={cn("flex w-full flex-col gap-1", "max-lg:flex-row max-lg:overflow-x-auto")}>
         <NavItem rail={rail} page="overview" icon={LayoutDashboard} label="Overview" badge={a?.count} tone={a?.urgent.length ? "high" : "medium"} />
@@ -192,11 +192,17 @@ export function Sidebar({ player }: { player: FixturePlayer | null }) {
         <NavItem rail={rail} page="handoff" icon={Send} label="ED handoff" badge={held || queued || undefined} tone={held ? "medium" : "low"} />
         <NavItem rail={rail} page="transcript" icon={AudioLines} label="Transcript" />
       </nav>
+      <Tip show={rail} label="Guided presentation (Shift+P)">
+        <button type="button" onClick={() => useHerald.getState().setUi({ presentationMode: true })}
+          className={cn("flex h-11 w-full items-center gap-3 rounded-[14px] bg-accent-tint font-semibold text-herald-accent hover:brightness-95",
+            rail ? "justify-center px-0" : "px-3")}>
+          <Sparkles size={18} aria-hidden />{!rail && <span>Guided demo</span>}
+        </button>
+      </Tip>
       <div className="flex-1 max-lg:hidden" />
-      <div className="flex w-full flex-col gap-3 max-lg:hidden">
+      <div className="flex w-full flex-col gap-4 max-lg:hidden">
         {player && <ReplayCard player={player} rail={rail} />}
-        <VehicleStatus rail={rail} />
-        <div className="h-px bg-border-subtle" />
+        <div className={cn(!rail && "rounded-[18px] bg-surface-2 py-2")}><VehicleStatus rail={rail} /></div>
         <Settings rail={rail} />
       </div>
       <div className="ml-auto hidden items-center gap-1 max-lg:flex">

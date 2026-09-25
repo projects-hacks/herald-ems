@@ -28,3 +28,6 @@ data/terminology/
 # They live outside every clone, in ~/herald-field-audio (eval/field/manifest.py); this is the safety net for a
 # station started with --audio-dir inside the clone.
 data/field_audio/
+
+# vision training photos (scripts/vision_train/make.py rebuilds them byte for byte from --seed 7; MODEL_PLAN §2a)
+data/vision_train/

@@ -77,6 +77,7 @@ export function PresenterBar() {
   return (
     <div className="fixed inset-x-4 bottom-4 z-40 flex flex-wrap items-center gap-2 rounded-[18px] border border-border-subtle bg-surface-3/95 px-4 py-3 shadow-[var(--shadow-3)] backdrop-blur-md" role="region" aria-label="Presenter">
       <span className="text-meta font-semibold text-text-secondary">Presenter</span>
+      <button type="button" className={btn} onClick={() => setUi({ presentationMode: !ui.presentationMode })}>{ui.presentationMode ? "Clinical view" : "Guided demo"}</button>
       <button type="button" className={btn} onClick={() => setUi({ mode: ui.mode === "medic" ? "explain" : "medic" })}>{ui.mode === "medic" ? "Explain mode" : "Medic mode"}</button>
       <button type="button" className={btn} onClick={() => setUi({ theme: ui.theme === "dark" ? "light" : "dark" })}>Theme: {ui.theme}</button>
       <button type="button" className={btn} onClick={() => setUi({ typeScale: ui.typeScale === 1 ? 1.25 : ui.typeScale === 1.25 ? 1.5 : 1 })}>Text size {ui.typeScale}×</button>

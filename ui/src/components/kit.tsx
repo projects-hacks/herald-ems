@@ -36,7 +36,7 @@ export function CardHeader({ icon, tone = "accent", title, subtitle, id, badge, 
   badge?: React.ReactNode; actions?: React.ReactNode; className?: string;
 }) {
   return (
-    <header className={cn("flex shrink-0 items-center gap-3 px-5 pt-4 pb-3", className)}>
+    <header className={cn("flex shrink-0 items-center gap-3.5 px-5 pt-4 pb-3.5", className)}>
       {icon && <IconBadge icon={icon} tone={tone} />}
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-2">
@@ -70,7 +70,7 @@ export function PageHeader({ title, description, actions }: { title: string; des
   return (
     <div className="flex flex-wrap items-end gap-3">
       <div className="min-w-0 flex-1">
-        <h1 className="text-[1.375rem] leading-8 font-semibold tracking-display">{title}</h1>
+        <h1 className="text-[1.75rem] leading-9 font-semibold tracking-display">{title}</h1>
         {description && <p className="text-body text-text-muted">{description}</p>}
       </div>
       {actions}
@@ -96,7 +96,7 @@ export function IconBadge({ icon: Icon, tone = "accent", size = 36, className, i
   icon: LucideIcon; tone?: Tone; size?: number; className?: string; iconClassName?: string;
 }) {
   return (
-    <span className={cn("grid shrink-0 place-items-center rounded-[10px]", TINT[tone], className)} style={{ width: size, height: size }} aria-hidden>
+    <span className={cn("grid shrink-0 place-items-center rounded-full", TINT[tone], className)} style={{ width: size, height: size }} aria-hidden>
       <Icon size={Math.round(size * 0.5)} strokeWidth={2.2} className={iconClassName} />
     </span>
   );

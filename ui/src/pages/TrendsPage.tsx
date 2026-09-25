@@ -36,7 +36,7 @@ export function TrendsPage() {
   const news2 = s.scores.news2_history.filter((h) => h.complete).map((h) => h.score);
   const empty = s.changed.length === 0 && news2.length < 2;
   return (
-    <div className="flex flex-col gap-5 p-6">
+    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-7 max-lg:p-5">
       <PageHeader title="Vitals & trends" description="Confirmed readings over time. A trend appears once a vital has two readings." />
       {empty ? <Card><EmptyState icon={ChartLine} tone="neutral" title="No trends yet">Once a vital has two confirmed readings, its trend shows here.</EmptyState></Card> : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] gap-4">

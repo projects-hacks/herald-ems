@@ -19,6 +19,7 @@ export interface UiState {
   /** Push-to-talk is held (U4 sets it): alerts that arrive meanwhile wait until release (§3.1.8, P4). */
   heldAlerts: boolean;
   page: Page; sidebarCollapsed: boolean;
+  presentationMode: boolean;
   confirmNewIncident: boolean;
 }
 
@@ -51,7 +52,8 @@ export interface HeraldState {
 }
 
 // ---------- per-device preferences (localStorage can throw or be empty: never rely on it) ----------
-const PREFS = "herald.ui.v1";
+// v2 starts with the daylight clinical theme. The old v1 preference belonged to the previous dark-first shell.
+const PREFS = "herald.ui.v2";
 type Prefs = Pick<UiState, "theme" | "typeScale" | "reducedMotion" | "keyboardPtt" | "sidebarCollapsed">;
 const PREF_KEYS: (keyof Prefs)[] = ["theme", "typeScale", "reducedMotion", "keyboardPtt", "sidebarCollapsed"];
 
@@ -70,7 +72,7 @@ function writePrefs(p: Prefs) {
   }
 }
 
-/** URL parameters override stored preferences: ?theme=light|dark ?type=1.25 ?mode=explain ?page=handoff (UX_PLAN §3.0).
+/** URL parameters override stored preferences: ?theme=light|dark ?type=1.25 ?mode=explain ?page=handoff ?present=1 (UX_PLAN §3.0).
  *  The sidebar starts as an icon rail on screens narrower than the 1366 px target, until the medic chooses. */
 export function initialUi(search = typeof location === "undefined" ? "" : location.search): UiState {
   const q = new URLSearchParams(search);
@@ -80,7 +82,7 @@ export function initialUi(search = typeof location === "undefined" ? "" : locati
   const narrow = typeof innerWidth === "number" && innerWidth < 1360;
   return {
     mode: q.get("mode") === "explain" ? "explain" : "medic",
-    theme: q.get("theme") === "light" ? "light" : q.get("theme") === "dark" ? "dark" : (p.theme ?? "dark"),
+    theme: q.get("theme") === "light" ? "light" : q.get("theme") === "dark" ? "dark" : (p.theme ?? "light"),
     typeScale: t === 1.25 || t === 1.5 ? t : (p.typeScale ?? 1),
     reducedMotion: p.reducedMotion ?? false,
     keyboardPtt: p.keyboardPtt ?? true,
@@ -91,6 +93,7 @@ export function initialUi(search = typeof location === "undefined" ? "" : locati
     heldAlerts: false,
     page: page && PAGES.includes(page) ? page : "overview",
     sidebarCollapsed: p.sidebarCollapsed ?? narrow,
+    presentationMode: q.get("present") === "1",
     confirmNewIncident: false,
   };
 }

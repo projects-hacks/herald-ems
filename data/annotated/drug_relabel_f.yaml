@@ -1,0 +1,43 @@
+# Drug-name relabel list for run F (MODEL_PLAN §0k; LABELING_GUIDE §4 drug names and §5c.2).
+# The training labels in batch_01-20 and their overlays were written before drug labels became RxNorm names (§0j).
+# Each entry below was checked against the RxNorm index the app codes with (herald/terminology/,
+# data/terminology/rxnorm_index.json, release 2026-09-08): `before` is NOT an exact match that codes to itself (it is
+# coded by combination, contained or fuzzy matching, so the app would hold it for a tap, or it codes to one
+# ingredient of a mix), and `after` codes to itself with method "exact". Applied at build time by
+# scripts/build_train_set.py --relabel (the annotated files are not edited, so the change is reviewable and
+# reversible). Gold and eval files are never relabeled here.
+#   key:    the fact key; `field` names the record field for record keys (meds.given -> drug)
+#   count:  facts carrying `before` in data/annotated/ when the list was written (the builder reports the live count)
+#   coded:  what the coder does with `before` today (method and result)
+relabel:
+  - {key: meds.given, field: drug, before: normal saline, after: sodium chloride, count: 17,
+     coded: "contained -> sodium chloride (held for a tap)", why: "LABELING_GUIDE §4e names: normal saline -> sodium chloride"}
+  - {key: meds.given, field: drug, before: ipratropium/albuterol, after: albuterol / ipratropium, count: 3,
+     coded: "combination -> albuterol / ipratropium (held)", why: "RxNorm multi-ingredient name, alphabetical (§4)"}
+  - {key: meds.given, field: drug, before: ipratropium-albuterol, after: albuterol / ipratropium, count: 2,
+     coded: "combination -> albuterol / ipratropium (held)", why: "renamed in every gold set 2026-09-24 (§0j)"}
+  - {key: meds.given, field: drug, before: racemic epinephrine, after: racepinephrine, count: 1,
+     coded: "unresolved", why: "RxNorm ingredient racepinephrine (§5c.2)"}
+  - {key: meds.list, before: divalproex, after: valproate, count: 3,
+     coded: "contained -> valproate (held)", why: "RxNorm ingredient for divalproex (§4, v3_051 rename)"}
+  - {key: meds.list, before: insulin aspart, after: "insulin aspart, human", count: 3,
+     coded: "unresolved", why: "RxNorm's ingredient name carries ', human' (§5c.2)"}
+  - {key: meds.list, before: isosorbide mononitrate, after: isosorbide, count: 2,
+     coded: "exact -> isosorbide (written back as a different name)", why: "RxNorm ingredient 6057 is 'isosorbide' (§5c.2)"}
+  - {key: meds.list, before: budesonide/formoterol, after: budesonide / formoterol, count: 3,
+     coded: "combination (held)", why: "RxNorm multi-ingredient name"}
+  - {key: meds.list, before: fluticasone/salmeterol, after: fluticasone / salmeterol, count: 2,
+     coded: "combination (held)", why: "RxNorm multi-ingredient name"}
+  - {key: meds.list, before: amoxicillin/clavulanate, after: amoxicillin / clavulanate, count: 1,
+     coded: "combination (held)", why: "RxNorm multi-ingredient name"}
+  - {key: meds.list, before: carbidopa-levodopa, after: carbidopa / levodopa, count: 1,
+     coded: "combination (held)", why: "RxNorm multi-ingredient name"}
+  - {key: meds.list, before: ipratropium/albuterol, after: albuterol / ipratropium, count: 1,
+     coded: "combination (held)", why: "RxNorm multi-ingredient name, alphabetical"}
+  - {key: meds.list, before: sacubitril/valsartan, after: sacubitril / valsartan, count: 1,
+     coded: "combination (held)", why: "RxNorm multi-ingredient name"}
+  - {key: meds.list, before: sulfamethoxazole/trimethoprim, after: sulfamethoxazole / trimethoprim, count: 1,
+     coded: "combination (held)", why: "RxNorm multi-ingredient name"}
+  - {key: allergies, before: bactrim, after: sulfamethoxazole / trimethoprim, count: 1,
+     coded: "exact -> sulfamethoxazole / trimethoprim (written back as a different name)",
+     why: "brand -> ingredients; drug allergens are RxNorm names (§4)"}

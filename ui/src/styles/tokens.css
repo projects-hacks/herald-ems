@@ -1,33 +1,33 @@
-/* Herald design tokens. Visual language: a dashboard in "midnight slate". The app frame (--bg) holds the sidebar;
-   the page sits on an inset canvas (--canvas); cards (--surface-1) sit on the canvas; rows and tiles inside a card
-   are raised (--surface-2). One indigo accent for everything interactive; status colors are used sparingly (dots,
+/* Herald design tokens. Visual language: a calm, light-first clinical workspace. The navigation lives on --surface-1;
+   the page uses the soft --canvas; cards float on it; rows and controls use --surface-2. One medical-blue accent is
+   used for interaction; status colors are used sparingly (dots,
    icons, badges, thin bars), never as large fills. Semantics follow docs/UX_PLAN.md §2 (priority = color + icon +
    word, never color alone); scripts/contrast.mjs checks every pair (text >= 4.5:1, controls and fills >= 3:1).
-   Theme: data-theme="dark|light" on <html> (dark is the NOW default). */
+   Theme: data-theme="dark|light" on <html> (light is the NOW default; dark remains one tap away for night use). */
 
 :root,
 [data-theme="dark"] {
   /* neutrals and surfaces, darkest to lightest */
-  --bg: #08090D;                 /* app frame and sidebar */
-  --canvas: #0D0F14;             /* the inset page */
-  --surface-1: #13161D;          /* cards */
-  --surface-2: #1A1E27;          /* raised: rows, tiles, inputs, hover */
-  --surface-3: #222733;          /* overlays: popovers, sheets, the presenter bar */
-  --border-subtle: #232834;      /* card outlines and dividers (decoration only) */
-  --border-control: #666F83;     /* input and control outlines, dashed "missing" (>= 3:1) */
-  --text-primary: #EDF0F6;
-  --text-secondary: #B3BBC9;
-  --text-muted: #8690A2;
-  --text-disabled: #5D6679;
+  --bg: #07131A;                 /* outer app and navigation */
+  --canvas: #0B171F;             /* page */
+  --surface-1: #112029;          /* cards and bars */
+  --surface-2: #192A34;          /* rows, controls, hover */
+  --surface-3: #223640;          /* overlays */
+  --border-subtle: #263B46;
+  --border-control: #70818B;
+  --text-primary: #F3F7F9;
+  --text-secondary: #C5D0D5;
+  --text-muted: #96A7B0;
+  --text-disabled: #687B85;
 
   /* interaction: indigo */
-  --accent: #A5B4FC;             /* links, focus ring, the active nav item's icon */
-  --on-accent: #0B0E14;
-  --accent-fill: #5A52EE;        /* primary buttons: >= 3:1 vs the card, white text >= 4.5:1 */
+  --accent: #8CB9FF;             /* links, focus ring, selected navigation */
+  --on-accent: #07131A;
+  --accent-fill: #3F70DE;
   --on-accent-fill: #FFFFFF;
-  --accent-tint: #1B1E3B;        /* selected / active backgrounds */
+  --accent-tint: #172D4B;
   --capture: #D8B4FE;            /* push-to-talk "listening" only */
-  --scrim: rgb(8 9 13 / .76);
+  --scrim: rgb(7 19 26 / .80);
 
   /* status sets: fg (text/icon), fill + on-fill (solid badges), tint (soft badge / the one urgent row) */
   --high-fg: #FB7185;   --high-fill: #E11D48;   --high-on-fill: #FFFFFF;   --high-tint: #2B1119;
@@ -37,32 +37,32 @@
   --ok-fg: #34D399;     --ok-fill: #047857;     --ok-on-fill: #FFFFFF;     --ok-tint: #0B241D;
 
   /* depth: borders carry the structure in dark; shadows only lift overlays */
-  --shadow-1: 0 1px 0 rgb(255 255 255 / .03) inset, 0 1px 2px rgb(0 0 0 / .35);
-  --shadow-2: 0 1px 0 rgb(255 255 255 / .035) inset, 0 1px 3px rgb(0 0 0 / .4);
+  --shadow-1: 0 1px 0 rgb(255 255 255 / .035) inset;
+  --shadow-2: 0 1px 0 rgb(255 255 255 / .035) inset, 0 10px 30px rgb(0 0 0 / .10);
   --shadow-3: 0 16px 48px rgb(0 0 0 / .55);
   color-scheme: dark;
 }
 
 [data-theme="light"] {
-  --bg: #E9ECF2;
-  --canvas: #F5F6F9;
+  --bg: #F2F6F8;
+  --canvas: #F4F7F9;
   --surface-1: #FFFFFF;
-  --surface-2: #F2F4F8;
+  --surface-2: #F4F7F9;
   --surface-3: #FFFFFF;
-  --border-subtle: #E1E5EC;
-  --border-control: #7B8699;
-  --text-primary: #0F172A;
-  --text-secondary: #334155;
-  --text-muted: #5E6B80;
-  --text-disabled: #94A0B3;
+  --border-subtle: #E2E9ED;
+  --border-control: #73838C;
+  --text-primary: #13252F;
+  --text-secondary: #3D525E;
+  --text-muted: #5F737E;
+  --text-disabled: #93A2AA;
 
-  --accent: #4338CA;
+  --accent: #1E5EC8;
   --on-accent: #FFFFFF;
-  --accent-fill: #4F46E5;
+  --accent-fill: #1E5EC8;
   --on-accent-fill: #FFFFFF;
-  --accent-tint: #EEF0FF;
+  --accent-tint: #EAF2FF;
   --capture: #7E22CE;
-  --scrim: rgb(245 246 249 / .82);
+  --scrim: rgb(244 247 249 / .86);
 
   --high-fg: #BE123C;   --high-fill: #E11D48;   --high-on-fill: #FFFFFF;   --high-tint: #FFF1F3;
   --medium-fg: #A15C07; --medium-fill: #F59E0B; --medium-on-fill: #1A1204; --medium-tint: #FFF8EB;
@@ -71,9 +71,9 @@
   --low-fg: #0369A1;    --low-fill: #0369A1;    --low-on-fill: #FFFFFF;    --low-tint: #EFF8FF;
   --ok-fg: #047857;     --ok-fill: #047857;     --ok-on-fill: #FFFFFF;     --ok-tint: #ECFDF5;
 
-  --shadow-1: 0 1px 2px rgb(15 23 42 / .06);
-  --shadow-2: 0 1px 2px rgb(15 23 42 / .04), 0 2px 8px rgb(15 23 42 / .04);
-  --shadow-3: 0 16px 48px rgb(15 23 42 / .16);
+  --shadow-1: 0 1px 2px rgb(19 37 47 / .05);
+  --shadow-2: 0 1px 2px rgb(19 37 47 / .035), 0 10px 30px rgb(19 37 47 / .055);
+  --shadow-3: 0 20px 60px rgb(19 37 47 / .15);
   color-scheme: light;
 }
 
@@ -82,14 +82,14 @@
   --type-scale: 1;
 
   /* radius */
-  --radius-chip: 8px;
-  --radius-control: 10px;
-  --radius-card: 16px;
-  --radius-sheet: 20px;
+  --radius-chip: 10px;
+  --radius-control: 14px;
+  --radius-card: 22px;
+  --radius-sheet: 26px;
 
   /* layout */
-  --sidebar-w: 220px;
-  --sidebar-rail-w: 76px;
+  --sidebar-w: 236px;
+  --sidebar-rail-w: 80px;
 
   /* z-layers (§2.6) */
   --z-content: 0;

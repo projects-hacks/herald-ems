@@ -39,16 +39,22 @@ export function TopBar() {
     scene ? `On scene ${hhmmss(clockSeconds(scene, at, now))}` : null,
   ].filter(Boolean);
   return (
-    <header className="sticky top-0 z-10 flex min-h-16 shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border-subtle bg-canvas/85 px-6 py-2.5 backdrop-blur-md">
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <h1 className="truncate text-hero font-semibold tracking-display">
+    <header className="sticky top-0 z-10 flex min-h-20 shrink-0 flex-wrap items-center gap-x-5 gap-y-2 border-b border-border-subtle bg-surface-1/95 px-7 py-3 backdrop-blur-xl">
+      <div className="flex min-w-0 flex-1 items-center gap-3.5">
+        <span className="hidden size-11 shrink-0 place-items-center rounded-full bg-accent-tint text-sm font-bold text-herald-accent sm:grid" aria-hidden>
+          {who?.match(/\d+/)?.[0] ?? "•"}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="label-caps mb-0.5 text-text-muted">Current patient</p>
+          <div className="flex min-w-0 items-center gap-2.5">
+          <h1 className="truncate text-[1.375rem] leading-7 font-semibold tracking-display">
             {s ? <>{who || "Patient"}<span className="px-2 font-normal text-text-muted">·</span>{complaint ? complaint[0].toUpperCase() + complaint.slice(1) : "Not described yet"}</> : "Waiting for the first capture"}
           </h1>
           {replay && <Badge tone="accent" variant="solid" className="text-[0.6875rem] tracking-wide">REPLAY</Badge>}
           {explain && <Badge tone="accent">Explain mode</Badge>}
+          </div>
+          <p className="num truncate text-meta text-text-muted">{meta.join("  ·  ") || "—"}</p>
         </div>
-        <p className="num truncate text-meta text-text-muted">{meta.join("  ·  ") || "—"}</p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {a && (a.count > 0

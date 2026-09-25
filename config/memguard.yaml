@@ -1,0 +1,87 @@
+# Memory guard (scripts/memguard.py) and job launcher (scripts/run_job.py): thresholds, the protected demo stack,
+# and the victim order. Why these numbers and how the layers fit together: docs/MEMORY_SAFETY.md.
+#
+# Source of the numbers: the 2026-09-24 19:35 UTC freeze on this GB10 (122 GiB unified CPU/GPU memory, no swap,
+# vm.min_free_kbytes 45 MB). Three vLLM models held ~71 GB with ~14 GB free when several model loads started in
+# parallel; the box thrashed and hung before the kernel OOM killer freed anything useful. The guard acts on
+# MemAvailable (which on the GB10 includes CUDA allocations, see MEMORY_SAFETY.md §2) long before that point.
+
+thresholds:                       # normal mode
+  warn_below_gib: 16              # below this: log a warning (rate-limited) and show level "warn" in the status file
+  kill_below_gib: 8               # below this: terminate one victim per cycle, then re-evaluate
+  psi_full_avg10_kill: 25.0       # /proc/pressure/memory "full avg10" (% of time every task stalled on memory): thrashing
+poll_hz: 2                        # MemAvailable + PSI are read every tick
+gpu_poll_s: 2.0                   # nvidia-smi per-process GPU memory is read at most this often (cached between reads)
+process_poll_s: 1.0               # the full process table is re-read at most this often while level is "ok"
+term_grace_s: 3.0                 # SIGTERM, wait this long, then SIGKILL
+critical_term_grace_s: 20.0       # a critical job (run_job --priority critical) gets this long to finish or abandon a
+                                  # checkpoint save (transformers writes checkpoints atomically) before SIGKILL
+critical_warn_log_every_s: 10     # while a critical job runs, warn-level logs (with the growing processes) this often
+growth_window_s: 10               # "growing" = RSS + GPU gained over about this many seconds
+settle_s: 2.0                     # after a victim is gone, wait this long for memory to come back before the next kill
+min_victim_gib: 0.5               # never bother killing something smaller than this (it would not help)
+warn_log_every_s: 30              # while below warn, log at most this often (plus every level change)
+zrt_stop_timeout_s: 30            # `zrt service stop` for class (c) victims
+
+demo:                             # scripts/demo_mode.sh on|off|status toggles the flag file
+  thresholds:                     # the demo stack is fixed and budgeted, so anything that eats into it is a stranger
+    warn_below_gib: 20
+    kill_below_gib: 12
+    psi_full_avg10_kill: 15.0
+  kill_new_gpu_processes: true    # any non-protected process that starts holding GPU memory is terminated at once
+  gpu_min_mib: 64                 # ignore GPU holders below this (driver bookkeeping)
+
+paths:                            # "~" is the home of the user running the guard
+  state_dir: ~/.local/state/herald
+  status_file: ~/.local/state/herald/memguard.json
+  log_file: ~/.local/state/herald/memguard.jsonl
+  demo_flag: ~/.local/state/herald/demo_mode
+  jobs_dir: ~/.local/state/herald/jobs
+  gpu_lock: ~/.cache/herald-gpu.lock
+
+run_job:
+  reserve_gib: 12                 # a job starts only when MemAvailable - reserve >= --need-gib (kill threshold + 4 GiB)
+  wait_timeout_s: 1800            # give up waiting for memory / the GPU lock after this long (override: --wait)
+  host_margin_gib: 4              # default host cap (MemoryMax) = need + margin when --host-max-gib is not given
+  oom_score_adj: 1000             # the kernel OOM killer takes a guarded job before anything else
+  unit_prefix: herald-job-        # systemd --user scope name: <prefix><name>-<UTC timestamp>
+
+protected:                        # never a victim. `cmdline` is a regex searched in the full command line
+  ports: [8100, 8080, 8200, 9000, 8474]   # demo Herald app, ZRT proxy, ED receiver, Toxiproxy link (+ its API)
+  port_descendants: true          # children of a port owner (e.g. uvicorn workers) are protected too
+  vllm_keep: [ems-e-v2-fp8, herald-f, qwen3vl-fp8]   # vLLM services (by --served-model-name) the demo needs;
+                                  # others are class (c). herald-f is run F's merged model; ems-e-v2-fp8 and
+                                  # qwen3vl-fp8 are the rollback stack (TRAINING_PLAN §7) and, if the split stack is
+                                  # used, qwen3vl-fp8 is also the live knowledge model (§7a).
+    # RESTORED 2026-09-25 09:2x UTC, the moment run F training finished and before anything was served again.
+    # History, so this is not "fixed" the wrong way next time: the list was EMPTIED for the duration of the training
+    # run. The guard kills class (c) vLLM services before class (d) critical jobs, so a protected model server
+    # outranks a critical job -- meaning a model a teammate started by mistake would have survived and the 30B
+    # training run would have been terminated instead. Empty was right while training; protected is right now, when
+    # the served models ARE the product and the gates and demo depend on them.
+    # Empty it again only for another long training run, and restore it the moment that run ends.
+    #- ems-e-v2-fp8
+    #- herald-f
+    #- qwen3vl-fp8
+  rules:
+    - {name: zrt proxy,        cmdline: '^/snap/zrt/\S+/bin/zrt '}
+    - {name: zrt cli,          cmdline: '^(\S*/)?zrt( |$)'}
+    - {name: ED receiver,      cmdline: 'uvicorn ed_receiver\.app'}
+    - {name: Herald demo app,  cmdline: 'uvicorn herald\.app:app .*--port 8100\b'}
+    - {name: toxiproxy,        cmdline: '^(\S*/)?toxiproxy-(server|serve)'}
+    - {name: ssh,              cmdline: '^(sshd|/usr/sbin/sshd|sshd:)'}
+    - {name: systemd,          cmdline: '^(/usr/lib/systemd/|/lib/systemd/|\(sd-pam\)|/sbin/init|/usr/bin/dbus-)'}
+    - {name: session,          cmdline: '^(/usr/libexec/|/usr/bin/(gnome-|pipewire|wireplumber|ssh-agent|gpg-agent|dbus-))'}
+    - {name: IDE server,       cmdline: '^/home/\S+/\.(vscode|kiro|cursor|windsurf)-server/'}
+    - {name: agent cli,        cmdline: '^(\S*/)?(claude|codex)( |$)'}
+    - {name: memory guard,     cmdline: 'scripts/memguard\.py( |$)'}
+    - {name: job launcher,     cmdline: 'scripts/run_job\.py( |$)'}
+    - {name: shells,           cmdline: '^(-?bash|-?zsh|-?sh|/bin/bash|/usr/bin/bash|/bin/sh|tmux|screen|sg)( |$)'}
+    - {name: sudo/login,       cmdline: '^(sudo|su|login|/bin/login|agetty)( |$)'}
+
+victims:                          # tried in this order; inside a class, the largest (RSS + GPU memory) goes first
+  - guarded_jobs                  # (a) normal-priority jobs from scripts/run_job.py (their whole systemd scope)
+  - user_processes                # (b) other processes of this user that are not protected (a process tree at a time)
+  - vllm_services                 # (c) vLLM services not in vllm_keep: stopped with `sg zrt -c "zrt service stop <label>"`
+  - critical_jobs                 # (d) run_job --priority critical (the training run): last resort, loud warning first,
+                                  #     SIGTERM with critical_term_grace_s

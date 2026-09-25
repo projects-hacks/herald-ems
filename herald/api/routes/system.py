@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
 
 from ...config import load_yaml
+from ...telemetry.memory import memory_health
 from . import get_ctx, get_hub
 
 router = APIRouter(prefix="/api")
@@ -18,13 +19,16 @@ async def health(c=Depends(get_ctx)):
             "vision_available": await run_in_threadpool(c.vision_model.available),
             "stt_model": c.stt.model, "stt_loaded": c.stt.ready(),
             "incident": c.incident.id, "county": c.counties.active["id"], "cloud_ai_calls": 0,
-            "terminology": {"rxnorm_release": c.coder.release} if c.coder else None}
+            "terminology": {"rxnorm_release": c.coder.release} if c.coder else None,
+            "memory": await run_in_threadpool(memory_health, c.settings.memguard_status, c.settings.memguard_stale_s)}
 
 
 @router.get("/telemetry")
 async def telemetry(c=Depends(get_ctx)):
     """Tokens, tok/s, GPU watts, energy, and $ vs a cloud equivalent, with the assumptions stated."""
-    return await run_in_threadpool(c.telemetry.snapshot, c.text_model.model_name())
+    jobs = ({"extraction": c.text_model.model_name(), "photos": c.vision_model.model_name(),
+             "knowledge": c.knowledge_model.model_name()} if c.settings.knowledge_model else None)
+    return await run_in_threadpool(c.telemetry.snapshot, c.text_model.model_name(), jobs)
 
 
 @router.get("/stack")
@@ -41,8 +45,15 @@ async def stack(c=Depends(get_ctx)):
             status = ("ready" if now == m.get("served_as") else
                       "not served" if now is None else f"not served (serving {now})")
         models.append({k: v for k, v in m.items() if k != "component"} | {"status": status})
-    return {"models": models, "services": cfg["services"],
-            "summary": f"{len(models)} models · {len(cfg['services'])} services", "cloud_ai_calls": 0}
+    out = {"models": models, "services": cfg["services"],
+           "summary": f"{len(models)} models · {len(cfg['services'])} services", "cloud_ai_calls": 0}
+    # Split stack only (TRAINING_PLAN §7a): name the model doing each job, so the demo and the deck show the split
+    # honestly instead of implying one model does everything. Added only when the split is actually configured, so the
+    # single-model response stays exactly as it was (UX_PLAN §5).
+    if c.settings.knowledge_model:
+        out["jobs"] = {"extraction": c.text_model.model_name(), "photos": c.vision_model.model_name(),
+                       "knowledge": c.knowledge_model.model_name()}
+    return out
 
 
 @router.get("/meta")

@@ -1,0 +1,126 @@
+{"id": "b02_008", "runf": [["meds.given", {"drug": "nitroglycerin", "count": 2, "by": "patient", "before_arrival": true}, "family", "wife"]]}
+{"id": "b02_028", "runf": [["ecg.territory", ["inferior"], "medic", null]]}
+{"id": "b02_040", "runf": [["trauma.injury_time", "1 hour ago", "patient", null]]}
+{"id": "b02_044", "runf": [["trauma.injury_time", "4", "bystander", null]]}
+{"id": "b02_052", "runf": [["meds.given", {"drug": "nitroglycerin", "by": "patient", "before_arrival": true}, "medic", null]]}
+{"id": "b02_072", "runf": [["airway.status", "compromised", "medic", null]]}
+{"id": "b02_120", "runf": [["trauma.injury_time", "0300", "family", "wife"]]}
+{"id": "b02_139", "runf": [["meds.given", {"drug": "albuterol", "route": "neb", "by": "father", "before_arrival": true}, "family", "father"], ["meds.given", {"drug": "albuterol", "route": "neb", "by": "father", "before_arrival": true}, "family", "father"]]}
+{"id": "b03_001", "runf": [["ecg.territory", ["inferior"], "medic", null]]}
+{"id": "b03_003", "runf": [["meds.given", {"drug": "nitroglycerin", "count": 2, "by": "patient", "before_arrival": true}, "patient", null]]}
+{"id": "b03_011", "runf": [["procedures.done", {"procedure": "cpr", "by": "bystander", "before_arrival": true}, "medic", null], ["procedures.done", {"procedure": "defibrillation", "detail": "1 AED shock prior to arrival", "before_arrival": true}, "medic", null], ["airway.status", "bag-valve-mask ventilation", "medic", null]]}
+{"id": "b03_022", "runf": [["ecg.territory", ["anterior"], "medic", null]]}
+{"id": "b03_043", "runf": [["meds.given", {"drug": "nitroglycerin", "by": "patient", "before_arrival": true}, "medic", null]]}
+{"id": "b03_051", "runf": [["ecg.territory", ["lateral"], "medic", null]]}
+{"id": "b03_059", "runf": [["meds.given", {"drug": "calcium carbonate", "by": "patient", "before_arrival": true}, "patient", null]]}
+{"id": "b03_061", "runf": [["ecg.territory", ["anterior"], "medic", null]]}
+{"id": "b03_065", "runf": [["procedures.done", {"procedure": "defibrillation", "detail": "2 AED shocks before arrival", "before_arrival": true}, "medic", null], ["airway.status", "endotracheal tube", "medic", null]]}
+{"id": "b03_075", "runf": [["meds.given", {"drug": "aspirin", "time": "noon", "by": "patient", "before_arrival": true}, "patient", null]]}
+{"id": "b03_085", "runf": [["meds.given", {"drug": "nitroglycerin", "by": "patient", "before_arrival": true}, "patient", null]]}
+{"id": "b03_094", "runf": [["impression.primary", "complete heart block", "medic", null]]}
+{"id": "b03_103", "runf": [["trauma.injury_time", "1510", "medic", null]]}
+{"id": "b03_106", "runf": [["meds.given", {"drug": "nitroglycerin", "time": "0600", "by": "patient", "before_arrival": true}, "medic", null]]}
+{"id": "b03_112", "runf": [["meds.given", {"drug": "metoprolol", "by": "patient", "before_arrival": true}, "medic", null]]}
+{"id": "b03_114", "runf": [["meds.given", {"drug": "nitroglycerin", "count": 2, "by": "patient", "before_arrival": true}, "family", "wife"]]}
+{"id": "b03_134", "runf": [["meds.given", {"drug": "nitroglycerin", "time": "12:30", "by": "patient", "before_arrival": true}, "medic", null]]}
+{"id": "b03_146", "runf": [["meds.given", {"drug": "ibuprofen", "count": 2, "by": "patient", "before_arrival": true}, "medic", null]]}
+{"id": "b04_004", "runf": [["trauma.injury_time", "7 am", "family", "daughter"]]}
+{"id": "b04_013", "runf": [["airway.status", "compromised", "medic", null]]}
+{"id": "b04_024", "runf": [["trauma.injury_time", "2 hours ago", "family", "nurse"]]}
+{"id": "b04_053", "runf": [["airway.status", "compromised", "medic", null]]}
+{"id": "b04_064", "runf": [["trauma.injury_time", "7 am", "medic", null]]}
+{"id": "b04_082", "runf": [["trauma.injury_time", "30 minutes ago", "family", "granddaughter"]]}
+{"id": "b04_094", "runf": [["trauma.injury_time", "1620", "medic", null]]}
+{"id": "b04_109", "runf": [["airway.status", "patent", "medic", null]]}
+{"id": "b05_008", "runf": [["meds.given", {"drug": "albuterol", "count": 4, "by": "patient", "before_arrival": true}, "patient", null]]}
+{"id": "b05_018", "runf": [["meds.given", {"drug": "albuterol", "time": "5:00", "by": "mom", "before_arrival": true}, "medic", null]]}
+{"id": "b05_023", "runf": [["airway.status", "bag-valve-mask ventilation", "medic", null]]}
+{"id": "b05_044", "runf": [["meds.given", {"drug": "epinephrine", "time": "2:15", "by": "mother", "before_arrival": true}, "family", "mother"]]}
+{"id": "b05_057", "runf": [["meds.given", {"drug": "albuterol", "count": 10, "by": "patient", "before_arrival": true}, "medic", null]]}
+{"id": "b05_120", "runf": [["meds.given", {"drug": "diphenhydramine", "by": "patient", "before_arrival": true}, "patient", null]]}
+{"id": "b06_007", "runf": [["meds.given", {"drug": "glucagon", "by": "friend", "before_arrival": true}, "medic", null]]}
+{"id": "b06_022", "runf": [["airway.status", "bag-valve-mask ventilation", "medic", null]]}
+{"id": "b06_023", "runf": [["meds.given", {"drug": "naloxone", "dose": 4, "unit": "mg", "route": "IN", "by": "friend", "before_arrival": true}, "medic", null]]}
+{"id": "b06_028", "runf": [["airway.status", "compromised", "medic", null]]}
+{"id": "b06_055", "runf": [["airway.status", "compromised", "medic", null]]}
+{"id": "b06_068", "runf": [["impression.primary", "intoxication", "medic", null]]}
+{"id": "b06_104", "runf": [["airway.status", "compromised", "medic", null]]}
+{"id": "b06_116", "runf": [["airway.status", "bag-valve-mask ventilation", "medic", null]]}
+{"id": "b06_146", "runf": [["meds.given", {"drug": "glucagon", "by": "husband", "before_arrival": true}, "family", "husband"]]}
+{"id": "b07_022", "runf": [["meds.given", {"drug": "glucagon", "dose": 1, "unit": "mg", "route": "IM", "by": "fire", "before_arrival": true}, "medic", null]]}
+{"id": "b07_066", "runf": [["meds.given", {"drug": "epinephrine", "by": "patient", "before_arrival": true}, "medic", null]]}
+{"id": "b09_141", "runf": [["impression.primary", "uti", "medic", null]]}
+{"id": "b10_104", "runf": [["impression.primary", "tia", "medic", null]]}
+{"id": "b12_016", "runf": [["trauma.injury_time", "this morning", "patient", null]]}
+{"id": "b12_073", "runf": [["meds.given", {"drug": "nitroglycerin", "count": 2, "by": "patient", "before_arrival": true}, "medic", null]]}
+{"id": "b12_081", "runf": [["meds.given", {"drug": "nitroglycerin", "by": "nursing home staff", "before_arrival": true}, "medic", null]]}
+{"id": "b12_082", "runf": [["meds.given", {"drug": "albuterol", "count": 2, "by": "patient", "before_arrival": true}, "medic", null]]}
+{"id": "b13_018", "runf": [["airway.status", "patent", "medic", null]]}
+{"id": "b13_106", "runf": [["ecg.territory", ["inferior"], "medic", null]]}
+{"id": "b14_025", "runf": [["meds.given", {"drug": "nitroglycerin", "count": 2, "by": "patient", "before_arrival": true}, "family", "wife"]]}
+{"id": "b14_081", "runf": [["meds.given", {"drug": "nitroglycerin", "route": "SL", "time": "10 minutes ago", "by": "patient", "before_arrival": true}, "patient", null]]}
+{"id": "b15_002", "runf": [["meds.given", {"drug": "nitroglycerin", "by": "patient", "before_arrival": true}, "medic", null]]}
+{"id": "b15_029", "runf": [["ecg.territory", ["inferior"], "medic", null]]}
+{"id": "b15_061", "runf": [["meds.given", {"drug": "nitroglycerin", "count": 2, "by": "patient", "before_arrival": true}, "medic", null]]}
+{"id": "b17_007", "runf": [["meds.given", {"drug": "nitroglycerin", "by": "patient", "before_arrival": true}, "medic", null]]}
+{"id": "b17_010", "runf": [["meds.given", {"drug": "naloxone", "dose": 4, "route": "IN", "by": "fire", "before_arrival": true}, "medic", null]]}
+{"id": "b17_024", "runf": [["impression.primary", "urosepsis", "medic", null]]}
+{"id": "b17_029", "runf": [["impression.primary", "pneumonia", "medic", null]]}
+{"id": "b17_036", "runf": [["meds.given", {"drug": "glucose", "by": "family", "before_arrival": true}, "family", "daughter"]]}
+{"id": "b17_041", "runf": [["meds.given", {"drug": "naloxone", "dose": 2, "route": "IM", "by": "fire", "before_arrival": true}, "medic", null]]}
+{"id": "b17_042", "runf": [["meds.given", {"drug": "aspirin", "by": "patient", "before_arrival": true}, "patient", null]]}
+{"id": "b17_066", "runf": [["airway.status", "bag-valve-mask ventilation", "medic", null]]}
+{"id": "b17_067", "runf": [["trauma.injury_time", "3 am", "family", "daughter"]]}
+{"id": "b17_069", "runf": [["airway.status", "supraglottic airway", "medic", null]]}
+{"id": "b17_073", "runf": [["trauma.injury_time", "last night", "medic", null]]}
+{"id": "b17_112", "runf": [["meds.given", {"drug": "naloxone", "dose": 4, "route": "IN", "count": 2, "by": "police", "before_arrival": true}, "medic", null]]}
+{"id": "b17_131", "runf": [["meds.given", {"drug": "albuterol", "count": 4, "by": "patient", "before_arrival": true}, "family", "mother"]]}
+{"id": "b17_135", "runf": [["meds.given", {"drug": "aspirin", "dose": 324, "by": "first responder", "before_arrival": true}, "medic", null]]}
+{"id": "b17_146", "runf": [["airway.status", "bag-valve-mask ventilation", "medic", null]]}
+{"id": "b18_003", "runf": [["meds.given", {"drug": "nitroglycerin", "count": 2, "by": "patient", "before_arrival": true}, "patient", null]]}
+{"id": "b18_015", "runf": [["meds.given", {"drug": "aspirin", "route": "PO", "by": "fire", "before_arrival": true}, "medic", null]]}
+{"id": "b18_026", "runf": [["airway.status", "bag-valve-mask ventilation", "medic", null]]}
+{"id": "b18_034", "runf": [["airway.status", "bag-valve-mask ventilation", "medic", null]]}
+{"id": "b18_036", "runf": [["airway.status", "compromised", "medic", null]]}
+{"id": "b18_041", "runf": [["meds.given", {"drug": "naloxone", "by": "police", "before_arrival": true}, "medic", null]]}
+{"id": "b18_042", "runf": [["airway.status", "bag-valve-mask ventilation", "medic", null]]}
+{"id": "b18_043", "runf": [["airway.status", "compromised", "medic", null]]}
+{"id": "b18_071", "runf": [["airway.status", "supraglottic airway", "medic", null]]}
+{"id": "b18_078", "runf": [["procedures.done", {"procedure": "cpr", "by": "bystander", "before_arrival": true}, "medic", null]]}
+{"id": "b18_084", "runf": [["airway.status", "endotracheal tube", "medic", null]]}
+{"id": "b18_086", "runf": [["impression.primary", "urosepsis", "medic", null]]}
+{"id": "b18_090", "runf": [["impression.primary", "pneumonia", "medic", null]]}
+{"id": "b18_102", "runf": [["meds.given", {"drug": "epinephrine", "time": "7", "by": "patient", "before_arrival": true}, "medic", null]]}
+{"id": "b18_107", "runf": [["meds.given", {"drug": "diphenhydramine", "time": "an hour ago", "by": "patient", "before_arrival": true}, "medic", null]]}
+{"id": "b18_149", "runf": [["trauma.injury_time", "1 hour ago", "patient", null]]}
+{"id": "b19_031", "runf": [["trauma.injury_time", "this morning", "family", "daughter"]]}
+{"id": "b19_064", "runf": [["procedures.done", {"procedure": "spinal motion restriction", "detail": "collar", "by": "fire", "before_arrival": true}, "medic", null]]}
+{"id": "b19_068", "runf": [["procedures.done", {"procedure": "tourniquet", "detail": "right arm", "by": "police", "before_arrival": true}, "bystander", null]]}
+{"id": "b19_074", "runf": [["airway.status", "bag-valve-mask ventilation", "medic", null]]}
+{"id": "b19_081", "runf": [["procedures.done", {"procedure": "tourniquet", "detail": "belt", "by": "bystander", "before_arrival": true}, "bystander", null]]}
+{"id": "b19_082", "runf": [["airway.status", "endotracheal tube", "medic", null]]}
+{"id": "b19_096", "runf": [["meds.given", {"drug": "fentanyl", "dose": 100, "route": "IN", "by": "fire", "before_arrival": true}, "medic", null]]}
+{"id": "b19_108", "runf": [["airway.status", "bag-valve-mask ventilation", "medic", null]]}
+{"id": "b20_004", "runf": [["meds.given", {"drug": "naloxone", "dose": 4, "unit": "mg", "route": "IN", "by": "fire", "before_arrival": true}, "medic", null]]}
+{"id": "b20_005", "runf": [["impression.primary", "urosepsis", "medic", null]]}
+{"id": "b20_006", "runf": [["airway.status", "supraglottic airway", "medic", null]]}
+{"id": "b20_008", "runf": [["meds.given", {"drug": "epinephrine", "by": "bystander", "before_arrival": true}, "medic", null]]}
+{"id": "b20_014", "runf": [["meds.given", {"drug": "nitroglycerin", "count": 2, "by": "patient", "before_arrival": true}, "medic", null], ["meds.given", {"drug": "aspirin", "by": "patient", "before_arrival": true}, "medic", null]]}
+{"id": "b20_023", "runf": [["impression.primary", "pneumonia", "medic", null]]}
+{"id": "b20_027", "runf": [["procedures.done", {"procedure": "cpr", "by": "bystander", "before_arrival": true}, "medic", null], ["procedures.done", {"procedure": "defibrillation", "detail": "once with the AED", "by": "bystander", "before_arrival": true}, "medic", null], ["airway.status", "endotracheal tube", "medic", null]]}
+{"id": "b20_029", "runf": [["meds.given", {"drug": "aspirin", "count": 4, "route": "PO", "by": "patient", "before_arrival": true}, "medic", null]]}
+{"id": "b20_045", "runf": [["meds.given", {"drug": "naloxone", "dose": 2, "unit": "mg", "route": "IN", "by": "fire", "before_arrival": true}, "medic", null]]}
+{"id": "b20_065", "runf": [["meds.given", {"drug": "naloxone", "route": "IN", "by": "bystander", "before_arrival": true}, "bystander", null]]}
+{"id": "b20_074", "runf": [["procedures.done", {"procedure": "cpr", "by": "fire", "before_arrival": true}, "medic", null], ["airway.status", "supraglottic airway", "medic", null]]}
+{"id": "b20_082", "runf": [["ecg.territory", ["anterior"], "medic", null]]}
+{"id": "b20_083", "runf": [["procedures.done", {"procedure": "cpr", "by": "family", "before_arrival": true}, "medic", null], ["airway.status", "bag-valve-mask ventilation", "medic", null]]}
+{"id": "b20_089", "runf": [["impression.primary", "pneumonia", "medic", null]]}
+{"id": "b20_090", "runf": [["meds.given", {"drug": "nitroglycerin", "by": "patient", "before_arrival": true}, "patient", null]]}
+{"id": "b20_113", "runf": [["ecg.territory", ["inferior", "right ventricular"], "medic", null], ["meds.given", {"drug": "aspirin", "dose": 324, "by": "fire", "before_arrival": true}, "medic", null]]}
+{"id": "b20_114", "runf": [["impression.primary", "urosepsis", "medic", null]]}
+{"id": "b20_115", "runf": [["procedures.done", {"procedure": "cpr", "detail": "30 minutes", "by": "fire", "before_arrival": true}, "medic", null]]}
+{"id": "b20_128", "runf": [["impression.primary", "sepsis", "medic", null]]}
+{"id": "b20_137", "runf": [["impression.primary", "kidney infection", "medic", null]]}
+{"id": "b20_140", "runf": [["procedures.done", {"procedure": "cpr", "by": "bystander", "before_arrival": true}, "medic", null]]}
+{"id": "b20_145", "runf": [["impression.primary", "pneumonia", "medic", null]]}
+{"id": "b20_150", "runf": [["procedures.done", {"procedure": "cpr", "by": "family", "before_arrival": true}, "medic", null], ["airway.status", "endotracheal tube", "medic", null]]}

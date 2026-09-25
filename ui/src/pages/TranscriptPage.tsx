@@ -8,7 +8,7 @@ import { TraceEntry } from "@/features/trace/trace";
 export function TranscriptPage() {
   const ts = useHerald((s) => s.snapshot?.transcripts) ?? [];
   return (
-    <div className="flex flex-col gap-5 p-6">
+    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-7 max-lg:p-5">
       <PageHeader title="Transcript" description="What Herald heard, and what it did with it. The last 20 captures, newest first." />
       <Card>
         {ts.length === 0 ? <EmptyState icon={AudioLines} tone="neutral" title="Nothing heard yet">Speak, or take a photo at {location.host}/capture.html</EmptyState>

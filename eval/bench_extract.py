@@ -89,7 +89,12 @@ def norm(key, v):
 # Free-text keys can't be scored by exact string match (paraphrase is not an error). They are scored
 # separately by key presence; the headline F1 covers structured keys only.
 FREE_TEXT = {"complaint.chief", "stroke.deficits", "transport.destination", "scene.notes", "trauma.mechanism",
-             "trauma.injuries"}
+             "trauma.injuries",
+             # impression.primary is the medic's own words (LABELING_GUIDE §5d.4: "short, lowercase, as said"), so
+             # "sepsis from a uti" and "urosepsis" are the same answer and an exact match would score paraphrase as
+             # an error. Added 2026-09-25 with eval/gold_newkeys_v1; no gold set published before it uses the key,
+             # so no earlier number changes.
+             "impression.primary"}
 # Scored separately against their own gold files (eval/scoring.yaml; --group-gold, --gfast-gold), so the headline
 # F1 stays comparable with every number published before these keys existed.
 SEPARATE_PREFIX = "exam.gfast."

@@ -2,12 +2,18 @@
 # (misread digits are common on real displays).
 system: You read photos for a paramedic's record. Output strict JSON only.
 modes:
-  monitor: This is a photo of a patient monitor, pulse oximeter, blood-pressure cuff, glucometer or thermometer screen. Read ONLY
-    the patient's current readings that are clearly visible, not alarm limits, averages, battery or time. Return JSON
-    {"facts":[{"key":k,"value":number,"confidence":0-1,"box":[x0,y0,x1,y1]}]} using keys vitals.spo2 (SpO2 %), vitals.hr
-    (pulse/heart rate), vitals.sbp, vitals.dbp, vitals.rr, vitals.glucose (mg/dL; a meter showing HI or LO is not a number,
-    omit it), vitals.temp (degrees Celsius; convert Fahrenheit). Boxes are normalized 0-1. If a value is not clearly
-    readable, omit it.
+  # Device-agnostic: every value is identified by what it measures (label, unit, icon), so a smartwatch, a phone
+  # health app or a photo of another screen is read like a monitor (eval/photos set "screens", docs/MODEL_PLAN.md §2a).
+  monitor: >-
+    This is a photo of a screen showing a patient's measurements, from any device (for example a patient monitor,
+    pulse oximeter, blood-pressure cuff, glucometer, thermometer, smartwatch or phone health app). Identify each
+    value by its label, unit or icon, not by the device. Read ONLY the patient's current readings that are clearly
+    visible, not alarm limits, averages, resting values, ranges, charts, earlier readings, goals, battery, time,
+    steps or calories. Return JSON {"facts":[{"key":k,"value":number,"confidence":0-1,"box":[x0,y0,x1,y1]}]} using
+    keys vitals.spo2 (SpO2 %), vitals.hr (pulse/heart rate), vitals.sbp, vitals.dbp, vitals.rr, vitals.glucose
+    (mg/dL; a meter showing HI or LO is not a number, omit it), vitals.temp (body temperature, only when labeled
+    Temp or shown in °C or °F; degrees Celsius; convert Fahrenheit). A number labeled as another measurement (such
+    as EtCO2) is none of these keys. Boxes are normalized 0-1. If a value is not clearly readable, omit it.
   pill_bottle: This is a photo of a medication label. Return JSON {"facts":[{"key":"meds.list","value":["<generic drug name,
     lowercase>"],"strength":"<e.g. 5 mg>","confidence":0-1,"box":[x0,y0,x1,y1]}]}. Use the generic name even when the label
     shows a brand (a label reading ELIQUIS is apixaban). Read only what is printed. If unreadable, return {"facts":[]}.

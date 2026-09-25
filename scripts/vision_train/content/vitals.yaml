@@ -1,0 +1,19 @@
+# Value sampling for displayed readings (scripts/vision_train/values.py). Each profile is a physiologically
+# coherent picture (ranges are inclusive, canonical units); a photo draws one profile, then each shown metric from
+# it. Profiles cover normal, abnormal and edge values; every range stays inside the photo plausibility ranges in
+# config/prompts/vision.yaml (the reader drops anything outside those, so a target outside them would be wrong).
+profiles:
+  normal:        {weight: 0.30, hr: [58, 98],   spo2: [95, 100], sbp: [104, 138], dbp: [62, 88],  rr: [12, 20], temp: [36.2, 37.5], glucose: [72, 139], etco2: [35, 45]}
+  tachy_fever:   {weight: 0.10, hr: [100, 148], spo2: [91, 98],  sbp: [92, 132],  dbp: [50, 82],  rr: [20, 32], temp: [38.0, 40.6], glucose: [90, 190], etco2: [26, 36]}
+  hypoxic:       {weight: 0.10, hr: [96, 138],  spo2: [70, 91],  sbp: [110, 170], dbp: [64, 100], rr: [24, 44], temp: [36.4, 38.6], glucose: [95, 210], etco2: [42, 68]}
+  shock:         {weight: 0.08, hr: [112, 168], spo2: [82, 96],  sbp: [60, 92],   dbp: [30, 58],  rr: [22, 40], temp: [34.8, 39.4], glucose: [60, 260], etco2: [14, 29]}
+  hypertensive:  {weight: 0.10, hr: [62, 112],  spo2: [93, 100], sbp: [160, 238], dbp: [92, 138], rr: [14, 24], temp: [36.3, 37.4], glucose: [85, 240], etco2: [32, 42]}
+  brady:         {weight: 0.08, hr: [28, 54],   spo2: [88, 99],  sbp: [72, 128],  dbp: [38, 80],  rr: [8, 18],  temp: [35.0, 37.0], glucose: [70, 160], etco2: [38, 60]}
+  hypoglycemic:  {weight: 0.08, hr: [84, 124],  spo2: [94, 100], sbp: [98, 150],  dbp: [58, 92],  rr: [14, 24], temp: [35.6, 37.0], glucose: [18, 69],  etco2: [30, 40]}
+  hyperglycemic: {weight: 0.08, hr: [92, 132],  spo2: [94, 100], sbp: [90, 140],  dbp: [52, 86],  rr: [22, 36], temp: [36.4, 37.8], glucose: [250, 600], etco2: [16, 30]}
+  hypothermic:   {weight: 0.04, hr: [34, 70],   spo2: [84, 97],  sbp: [76, 120],  dbp: [40, 76],  rr: [6, 14],  temp: [30.4, 35.4], glucose: [60, 180], etco2: [20, 40]}
+  athlete_edge:  {weight: 0.04, hr: [36, 52],   spo2: [96, 100], sbp: [96, 124],  dbp: [52, 76],  rr: [8, 14],  temp: [35.9, 36.9], glucose: [70, 110], etco2: [36, 44]}
+# Pulse pressure kept at least this (a cuff never shows SBP <= DBP + 10 on a real reading).
+min_pulse_pressure: 12
+# Glucose unit conversion used by the targets (mmol/L x 18 = mg/dL, rounded; the prompt asks for mg/dL).
+mmol_to_mgdl: 18.0

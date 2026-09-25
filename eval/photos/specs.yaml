@@ -355,6 +355,195 @@ items:
     notes: a visitor sign-in sheet with checked boxes, not a resuscitation order
     degrade: [{kind: perspective, strength: 0.12}]
 
+  # ================= set "screens" (added 2026-09-24): consumer and unfamiliar screens =================
+  # Screen types the monitor prompt was never tuned on: smartwatch faces, phone health / fitness / glucose /
+  # thermometer apps, a wrist BP cuff that marks the pulse only with a heart icon, and a tablet showing a picture of
+  # a bedside monitor. `set: screens` puts them in their own group in the bench (per_set), so the original 45
+  # images stay comparable with every earlier run.
+  #
+  # What counts as the patient's current reading (labeling rules for screens; LABELING_GUIDE §4 normalization):
+  #   - COUNTS: the single most recent value of a measurement, shown as its main number or marked "Latest",
+  #     "Now", "just now", or the result of a measurement that was just taken (a watch ECG recording's heart rate
+  #     is the heart rate of that 30 s recording, even though the screen calls it "Average"; a cuff's result).
+  #   - DOES NOT COUNT: resting heart rate, daily / weekly averages, min-max ranges, charts and trends, goals,
+  #     targets and thresholds (a CGM's 70-180 target band, a fever threshold), earlier entries in a history
+  #     list, changes from a personal baseline (skin temperature variation), HRV, time in range, and non-vitals
+  #     (clock, date, battery %, steps, distance, calories, sleep, floors, active minutes, memory-slot numbers).
+  #   - A rhythm label ("Sinus Rhythm") is not a fact: Herald reads numbers from photos and interprets no ECG.
+  #   - Temperature in Celsius with one decimal: the app's 101.3 °F is gold 38.5.
+  - id: watch_01_round_hr
+    set: screens
+    device: smartwatch
+    shape: round
+    app: heart_rate
+    mode: monitor
+    clock: "10:09"
+    values: {vitals.hr: 72}
+    notes: round watch face; a heart icon, 72 and BPM, no "heart rate" label; the clock is not a vital
+    degrade: []
+  - id: watch_02_rect_spo2
+    set: screens
+    device: smartwatch
+    shape: rect
+    app: blood_oxygen
+    mode: monitor
+    clock: "10:14"
+    values: {vitals.spo2: 97}
+    notes: rectangular watch, blood-oxygen app, 97%
+    degrade: []
+  - id: watch_03_ecg_result
+    set: screens
+    device: smartwatch
+    shape: rect
+    app: ecg
+    mode: monitor
+    clock: "10:21"
+    values: {vitals.hr: 78}
+    notes: watch ECG result "Sinus Rhythm, 78 BPM Average" after a 30 s recording; the recording's rate is the current heart rate; the rhythm label is not a fact
+    degrade: [{kind: jpeg, quality: 30}]
+  - id: watch_04_round_hr_resting_tilt
+    set: screens
+    device: smartwatch
+    shape: round
+    app: heart_rate
+    label: Heart Rate
+    mode: monitor
+    clock: "2:47"
+    values: {vitals.hr: 118}
+    resting: 64
+    ago: Now
+    notes: current heart rate 118 with "Resting 64 BPM" below it (resting is not the current reading); tilted, glare
+    degrade: [{kind: glare, at: [0.62, 0.30], size: 0.18, strength: 0.6}, {kind: perspective, strength: 0.15}]
+  - id: phone_01_health_summary
+    set: screens
+    device: phone_app
+    style: light
+    mode: monitor
+    title: Summary
+    subtitle: Pinned
+    clock: "10:05"
+    battery: 64
+    values: {vitals.hr: 88, vitals.spo2: 95, vitals.sbp: 128, vitals.dbp: 82}
+    cards:
+      - {title: Heart Rate, icon: heart, color: red, note: "Latest, 2 min ago", key: vitals.hr, unit: BPM}
+      - {title: Blood Oxygen, icon: drop, color: blue, note: "10:02 AM", key: vitals.spo2, unit: "%"}
+      - {title: Blood Pressure, icon: heart, color: purple, note: "Today 8:05 AM", keys: [vitals.sbp, vitals.dbp], unit: mmHg}
+      - {title: Steps, icon: shoe, color: orange, note: Today, value: "6,214", unit: steps}
+      - {title: Active Energy, icon: flame, color: orange, note: Today, value: "312", unit: kcal}
+      - {title: Resting Heart Rate, icon: heart, color: red, note: Today, value: "61", unit: BPM}
+      - {title: Sleep, icon: moon, color: teal, note: Last night, value: "6 hr 42 min"}
+    notes: health-app summary; current = latest heart rate 88, blood oxygen 95, blood pressure 128/82; distractors resting HR 61, steps, calories, sleep, battery 64%
+    degrade: []
+  - id: phone_02_hr_week_tilt
+    set: screens
+    device: phone_app
+    style: light
+    mode: monitor
+    back: Heart
+    title: Heart Rate
+    clock: "9:41"
+    values: {vitals.hr: 104}
+    chart: {kind: range_bars, header: RANGE, big: "58-142", unit: BPM, sub: "Sep 18-24, 2026", axis: [40, 160],
+            gridlines: [60, 100, 140], low: 58, high: 142, peak_day: 4, color: red}
+    cards:
+      - {title: Latest, color: red, note: "9:38 AM", key: vitals.hr, unit: BPM}
+      - {title: Resting, color: red, note: This week, value: "66", unit: BPM}
+      - {title: Average, color: red, note: This week, value: "82", unit: BPM}
+    notes: 7-day heart-rate chart with a 58-142 range header (not a reading); current = Latest 104; resting 66 and average 82 are not current; tilted
+    degrade: [{kind: perspective, strength: 0.14}]
+  - id: phone_03_dark_vitals
+    set: screens
+    device: phone_app
+    style: dark
+    mode: monitor
+    title: Health Metrics
+    subtitle: Right now
+    clock: "6:52"
+    battery: 31
+    values: {vitals.hr: 96, vitals.spo2: 93, vitals.rr: 22}
+    cards:
+      - {title: Heart rate, icon: heart, color: red, note: Just now, key: vitals.hr, unit: bpm}
+      - {title: SpO2, icon: drop, color: blue, note: Just now, key: vitals.spo2, unit: "%"}
+      - {title: Breathing rate, icon: lungs, color: teal, note: Just now, key: vitals.rr, unit: br/min}
+      - {title: Skin temperature, icon: thermometer, color: orange, note: vs. baseline, value: "+0.4", unit: "°C"}
+      - {title: Heart rate variability, icon: heart, color: purple, note: Today, value: "28", unit: ms}
+      - {title: Steps, icon: shoe, color: green, note: Today, value: "3,120"}
+    notes: dark app with several metrics; current = heart rate 96, SpO2 93, breathing rate 22; skin temperature variation +0.4 °C vs baseline is not a body temperature; HRV 28 ms, steps and battery 31% are not vitals
+    degrade: [{kind: jpeg, quality: 28}]
+  - id: phone_04_cgm_glucose_rot
+    set: screens
+    device: phone_app
+    style: dark
+    mode: monitor
+    title: Glucose
+    clock: "11:30"
+    values: {vitals.glucose: 142}
+    hero: {key: vitals.glucose, unit: mg/dL, arrow: "→", color: green, notes: ["Steady, sensor reading 1 min ago"]}
+    chart: {kind: line, axis: [40, 300], gridlines: [70, 180, 250], start: 118, end: 142, color: green,
+            x_labels: ["8 AM", "9 AM", "10 AM", "11 AM"]}
+    cards:
+      - {title: Time in Range, color: green, note: 24 hours, value: "78", unit: "%"}
+      - {title: Average glucose, color: grey, note: 14 days, value: "151", unit: mg/dL}
+    notes: continuous-glucose-monitor app; current = 142 mg/dL; target band lines 70 and 180, the 3-hour chart, time in range 78% and the 14-day average 151 are not current readings; rotated
+    degrade: [{kind: rotation, angle: 8}]
+  - id: phone_05_fitness_only
+    set: screens
+    device: phone_app
+    style: light
+    mode: monitor
+    title: Activity
+    subtitle: Today
+    clock: "5:18"
+    battery: 92
+    values: {}
+    cards:
+      - {title: Steps, icon: shoe, color: orange, note: "Goal 10,000", value: "8,432"}
+      - {title: Distance, icon: shoe, color: blue, note: Today, value: "3.9", unit: mi}
+      - {title: Active calories, icon: flame, color: red, note: "Goal 500", value: "412", unit: kcal}
+      - {title: Active minutes, color: green, note: Today, value: "38", unit: min}
+      - {title: Floors climbed, color: purple, note: Today, value: "9"}
+    notes: fitness app with only activity numbers (steps, distance, calories, minutes, floors, goals, battery); no patient vital, so no fact
+    degrade: []
+  - id: phone_06_thermometer_dim
+    set: screens
+    device: phone_app
+    style: light
+    mode: monitor
+    title: Temperature
+    subtitle: Smart thermometer
+    clock: "8:15"
+    temp_unit: F
+    values: {vitals.temp: 38.5}
+    hero: {key: vitals.temp, unit: "°F", label: Body temperature, icon: thermometer, color: orange,
+           notes: ["Measured just now, forehead", "Fever above 100.4 °F"]}
+    section: History
+    cards:
+      - {title: "Yesterday 9:02 PM", color: grey, value: "99.1", unit: "°F"}
+      - {title: "Yesterday 7:30 AM", color: grey, value: "98.7", unit: "°F"}
+      - {title: "Sep 22, 8:15 PM", color: grey, value: "98.4", unit: "°F"}
+    notes: thermometer app; current = 101.3 °F = 38.5 °C; the fever threshold 100.4 and the history entries are not current; dim room
+    degrade: [{kind: low_light, level: 0.5}]
+  - id: bpcuff_wrist_01_glare
+    set: screens
+    device: wrist_bp_cuff
+    mode: monitor
+    date: "9-24"
+    time: "7:42"
+    memory: 12
+    values: {vitals.sbp: 146, vitals.dbp: 92, vitals.hr: 88}
+    notes: wrist BP cuff; SYS 146, DIA 92, pulse 88 marked only by a heart icon and /min; the date, time and memory slot M 12 are not vitals; glare
+    degrade: [{kind: glare, at: [0.30, 0.22], size: 0.14, strength: 0.55}]
+  - id: screen_01_tablet_monitor_angle
+    set: screens
+    device: tablet_monitor
+    style: dark
+    mode: monitor
+    caption: "IMG_2291.JPG"
+    temp_unit: C
+    values: {vitals.hr: 110, vitals.spo2: 94, vitals.sbp: 138, vitals.dbp: 86, vitals.rr: 22, vitals.temp: 37.8}
+    notes: a tablet showing a picture of a bedside monitor, photographed at an angle with screen moire and glare; the same readings as on the monitor
+    degrade: [{kind: moire, period: 7, angle: 14, strength: 0.22}, {kind: glare, at: [0.72, 0.28], size: 0.2, strength: 0.55}, {kind: perspective, strength: 0.16}]
+
 # Images already in eval/photos/ before this set existed (kept; their values are what is printed on them).
 existing:
   - file: synthetic_pill_warfarin.jpg

@@ -1,0 +1,107 @@
+[
+{
+"label": "Attempt Resuscitation/CPR (Selecting C",
+"x0": 73.5,
+"y0": 163.0,
+"x1": 83.7,
+"y1": 173.3
+},
+{
+"label": "Do Not Attempt Resuscitation/DNR (Allo",
+"x0": 73.5,
+"y0": 181.0,
+"x1": 83.7,
+"y1": 191.3
+},
+{
+"label": "Full Treatment \u2013 primary goal of prolo",
+"x0": 73.5,
+"y0": 218.7,
+"x1": 83.7,
+"y1": 229.0
+},
+{
+"label": "Trial Period of Full Treatment.",
+"x0": 169.5,
+"y0": 259.7,
+"x1": 179.7,
+"y1": 270.0
+},
+{
+"label": "Selective Treatment \u2013 goal of treating",
+"x0": 73.5,
+"y0": 277.3,
+"x1": 83.7,
+"y1": 287.6
+},
+{
+"label": "Request transfer to hospital only if c",
+"x0": 169.5,
+"y0": 326.8,
+"x1": 179.7,
+"y1": 337.1
+},
+{
+"label": "Comfort-Focused Treatment \u2013 primary go",
+"x0": 73.5,
+"y0": 344.4,
+"x1": 83.7,
+"y1": 354.7
+},
+{
+"label": "Long-term artificial nutrition, includ",
+"x0": 73.9,
+"y0": 453.4,
+"x1": 81.1,
+"y1": 460.7
+},
+{
+"label": "Trial period of artificial nutrition, ",
+"x0": 73.9,
+"y0": 467.9,
+"x1": 81.1,
+"y1": 475.2
+},
+{
+"label": "No artificial means of nutrition, incl",
+"x0": 73.9,
+"y0": 482.4,
+"x1": 81.1,
+"y1": 489.7
+},
+{
+"label": "Patient (Patient Has Capacity) \uf06f Legal",
+"x0": 181.1,
+"y0": 519.4,
+"x1": 187.6,
+"y1": 526.0
+},
+{
+"label": "Legally Recognized Decisionmaker",
+"x0": 343.6,
+"y0": 519.6,
+"x1": 350.1,
+"y1": 526.2
+},
+{
+"label": "Advance Directive dated _______, avail",
+"x0": 73.9,
+"y0": 535.2,
+"x1": 81.1,
+"y1": 542.5
+},
+{
+"label": "Advance Directive not available ",
+"x0": 73.9,
+"y0": 548.2,
+"x1": 81.1,
+"y1": 555.5
+},
+{
+"label": "No Advance Directive",
+"x0": 73.9,
+"y0": 561.0,
+"x1": 81.1,
+"y1": 568.3
+}
+]

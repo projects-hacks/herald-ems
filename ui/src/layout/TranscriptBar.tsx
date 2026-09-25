@@ -12,7 +12,7 @@ export function TranscriptBar() {
   if (explain) return null;
   const Icon = sourceIcon(t);
   return (
-    <footer className="flex min-h-13 shrink-0 items-center gap-3 border-t border-border-subtle px-6">
+    <footer className="flex min-h-16 shrink-0 items-center gap-3 border-t border-border-subtle bg-surface-1/95 px-7 backdrop-blur-xl">
       <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent-tint text-herald-accent" aria-hidden><Icon size={15} /></span>
       {t ? (
         <button type="button" onClick={() => setUi({ page: "transcript" })} className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 text-left text-body" aria-live="polite"
@@ -26,7 +26,7 @@ export function TranscriptBar() {
       ) : (
         <p className="min-w-0 flex-1 truncate text-body text-text-muted">Nothing heard yet. Speak, or take a photo at {location.host}/capture.html</p>
       )}
-      <a href="/classic/" className="inline-flex shrink-0 items-center gap-1 rounded-[8px] px-2 py-1.5 text-meta font-medium text-text-muted hover:bg-surface-1 hover:text-text-primary">
+      <a href="/classic/" className="hit inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-accent-tint px-4 text-meta font-semibold text-herald-accent hover:brightness-95">
         Voice capture<ArrowUpRight size={14} aria-hidden />
       </a>
     </footer>

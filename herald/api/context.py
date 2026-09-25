@@ -46,6 +46,8 @@ class AppContext:
     telemetry: Telemetry
     text_model: TextModel          # extraction
     vision_model: TextModel        # photo reading
+    knowledge_model: TextModel     # protocol reranking, figure transcription, translation (S3). The same object as
+                                   # vision_model unless settings.knowledge_model names a separate label (§7a)
     stt: SpeechToText
     vision: PhotoReader
     model_extractor: ModelExtractor
@@ -84,7 +86,8 @@ def build_handoff(config: HandoffConfig, vocab: Vocabulary, scales: ScaleRegistr
 
 
 def build_context(settings: Optional[Settings] = None, *, text_model: Optional[TextModel] = None,
-                  vision_model: Optional[TextModel] = None, stt: Optional[SpeechToText] = None,
+                  vision_model: Optional[TextModel] = None, knowledge_model: Optional[TextModel] = None,
+                  stt: Optional[SpeechToText] = None,
                   vision: Optional[PhotoReader] = None, telemetry: Optional[Telemetry] = None,
                   embedder=None, protocol_fetch=None, normalizer: Optional[Normalizer] = None) -> AppContext:
     s = settings or get_settings()
@@ -96,12 +99,19 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
     tel = telemetry or Telemetry(s.metrics_url, s.price_overrides)
     model = text_model or LocalLLMClient(s.llm_url, s.llm_model, usage=tel)
     seeing = vision_model or (text_model if text_model is not None else LocalLLMClient(s.llm_url, s.vision_model, usage=tel))
+    # Split stack (TRAINING_PLAN §7a): reranking, figure transcription and translation can run on a different label
+    # from photo reading, for when a fine-tune wins speech and photos but loses the base model's kept abilities.
+    # Unset (the default and today's stack) it is the *same object* as `seeing`, so nothing about the single-model
+    # path changes. Extraction (`model`) and photo reading (`seeing`) are never moved by this setting.
+    knowing = knowledge_model or (LocalLLMClient(s.llm_url, s.knowledge_model, usage=tel) if s.knowledge_model
+                                  else seeing)
     coder = build_coder(s, vocab, normalizer)
     model_extractor = ModelExtractor(model, vocabulary=vocab, finetuned_labels=s.finetuned_models, coder=coder)
     ctx = AppContext(
         settings=s, vocab=vocab, scales=scales, counties=counties, checklists=checklists, projector=projector,
         policy=ConfirmationPolicy(vocab, s.auto_confirm), tiers=tiers, trends=trends, guard=guard, telemetry=tel,
-        text_model=model, vision_model=seeing, stt=stt or WhisperSTT(s.stt_model, usage=tel, offline=s.models_offline),
+        text_model=model, vision_model=seeing, knowledge_model=knowing,
+        stt=stt or WhisperSTT(s.stt_model, usage=tel, offline=s.models_offline),
         vision=vision or VisionReader(seeing, coder),
         model_extractor=model_extractor,
         tracer=TraceRecorder(vocab, tiers),
@@ -117,6 +127,6 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
             e = load_yaml("knowledge.yaml")["embedding"]
             embedder = HFEmbedder(e["model"], e["query_prefix"], e["device"], offline=s.models_offline)
         ctx.knowledge = KnowledgeService(lambda: counties.active, s.protocols_dir, ctx.relay.link_state,
-                                         embedder=embedder or None, reranker=LLMReranker(seeing), vision=seeing,
+                                         embedder=embedder or None, reranker=LLMReranker(knowing), vision=knowing,
                                          fetch=protocol_fetch, mirror=s.protocol_mirror)
     return ctx

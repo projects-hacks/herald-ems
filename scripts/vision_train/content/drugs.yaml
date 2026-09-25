@@ -1,0 +1,46 @@
+# Drug pick list for the vision training labels (scripts/vision_train/drugs.py).
+# Names are RxNorm ingredient names (config/terminology.yaml source: RxNorm Current Prescribable Content). Products,
+# strengths, dose forms and brand names are NOT listed here: they are read from the RxNorm index at build time
+# (data/terminology/rxnorm_index.json, scripts/build_rxnorm_index.py), so every label prints a real product.
+# `common` is sampled most of the time (the classes a paramedic meets in a home medication bag); the rest of the
+# prescribable subset (`tail_share` of labels) gives unfamiliar names, so the model learns to read, not recall.
+tail_share: 0.25
+common:
+  anticoagulant: [apixaban, rivaroxaban, dabigatran, warfarin, edoxaban, enoxaparin]
+  antiplatelet: [clopidogrel, aspirin, ticagrelor, prasugrel, cilostazol]
+  lipid: [atorvastatin, rosuvastatin, simvastatin, pravastatin, lovastatin, ezetimibe, fenofibrate]
+  blood_pressure_heart: [lisinopril, losartan, amlodipine, valsartan, olmesartan, hydrochlorothiazide, chlorthalidone,
+    spironolactone, furosemide, bumetanide, torsemide, carvedilol, metoprolol, atenolol, propranolol, diltiazem,
+    verapamil, hydralazine, clonidine, benazepril, enalapril, ramipril, irbesartan, nifedipine, labetalol, nebivolol,
+    bisoprolol, isosorbide, nitroglycerin, digoxin, amiodarone, flecainide, sotalol, ranolazine, doxazosin, terazosin]
+  diabetes: [metformin, glipizide, glimepiride, glyburide, sitagliptin, linagliptin, empagliflozin, dapagliflozin,
+    canagliflozin, pioglitazone, insulin glargine, insulin lispro, insulin aspart, insulin detemir, insulin degludec,
+    semaglutide, liraglutide, dulaglutide, tirzepatide]
+  respiratory_allergy: [albuterol, ipratropium, tiotropium, budesonide, fluticasone, montelukast, levalbuterol,
+    beclomethasone, mometasone, cetirizine, loratadine, fexofenadine, diphenhydramine, benzonatate, epinephrine]
+  seizure_neuro: [levetiracetam, phenytoin, carbamazepine, lamotrigine, valproate, gabapentin, pregabalin, topiramate,
+    oxcarbazepine, lacosamide, donepezil, memantine, ropinirole, pramipexole, sumatriptan, rizatriptan, baclofen,
+    cyclobenzaprine, tizanidine, methocarbamol]
+  psychiatric_sleep: [sertraline, fluoxetine, citalopram, escitalopram, paroxetine, venlafaxine, duloxetine, bupropion,
+    trazodone, mirtazapine, amitriptyline, nortriptyline, quetiapine, olanzapine, risperidone, aripiprazole,
+    haloperidol, lithium carbonate, lorazepam, alprazolam, clonazepam, diazepam, zolpidem, buspirone, hydroxyzine,
+    methylphenidate]
+  pain_opioid: [oxycodone, morphine, hydromorphone, tramadol, fentanyl, buprenorphine, methadone, naloxone,
+    acetaminophen, ibuprofen, naproxen, meloxicam, celecoxib, diclofenac]
+  gastro: [omeprazole, pantoprazole, esomeprazole, famotidine, ondansetron, metoclopramide, docusate, loperamide,
+    lactulose, sucralfate, dicyclomine]
+  endocrine_renal_uro: [levothyroxine, methimazole, prednisone, methylprednisolone, hydrocortisone, dexamethasone,
+    alendronate, finasteride, tamsulosin, oxybutynin, allopurinol, colchicine, potassium chloride, calcitriol,
+    sevelamer]
+  anti_infective: [amoxicillin, azithromycin, cephalexin, ciprofloxacin, levofloxacin, doxycycline, nitrofurantoin,
+    clindamycin, metronidazole, valacyclovir, oseltamivir, fluconazole, cefdinir]
+  other: [glucagon, folic acid, ferrous sulfate, sildenafil, tadalafil, hydroxychloroquine, methotrexate, tacrolimus,
+    mycophenolate mofetil, estradiol, medroxyprogesterone, norethindrone, meclizine, promethazine, ondansetron]
+# Dose forms kept, by the package they print on (RxNorm dose-form words, matched as a suffix of the product name).
+forms:
+  bottle: [oral tablet, oral capsule, extended release oral tablet, extended release oral capsule,
+    delayed release oral tablet, delayed release oral capsule, chewable tablet, disintegrating oral tablet,
+    sublingual tablet, oral solution, oral suspension]
+  inhaler: [metered dose inhaler, dry powder inhaler, inhalation powder, nasal spray]
+  pen: [pen injector, auto-injector, prefilled syringe, injectable solution]
+  patch: [transdermal system]

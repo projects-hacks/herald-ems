@@ -1,0 +1,84 @@
+{"id": "nk_001", "dispatch": "traffic collision", "text": "mass casualty, I'm with the second patient, tagged him red, immediate", "by": "medic", "speaker": "medic"}
+{"id": "nk_002", "dispatch": "traffic collision", "text": "this one's a yellow tag, delayed, she's got an obvious forearm fracture but she's stable", "by": "medic", "speaker": "medic"}
+{"id": "nk_003", "dispatch": "building collapse", "text": "she's walking wounded, minimal, just some dust in her eyes", "by": "medic", "speaker": "medic"}
+{"id": "nk_004", "dispatch": "explosion", "text": "triaged him expectant, agonal, no pulse with the resources we've got", "by": "medic", "speaker": "medic"}
+{"id": "nk_005", "dispatch": "traffic collision", "text": "black tag on this one, no signs of life, injuries incompatible", "by": "medic", "speaker": "medic"}
+{"id": "nk_006", "dispatch": "train versus pedestrian", "text": "she's a green, ambulatory, she self-extricated before we got here", "by": "medic", "speaker": "medic"}
+{"id": "nk_007", "dispatch": "multi patient shooting", "text": "I had him delayed but he's decompensating, retagging him immediate", "by": "medic", "speaker": "medic"}
+{"id": "nk_008", "dispatch": "bus collision", "text": "SALT category immediate for the patient I'm bringing you", "by": "medic", "speaker": "medic"}
+{"id": "nk_009", "dispatch": "structure fire", "text": "incident command here, the one in the driveway is a red", "by": "other", "speaker": "incident command"}
+{"id": "nk_010", "dispatch": "traffic collision", "text": "grey tag, expectant, we're moving on to the next one", "by": "medic", "speaker": "medic"}
+{"id": "nk_011", "dispatch": "multi patient assault", "text": "two reds and five greens still on scene, I've got the one red with me", "by": "medic", "speaker": "medic"}
+{"id": "nk_012", "dispatch": "traffic collision", "text": "the driver's a black tag, my patient is the back seat passenger, forty year old male", "by": "medic", "speaker": "medic"}
+{"id": "nk_013", "dispatch": "fall", "text": "her ankle's red and swollen, no deformity", "by": "medic", "speaker": "medic"}
+{"id": "nk_014", "dispatch": "sick person", "text": "she's coughing up green sputum since Tuesday", "by": "medic", "speaker": "medic"}
+{"id": "nk_015", "dispatch": "abdominal pain", "text": "skin's yellow, sclera too, he says it started a week ago", "by": "medic", "speaker": "medic"}
+{"id": "nk_016", "dispatch": "back pain", "text": "the nitro gave him immediate relief, pain went from eight to two", "by": "medic", "speaker": "medic"}
+{"id": "nk_017", "dispatch": "transfer", "text": "the triage nurse says they'll take her straight back", "by": "medic", "speaker": "medic"}
+{"id": "nk_018", "dispatch": "unconscious person", "text": "airway's patent, he's maintaining his own, no snoring", "by": "medic", "speaker": "medic"}
+{"id": "nk_019", "dispatch": "overdose", "text": "NPA in the right nare, airway's good now", "by": "medic", "speaker": "medic"}
+{"id": "nk_020", "dispatch": "cardiac arrest", "text": "i-gel's in, size four, good compliance", "by": "medic", "speaker": "medic"}
+{"id": "nk_021", "dispatch": "respiratory arrest", "text": "he's tubed, ETT at 23 at the teeth, equal breath sounds", "by": "medic", "speaker": "medic"}
+{"id": "nk_022", "dispatch": "drowning", "text": "we're bagging her with the BVM at about ten a minute", "by": "medic", "speaker": "medic"}
+{"id": "nk_023", "dispatch": "assault", "text": "airway's compromised, blood in the oropharynx, suctioning now", "by": "medic", "speaker": "medic"}
+{"id": "nk_024", "dispatch": "seizure", "text": "snoring respirations, he can't protect his airway", "by": "medic", "speaker": "medic"}
+{"id": "nk_025", "dispatch": "allergic reaction", "text": "stridor at rest, I'm calling the airway threatened", "by": "medic", "speaker": "medic"}
+{"id": "nk_026", "dispatch": "overdose", "text": "OPA in and bagging at ten", "by": "medic", "speaker": "medic"}
+{"id": "nk_027", "dispatch": "cardiac arrest", "text": "was bagging him, now the King's in", "by": "medic", "speaker": "medic"}
+{"id": "nk_028", "dispatch": "sick person", "text": "airway's clear, no issues at all with it", "by": "medic", "speaker": "medic"}
+{"id": "nk_029", "dispatch": "unconscious person", "text": "can you check the airway while I get a line", "by": "medic", "speaker": "medic"}
+{"id": "nk_030", "dispatch": "cardiac arrest", "text": "grab the airway kit out of the side compartment", "by": "medic", "speaker": "medic"}
+{"id": "nk_031", "dispatch": "respiratory distress", "text": "if she tires out we'll put an i-gel in", "by": "medic", "speaker": "medic"}
+{"id": "nk_032", "dispatch": "overdose", "text": "airway? I haven't gotten to it yet", "by": "medic", "speaker": "medic"}
+{"id": "nk_033", "dispatch": "diabetic problem", "text": "my impression is hypoglycemia, sugar was 38", "by": "medic", "speaker": "medic"}
+{"id": "nk_034", "dispatch": "weakness one side", "text": "looks like a CVA to me", "by": "medic", "speaker": "medic"}
+{"id": "nk_035", "dispatch": "allergic reaction", "text": "we're treating it as anaphylaxis", "by": "medic", "speaker": "medic"}
+{"id": "nk_036", "dispatch": "unconscious person", "text": "primary impression opioid overdose, pinpoint pupils, respirations of six", "by": "medic", "speaker": "medic"}
+{"id": "nk_037", "dispatch": "sick person", "text": "field impression, sepsis from a UTI, her foley's cloudy and foul", "by": "medic", "speaker": "medic"}
+{"id": "nk_038", "dispatch": "sick person", "text": "I think she's septic", "by": "medic", "speaker": "medic"}
+{"id": "nk_039", "dispatch": "abdominal pain", "text": "I'm worried about an ectopic, she's twenty-two and pregnant", "by": "medic", "speaker": "medic"}
+{"id": "nk_040", "dispatch": "headache", "text": "concern for meningitis, photophobia and a stiff neck", "by": "medic", "speaker": "medic"}
+{"id": "nk_041", "dispatch": "chest pain", "text": "probably urosepsis rather than cardiac, she's got no chest pain at all", "by": "medic", "speaker": "medic"}
+{"id": "nk_042", "dispatch": "fall", "text": "suspect a hip fracture, right leg's shortened and externally rotated", "by": "medic", "speaker": "medic"}
+{"id": "nk_043", "dispatch": "weakness one side", "text": "my wife thinks it's a stroke", "by": "other", "speaker": "husband"}
+{"id": "nk_044", "dispatch": "chest pain", "text": "this is a STEMI alert, we're going to Valley", "by": "medic", "speaker": "medic"}
+{"id": "nk_045", "dispatch": "chest pain", "text": "sixty-two year old male complaining of chest pain", "by": "medic", "speaker": "medic"}
+{"id": "nk_046", "dispatch": "traffic collision", "text": "the seatbelt left an impression across her chest", "by": "medic", "speaker": "medic"}
+{"id": "nk_047", "dispatch": "sick person", "text": "could be anything, maybe a bleed, maybe not", "by": "medic", "speaker": "medic"}
+{"id": "nk_048", "dispatch": "unconscious person", "text": "hypoglycemia versus overdose, hard to say which", "by": "medic", "speaker": "medic"}
+{"id": "nk_049", "dispatch": "traffic collision", "text": "crashed around 1430, single vehicle into a pole", "by": "medic", "speaker": "medic"}
+{"id": "nk_050", "dispatch": "fall", "text": "she fell about two hours ago off the second rung of a ladder", "by": "medic", "speaker": "medic"}
+{"id": "nk_051", "dispatch": "assault", "text": "he went down at eleven last night, they only called us now", "by": "medic", "speaker": "medic"}
+{"id": "nk_052", "dispatch": "fall", "text": "my husband slipped in the shower at about six this morning", "by": "other", "speaker": "wife"}
+{"id": "nk_053", "dispatch": "traffic collision", "text": "rollover happened at 0215, he was ejected", "by": "medic", "speaker": "medic"}
+{"id": "nk_054", "dispatch": "industrial accident", "text": "the press came down on his hand twenty minutes ago", "by": "medic", "speaker": "medic"}
+{"id": "nk_055", "dispatch": "stabbing", "text": "stabbed maybe half an hour ago, once to the left flank", "by": "medic", "speaker": "medic"}
+{"id": "nk_056", "dispatch": "fall", "text": "found him down at 0600, nobody knows when he fell", "by": "medic", "speaker": "medic"}
+{"id": "nk_057", "dispatch": "fall", "text": "the care home found her on the floor at 1400", "by": "other", "speaker": "facility nurse"}
+{"id": "nk_058", "dispatch": "sick person", "text": "the vomiting started about three hours ago, no injury, she just got sick", "by": "medic", "speaker": "medic"}
+{"id": "nk_059", "dispatch": "assault", "text": "sometime after the fight, he's not sure when", "by": "medic", "speaker": "medic"}
+{"id": "nk_060", "dispatch": "chest pain", "text": "twelve lead shows an inferior STEMI", "by": "medic", "speaker": "medic"}
+{"id": "nk_061", "dispatch": "chest pain", "text": "anteroseptal ST elevation, monitor's calling it a STEMI", "by": "medic", "speaker": "medic"}
+{"id": "nk_062", "dispatch": "chest pain", "text": "inferolateral changes on the twelve lead", "by": "medic", "speaker": "medic"}
+{"id": "nk_063", "dispatch": "chest pain", "text": "anterolateral STEMI, transmitted to Valley at 1408", "by": "medic", "speaker": "medic"}
+{"id": "nk_064", "dispatch": "chest pain", "text": "looks like an RV infarct, elevation in V4R", "by": "medic", "speaker": "medic"}
+{"id": "nk_065", "dispatch": "chest pain", "text": "posterior MI, tall R waves in V2", "by": "medic", "speaker": "medic"}
+{"id": "nk_066", "dispatch": "chest pain", "text": "inferior ST elevation, the machine isn't calling a STEMI though", "by": "medic", "speaker": "medic"}
+{"id": "nk_067", "dispatch": "chest pain", "text": "elevation in two, three and aVF", "by": "medic", "speaker": "medic"}
+{"id": "nk_068", "dispatch": "chest pain", "text": "reciprocal depression laterally", "by": "medic", "speaker": "medic"}
+{"id": "nk_069", "dispatch": "chest pain", "text": "the twelve lead doesn't show any inferior involvement at all", "by": "medic", "speaker": "medic"}
+{"id": "nk_070", "dispatch": "chest pain", "text": "tombstones in the anterior leads", "by": "medic", "speaker": "medic"}
+{"id": "nk_071", "dispatch": "chest pain", "text": "first one was nondiagnostic, the repeat shows an inferior STEMI", "by": "medic", "speaker": "medic"}
+{"id": "nk_072", "dispatch": "overdose", "text": "fire gave 2 of Narcan before we got there", "by": "medic", "speaker": "medic"}
+{"id": "nk_073", "dispatch": "cardiac arrest", "text": "bystander CPR in progress on arrival, we took over compressions", "by": "medic", "speaker": "medic"}
+{"id": "nk_074", "dispatch": "allergic reaction", "text": "I gave him my own EpiPen before you got here", "by": "other", "speaker": "friend"}
+{"id": "nk_075", "dispatch": "chest pain", "text": "he'd already put three of his own nitro under the tongue before we pulled up", "by": "medic", "speaker": "medic"}
+{"id": "nk_076", "dispatch": "overdose", "text": "PD had already given a dose of naloxone prior to our arrival", "by": "medic", "speaker": "medic"}
+{"id": "nk_077", "dispatch": "seizure", "text": "mom gave him his Diastat PTA, about ten minutes before we rolled up", "by": "medic", "speaker": "medic"}
+{"id": "nk_078", "dispatch": "diabetic problem", "text": "the group home staff put an oral glucose gel in his cheek before we arrived", "by": "medic", "speaker": "medic"}
+{"id": "nk_079", "dispatch": "overdose", "text": "mom gave him Tylenol at noon", "by": "medic", "speaker": "medic"}
+{"id": "nk_080", "dispatch": "sick person", "text": "the nurse gave a Percocet at 2200", "by": "other", "speaker": "facility nurse"}
+{"id": "nk_081", "dispatch": "chest pain", "text": "she has her Xarelto with breakfast every day, had it today same as always", "by": "other", "speaker": "daughter"}
+{"id": "nk_082", "dispatch": "cardiac arrest", "text": "bystander CPR was happening at some point", "by": "medic", "speaker": "medic"}
+{"id": "nk_083", "dispatch": "allergic reaction", "text": "we're going to give epi if she gets worse", "by": "medic", "speaker": "medic"}
+{"id": "nk_084", "dispatch": "chest pain", "text": "I offered him aspirin and he refused it", "by": "medic", "speaker": "medic"}

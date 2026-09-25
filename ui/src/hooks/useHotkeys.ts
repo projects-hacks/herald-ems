@@ -19,7 +19,8 @@ export function useHotkeys() {
       if (e.key === "`") { setUi({ presenterOpen: !ui.presenterOpen }); return; }
       if (!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
       const k = e.key.toUpperCase();
-      if (k === "E") setUi({ mode: ui.mode === "medic" ? "explain" : "medic" });
+      if (k === "P") setUi({ presentationMode: !ui.presentationMode });
+      else if (k === "E") setUi({ mode: ui.mode === "medic" ? "explain" : "medic" });
       else if (k === "T") setUi({ typeScale: NEXT_SCALE[ui.typeScale] });
       else if (k === "L") setUi({ theme: ui.theme === "dark" ? "light" : "dark" });
       else if (k === "G") void api.netem("good");
