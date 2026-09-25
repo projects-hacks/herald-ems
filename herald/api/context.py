@@ -149,10 +149,14 @@ class AppContext:
         self.relay.ed_url, self.relay.authorized, self.relay.acked = relay.get("ed_url"), relay.get("authorized"), relay.get("acked", {})
         return True
 
-    def pre_alert_scope(self) -> str:
-        """Describe the current checklist truthfully; authorization never relies on caller-provided wording."""
-        labels = [row["label"] for row in self.incident.snapshot()["readiness"]]
-        return f"{' + '.join(labels)} pre-alert set" if labels else "patient update set"
+    def pre_alert_scope(self) -> tuple[str, list[str]]:
+        """The medic-facing label and the checklist alert ids actually open right now (`config/relay.yaml`
+        `scopes` maps each id to what it may send). Authorization never relies on caller-provided wording or scope:
+        both come from the checklist truthfully, every time."""
+        readiness = self.incident.snapshot()["readiness"]
+        labels, alert_ids = [row["label"] for row in readiness], [row["id"] for row in readiness]
+        label = f"{' + '.join(labels)} pre-alert set" if labels else "patient update set"
+        return label, alert_ids
 
     def full_state(self) -> dict:
         snap = self.incident.snapshot()

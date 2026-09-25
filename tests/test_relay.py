@@ -181,3 +181,50 @@ def test_two_patients_reconcile_without_duplicates_or_loss_on_flaky_link():
 def test_recorded_stroke_replay_kept_local_percentage_is_clamped():
     assert _kept_local_pct(bytes_sent=25837, bytes_without_relay=16403) == 0.0
     assert _kept_local_pct(bytes_sent=4100, bytes_without_relay=16400) == 75.0
+
+
+def build_multi_tier_incident():
+    """One confirmed fact from each relay tier (config/relay.yaml), a stroke checklist and a trauma mechanism
+    both present, so a scope's tier ceiling and its cross-alert reach can both be exercised."""
+    inc = Incident(dispatch="possible stroke")
+    facts = [("stroke.lkw", "2026-09-25T10:00:00"),      # tier 1
+             ("score.race", None),                        # tier 2 is score-derived, not a plain fact; skipped here
+             ("vitals.sbp", 150),                          # tier 3
+             ("transport.eta_min", 12),                    # tier 4
+             ("patient.age", 68)]                          # tier 5
+    for key, value in facts:
+        if value is None:
+            continue
+        f = inc.ingest(FactIn(key=key, value=value, captured_by=CapturedBy.medic, confidence=0.99), record=False)
+        inc.set_status(f.id, Status.confirmed)
+    inc.commit()
+    return inc
+
+
+def test_authorized_scope_restricts_relay_to_its_tier_ceiling():
+    """B5: pending()/critical_values() must honour the scope the medic actually authorized, not send every tier
+    regardless of it (config/relay.yaml `scopes`, herald/relay/tiers.py `RelayScopes`)."""
+    inc = build_multi_tier_incident()
+    r = Relay(lambda: inc)
+
+    r.authorize("Valley Medical", "Stroke alert pre-alert set", ("stroke",))
+    scoped = r.critical_values(inc)
+    assert "stroke.lkw" in scoped and "vitals.sbp" in scoped          # tiers 1 and 3: in a stroke pre-alert's ceiling
+    assert "transport.eta_min" not in scoped and "patient.age" not in scoped  # tiers 4-5: not part of that consent
+    assert {k for _, _, _, k, _, _ in r.pending()} == set(scoped)
+
+    r.authorize("Valley Medical", "patient update set", ())
+    full = r.critical_values(inc)
+    assert "transport.eta_min" in full and "patient.age" in full      # no specific alert open: unrestricted again
+
+
+def test_relay_scopes_union_ceilings_across_simultaneously_open_alerts():
+    from herald.relay.tiers import RelayScopes, default_tiers
+    scopes = RelayScopes.from_config()
+    tiers = default_tiers()
+    stroke_only = scopes.allowed_keys(("stroke",), tiers)
+    trauma_only = scopes.allowed_keys(("trauma",), tiers)
+    both = scopes.allowed_keys(("stroke", "trauma"), tiers)
+    assert stroke_only == trauma_only            # both pre-alert scopes share the same tier-1-3 ceiling today
+    assert both == stroke_only                   # union of equal ceilings changes nothing, but must not shrink it
+    assert scopes.allowed_keys((), tiers) == scopes.allowed_keys(("not-a-real-alert",), tiers)  # falls back to default_scope
