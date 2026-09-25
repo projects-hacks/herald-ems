@@ -1,4 +1,4 @@
-// States every live screen handles (UX_PLAN §3.0, §3.1.12): connecting, can't connect, stale, toast, and the
+// States every live screen handles: connecting, can't connect, stale, toast, and the
 // new-incident confirmation. The replay controls live in the sidebar.
 import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";

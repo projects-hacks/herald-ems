@@ -1,4 +1,4 @@
-// What the copilot screen shows, as pure functions of the snapshot (docs/COPILOT_SCREENS.md). Two questions only:
+// What the copilot screen shows, as pure functions of the snapshot. Two questions only:
 // what Herald needs from the medic, and what Herald did on its own. Tested in src/test/copilot.test.ts.
 import { allFacts } from "./selectors";
 import { factValue, formatValue } from "./format";

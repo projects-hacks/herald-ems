@@ -62,7 +62,7 @@ async def stack(c=Depends(get_ctx)):
            "cloud_ai_calls": c.egress.snapshot()["cloud_ai_calls"]}
     # Split stack only (TRAINING_PLAN §7a): name the model doing each job, so the demo and the deck show the split
     # honestly instead of implying one model does everything. Added only when the split is actually configured, so the
-    # single-model response stays exactly as it was (UX_PLAN §5).
+    # single-model response stays exactly as it was.
     if c.settings.knowledge_model:
         out["jobs"] = {"extraction": c.text_model.model_name(), "photos": c.vision_model.model_name(),
                        "knowledge": c.knowledge_model.model_name()}

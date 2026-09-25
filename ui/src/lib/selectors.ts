@@ -2,7 +2,7 @@
 import type { Contract, ContractCriterion } from "./contract";
 import type { Alert, CriteriaScoreDetail, FactView, Snapshot, StrokeScale, StrokeScaleId } from "./types";
 
-// ---------- alert priority (UX_PLAN §2.3: IEC 60601-1-8 semantics, no sounds) ----------
+// ---------- alert priority (IEC 60601-1-8 semantics, no sounds) ----------
 export type Priority = "high" | "medium" | "low";
 const RANK: Record<Priority, number> = { high: 0, medium: 2, low: 3 };
 /** Score-positive screens (G.F.A.S.T., RACE) decide routing, so they get their own tier directly under the
@@ -46,7 +46,7 @@ export function alertTitle(a: Alert): string {
 export function dismissable(a: Alert): boolean {
   return a.type !== "contradiction" && a.type !== "confirm_required";
 }
-/** Alert order (UX_PLAN §2.3): HIGH before MEDIUM before LOW, then the newest first by arrival on this screen (the
+/** Alert order: HIGH before MEDIUM before LOW, then the newest first by arrival on this screen (the
  *  server lists alerts by type, not time; without arrival data the later list position counts as newer). */
 export function rankAlerts(alerts: Alert[], arrival: Record<string, number> = {}): Alert[] {
   return alerts.map((a, i) => ({ a, t: arrival[alertKey(a)] ?? i }))

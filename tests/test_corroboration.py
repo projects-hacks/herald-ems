@@ -1,4 +1,4 @@
-"""Batch confirm (UX_PLAN.md 'The tap burden'): one monitor frame confirms as one reading, and a reading that
+"""Batch confirm: one monitor frame confirms as one reading, and a reading that
 jumps past its plausible step is flagged for individual review instead of being auto-confirmed or swept in."""
 from fakes import tiny_normalizer
 from herald.core.corroboration import CorroborationRules, default_corroboration

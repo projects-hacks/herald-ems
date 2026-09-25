@@ -1,4 +1,4 @@
-// Connection to the Herald server's /ws, and the fixture player (UX_PLAN §5.7, §5.8).
+// Connection to the Herald server's /ws, and the fixture player (§5.8).
 // - live: one socket; the client sends "ping" every 1 s and the server answers "pong", so silence can be told apart
 //   from a dead server. Stale = open but nothing for > 3 s, or closed after data arrived. Timestamps (not timer
 //   counts) decide staleness, so background-tab throttling can't raise false alarms. Reconnect: 0.5, 1, 2, then 2 s.

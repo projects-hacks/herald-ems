@@ -1,4 +1,4 @@
-// The NOW screen (UX_PLAN §3.1) in the Apple Health style: the sidebar (pages, what runs on this vehicle, settings),
+// The NOW screen in the Apple Health style: the sidebar (pages, what runs on this vehicle, settings),
 // and the page on the grouped background with the large-title top bar (patient, attention count, pre-alert, time)
 // above it and the floating last-capture bar below it. The summary is the at-a-glance page; the others hold detail.
 import { useEffect } from "react";

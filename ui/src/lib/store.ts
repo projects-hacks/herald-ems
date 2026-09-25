@@ -1,4 +1,4 @@
-// The one client store (UX_PLAN §5.7). The server's snapshot is replaced on every message; UI state (expanded cards,
+// The one client store. The server's snapshot is replaced on every message; UI state (expanded cards,
 // seen alerts, theme) lives beside it, so a card keeps its state when the server updates it.
 import { create } from "zustand";
 import { alertKey } from "./selectors";
@@ -40,7 +40,7 @@ export interface HeraldState {
   ui: UiState;
   pending: Record<string, Pending>;
   /** When each alert first appeared on this screen (an increasing counter): the server lists alerts by type,
-   *  not by time, so arrival order is tracked here for "newest first" (UX_PLAN §2.3). */
+   *  not by time, so arrival order is tracked here for "newest first". */
   alertArrival: Record<string, number>;
   /** The arrival counter when push-to-talk was pressed; alerts that arrived later are held back. null = not held. */
   holdMark: number | null;
@@ -73,7 +73,7 @@ function writePrefs(p: Prefs) {
   }
 }
 
-/** URL parameters override stored preferences: ?theme=light|dark ?type=1.25 ?mode=explain ?page=handoff ?present=1 (UX_PLAN §3.0).
+/** URL parameters override stored preferences: ?theme=light|dark ?type=1.25 ?mode=explain ?page=handoff ?present=1.
  *  The sidebar starts as an icon rail on screens narrower than the 1366 px target, until the medic chooses. */
 export function initialUi(search = typeof location === "undefined" ? "" : location.search): UiState {
   const q = new URLSearchParams(search);

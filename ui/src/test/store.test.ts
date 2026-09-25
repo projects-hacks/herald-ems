@@ -1,4 +1,4 @@
-// U2 acceptance tests (UX_PLAN §7.2): store continuity, stale detection, fixture timing.
+// U2 acceptance tests: store continuity, stale detection, fixture timing.
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
 import { initialUi, useHerald } from "@/lib/store";

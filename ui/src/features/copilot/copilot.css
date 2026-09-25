@@ -1,4 +1,4 @@
-/* Herald copilot screen (docs/COPILOT_SCREENS.md). The look comes from the ambulance itself: a night-cab graphite
+/* Herald copilot screen. The look comes from the ambulance itself: a night-cab graphite
    ground with a faint retro-reflective chevron weave, livery lime for what is live, amber for decisions, Star-of-Life
    blue for the county's words and the ED. Instrument-cluster headings (Saira Condensed), hyperlegible body and mono
    values (Atkinson). Needs-you is the hero; everything else is quiet. Tokens only (src/styles/tokens.css). */

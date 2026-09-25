@@ -13,7 +13,7 @@ const contract: Contract = {
   changeRules: JSON.parse(readFileSync("public/contract/change_rules.json", "utf8")),
 };
 
-describe("alert order (UX_PLAN §2.3)", () => {
+describe("alert order", () => {
   const high: Alert = { type: "news2_rise", label: "NEWS2", from: 5, to: 8, band: "high" };
   const low: Alert = { type: "news2_rise", label: "NEWS2", from: 1, to: 3, band: "low" };
   const race: Alert = { type: "race_positive", label: "RACE", score: 6 };

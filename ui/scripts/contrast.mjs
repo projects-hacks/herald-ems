@@ -1,4 +1,4 @@
-// Re-checks the contrast of every token pair (docs/UX_PLAN.md §2.2 semantics; values in src/styles/tokens.css) against src/styles/tokens.css (WCAG 2.x
+// Re-checks the contrast of every token pair in src/styles/tokens.css (WCAG 2.x
 // relative luminance). Text needs >= 4.5:1; controls, borders and fills (non-text, WCAG 1.4.11) need >= 3:1.
 // Exits non-zero on any failure. Usage: npm run contrast
 import { readFileSync } from "node:fs";

@@ -289,7 +289,7 @@ expects
 ```
 
 `/api/telemetry` reports the same `jobs` block. Both appear **only** when the split is configured, so nothing on screen
-implies one model is doing everything when two are (`docs/UX_PLAN.md` §5.9c). On stage, say "two models, one job each".
+implies one model is doing everything when two are. On stage, say "two models, one job each".
 Re-run the kept-ability gates against the split before quoting those numbers, and note that step 1's model check above
 expects one `Ready` label — in this configuration there are two.
 

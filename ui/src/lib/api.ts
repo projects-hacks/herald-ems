@@ -1,4 +1,4 @@
-// POST helpers with pending/error state (UX_PLAN §3.0, §5.7): the button disables within 0.1 s, a request times out
+// POST helpers with pending/error state (§5.7): the button disables within 0.1 s, a request times out
 // after 5 s with an inline error, and success stays "pending" until the next snapshot shows it (no optimistic updates).
 // In fixture mode every action is off.
 import { authHeaders } from "./authToken";

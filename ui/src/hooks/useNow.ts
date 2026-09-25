@@ -1,4 +1,4 @@
-// One shared 1 Hz tick for every clock on the screen (UX_PLAN §3.1.3), so all clocks change together.
+// One shared 1 Hz tick for every clock on the screen, so all clocks change together.
 import { useSyncExternalStore } from "react";
 
 let now = Date.now();

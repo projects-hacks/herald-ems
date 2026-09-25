@@ -1,5 +1,5 @@
 export const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-/** 24-hour clock, zero-padded (UX_PLAN §3.0: clocks are HH:MM everywhere, never a locale-dependent 12-hour string). */
+/** 24-hour clock, zero-padded (clocks are HH:MM everywhere, never a locale-dependent 12-hour string). */
 export const hhmm = (dateLike) => {
   const d = dateLike instanceof Date ? dateLike : new Date(dateLike);
   return Number.isNaN(d.getTime()) ? "—" : `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;

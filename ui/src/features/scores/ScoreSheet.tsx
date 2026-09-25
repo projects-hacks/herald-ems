@@ -1,4 +1,4 @@
-// The detail sheet behind a score tile (UX_PLAN §3.1.7): every part, the thresholds and the published source.
+// The detail sheet behind a score tile: every part, the thresholds and the published source.
 // Computed by plain code from confirmed facts only.
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatValue } from "@/lib/format";

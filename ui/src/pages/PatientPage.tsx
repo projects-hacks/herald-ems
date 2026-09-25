@@ -1,4 +1,4 @@
-// Patient (UX_PLAN §3.1.9 "patient picture"), laid out like Health's Browse categories: one card per group, titled in
+// Patient, laid out like Health's Browse categories: one card per group, titled in
 // its category color, with every current fact as a list row (label, value, who said it and when, status); rejected
 // facts can be restored.
 import { Camera, CircleCheck, CircleQuestionMark, CircleX, Keyboard, Mic, Monitor, UserRound } from "lucide-react";

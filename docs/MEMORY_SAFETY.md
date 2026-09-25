@@ -335,7 +335,7 @@ HERALD_ED_URL=http://127.0.0.1:9000 scripts/run_demo.sh     # port 8100
   mode is on. `HERALD_DEMO_SKIP_CHECKS=1` overrides this with a loud warning.
 
 `GET /api/health` now carries `memory: {available_gib, total_gib, guard: {running, mode, last_action}}`. The UI
-contract is in `docs/UX_PLAN.md` §5. `running` means the guard's heartbeat is under `HERALD_MEMGUARD_STALE_S` (5 s)
+contract is in `docs/API_CONTRACT.md`. `running` means the guard's heartbeat is under `HERALD_MEMGUARD_STALE_S` (5 s)
 old.
 
 ### 6.2 The demo memory budget (final stack)

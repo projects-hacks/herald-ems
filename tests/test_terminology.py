@@ -1,4 +1,4 @@
-"""Drug and allergen coding (spec S6, MODEL_PLAN §0j, UX_PLAN §5.9d): the normalizer never guesses, the coder keeps
+"""Drug and allergen coding (spec S6, MODEL_PLAN §0j): the normalizer never guesses, the coder keeps
 what was said, anything not matched exactly waits for the medic's tap, and only drugs in a configured class set
 that class's key."""
 import time

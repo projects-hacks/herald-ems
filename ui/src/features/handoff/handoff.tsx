@@ -1,4 +1,4 @@
-// ED handoff (UX_PLAN §3.1.9): authorizing the pre-alert, what the receiving team has (sent), what waits for the link
+// ED handoff: authorizing the pre-alert, what the receiving team has (sent), what waits for the link
 // (queued), and what is held on the vehicle (needs a tap or a choice); the packet log. Held and queued rows are
 // prominent, sent rows quiet. Used by the overview's pre-alert card (summary) and the ED handoff page (everything).
 import { ChevronDown, ChevronRight, CircleCheck, Hourglass, Lock, RefreshCw, WifiOff } from "lucide-react";

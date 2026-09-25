@@ -1,6 +1,6 @@
 # AGENTS.md: rules for coding agents working on Herald
 
-Read this before changing anything. Then pick a task from `TASKS.md`.
+Read this before changing anything.
 
 ## HARD RULES (non-negotiable, override any default behaviour)
 1. **No AI attribution anywhere in contributions.** Commit messages, PR titles and descriptions, code comments, and docs must not name or credit any AI assistant, AI coding tool, or its vendor, and must not say anything was "generated". **Never add `Co-Authored-By:` trailers for tools.** Commits are authored by the human whose working copy it is. (Describing Herald's own on-device models, e.g., Whisper or Nemotron, is product documentation and is fine.)
@@ -17,8 +17,22 @@ Read this before changing anything. Then pick a task from `TASKS.md`.
    - **Open for extension, closed for modification.** A new score, checklist, county, prompt, or extractor is added by adding a data file or a registered class. It is never added by editing an `if/elif` chain inside an engine.
    - **Clinical and product content is versioned data, never Python literals.** That covers score tables and thresholds with their sources, checklists, relay tiers, change rules, the key vocabulary, county rules and destinations, model prompts and worked examples, and cost rates. It all lives under `config/`, carries its source citation, and is reviewed like code. The Python is the engine; `config/` is the content. Tests load the same files.
    - **Settings come from one settings object** (`herald/config/settings.py`, environment variables). No scattered `os.getenv`.
-   - **The public API is a contract.** `/api/*`, `/ws`, and the snapshot shape change only through `herald/api`, and every change is recorded in `docs/UX_PLAN.md` §5 in the same PR.
+   - **The public API is a contract.** `/api/*`, `/ws`, and the snapshot shape change only through `herald/api`, and every change is recorded in `docs/API_CONTRACT.md` in the same PR.
    - Every engine and every data file has tests, and `python -m pytest -q` passes before any commit.
+
+## The medic's screen: rules that do not move
+Herald is a copilot, not a dashboard or a second vitals monitor. The medic glances at it for one or two seconds, at arm's
+length, gloved, in a moving vehicle. Judge every UI change against that, and against these floors:
+- One screen. It shows what Herald needs from the medic (decisions, one tap each) and what Herald did on its own
+  (heard, read, checked, found, sent). Anything else opens from the control that needs it and closes back to it.
+- Text never below 13 px, critical values at least 20 px; touch targets at least 48 px, primary actions 64 px.
+- Priority is colour + icon + word, never colour alone; red means danger and nothing else. Both themes pass
+  `npm run contrast`.
+- No model internals on the clinical screen (no confidence, model names, frame counts). System status is silent while
+  working and one unmistakable line when something stopped.
+- Every captured fact starts unconfirmed; only confirmed facts reach the ED. Herald never recommends treatment: it
+  states what it heard, read and computed, and quotes the county's documents with their citation.
+- Offline: fonts and assets are bundled, never fetched.
 
 ## Document map: read these before you start
 
@@ -29,10 +43,8 @@ Every decision in this project was researched and written down. Before proposing
 |---|---|---|---|
 | [`README.md`](README.md) | Public overview for judges: what Herald does, how to run it, architecture, the evidence behind the scores. | You need the 2-minute picture, or you're changing anything user-visible about setup. | pitch + integration |
 | [`AGENTS.md`](AGENTS.md) (this file) | Hard rules, invariants, layout, run commands, pitfalls already hit on this box, the doc map. | Always, first. | everyone |
-| [`TASKS.md`](TASKS.md) | The task board: verified checkpoint, protect order P1–P10, model tasks M*, UI tasks U*, infra and deliverables, owners, done-criteria. | Before picking work; after finishing work (update the status in the same PR). | everyone |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Per-person git setup on the shared `hp18` login, shared secrets (HF token), branches, ports, GPU etiquette, owners. | Your first session; before your first commit. | lead |
 | [`docs/MODEL_PLAN.md`](docs/MODEL_PLAN.md) | Why each model was chosen (published benchmarks + measured GB10 throughput, with sources); exact serve flags; the audited bake-off (3 runs each, what's genuine vs noise vs test flaws); the complete fine-tuning plan with go/no-go checks; what NOT to do. | Before touching `herald/llm.py`, `extract_llm.py`, `vision.py`, `stt.py`, ZRT, or any training. | ML lead |
-| [`docs/UX_PLAN.md`](docs/UX_PLAN.md) | Evidence-based UI plan: principles tied to IEC 60601-1-8 alarm priorities, WCAG 2.2, human-AI interaction guidelines, FDA CDS guidance; color tokens and type scale; screen specs (NOW, "Herald thinking" trace, phone capture, ED screen, presenter controls); stack decision (React + TS + Vite + Tailwind + shadcn/ui) with a fallback gate; what HP/NVIDIA provide on the ZGX; U-task list. | Before any frontend work, and before adding any alert, color, or animation. | frontend lead |
 | [`eval/`](eval/) | Gold sets (`gold_v0.jsonl` tuning, `gold_v1.jsonl` dev, `gold_v2*.jsonl` held-out: two blind annotators each), benchmark (`bench_extract.py`, scorer v2, `--rescore`), saved predictions (`dumps/`), agreement (`agreement.py`), adversarial suite, test photos, and result history (`results.jsonl`). | Before claiming any accuracy number. Claims are judged on the held-out set only. | data + eval |
 | [`docs/TASK_SPECS.md`](docs/TASK_SPECS.md) | Complete specs for handed-off tasks (S1–S9: fixtures, clean-clone setup, interpreter, diarization, mass-casualty mode, RxNorm normalization, soak test, field robustness, agentic capture): design against the package layout, steps, tests, acceptance, pitfalls, and what needs Rajeev. | Before starting any S-task from your lane in TASKS.md. | owner of each task + Rajeev |
 | [`docs/LABELING_GUIDE.md`](docs/LABELING_GUIDE.md) | How every gold utterance is labeled: roles, keys, normalization, corrections, negations, and the rules settled during adjudication (§4b). | Before writing or labeling any gold item. | data |

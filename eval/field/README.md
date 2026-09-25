@@ -54,8 +54,7 @@ stored in the vocabulary's normalized form (the form the model's facts take), an
 Known in advance, so their role errors are product findings, not label errors:
 - On someone else's mic, the app gives **every** fact the speaker's role (`herald/extraction/model.py`, the rule
   from the 2026-09-23 live test). Two cards follow LABELING_GUIDE §3 and §4b instead:
-  - **fc28**: a neighbor on the other mic is labeled bystander; the app records any non-role speaker as family
-    (TASKS.md "Requests to backend").
+  - **fc28**: a neighbor on the other mic is labeled bystander; the app records any non-role speaker as family.
   - **fc30**: the son relays what the neighbor saw ("his neighbor told me he looked fine at 7:45"), so the last-known-
     well time is labeled bystander; the app will give it the son's role, family.
 - The scorer normalizes "fourteen oh five" to "14oh5", so a time the model writes in words with "oh" won't match

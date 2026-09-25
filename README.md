@@ -17,7 +17,6 @@ Every model runs on one HP ZGX Nano (NVIDIA GB10). **No cloud AI.**
 
 **Agentic capture (S9):** opt-in mounted-camera frames trigger selected still readings, proposed vitals, and spoken-drug/label checks; the medic confirms. [Setup, synthetic rehearsal, and pending real-model acceptance](docs/AGENTIC_CAPTURE.md).
 
-**Journey workflow:** start listening and monitor watch once, then use the overview for changing patient state, time windows and review. Confirmed observations and care events become the ED handoff. [Product boundaries, component decisions, UI cleanup and review closeout](docs/COPILOT_WORKFLOW.md).
 
 | | |
 |---|---|

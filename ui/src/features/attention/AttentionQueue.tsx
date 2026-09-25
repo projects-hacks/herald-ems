@@ -1,4 +1,4 @@
-// Needs attention (UX_PLAN §3.1.6 and the alert slot §3.1.8, merged into one queue): everything that waits on the
+// Needs you (alerts and taps in one queue): everything that waits on the
 // medic, grouped in the order to handle it — urgent (HIGH), sources that disagree (choose a value), facts that need a
 // tap, new findings to acknowledge — then what hasn't been captured yet. One list, so nothing hides behind "1 of N".
 // New alerts are announced politely (HIGH assertively). Seen findings fold into "Seen" at the end.
@@ -71,7 +71,7 @@ function sourceIconOf(f: FactView): LucideIcon {
 
 function FactMeta({ f, confidence = true }: { f: FactView; confidence?: boolean }) {
   const Icon = sourceIconOf(f);
-  // How the copilot works (which model, how sure) is not the medic's concern mid-call (docs/COPILOT_SCREENS.md):
+  // How the copilot works (which model, how sure) is not the medic's concern mid-call:
   // a row shows who said or showed it, when, and a clinical reason if it is held.
   void confidence;
   return (

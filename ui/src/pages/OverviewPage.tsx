@@ -1,4 +1,4 @@
-// Summary (UX_PLAN §3.1), after Health's Summary: a row of summary cards (clocks and scores), then what needs the medic
+// Summary, after Health's Summary: a row of summary cards (clocks and scores), then what needs the medic
 // (left, the widest column) and the pre-alert with the ED sync (right). In explain mode a third column shows what Herald heard and did. Fits 1366×768
 // without page scrolling; each card scrolls inside itself. Below 1024 px everything stacks in the §3.1.1 order.
 import { Sparkles } from "lucide-react";

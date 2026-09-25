@@ -1,4 +1,4 @@
-// Protocol lookup (P9, UX_PLAN §5.9b): the county's own passages, quoted verbatim with document, section, page and
+// Protocol lookup (P9): the county's own passages, quoted verbatim with document, section, page and
 // effective date. A local model only picks which passages answer; nothing here paraphrases or recommends.
 import { useEffect, useRef, useState } from "react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";

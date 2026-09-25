@@ -1,4 +1,4 @@
-// A last line of defense for render errors (UX_PLAN §3.0: every screen handles its failure states): instead of a
+// A last line of defense for render errors (every screen handles its failure states): instead of a
 // blank screen mid-call, show a plain card and a way to reload. Patient data lives on the vehicle, not in this view.
 import { Component, type ErrorInfo, type ReactNode } from "react";
 

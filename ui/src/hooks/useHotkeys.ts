@@ -1,4 +1,4 @@
-// Global keys (UX_PLAN §3.1.13). Ignored while typing in a field or while a dialog is open. Push-to-talk keys
+// Global keys. Ignored while typing in a field or while a dialog is open. Push-to-talk keys
 // (Space, F) belong to the capture bar (U4) and are not handled here.
 import { useEffect } from "react";
 import { api } from "@/lib/api";

@@ -325,7 +325,7 @@ Apache-2.0 vision alternatives exist (Qwen3-VL-8B-Instruct, Qwen3-VL-30B-A3B-Ins
 
 **Decision (team lead, 2026-09-24): run E v2 is live** (`ems-e-v2-fp8` on :8100; `scripts/serve_models.sh`; `config/confirmation.yaml`). Run D stays cached and loaded for rollback and for teammates' clones.
 
-## 0j. Medication and allergy coding with RxNorm (S6 / B4, 2026-09-24; contract UX_PLAN §5.9d)
+## 0j. Medication and allergy coding with RxNorm (S6 / B4, 2026-09-24)
 Drug and allergen names are coded to RxNorm, replacing the hand-typed anticoagulant word list. Class allergies are coded to ICD-10-CM.
 - **Code:** `herald/terminology/` (`rxnorm.py`, `allergy.py`, `coding.py`, `factory.py`).
 - **Content:**

@@ -1,4 +1,4 @@
-// The copilot screen's own regions (docs/COPILOT_SCREENS.md §1): the presence pill, what Herald did, how the
+// The copilot screen's own regions: the presence pill, what Herald did, how the
 // patient moved, and what the ED has. Everything here is a clinical outcome or an action; system status appears
 // only when something has stopped working.
 import { ArrowDownRight, ArrowUpRight, BookOpenCheck, Ear, FileText, Monitor, Pause, Play, RotateCcw, Send, ShieldCheck, SkipForward, TriangleAlert } from "lucide-react";

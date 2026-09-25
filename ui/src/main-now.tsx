@@ -10,7 +10,7 @@ import { loadContract } from "@/lib/contract";
 import { connectLive, playFixture, type FixturePlayer } from "@/lib/ws";
 import { NowApp } from "@/screens/NowApp";
 
-// ?fixture=<name>&speed=<n> replays a recorded session with no backend (UX_PLAN §5.8); otherwise connect live.
+// ?fixture=<name>&speed=<n> replays a recorded session with no backend; otherwise connect live.
 const q = new URLSearchParams(location.search);
 const fixture = q.get("fixture");
 let player: FixturePlayer | null = null;

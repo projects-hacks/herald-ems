@@ -1,4 +1,4 @@
-# Medication and allergy coding (herald/terminology/, docs/TASK_SPECS.md S6, MODEL_PLAN §0j, UX_PLAN §5.9d).
+# Medication and allergy coding (herald/terminology/, docs/TASK_SPECS.md S6, MODEL_PLAN §0j).
 # RxNorm is published by the U.S. National Library of Medicine. The Current Prescribable Content subset is public
 # domain and needs no UMLS licence or login. It is the drug coding NEMSIS uses for medications given (eMedications.03),
 # current medications and medication allergies (eHistory.06).
@@ -65,7 +65,7 @@ match:
   # Splits a name into the drugs of a combination ("ipratropium-albuterol", "albuterol and ipratropium").
   combination_separators: ["-", "/", "+", "&", " and ", " with "]
 
-# Which methods wait for the medic's tap, and the reason shown (provenance.hold_reason, UX_PLAN §5.9a).
+# Which methods wait for the medic's tap, and the reason shown (provenance.hold_reason).
 # Exact names and exact product names are coded without a hold.
 hold:
   fuzzy: "drug name matched by spelling: '{said}' → {value}: check before confirming"

@@ -14,7 +14,7 @@ export default defineConfig({
   build: {
     outDir: "dist",
     rolldownOptions: {
-      // The ED screen (ed.html, UX_PLAN §3.4) is added here by U9.
+      // The ED screen (ed.html) is added here by U9.
       input: {
         now: resolve(import.meta.dirname, "index.html"),
         deck: resolve(import.meta.dirname, "deck.html"),
