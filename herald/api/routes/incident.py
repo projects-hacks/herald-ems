@@ -79,6 +79,36 @@ async def fact_action(fact_id: str, action: str, c=Depends(get_ctx), h=Depends(g
     return f.model_dump(mode="json")
 
 
+class Spo2Scale(BaseModel):
+    scale: int
+
+
+@router.post("/patient/spo2-scale")
+async def set_spo2_scale(body: Spo2Scale, c=Depends(get_ctx), h=Depends(get_hub)):
+    """The one-tap NEWS2 SpO2 target switch: Scale 1 (94-98%) or Scale 2 (88-92%, hypercapnic respiratory failure).
+
+    RCP: Scale 2 is used only under the direction of a qualified clinician. That is why patient.spo2_scale is
+    require_tap and never taken from speech -- and why this tap, made by the medic on this screen, IS that direction:
+    the fact is written confirmed in the same step, instead of asking for a second tap to confirm the first. The switch
+    is recorded in the audit log, and switching back is the same one tap. It changes how SpO2 is coloured on the
+    screen (config/vital_ranges.yaml); it is not sent as a clinical instruction and recommends nothing."""
+    if body.scale not in (1, 2):
+        raise HTTPException(400, "scale must be 1 or 2")
+    from ...core.schema import FactIn, Provenance, Role, CapturedBy
+    try:
+        f = c.incident.ingest(FactIn(key="patient.spo2_scale", value=body.scale, role=Role.medic, speaker="medic",
+                                     captured_by=CapturedBy.medic, confidence=1.0,
+                                     provenance=Provenance(extractor="medic:spo2-scale-switch")))
+        f = c.incident.set_status(f.id, Status.confirmed)
+    except IncidentEnded as e:
+        raise HTTPException(409, str(e)) from None
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    c.persist()
+    await h.broadcast()
+    return f.model_dump(mode="json")
+
+
 @router.post("/readings/{frame_id}/confirm")
 async def confirm_reading(frame_id: str, c=Depends(get_ctx), h=Depends(get_hub)):
     """Confirm one capture's batchable readings in a single tap (herald/core/corroboration.py).

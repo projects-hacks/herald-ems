@@ -48,6 +48,10 @@ export const api = {
   // A medic tapping a criterion the model never heard: the same generic structured-fact endpoint every manual
   // entry uses (ManualEntry), so it starts unconfirmed like any other structured reading and needs the usual tap
   // to confirm. No new write path.
+  // The NEWS2 SpO2 target switch (1 = 94-98%, 2 = 88-92% hypercapnic). One tap, written confirmed: the medic's tap is
+  // the clinician direction RCP requires for Scale 2. Audited server-side; switching back is the same tap.
+  setSpo2Scale: (scale: 1 | 2) => act(`spo2-scale:${scale}`, "/api/patient/spo2-scale", { scale },
+    "Couldn't change the SpO2 target. The Herald server didn't answer. Try again."),
   markCriterion: (key: string, value: string) => act(`mark:${key}:${value}`, "/api/facts",
     [{ key, value: [value], unit: null }], "Couldn't record that. The Herald server didn't answer. Try again."),
   retryTranscript: (entryId: string) => act(`retry:${entryId}`, `/api/transcripts/${encodeURIComponent(entryId)}/retry`, undefined,

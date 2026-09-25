@@ -239,6 +239,27 @@
 .patient-chip[data-safety] b { color: var(--medium-fg); }
 .patient-chip[data-new] { border-color: var(--accent); }
 .patient-empty { font-size: .9375rem; color: var(--text-muted); }
+
+/* The SpO2 target switch: the same pill as the other patient chips, with a real switch inside it. The state is carried
+   by the target range in words (94-98% / 88-92%) and the switch position, never by colour alone. Scale 2 gets the
+   accent edge because it changes how every SpO2 on the screen is judged. */
+.spo2-target { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 2px 4px 2px 12px; border-radius: 999px;
+  background: var(--glass-1); border: 1px solid var(--glass-border); font-size: .9375rem; }
+.spo2-target > b { font-weight: 600; color: var(--text-muted); }
+.spo2-target > .num { font-family: var(--font-mono); font-weight: 700; color: var(--text-primary); }
+.spo2-target[data-scale="2"] { border-color: var(--accent); }
+.spo2-switch { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px 0 6px; border-radius: 999px;
+  font-weight: 700; color: var(--text-primary); }
+.spo2-switch:hover { background: color-mix(in srgb, var(--text-primary) 6%, transparent); }
+.spo2-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.spo2-switch:disabled { opacity: .55; cursor: default; }
+.spo2-track { position: relative; width: 36px; height: 20px; border-radius: 999px; flex-shrink: 0;
+  background: color-mix(in srgb, var(--text-muted) 40%, transparent); transition: background var(--dur-medium1) var(--ease-standard); }
+.spo2-knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--text-primary);
+  transition: transform var(--dur-medium1) var(--ease-standard); }
+.spo2-switch[aria-checked="true"] .spo2-track { background: var(--accent); }
+.spo2-switch[aria-checked="true"] .spo2-knob { transform: translateX(16px); background: var(--on-accent-fill, #0b1220); }
+@media (prefers-reduced-motion: reduce) { .spo2-track, .spo2-knob { transition: none; } }
 .patient-details { min-height: 36px; padding: 0 6px; font-weight: 700; color: var(--accent); }
 
 /* ---------- county protocol as one band that scrolls sideways ---------- */
