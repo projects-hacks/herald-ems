@@ -20,8 +20,10 @@ ambulance speech transcripts and photographs (patient monitors, medication label
 such as the California POLST) into typed clinical facts for **Herald**, an offline EMS copilot built for the
 HP Edge AI SJSU Hackathon (2026). Full project: https://github.com/projects-hacks/herald-ems (public).
 
-**Not a medical device. Not clinician-reviewed. Has not shipped in the Herald product** — see Known
-limitations below before using this adapter for anything beyond experimentation. This card is a copy of
+**Not a medical device. Not clinician-reviewed.** In the Herald product this adapter ships for **photo reading,
+the patient monitor, protocol-figure transcription and protocol-passage reranking**; it does **not** do
+speech→facts extraction, which stays on the project's 4B extractor. See Known limitations before using it for
+anything beyond experimentation. This card is a copy of
 [`MODEL_CARD.md`](https://github.com/projects-hacks/herald-ems/blob/main/MODEL_CARD.md) in the source
 repository, formatted for a Hugging Face model card; that file is the source of truth if the two diverge.
 
@@ -62,12 +64,12 @@ All numbers below are from the source repository's `eval/results.jsonl`, single 
 | speech → facts, F1 | `gold_v3` (every call type, n=100) | 0.942 |
 | speech → facts, F1 | `gold_es_v1` (Spanish, n=60) | 0.931 |
 | G.F.A.S.T. (stroke screen) F1 | `gold_v2` | 0.947 (one saved run); model owner's 3-run mean 0.924 — below the project's 0.95 shipping bar either way |
-| photo reading, F1 (this adapter only, not the source project's shipped vision model) | synthetic camera-on-screen set (n=8) | 1.000 |
-| photo reading, F1 (this adapter only) | real (non-rendered) photos | 0.727 (18 invented facts) |
-| photo reading, F1 (this adapter only) | rendered forms incl. POLST | 0.578 (weak — POLST `code_status` reading is not claimed reliable) |
-| protocol reranking, right passage first | all 59 questions | 0.731 (38/52) vs a required ≥0.788 (41/52) — **failed** |
-| protocol reranking, top 3 | all 59 questions | 0.788 (41/52) vs a required ≥0.827 (43/52) — **failed** |
-| confirmation calibration, wrong facts | 0.8 threshold, held-out | 11 of 206 auto-confirmed vs a ≤1 bar — **not recalibrated for shipping** |
+| photo reading, F1 | synthetic camera-on-screen set (n=8) | 1.000 (48/48 values, 0 invented) vs the untuned base model's 0.958 (46/48) |
+| photo reading, F1 | real (non-rendered) photos, n=97 | 0.727 (18 invented facts) vs the untuned base model's 0.580 median over 3 runs (0.577–0.606) |
+| photo reading, F1 | rendered forms incl. POLST | 0.578 (weak — POLST `code_status` reading is not claimed reliable) |
+| protocol reranking, right passage first | all 59 questions | 0.731 (38/52) vs a required ≥0.788 (41/52) — **failed the bar** |
+| protocol reranking, top 3 | all 59 questions | 0.788 (41/52) vs a required ≥0.827 (43/52) — **failed the bar** |
+| confirmation calibration, wrong facts | 0.8 threshold, held-out | 3 of 206 auto-confirmed vs a ≤1 bar — misses it, which is why extraction stays on the 4B |
 
 **Where it wins:** transcript → facts F1 ~0.964 (3-run mean) vs. the source project's shipped extractor at
 0.948–0.952 on the same held-out set, and `infection.suspected` recall 0.889 vs. the shipped extractor's
@@ -76,21 +78,30 @@ for the whole stack yet, because of the gates below.
 
 ## Known limitations
 
-- **Failed the project's protocol-reranking kept-ability gate.** This adapter is measurably worse than the
-  untuned base model at finding the right protocol passage, so the source project does not use it for
-  reranking, protocol-figure transcription, or translation.
-- **Confirmation-threshold calibration is pending.** Do not reuse the base model's or a different run's
-  auto-confirm thresholds with this adapter without recalibrating.
+- **Failed the project's protocol-reranking kept-ability gate, and ships for reranking anyway.** This adapter
+  is measurably worse than the untuned base model at finding the right protocol passage: 38 of 52 first-place
+  hits against 41. The source project uses it for reranking regardless, as a deliberate and recorded exception,
+  because serving the untuned model instead would cost a larger, measured loss on real photo reading, and two
+  resident 30B models do not fit in the box's memory. The 4B extractor was benched as an alternative reranker
+  over 3 runs — the task is text-only — and scored worse still, 36 of 52. So the honest statement is: **3
+  protocol questions were traded for the photo win, knowingly.** If you have memory for two models, use the
+  untuned base model for reranking and this adapter for photos.
+- **Confirmation-threshold calibration misses the project's bar.** At the 0.8 threshold on the held-out set
+  this adapter admits 3 wrong auto-confirmed facts against a ≤1 bar, and reaches 1 only at 0.97 where it
+  auto-confirms 26% of facts. That is why speech→facts extraction stays on the 4B, which admits 1 at 0.8.
+  Do not reuse the base model's or a different run's auto-confirm thresholds without recalibrating.
 - **G.F.A.S.T. (stroke screen) extraction F1 was 0.947 on the one saved run in the source repository's
   eval log**, and a mean of 0.924 across the model owner's 3 runs — below the source project's 0.95 bar
   either way.
-- **Refusal correctness on out-of-scope protocol questions is 4 of 7** in the source repository's saved
-  runs, tying (not beating) the untuned baseline on the same question set; the model owner has separately
-  described this as a regression from 7 of 7, which is not what the saved runs show for that baseline —
-  an open discrepancy, noted rather than resolved one way.
+- **Refusal correctness on out-of-scope protocol questions is 4 of 7, tying the untuned baseline.** The
+  discrepancy this card previously flagged is now resolved, and the card was right: there was no regression.
+  The "7 of 7" figure came from the older **25-question** subset of the question set, which contains only 3 of
+  the 7 unanswerable questions, and it was being compared against this adapter's 59-question run. Re-derived on
+  the full set from the saved dumps, both models refuse 4 of 7. Ranking regressed; refusal did not.
 - **Photo reading is materially weaker on real, non-rendered photos and on POLST forms** than on the
-  synthetic/rendered training distribution, and these numbers are this adapter's own — not the source
-  project's shipped vision model, which is evaluated separately.
+  synthetic/rendered training distribution — 0.727 against 1.000, with 18 images carrying invented facts and
+  only about 60% of photos fully correct. It is still the better of the two available models on real photos,
+  which is why it ships for vision, but 0.727 is not an accuracy claim anyone should build on.
 - **No end-to-end audio-to-facts evaluation exists.** All speech numbers are extraction from gold text
   transcripts, not from raw audio.
 - Every number here comes from synthetic, AI-assisted, non-clinician-reviewed data; accuracy on real speech
