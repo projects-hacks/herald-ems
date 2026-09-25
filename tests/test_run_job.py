@@ -149,27 +149,27 @@ def _critical_registry(tmp_path):
     return reg
 
 
-def test_gpu_job_refused_while_critical_runs(tmp_path):
+def test_gpu_job_refused_while_critical_runs(tmp_path, cfg):
     reg = _critical_registry(tmp_path)
     assert [j["name"] for j in reg.critical()] == ["train-f"]
     assert reg.priorities()["herald-job-train-f-1.scope"] == "critical"
     with pytest.raises(Refused, match="critical job is running: train-f"):
-        launcher.check_critical(JobSpec("asr", 6, ("x",), gpu=True), reg, None)
-    launcher.check_critical(JobSpec("cpu", 6, ("x",)), reg, None)                  # CPU jobs still run
+        launcher.check_critical(JobSpec("asr", 6, ("x",), gpu=True), reg, None, cfg.run_job.critical_coexist_gib)
 
 
-def test_gpu_job_waits_for_critical_with_wait(tmp_path):
+def test_gpu_job_waits_for_critical_with_wait(tmp_path, cfg):
     reg = _critical_registry(tmp_path)
+    coexist = cfg.run_job.critical_coexist_gib
     clock = Clock()
     with pytest.raises(Refused, match="timed out after 20 s"):
-        launcher.check_critical(JobSpec("asr", 6, ("x",), gpu=True), reg, 20, clock=clock, sleep=clock.sleep,
-                                say=lambda s: None)
+        launcher.check_critical(JobSpec("asr", 6, ("x",), gpu=True), reg, 20, coexist, clock=clock,
+                                sleep=clock.sleep, say=lambda s: None)
     calls = []
 
     def sleep(s):
         calls.append(s)
         reg.remove("herald-job-train-f-1")                                         # the critical job ends
-    launcher.check_critical(JobSpec("asr", 6, ("x",), gpu=True), reg, 600, clock=clock, sleep=sleep,
+    launcher.check_critical(JobSpec("asr", 6, ("x",), gpu=True), reg, 600, coexist, clock=clock, sleep=sleep,
                             say=lambda s: None)
     assert calls == [5.0]
 
@@ -182,6 +182,63 @@ def test_cli_refuses_gpu_job_next_to_critical(tmp_path):
     c.write_text(yaml.safe_dump(raw))
     _critical_registry(tmp_path)
     r = subprocess.run([sys.executable, str(ROOT / "scripts/run_job.py"), "--name", "t", "--need-gib", "1", "--gpu",
+                        "--config", str(c), "--", "true"], capture_output=True, text=True)
+    assert r.returncode == 75 and "critical job is running" in r.stderr
+
+
+# ---------------------------------------------------------------- size, not only --gpu, next to a critical job
+# On 2026-09-25 at 05:13 UTC the box hard-froze while a CPU-only 4B model merge (--need-gib 12, no --gpu) ran
+# alongside the critical 30B training job: run_job refused only --gpu jobs while a critical job ran, so the CPU job
+# was admitted. GPU and CPU share one 121.6 GiB unified pool on the GB10, so any job over
+# run_job.critical_coexist_gib is now refused whether or not it asks for the GPU.
+
+
+def test_large_cpu_job_refused_while_critical_runs(tmp_path, cfg):
+    reg = _critical_registry(tmp_path)
+    coexist = cfg.run_job.critical_coexist_gib
+    with pytest.raises(Refused, match=f"critical job is running: train-f.*more than {coexist:g} GiB"):
+        launcher.check_critical(JobSpec("merge-4b", 12, ("x",)), reg, None, coexist)
+
+
+def test_small_cpu_job_allowed_while_critical_runs(tmp_path, cfg):
+    reg = _critical_registry(tmp_path)
+    coexist = cfg.run_job.critical_coexist_gib
+    launcher.check_critical(JobSpec("tool", coexist, ("x",)), reg, None, coexist)          # exactly at the threshold
+    launcher.check_critical(JobSpec("tool", coexist / 2, ("x",)), reg, None, coexist)
+
+
+def test_large_cpu_job_waits_for_critical_with_wait(tmp_path, cfg):
+    reg = _critical_registry(tmp_path)
+    coexist = cfg.run_job.critical_coexist_gib
+    clock = Clock()
+    with pytest.raises(Refused, match="timed out after 20 s"):
+        launcher.check_critical(JobSpec("merge-4b", 12, ("x",)), reg, 20, coexist, clock=clock, sleep=clock.sleep,
+                                say=lambda s: None)
+    calls = []
+
+    def sleep(s):
+        calls.append(s)
+        reg.remove("herald-job-train-f-1")                                         # the critical job ends
+    launcher.check_critical(JobSpec("merge-4b", 12, ("x",)), reg, 600, coexist, clock=clock, sleep=sleep,
+                            say=lambda s: None)
+    assert calls == [5.0]
+
+
+def test_large_cpu_job_allowed_when_no_critical_job_runs(tmp_path, cfg):
+    reg = JobRegistry(tmp_path / "jobs")
+    reg.add("herald-job-bench-1", name="bench", priority="normal", pid=os.getpid(), launcher_pid=os.getpid())
+    launcher.check_critical(JobSpec("merge-4b", 12, ("x",)), reg, None, cfg.run_job.critical_coexist_gib)
+
+
+def test_cli_refuses_large_cpu_job_next_to_critical(tmp_path):
+    """Same exit code as every other refusal (75), with no --gpu anywhere on the command line."""
+    raw = yaml.safe_load(mgconfig.DEFAULT_CONFIG.read_text())
+    raw["paths"].update(jobs_dir=str(tmp_path / "jobs"), demo_flag=str(tmp_path / "demo_mode"),
+                        gpu_lock=str(tmp_path / "gpu.lock"))
+    c = tmp_path / "mg.yaml"
+    c.write_text(yaml.safe_dump(raw))
+    _critical_registry(tmp_path)
+    r = subprocess.run([sys.executable, str(ROOT / "scripts/run_job.py"), "--name", "merge-4b", "--need-gib", "12",
                         "--config", str(c), "--", "true"], capture_output=True, text=True)
     assert r.returncode == 75 and "critical job is running" in r.stderr
 

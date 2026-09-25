@@ -182,7 +182,7 @@ def make_trainer_class():
     return HeraldTrainer
 
 
-def make_callbacks(out: Path, epoch_end_steps: list[int], backup: Path):
+def make_callbacks(out: Path, epoch_end_steps: list[int], backup: Path, dev_passes: int = 1):
     from transformers import TrainerCallback
 
     class JsonlLog(TrainerCallback):
@@ -212,25 +212,67 @@ def make_callbacks(out: Path, epoch_end_steps: list[int], backup: Path):
 
     class EpochAdapters(TrainerCallback):
         """Save the adapter at the end of each epoch into <out>/epoch-<k> (both are evaluated, one is picked), written
-        to a temp dir and renamed, then copied the same way to the backup dir so a bad cleanup can't lose it."""
+        to a temp dir and renamed, then copied the same way to the backup dir so a bad cleanup can't lose it.
+
+        The dev losses in `herald_epoch.json` must be the ones measured on the adapter's OWN step, which takes two
+        hooks. transformers evaluates *after* `on_step_end`: the training loop calls `on_step_end`
+        (trainer.py:1882) and then `_maybe_log_save_evaluate` (:1883), which runs the dev passes (:2196) and only
+        afterwards saves and fires `on_save` (:2202-2204); each `Trainer.evaluate` logs its metrics into
+        `state.log_history`, stamped with the step it ran on (:2776 -> `log` :4049-4050), and fires `on_evaluate`
+        (:2781). Writing the whole file from `on_step_end` therefore
+        recorded the PREVIOUS dev pass: on the real run `runs/herald-f-lora/epoch-1/herald_epoch.json` says
+        `"step": 244` but carries eval rows tagged `"step": 122`, and epoch-2 says 488 with rows from 366.
+        TRAINING_PLAN §4.3 picks the better epoch out of this file, so the comparison was made on stale numbers.
+
+        So the weights are snapshotted in `on_step_end` (they are this step's weights; evaluation does not change
+        them) and the directory is finished off once this step's dev passes have landed. `eval_dataset` is a dict, so
+        `Trainer.evaluate` recurses once per dev set (trainer.py:2734-2743) and `on_evaluate` fires once per set:
+        `dev_passes` is how many to wait for. A snapshot still pending when training moves on or ends is finished
+        anyway, so a missing or renamed dev set can never cost us the adapter.
+        """
+
+        def __init__(self):
+            self.pending: tuple[int, int, Path] | None = None       # (epoch, step, temp dir) not finished yet
+            self.seen = 0                                           # dev passes landed for the pending step
+
+        def _snapshot(self, state, model) -> None:
+            k = epoch_end_steps.index(state.global_step) + 1
+            tmp = out / f".epoch-{k}.writing"
+            if tmp.exists():
+                shutil.rmtree(tmp)
+            model.save_pretrained(tmp)
+            self.pending, self.seen = (k, state.global_step, tmp), 0
+
+        def _finish(self, state) -> None:
+            k, step, tmp = self.pending
+            self.pending, self.seen = None, 0
+            (tmp / "herald_epoch.json").write_text(json.dumps(
+                {"epoch": k, "step": step,
+                 "eval": [h for h in state.log_history
+                          if h.get("step") == step and any(x.startswith("eval_") for x in h)]}, indent=1))
+            ckpt_safety.mark_complete(tmp, {"epoch": k, "step": step})
+            if (out / f"epoch-{k}").exists():
+                shutil.rmtree(out / f"epoch-{k}")
+            tmp.rename(out / f"epoch-{k}")
+            ckpt_safety.copy_dir_atomic(out / f"epoch-{k}", backup / f"epoch-{k}")
+            print(json.dumps({"saved_epoch_adapter": str(out / f'epoch-{k}'), "backup": str(backup / f'epoch-{k}'),
+                              "step": step}), flush=True)
 
         def on_step_end(self, args, state, control, model=None, **kw):
+            if self.pending and self.pending[1] != state.global_step:
+                self._finish(state)                     # its dev pass never came: keep the adapter regardless
             if state.global_step in epoch_end_steps:
-                k = epoch_end_steps.index(state.global_step) + 1
-                tmp = out / f".epoch-{k}.writing"
-                if tmp.exists():
-                    shutil.rmtree(tmp)
-                model.save_pretrained(tmp)
-                (tmp / "herald_epoch.json").write_text(json.dumps(
-                    {"epoch": k, "step": state.global_step,
-                     "eval": [h for h in state.log_history if any(x.startswith("eval_") for x in h)][-3:]}, indent=1))
-                ckpt_safety.mark_complete(tmp, {"epoch": k, "step": state.global_step})
-                if (out / f"epoch-{k}").exists():
-                    shutil.rmtree(out / f"epoch-{k}")
-                tmp.rename(out / f"epoch-{k}")
-                ckpt_safety.copy_dir_atomic(out / f"epoch-{k}", backup / f"epoch-{k}")
-                print(json.dumps({"saved_epoch_adapter": str(out / f'epoch-{k}'), "backup": str(backup / f'epoch-{k}'),
-                                  "step": state.global_step}), flush=True)
+                self._snapshot(state, model)
+
+        def on_evaluate(self, args, state, control, **kw):
+            if self.pending and self.pending[1] == state.global_step:
+                self.seen += 1
+                if self.seen >= dev_passes:
+                    self._finish(state)
+
+        def on_train_end(self, args, state, control, **kw):
+            if self.pending:
+                self._finish(state)
 
     return [CadenceFromArgs(), JsonlLog(), EpochAdapters()]
 
@@ -361,54 +403,62 @@ def main():
     set_seed(cfg["mix"]["seed"])            # LoRA init is reproducible (runs compare; resume loads it from the checkpoint)
     # From here on, memory is recorded to <out>/mem.jsonl at 10 Hz and flushed every second: the load and the first
     # steps are where the 30B died, and three lockups on this box left no evidence at all behind.
-    sampler = MemorySampler(out / "mem.jsonl").start()
-    model = load_model(base, stream=not a.no_stream_load)
-    print(json.dumps({"after_load": summarize_memory(out / "mem.jsonl")}), flush=True)
-    snap = hf_snapshot(base)
-    if snap:
-        print(json.dumps({"dropped_weight_file_cache_gib": round(drop_file_cache(snap.glob("*.safetensors")), 1)}))
-    model.config.use_cache = False
-    model = get_peft_model(model, lora_config(cfg, model))
-    model.print_trainable_parameters()
+    # The sampler is held as a context manager so its thread is stopped and its `"final": true` line written on the
+    # way out of every exit: a normal finish, a SystemExit from one of the guards above, or a torch OOM mid-run. It
+    # used to be started and never closed -- the sampler thread and the missing final marker only went away with the
+    # process, so a run that ended on an exception left a mem.jsonl that looked truncated, exactly like the freezes
+    # this file exists to document. Wiring it was deferred while run F was training, because the supervisor relaunches
+    # this script and would have re-read a half-edited file (AGENTS.md pitfalls); the run has since finished.
+    with MemorySampler(out / "mem.jsonl"):
+        model = load_model(base, stream=not a.no_stream_load)
+        print(json.dumps({"after_load": summarize_memory(out / "mem.jsonl")}), flush=True)
+        snap = hf_snapshot(base)
+        if snap:
+            print(json.dumps({"dropped_weight_file_cache_gib": round(drop_file_cache(snap.glob("*.safetensors")), 1)}))
+        model.config.use_cache = False
+        model = get_peft_model(model, lora_config(cfg, model))
+        model.print_trainable_parameters()
 
-    o = cfg["optim"]
-    args = TrainingArguments(
-        output_dir=str(out), max_steps=plan.steps, per_device_train_batch_size=1, per_device_eval_batch_size=4,
-        gradient_accumulation_steps=plan.accum, learning_rate=o["lr"], lr_scheduler_type=o["scheduler"],
-        warmup_steps=o["warmup_ratio"], weight_decay=o["weight_decay"], max_grad_norm=o["max_grad_norm"],
-        bf16=True, logging_steps=1, eval_strategy="steps", eval_steps=cfg["eval_steps"], save_strategy="steps",
-        save_steps=cfg["checkpoint_steps"], save_total_limit=cfg["keep_checkpoints"], report_to=[],
-        remove_unused_columns=False, prediction_loss_only=True, gradient_checkpointing=True,
-        gradient_checkpointing_kwargs={"use_reentrant": False}, dataloader_num_workers=2, seed=cfg["mix"]["seed"])
-    HeraldTrainer = make_trainer_class()
-    HeraldTrainer.plan_batches = plan.batches[: plan.steps * plan.accum]
-    HeraldTrainer.out_dir, HeraldTrainer.kill_in_save_at = out, a.test_kill_in_save
-    backup = ROOT / (a.backup_dir or cfg["adapter_backup_dir"])
-    trainer = HeraldTrainer(model=model, args=args, train_dataset=RowDataset(plan.rows, enc),
-                            eval_dataset={k: RowDataset(v, enc) for k, v in dev_sets.items()},
-                            data_collator=lambda f: collate_rows(f, enc.pad_id),
-                            callbacks=make_callbacks(out, [s for s in plan.epoch_end_steps if s <= plan.steps], backup))
-    torch.cuda.reset_peak_memory_stats()
-    t0 = time.time()
-    start = int(resume_from.name.split("-")[1]) if resume_from else 0
-    trainer.train(resume_from_checkpoint=str(resume_from) if resume_from else None)
-    dt = time.time() - t0
-    trainer.save_model(str(out / "final"))
-    hist = trainer.state.log_history
-    losses = [h["loss"] for h in hist if "loss" in h]
-    toks = plan.tokens(plan.steps) - (plan.tokens(start) if start else 0)      # this invocation only
-    tps = toks / dt if dt else 0.0
-    report = {"steps": trainer.state.global_step, "seconds": round(dt, 1), "loss_first": losses[:3],
-              "loss_last": losses[-3:], "nan": any(x != x for x in losses),
-              "eval": [{k: v for k, v in h.items() if k.startswith("eval_") and k.endswith("loss")} | {"step": h["step"]}
-                       for h in hist if any(k.endswith("_loss") and k.startswith("eval_") for k in h)],
-              "peak_gpu_mem_gib": round(torch.cuda.max_memory_allocated() / 2**30, 1),
-              "padded_tokens": toks, "tokens_per_s": round(tps, 1),
-              "projected_full_run_hours": round(plan.tokens() / tps / 3600, 2) if tps else None,
-              "epoch_adapters": sorted(str(p) for p in out.glob("epoch-*"))}
-    (out / "report.json").write_text(json.dumps(report, indent=1))
-    (out / "DONE").write_text(json.dumps({"step": trainer.state.global_step, "t": round(time.time(), 1)}))
-    print(json.dumps(report, indent=1))
+        o = cfg["optim"]
+        args = TrainingArguments(
+            output_dir=str(out), max_steps=plan.steps, per_device_train_batch_size=1, per_device_eval_batch_size=4,
+            gradient_accumulation_steps=plan.accum, learning_rate=o["lr"], lr_scheduler_type=o["scheduler"],
+            warmup_steps=o["warmup_ratio"], weight_decay=o["weight_decay"], max_grad_norm=o["max_grad_norm"],
+            bf16=True, logging_steps=1, eval_strategy="steps", eval_steps=cfg["eval_steps"], save_strategy="steps",
+            save_steps=cfg["checkpoint_steps"], save_total_limit=cfg["keep_checkpoints"], report_to=[],
+            remove_unused_columns=False, prediction_loss_only=True, gradient_checkpointing=True,
+            gradient_checkpointing_kwargs={"use_reentrant": False}, dataloader_num_workers=2, seed=cfg["mix"]["seed"])
+        HeraldTrainer = make_trainer_class()
+        HeraldTrainer.plan_batches = plan.batches[: plan.steps * plan.accum]
+        HeraldTrainer.out_dir, HeraldTrainer.kill_in_save_at = out, a.test_kill_in_save
+        backup = ROOT / (a.backup_dir or cfg["adapter_backup_dir"])
+        trainer = HeraldTrainer(model=model, args=args, train_dataset=RowDataset(plan.rows, enc),
+                                eval_dataset={k: RowDataset(v, enc) for k, v in dev_sets.items()},
+                                data_collator=lambda f: collate_rows(f, enc.pad_id),
+                                callbacks=make_callbacks(out, [s for s in plan.epoch_end_steps if s <= plan.steps],
+                                                         backup, dev_passes=max(1, len(dev_sets))))
+        torch.cuda.reset_peak_memory_stats()
+        t0 = time.time()
+        start = int(resume_from.name.split("-")[1]) if resume_from else 0
+        trainer.train(resume_from_checkpoint=str(resume_from) if resume_from else None)
+        dt = time.time() - t0
+        trainer.save_model(str(out / "final"))
+        hist = trainer.state.log_history
+        losses = [h["loss"] for h in hist if "loss" in h]
+        toks = plan.tokens(plan.steps) - (plan.tokens(start) if start else 0)      # this invocation only
+        tps = toks / dt if dt else 0.0
+        report = {"steps": trainer.state.global_step, "seconds": round(dt, 1), "loss_first": losses[:3],
+                  "loss_last": losses[-3:], "nan": any(x != x for x in losses),
+                  "eval": [{k: v for k, v in h.items() if k.startswith("eval_") and k.endswith("loss")}
+                           | {"step": h["step"]}
+                           for h in hist if any(k.endswith("_loss") and k.startswith("eval_") for k in h)],
+                  "peak_gpu_mem_gib": round(torch.cuda.max_memory_allocated() / 2**30, 1),
+                  "padded_tokens": toks, "tokens_per_s": round(tps, 1),
+                  "projected_full_run_hours": round(plan.tokens() / tps / 3600, 2) if tps else None,
+                  "epoch_adapters": sorted(str(p) for p in out.glob("epoch-*"))}
+        (out / "report.json").write_text(json.dumps(report, indent=1))
+        (out / "DONE").write_text(json.dumps({"step": trainer.state.global_step, "t": round(time.time(), 1)}))
+        print(json.dumps(report, indent=1))
 
 
 if __name__ == "__main__":

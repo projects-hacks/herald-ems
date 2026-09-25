@@ -440,3 +440,115 @@ def test_checkpoint_cadence_bounds_lost_work(cfg):
     step_tokens = cfg["batching"]["max_tokens"] * cfg["batching"]["accum"]        # upper bound per optimizer step
     assert cfg["checkpoint_steps"] * step_tokens / cfg["reference_tokens_per_s"] <= 16 * 60
     assert cfg["keep_checkpoints"] >= 3 and cfg["adapter_backup_dir"]
+
+
+def test_epoch_adapter_records_its_own_dev_losses(tmp_path):
+    """`herald_epoch.json` must carry the dev losses measured on the adapter's own step.
+
+    transformers evaluates after `on_step_end` (trainer.py:1882 `on_step_end`, then :1883
+    `_maybe_log_save_evaluate`, which evaluates at :2196 and fires `on_evaluate` at :2781), so the old
+    `on_step_end`-only write recorded the previous dev pass: `runs/herald-f-lora/epoch-1/herald_epoch.json` says
+    `"step": 244` and carries eval rows tagged 122, epoch-2 says 488 with rows from 366. TRAINING_PLAN §4.3 picks the
+    better epoch out of this file, so the choice was made on stale numbers.
+    """
+    import ckpt_safety
+    import train_vlm_lora as tv
+    from transformers import TrainerControl, TrainerState
+
+    class FakeModel:
+        def save_pretrained(self, d):
+            Path(d).mkdir(parents=True, exist_ok=True)
+            (Path(d) / "adapter_model.safetensors").write_bytes(b"weights")
+
+    out, backup = tmp_path / "run", tmp_path / "backup"
+    out.mkdir()
+    epochs = tv.make_callbacks(out, [244, 488], backup, dev_passes=3)[-1]
+    assert type(epochs).__name__ == "EpochAdapters"
+    state, control = TrainerState(), TrainerControl()
+    state.log_history = [{"step": 122, "eval_text_loss": 0.119}, {"step": 122, "eval_image_loss": 0.268},
+                         {"step": 122, "eval_replay_loss": 0.096}]
+    state.global_step = 244
+    epochs.on_step_end(None, state, control, model=FakeModel())
+    assert not (out / "epoch-1").exists()                     # nothing final before this step's dev passes land
+    for i, key in enumerate(("eval_text_loss", "eval_image_loss", "eval_replay_loss")):
+        state.log_history.append({"step": 244, key: 0.1 + i})
+        epochs.on_evaluate(None, state, control, metrics={key: 0.1 + i})
+        assert (out / "epoch-1").exists() == (i == 2)          # written once, after the last dev set
+    rec = json.loads((out / "epoch-1" / "herald_epoch.json").read_text())
+    assert rec == {"epoch": 1, "step": 244,
+                   "eval": [{"step": 244, "eval_text_loss": 0.1}, {"step": 244, "eval_image_loss": 1.1},
+                            {"step": 244, "eval_replay_loss": 2.1}]}
+    assert ckpt_safety.is_complete(out / "epoch-1")            # still marked complete, and copied to the backup
+    assert json.loads((backup / "epoch-1" / "herald_epoch.json").read_text())["step"] == 244
+    assert not list(out.glob(".epoch-*"))                      # temp dir renamed, nothing left behind
+
+
+def test_epoch_adapter_is_kept_even_without_a_dev_pass(tmp_path):
+    """A dev pass that never arrives (a cadence that misses the epoch end) must not cost us the adapter."""
+    import train_vlm_lora as tv
+    from transformers import TrainerControl, TrainerState
+
+    class FakeModel:
+        def save_pretrained(self, d):
+            Path(d).mkdir(parents=True, exist_ok=True)
+            (Path(d) / "adapter_model.safetensors").write_bytes(b"weights")
+
+    out, backup = tmp_path / "run", tmp_path / "backup"
+    out.mkdir()
+    epochs = tv.make_callbacks(out, [10, 20], backup, dev_passes=3)[-1]
+    state, control = TrainerState(), TrainerControl()
+    state.log_history, state.global_step = [], 10
+    epochs.on_step_end(None, state, control, model=FakeModel())
+    state.global_step = 11
+    epochs.on_step_end(None, state, control, model=FakeModel())          # training moved on: finish it anyway
+    assert json.loads((out / "epoch-1" / "herald_epoch.json").read_text()) == {"epoch": 1, "step": 10, "eval": []}
+    state.global_step = 20
+    epochs.on_step_end(None, state, control, model=FakeModel())
+    epochs.on_train_end(None, state, control)                            # last epoch: the run ends first
+    assert json.loads((out / "epoch-2" / "herald_epoch.json").read_text())["step"] == 20
+
+
+def test_memory_sampler_is_closed_once_on_both_paths(tmp_path):
+    """The sampler thread and its `"final": true` line were left dangling: `close()` was never called.
+
+    It matters on the exception path most of all: a run that ends on a torch OOM left a mem.jsonl with no final
+    marker, which reads exactly like the abrupt stop this sampler exists to record. Wiring it was deferred while
+    run F was training, because the supervisor relaunches the trainer and would have re-read a half-edited file.
+    """
+    import ast
+
+    import lora_common as lc
+
+    class Spy(lc.MemorySampler):
+        def __init__(self):
+            super().__init__(tmp_path / "mem.jsonl")
+            self.closes = 0
+
+        def start(self):                       # no thread, no torch: this test only counts the teardown
+            return self
+
+        def close(self):
+            self.closes += 1
+
+    s = Spy()
+    with s:
+        pass
+    assert s.closes == 1
+    s = Spy()
+    with pytest.raises(RuntimeError):
+        with s:
+            raise RuntimeError("torch.OutOfMemoryError stands in here")
+    assert s.closes == 1
+
+    # ...and the trainer really does hold it that way: every MemorySampler in main() is a `with` item, and the
+    # training call sits inside that block.
+    main = next(n for n in ast.walk(ast.parse((ROOT / "scripts" / "train_vlm_lora.py").read_text()))
+                if isinstance(n, ast.FunctionDef) and n.name == "main")
+    withs = [w for w in ast.walk(main) if isinstance(w, ast.With)
+             for item in w.items if isinstance(item.context_expr, ast.Call)
+             and getattr(item.context_expr.func, "id", None) == "MemorySampler"]
+    built = [n for n in ast.walk(main) if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "MemorySampler"]
+    assert len(built) == 1 and len(withs) == 1, "MemorySampler must be constructed once, as a context manager"
+    trains = [n for n in ast.walk(withs[0]) if isinstance(n, ast.Call)
+              and getattr(n.func, "attr", None) == "train" and getattr(n.func.value, "id", None) == "trainer"]
+    assert len(trains) == 1, "trainer.train must run inside the sampler's block"

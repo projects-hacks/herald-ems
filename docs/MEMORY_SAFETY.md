@@ -87,8 +87,10 @@ scripts/run_job.py --name x --need-gib 4 --dry-run -- true
 What it does, in order:
 
 1. **Refuses in demo mode** (exit code 75), and keeps checking while it waits.
-   With `--gpu`, it also **refuses while a critical job is running** (exit 75, naming the critical job), instead of
-   queueing silently for hours behind a training run. With `--wait S`, it waits up to S seconds for the critical job
+   It also **refuses while a critical job is running** (exit 75, naming the critical job), instead of queueing
+   silently for hours behind a training run. That applies to every `--gpu` job whatever its size, **and to any job
+   asking for more than `run_job.critical_coexist_gib` (4 GiB), `--gpu` or not** (§4.1b). Jobs at or below 4 GiB are
+   still admitted, so trivial tooling isn't blocked. With `--wait S`, it waits up to S seconds for the critical job
    to end instead.
 2. With `--gpu`, **takes an exclusive `flock` on `~/.cache/herald-gpu.lock`**. One GPU-heavy job runs at a time;
    others queue ("GPU busy (<holder>); queued"). The lock file names the holder. The lock is passed to the job
@@ -127,6 +129,27 @@ guard was never involved. Tests: `tests/test_run_job.py` (a normal job is capped
 an explicit `--gpu-max-gib` still caps it, an inherited `HERALD_GPU_MAX_GIB` is cleared, and the hook is inert with
 no budget set).
 
+### 4.1b Next to a critical job, size decides, not `--gpu`
+
+While a `--priority critical` job runs, `run_job.py` refuses (exit 75):
+
+- every `--gpu` job, at any size (unchanged);
+- **every job with `--need-gib` above `run_job.critical_coexist_gib` (4 GiB), whether or not it passed `--gpu`.**
+
+`--wait S` still works for both: the job waits up to S seconds for the critical job to end instead of being refused.
+
+Why (2026-09-25, 05:13 UTC): the box hard-froze while a CPU-only 4B model merge (`--need-gib 12`, no `--gpu`) ran
+alongside the critical 30B training job. `run_job` refused only `--gpu` jobs while a critical job ran, so the CPU job
+was admitted. On the GB10 the GPU and the CPU share one 121.6 GiB unified memory pool (§2), so a "CPU-only" job
+competes for the training run's memory exactly as a GPU job does — `--gpu` describes which lock a job needs, not how
+much memory it takes. The 4 GiB floor keeps small tooling (dry runs, index builds, short scripts) working, because
+refusing everything for the length of a training run would push people around the launcher.
+
+The threshold lives in `config/memguard.yaml` → `run_job.critical_coexist_gib`, next to `reserve_gib` and
+`host_margin_gib`. Tests: `tests/test_run_job.py` (a large non-GPU job is refused, one at or below the threshold is
+allowed, a `--gpu` job is still refused at any size, `--wait` waits instead of refusing, and a large non-GPU job runs
+normally when no critical job is present).
+
 ### 4.2 Choosing `--need-gib`
 
 `--need-gib` is the total the job will hold, host plus GPU, because on this box they are the same memory. It is also
@@ -153,7 +176,8 @@ calls `scripts/run_job.py --name train-f --priority critical --gpu --need-gib N 
 - If the guard does reach it, the guard first logs a loud `critical_kill` event ("LAST RESORT: terminating CRITICAL
   job …"). It then sends SIGTERM and waits `critical_term_grace_s` (**20 s**) before SIGKILL, so the trainer can
   finish or abandon a checkpoint save cleanly (transformers writes checkpoints atomically).
-- **blocks other GPU jobs:** `run_job.py --gpu` refuses (exit 75) while it runs, unless `--wait` is given.
+- **blocks other big jobs:** while it runs, `run_job.py` refuses (exit 75) every `--gpu` job and every job needing
+  more than `critical_coexist_gib` (4 GiB), `--gpu` or not, unless `--wait` is given (§4.1b).
 - **makes the guard name who threatens it:** while a critical job runs, the guard's `warn` event is logged every
   `critical_warn_log_every_s` (10 s) at the warn *and* kill levels. It carries `critical_jobs` and `growing`: the
   top 5 processes by growth in RSS + GPU memory over `growth_window_s` (10 s), protected or not, with their owner

@@ -33,7 +33,8 @@ class JobSpec:
     gpu: bool = False
     host_max_gib: Optional[float] = None
     gpu_max_gib: Optional[float] = None
-    priority: str = "normal"                      # critical: killed last (class d), other --gpu jobs refused
+    priority: str = "normal"                      # critical: killed last (class d); while it runs, --gpu jobs and
+                                                  # jobs over run_job.critical_coexist_gib are refused
 
     def __post_init__(self):
         if self.priority not in PRIORITIES:
@@ -137,11 +138,19 @@ def acquire_gpu_lock(path: Path, timeout_s: float, holder: str, clock=time.monot
             sleep(2.0)
 
 
-def check_critical(spec: JobSpec, reg: JobRegistry, wait_s: Optional[float], clock=time.monotonic,
-                   sleep=time.sleep, say: Callable[[str], None] = print) -> None:
-    """A --gpu job never starts next to a running critical job. Without --wait it is refused at once (no silent
-    queueing for hours); with --wait it waits up to that long for the critical job to end."""
-    if not spec.gpu:
+def check_critical(spec: JobSpec, reg: JobRegistry, wait_s: Optional[float], coexist_gib: float,
+                   clock=time.monotonic, sleep=time.sleep, say: Callable[[str], None] = print) -> None:
+    """Next to a running critical job, a --gpu job never starts, and neither does any job needing more than
+    `coexist_gib` (`run_job.critical_coexist_gib`). Without --wait it is refused at once (no silent queueing for
+    hours); with --wait it waits up to that long for the critical job to end.
+
+    Size, not only --gpu, because of 2026-09-25 05:13 UTC: the box hard-froze while a CPU-only 4B model merge
+    (`--need-gib 12`, no `--gpu`) ran alongside the critical 30B training job. Only `--gpu` jobs were refused while
+    a critical job ran, so the CPU job was admitted. On the GB10 the GPU and the CPU share one 121.6 GiB unified
+    memory pool (MEMORY_SAFETY §2), so a "CPU-only" job still competes directly with a training run. Jobs at or
+    below `coexist_gib` stay allowed so trivial tooling is not blocked.
+    """
+    if not spec.gpu and spec.need_gib <= coexist_gib:
         return
     start, said = clock(), False
     while True:
@@ -150,7 +159,9 @@ def check_critical(spec: JobSpec, reg: JobRegistry, wait_s: Optional[float], clo
             return
         names = ", ".join(f"{j.get('name')} ({j.get('unit')})" for j in crit)
         if wait_s is None:
-            raise Refused(f"a critical job is running: {names}. GPU jobs are refused while it runs; pass --wait "
+            why = ("GPU jobs are refused" if spec.gpu else
+                   f"jobs needing more than {coexist_gib:g} GiB are refused")
+            raise Refused(f"a critical job is running: {names}. {why} while it runs; pass --wait "
                           f"<seconds> to queue behind it")
         if not said:
             say(f"[run_job] critical job running ({names}); waiting up to {wait_s:g} s")
@@ -173,7 +184,7 @@ def run(spec: JobSpec, cfg: GuardConfig, *, wait_s: Optional[float] = None, dry_
         print(" ".join(argv))
         return 0
     reg = JobRegistry(cfg.paths.jobs_dir)
-    check_critical(spec, reg, wait_s)
+    check_critical(spec, reg, wait_s, cfg.run_job.critical_coexist_gib)
     lock_fd = None
     if spec.gpu:
         lock_fd = acquire_gpu_lock(cfg.paths.gpu_lock, timeout, f"{spec.name} pid {os.getpid()} unit {unit}")

@@ -54,6 +54,7 @@ class RunJob:
     reserve_gib: float
     wait_timeout_s: float
     host_margin_gib: float
+    critical_coexist_gib: float
     oom_score_adj: int
     unit_prefix: str
 
@@ -162,6 +163,7 @@ def parse(raw: dict, home: Optional[Path] = None) -> GuardConfig:
         run_job=RunJob(reserve_gib=float(_need(job_raw, "reserve_gib", "run_job.")),
                        wait_timeout_s=_positive(_need(job_raw, "wait_timeout_s", "run_job."), "wait_timeout_s"),
                        host_margin_gib=float(_need(job_raw, "host_margin_gib", "run_job.")),
+                       critical_coexist_gib=float(_need(job_raw, "critical_coexist_gib", "run_job.")),
                        oom_score_adj=adj, unit_prefix=prefix),
         protected=Protected(ports=ports, port_descendants=bool(_need(prot_raw, "port_descendants", "protected.")),
                             vllm_keep=frozenset(str(x) for x in _need(prot_raw, "vllm_keep", "protected.")),

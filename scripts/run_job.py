@@ -4,7 +4,10 @@
   scripts/run_job.py --name X --need-gib N [--gpu] [--priority normal|critical] [--host-max-gib M] [--gpu-max-gib G]
                      [--wait S] -- <cmd ...>
 
-Refuses in demo mode; with --gpu queues on ~/.cache/herald-gpu.lock (one GPU-heavy job at a time); waits until
+Refuses in demo mode; refuses, while a --priority critical job runs, every --gpu job and every job needing more than
+run_job.critical_coexist_gib (GPU and CPU share one unified memory pool here, so "CPU-only" is not safe: the box froze
+on 2026-09-25 05:13 UTC when a --need-gib 12 CPU merge was admitted next to the 30B training run);
+with --gpu queues on ~/.cache/herald-gpu.lock (one GPU-heavy job at a time); waits until
 MemAvailable - reserve >= N; runs the command in `systemd-run --user --scope` with MemoryMax (host memory) and
 oom_score_adj 1000, and caps torch's CUDA allocator at the GPU budget (N unless --gpu-max-gib). The memory guard
 (scripts/memguard.py) kills guarded jobs first. Exit code: the command's, or 75 if refused / timed out.
@@ -35,11 +38,11 @@ def main(argv=None) -> int:
     ap.add_argument("--host-max-gib", type=float, help="cgroup MemoryMax (default: need + host margin)")
     ap.add_argument("--gpu-max-gib", type=float, help="torch CUDA allocator cap (default: --need-gib)")
     ap.add_argument("--priority", choices=["normal", "critical"], default="normal",
-                    help="critical: the guard kills it last, with a long SIGTERM grace; other --gpu jobs are refused "
-                         "while it runs")
+                    help="critical: the guard kills it last, with a long SIGTERM grace; while it runs, other --gpu "
+                         "jobs and any job needing more than run_job.critical_coexist_gib are refused")
     ap.add_argument("--wait", type=float, help="seconds to wait for memory / the GPU lock / a running critical job "
-                                                "(default: config; without it a --gpu job is refused while a "
-                                                "critical job runs)")
+                                                "(default: config; without it a --gpu job, or a job over "
+                                                "critical_coexist_gib, is refused while a critical job runs)")
     ap.add_argument("--config", type=Path)
     ap.add_argument("--dry-run", action="store_true", help="print the systemd-run command and exit")
     a = ap.parse_args(argv)

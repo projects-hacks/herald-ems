@@ -38,7 +38,13 @@ OPS = {
     ">=": lambda got, want: got >= want,
     "<=": lambda got, want: got <= want,
     "==": lambda got, want: got == want,
+    # `want` already carries the margin, applied by MARGIN_SIGN below.
+    "not_worse_than": lambda got, want: got >= want,
+    "not_above": lambda got, want: got <= want,
 }
+
+# Which way a check's `margin` moves the reference value it is compared against.
+MARGIN_SIGN = {"not_worse_than": -1, "not_above": +1}
 
 
 def load_gates(path: Path | None = None) -> dict:
@@ -51,6 +57,10 @@ def load_gates(path: Path | None = None) -> dict:
     for lvl in cfg["levels"].values():
         if "repo" in lvl:
             lvl["repo"] = os.path.expandvars(lvl["repo"])
+    bad = {(g["id"], c["op"]) for g in cfg["gates"] for c in (g.get("checks") or []) if c["op"] not in OPS}
+    if bad:
+        raise ValueError("unknown check op(s) in the gate table: "
+                         + ", ".join(f"{gid}:{op}" for gid, op in sorted(bad)))
     return cfg
 
 
@@ -76,6 +86,13 @@ def json_lines(text: str) -> list[dict]:
         except json.JSONDecodeError:
             pass
     return out
+
+
+def read_results(path: Path) -> list[dict]:
+    """The recorded (level, gate, run) results. An absent or empty file is simply "nothing measured yet"."""
+    if not path.exists():
+        return []
+    return [json.loads(ln) for ln in path.read_text().splitlines() if ln.strip()]
 
 
 def pick(lines: list[dict], select: dict | None) -> dict | None:
@@ -115,14 +132,71 @@ def applicable(gate: dict, level: dict) -> tuple[bool, str]:
     return True, ""
 
 
-def run_one(cfg: dict, gate: dict, level: dict, run: int, dump: Path, dry: bool) -> dict:
-    """One bench invocation through run_job.py. Returns the record to append to results.jsonl."""
+def select_gates(cfg: dict, level: dict, want_gates: set | None = None,
+                 want_groups: set | None = None) -> tuple[list[dict], list[tuple[dict, str]]]:
+    """The gates that apply to one level, and the ones that do not with the reason (manual gates included)."""
+    todo, skipped = [], []
+    for gate in cfg["gates"]:
+        if want_gates and gate["id"] not in want_gates:
+            continue
+        if want_groups and gate["group"] not in want_groups:
+            continue
+        ok, why = applicable(gate, level)
+        if ok:
+            todo.append(gate)
+        else:
+            skipped.append((gate, why))
+    return todo, skipped
+
+
+def job_cmd(cfg: dict, gate: dict, level: dict, dump: Path) -> list[str]:
+    """The exact argv for one bench run: run_job.py wrapping the bench (MEMORY_SAFETY §4, never the bench alone)."""
     cmd = [str(ROOT / "scripts" / "run_job.py"), "--name", f"gate-{gate['id']}", "--need-gib", str(cfg["need_gib"]),
            "--wait", "1800", "--", sys.executable]
-    cmd += [c.format(label=level["label"], dump=str(dump)) for c in gate["cmd"]]
-    if dry:
-        print("    " + " ".join(cmd[cmd.index("--") + 1:]))
-        return {}
+    return cmd + [c.format(label=level["label"], dump=str(dump)) for c in gate["cmd"]]
+
+
+def dump_path(level_id: str, gate: dict, run: int) -> Path:
+    return ROOT / "eval" / "dumps" / "gates" / level_id / f"{gate['id']}_run{run}.jsonl"
+
+
+def plan_lines(cfg: dict, want_levels: list[str], runs: int, want_gates: set | None = None,
+               want_groups: set | None = None, seen: set | None = None) -> list[str]:
+    """The `--dry-run` plan: the exact bench commands, and nothing else.
+
+    Pure text. It starts no server, opens no socket, runs no subprocess and creates no directory or dump file, so it
+    is safe while a model is loading. The dump paths it prints are the ones a real run would create.
+    """
+    seen, out, total = seen or set(), [], 0
+    for lid in want_levels:
+        lvl = cfg["levels"][lid]
+        todo, skipped = select_gates(cfg, lvl, want_gates, want_groups)
+        for gate, why in skipped:
+            if not gate.get("manual"):
+                out.append(f"[skip] {lid}/{gate['id']}: {why}")
+        if not todo:
+            continue
+        out.append("")
+        out.append(f"=== {lid} ({lvl['label']}): {len(todo)} gates x {runs} runs ===")
+        out.append(f"  serve first (the runner never does): {serve_hint(lid, lvl)}")
+        for gate in todo:
+            pending = [r for r in range(1, runs + 1) if (lid, gate["id"], r) not in seen]
+            out.append(f"  {gate['id']}: {len(pending)} of {runs} run(s) to do"
+                       + ("" if len(pending) == runs else f" ({runs - len(pending)} already recorded)"))
+            for run in pending:
+                out.append("    " + " ".join(job_cmd(cfg, gate, lvl, dump_path(lid, gate, run))))
+            total += len(pending)
+        out.append("")
+    manual = [g["id"] for g in cfg["gates"] if g.get("manual")]
+    out += [f"plan: {total} bench run(s) over {len(want_levels)} level(s); "
+            f"{len(manual)} manual gate(s) a person judges ({', '.join(manual)})",
+            "dry run: nothing was served, called or written."]
+    return out
+
+
+def run_one(cfg: dict, gate: dict, level: dict, run: int, dump: Path) -> dict:
+    """One bench invocation through run_job.py. Returns the record to append to results.jsonl."""
+    cmd = job_cmd(cfg, gate, level, dump)
     t0 = time.time()
     p = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
     line = pick(json_lines(p.stdout), gate.get("select"))
@@ -141,31 +215,29 @@ def medians(records: list[dict], metric: str) -> tuple[float | None, list]:
     return (statistics.median(vals) if vals else None), sorted(vals)
 
 
-def verdict(gate: dict, records: list[dict], baseline: list[dict] | None) -> list[dict]:
-    """One row per check: the median that was measured, what it was compared to, and pass/fail."""
+def verdict(gate: dict, records: list[dict], baseline: list[dict] | None = None) -> list[dict]:
+    """One row per check: the median that was measured, what it was compared to, and pass/fail.
+
+    `pass` is None, never True, when either side of the comparison is missing: an unmeasured check is PENDING, so a
+    gate can never pass because its baseline was not run.
+    """
     rows = []
     for chk in gate.get("checks") or []:
         got, spread = medians(records, chk["metric"])
-        row = {"metric": chk["metric"], "op": chk["op"], "got": got, "spread": spread}
+        op, margin = chk["op"], chk.get("margin", 0) or 0
+        row = {"metric": chk["metric"], "op": op, "got": got, "spread": spread}
         if "value" in chk:
-            row["want"] = chk["value"]
-            row["pass"] = None if got is None else OPS[chk["op"]](got, chk["value"])
+            ref = chk["value"]
         else:
-            base, _ = medians(baseline or [], chk["metric"])
-            margin = chk.get("margin", 0) or 0
-            row["baseline"] = base
-            if got is None or base is None:
-                row["pass"] = None
-                row["want"] = f"{chk['op']} baseline"
-            elif chk["op"] == "not_worse_than":
-                row["want"] = round(base - margin, 6)
-                row["pass"] = got >= base - margin
-            elif chk["op"] == "not_above":
-                row["want"] = round(base + margin, 6)
-                row["pass"] = got <= base + margin
-            else:
-                row["want"] = base
-                row["pass"] = OPS[chk["op"]](got, base)
+            ref, _ = medians(baseline or [], chk["metric"])
+            row["baseline"] = ref
+        if got is None or ref is None:
+            row["want"] = chk["value"] if "value" in chk else f"{op} baseline"
+            row["pass"] = None
+        else:
+            want = ref + MARGIN_SIGN[op] * margin if op in MARGIN_SIGN else ref
+            row["want"] = round(want, 6) if isinstance(want, float) else want
+            row["pass"] = OPS[op](got, row["want"])
         rows.append(row)
     return rows
 
@@ -179,7 +251,7 @@ def report(cfg: dict, done: list[dict]) -> str:
     out = [f"# Run F gates ({time.strftime('%Y-%m-%d %H:%M')} UTC)", "",
            "Medians over the runs recorded in `runs/gates/results.jsonl`; spread in brackets. "
            "`baseline` is the level a group is compared against (TRAINING_PLAN §6).", ""]
-    failures, pending, blocked = [], [], {}
+    failures, pending, blocked, unmeasured_blocking, manual_blocking = [], [], {}, {}, []
     for group in dict.fromkeys(g["group"] for g in cfg["gates"]):
         out += [f"## {group}", ""]
         base_level = base_of.get(group)
@@ -188,6 +260,8 @@ def report(cfg: dict, done: list[dict]) -> str:
             if gate.get("manual"):
                 out += ["", "Judged by a human; not run here.", ""]
                 pending.append(f"{group}/{gate['id']} (manual)")
+                if gate.get("blocking"):
+                    manual_blocking.append(gate["id"])
                 continue
             baseline = by.get((base_level, gate["id"])) if base_level else None
             out += ["", "| level | " + " | ".join(gate.get("metrics", {})) + " | verdict |",
@@ -195,6 +269,10 @@ def report(cfg: dict, done: list[dict]) -> str:
             for lid in cfg["levels"]:
                 recs = by.get((lid, gate["id"]))
                 if not recs:
+                    # A blocking gate that was never run is not a pass: say so, per level it applies to.
+                    if gate.get("blocking") and applicable(gate, cfg["levels"][lid])[0]:
+                        unmeasured_blocking.setdefault(lid, []).append(gate["id"])
+                        pending.append(f"{group}/{gate['id']}/{lid} (not run)")
                     continue
                 cells = []
                 for m in gate.get("metrics", {}):
@@ -212,6 +290,8 @@ def report(cfg: dict, done: list[dict]) -> str:
                     elif any(r["pass"] is None for r in rows):
                         v = "PENDING"
                         pending.append(f"{group}/{gate['id']}/{lid}")
+                        if gate.get("blocking"):
+                            unmeasured_blocking.setdefault(lid, []).append(gate["id"])
                     elif all(r["pass"] for r in rows):
                         v = "PASS"
                     else:
@@ -227,38 +307,60 @@ def report(cfg: dict, done: list[dict]) -> str:
             out.append("")
     head = ["## Summary", ""]
     head += [f"- FAIL: {len(failures)}", f"- not yet measured: {len(pending)}", ""]
-    head += ship_decision(cfg, blocked, pending)
+    head += ship_decision(cfg, blocked, unmeasured_blocking, manual_blocking)
     head += (["Failures:", ""] + [f"- {f}" for f in failures] + [""]) if failures else []
     head += (["Not measured:", ""] + [f"- {p}" for p in pending] + [""]) if pending else []
     return "\n".join(out[:2] + head + out[2:]) + "\n"
 
 
-def ship_decision(cfg: dict, blocked: dict, pending: list) -> list[str]:
+def ship_decision(cfg: dict, blocked: dict, unmeasured_blocking: dict | None = None,
+                  manual_blocking: list | tuple = ()) -> list[str]:
     """Apply TRAINING_PLAN §6a: an epoch that fails a `blocking` gate cannot ship, whatever its speech numbers are.
+
+    §6b (owner, 2026-09-25) superseded §6a rule 2: epoch 2 beat epoch 1 on all three dev splits (text 0.0819 vs
+    0.0899, image 0.2042 vs 0.2292, replay 0.1322 vs 0.1393), so **epoch 1 is not the fallback** — it retained the
+    kept abilities *worse*, so it is the less likely of the two to pass this same gate. If epoch 2 fails, the options
+    are the 4B run F + untuned `qwen3vl-fp8` fallback (§7) or the split stack (§7a), not epoch 1.
+
+    `blocked` maps a level to the blocking gates it failed; `unmeasured_blocking` to the blocking gates that were not
+    measured for it; `manual_blocking` lists the blocking gates a person judges, which are unmeasured for every level.
 
     Reported, never enforced silently: the owner picks the adapter, this only states what the measured gates allow.
     """
     epochs = [lid for lid in cfg["levels"] if lid in ("f-e1", "f-e2")]
     if not epochs:
         return []
+    unmeasured_blocking = unmeasured_blocking or {}
     out = ["### Kept abilities (TRAINING_PLAN §6a: blocking)", ""]
     for lid in epochs:
         why = blocked.get(lid)
-        unmeasured = [p for p in pending if p.endswith(f"/{lid}") or "(manual)" in p]
+        open_gates = sorted(set(unmeasured_blocking.get(lid, [])) | set(manual_blocking))
         if why:
             out.append(f"- **{lid}: cannot ship** — failed {', '.join(why)}")
-        elif unmeasured:
-            out.append(f"- {lid}: no blocking failure so far, but {len(unmeasured)} kept-ability check(s) not measured")
+        elif open_gates:
+            out.append(f"- {lid}: no blocking failure so far, but {len(open_gates)} kept-ability gate(s) not "
+                       f"measured: {', '.join(open_gates)}")
         else:
             out.append(f"- {lid}: passes every blocking gate")
-    e1, e2 = blocked.get("f-e1"), blocked.get("f-e2")
-    if e2 and not e1:
-        out += ["", "**Rule 2 applies: ship epoch 1.** Epoch 2 failed a kept-ability gate and epoch 1 did not."]
-    elif e1 and e2:
-        out += ["", "**Rule 3: both epochs fail kept abilities.** Evaluate the split stack (§7a) before the §7 "
-                    "rollback — `herald-f` for extraction and photos, untuned `qwen3vl-fp8` for rerank / figures / "
-                    "translation via `HERALD_KNOWLEDGE_MODEL`, both at `--gpu-memory-fraction ~0.30`. Measure free "
-                    "memory with the app and Whisper up before choosing it."]
+    if blocked.get("f-e2"):
+        out += ["", "**§6b: epoch 1 is NOT the fallback.** `herald-f` (epoch 2) failed a kept-ability gate. Epoch 1 "
+                    "scored worse on every dev split, replay included (0.1393 against 0.1322), so it is the less "
+                    "likely of the two to pass this gate — do not ship it on the strength of epoch 2 failing. Take "
+                    "one of:",
+                "",
+                "1. **4B run F + untuned `qwen3vl-fp8`** (§7 fallback): `herald-f4b-fp8` for extraction, the untuned "
+                "30B for photos, rerank, figures and translation. This is the verified shape of today's stack.",
+                "2. **Split stack (§7a)**, if `herald-f` won speech and photos: `herald-f` for extraction and photos, "
+                "untuned `qwen3vl-fp8` for rerank / figures / translation via `HERALD_KNOWLEDGE_MODEL`, both at "
+                "`--gpu-memory-fraction ~0.30`. It costs a second resident 30B, so measure free memory with the app "
+                "and Whisper up before choosing it (docs/MEMORY_SAFETY.md, docs/RUNBOOK.md §7).",
+                "3. The **§7 rollback** to `ems-e-v2-fp8` + `qwen3vl-fp8` if neither fits.",
+                "",
+                "Gating epoch 1 is a last resort: only if the fallback also disappoints and there is time for a "
+                "model swap (§6b)."]
+    elif "f-e2" in epochs and not unmeasured_blocking.get("f-e2") and not manual_blocking:
+        out += ["", "**§6a rule 1: `herald-f` (epoch 2) may ship** if it also wins speech and photos. Epoch 1 is not "
+                    "served and not gated (§6b)."]
     return out + [""]
 
 
@@ -277,31 +379,31 @@ def main() -> None:
     cfg = load_gates(Path(a.config) if a.config else None)
     runs = a.runs or cfg["runs"]
     res_path = ROOT / cfg["results"]
+    want_levels = a.levels.split(",") if a.levels else list(cfg["levels"])
+    want_gates = set(a.gates.split(",")) if a.gates else None
+    want_groups = set(a.groups.split(",")) if a.groups else None
+
+    # --dry-run prints and exits before anything is read, written, served or called.
+    if a.dry_run:
+        seen = set() if a.force else {(r["level"], r["gate"], r["run"]) for r in read_results(res_path)}
+        print("\n".join(plan_lines(cfg, want_levels, runs, want_gates, want_groups, seen)))
+        return
+
     res_path.parent.mkdir(parents=True, exist_ok=True)
-    done = [json.loads(ln) for ln in res_path.read_text().splitlines() if ln.strip()] if res_path.exists() else []
+    done = read_results(res_path)
 
     if not a.report_only:
-        want_levels = a.levels.split(",") if a.levels else list(cfg["levels"])
-        want_gates = set(a.gates.split(",")) if a.gates else None
-        want_groups = set(a.groups.split(",")) if a.groups else None
         seen = {(r["level"], r["gate"], r["run"]) for r in done}
         for lid in want_levels:
             lvl = cfg["levels"][lid]
-            todo = []
-            for gate in cfg["gates"]:
-                if want_gates and gate["id"] not in want_gates:
-                    continue
-                if want_groups and gate["group"] not in want_groups:
-                    continue
-                ok, why = applicable(gate, lvl)
-                if ok:
-                    todo.append(gate)
-                elif not gate.get("manual"):
+            todo, skipped = select_gates(cfg, lvl, want_gates, want_groups)
+            for gate, why in skipped:
+                if not gate.get("manual"):
                     print(f"[skip] {lid}/{gate['id']}: {why}")
             if not todo:
                 continue
             print(f"\n=== {lid} ({lvl['label']}): {len(todo)} gates x {runs} runs ===")
-            if not a.dry_run and not served(cfg["endpoint"], lvl["label"]):
+            if not served(cfg["endpoint"], lvl["label"]):
                 print(f"  {lvl['label']} is not answering on {cfg['endpoint']}. Serve it, then rerun:\n"
                       f"      {serve_hint(lid, lvl)}")
                 continue
@@ -311,20 +413,15 @@ def main() -> None:
                     if not a.force and (lid, gate["id"], run) in seen:
                         print(f"    run {run}: already recorded")
                         continue
-                    dump = ROOT / "eval" / "dumps" / "gates" / lid / f"{gate['id']}_run{run}.jsonl"
+                    dump = dump_path(lid, gate, run)
                     dump.parent.mkdir(parents=True, exist_ok=True)
-                    rec = run_one(cfg, gate, lvl, run, dump, a.dry_run)
-                    if a.dry_run:
-                        break
-                    rec = {"level": lid, "label": lvl["label"], **rec}
+                    rec = {"level": lid, "label": lvl["label"], **run_one(cfg, gate, lvl, run, dump)}
                     with open(res_path, "a") as fh:
                         fh.write(json.dumps(rec) + "\n")
                     done.append(rec)
                     print(f"    run {run}: exit {rec['exit']} in {rec['seconds']}s "
                           f"{rec.get('metrics') or rec.get('error', '')}")
 
-    if a.dry_run:
-        return
     md = ROOT / cfg["report_dir"] / "report.md"
     md.parent.mkdir(parents=True, exist_ok=True)
     md.write_text(report(cfg, done))

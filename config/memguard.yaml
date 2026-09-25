@@ -43,6 +43,13 @@ run_job:
   reserve_gib: 12                 # a job starts only when MemAvailable - reserve >= --need-gib (kill threshold + 4 GiB)
   wait_timeout_s: 1800            # give up waiting for memory / the GPU lock after this long (override: --wait)
   host_margin_gib: 4              # default host cap (MemoryMax) = need + margin when --host-max-gib is not given
+  critical_coexist_gib: 4         # while a --priority critical job runs, a job needing more than this is refused,
+                                  # --gpu or not (a --gpu job is refused at any size). Source: the 2026-09-25 05:13
+                                  # UTC freeze -- a CPU-only 4B merge (--need-gib 12, no --gpu) was admitted next to
+                                  # the critical 30B training job because only --gpu jobs were refused, and the box
+                                  # hard-froze. GPU and CPU share one 121.6 GiB unified pool here, so a "CPU-only"
+                                  # job competes with a training run just as directly. Jobs at or below this stay
+                                  # allowed so trivial tooling is not blocked.
   oom_score_adj: 1000             # the kernel OOM killer takes a guarded job before anything else
   unit_prefix: herald-job-        # systemd --user scope name: <prefix><name>-<UTC timestamp>
 

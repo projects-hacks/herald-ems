@@ -46,17 +46,19 @@ levels:
     label: herald-f4b-fp8
     repo: "${HF_REPO_ID}-merged-f4b"
     serve_note: "text-only Qwen3-4B run F; serve with E v2's arguments: --gpu-memory-fraction 0.12 --quantization=fp8"
-    groups: [speech]              # no vision: the 4B run F adapter is CAUSAL_LM, text only
+    # no vision: the 4B run F adapter is CAUSAL_LM, text only. `demo` is §6's "Demo:" block, which is judged on
+    # whichever candidate stack would be locked, so every candidate level carries it (the gates are manual).
+    groups: [speech, demo]
   f-e1:
     label: herald-f-e1
     repo: "${HF_REPO_ID}-merged-f-e1"
     serve_note: "epoch-1 adapter merged; scripts/serve_models.sh herald-f-dry prints the argument shape"
-    groups: [speech, photos, kept]
+    groups: [speech, photos, kept, demo]
   f-e2:
     label: herald-f
     repo: "${HF_REPO_ID}-merged-f"
     serve_note: "epoch-2 adapter merged; fallback --quantization=fp8 if fp8_per_block will not start on sm_121"
-    groups: [speech, photos, kept]
+    groups: [speech, photos, kept, demo]
 
 # Every gate: how to run it, which numbers to pull out, and what has to be true.
 # `cmd` runs through scripts/run_job.py. {label} is the served label; {dump} a per-(level,gate,run) dump path.
@@ -65,9 +67,11 @@ levels:
 #   ops: ">=", "<=", "not_worse_than" (>= baseline - margin), "not_above" (<= baseline + margin)
 #
 # `blocking: true` marks a gate that an epoch must pass to ship AT ALL, whatever its speech and photo numbers are
-# (TRAINING_PLAN §6a, owner 2026-09-25): the kept-ability gates. Epoch 1 ships if epoch 2 fails these and epoch 1
-# passes them. The report lists blocking failures separately, because they change which adapter ships rather than
-# just lowering a number.
+# (TRAINING_PLAN §6a, owner 2026-09-25): the kept-ability gates. If `herald-f` (epoch 2) fails one, the fallback is
+# the 4B run F + untuned `qwen3vl-fp8` stack (§7) or the split stack (§7a) — NOT epoch 1: §6b measured epoch 2 as
+# better on all three dev splits, replay included (0.1322 against epoch 1's 0.1393), so epoch 1 is the less likely
+# of the two to pass this same gate. The report lists blocking failures separately, because they change which
+# adapter ships rather than just lowering a number.
 gates:
 
 # ───────────────────────────── speech ─────────────────────────────

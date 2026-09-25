@@ -205,8 +205,26 @@ Added after the epoch-1 dev losses showed the replay slice drifting while speech
 
 **Which adapter ships:**
 1. Epoch 2 if it passes kept abilities and wins on speech and photos.
-2. **Epoch 1 if epoch 2 fails kept abilities and epoch 1 passes them** — this is why both adapters are saved and separately backed up, and why the run is not repeated to "fix" drift.
-3. If **both** epochs fail kept abilities but win speech and photos, evaluate the **split stack** before falling back (§7a).
+2. ~~Epoch 1 if epoch 2 fails kept abilities and epoch 1 passes them.~~ **Superseded by the measured result (owner, 2026-09-25 10:0x UTC) — see 6b.**
+3. If epoch 2 fails kept abilities, go to the **4B run F + untuned `qwen3vl-fp8`** fallback (§7) or the **split stack** (§7a). Not to epoch 1.
+
+### 6b. Epoch 1 is not a fallback: epoch 2 dominates it (owner, 2026-09-25)
+
+Rule 2 above was written before either epoch had been measured, on the assumption that the later adapter might trade kept abilities for speech. **It did not.** The final dev losses:
+
+| step | text | image | replay | |
+|---:|---:|---:|---:|---|
+| 244 | 0.0899 | 0.2292 | 0.1393 | epoch 1 |
+| **488** | **0.0819** | **0.2042** | **0.1322** | **epoch 2** |
+
+Epoch 2 is better on **all three** splits: text −8.9%, image −10.9%, replay −5.1%. There is no axis on which epoch 1 wins, so there is no scenario in which we would ship epoch 1 over epoch 2. Consequences:
+
+- **Epoch 2 is merged, served and gated first.** Epoch 1 is not served and not gated.
+- **If epoch 2 passes kept abilities, epoch 1 is never tested.** It cannot win.
+- **If epoch 2 fails kept abilities, go to the fallback, not to epoch 1.** Epoch 1 retained those abilities *worse* (replay 0.1393 against 0.1322), so it is the *less* likely of the two to pass the same gate. Test it only if the fallback also disappoints and there is time left.
+- The epoch-1 adapter and its merged checkpoint stay on disk and on the private repo. Keeping them costs nothing; testing them costs an hour and a model swap.
+
+**Read the replay number as a direction, not a magnitude.** The replay dev set is **40 rows**, and the step-50 baseline it is compared against is close to base weights (50 of 488 steps, LoRA barely trained), so "+48% above baseline" measures how far the adapter has moved from an almost-untuned starting point on a small sample. It says drift happened and roughly where it is heading. It does not quantify how much ability was lost. **The kept-ability gates in 6a decide that**, on the real tasks, and they are what the ship decision rests on.
 
 **Decide from `runs/herald-f-lora/log.jsonl`, not from `herald_epoch.json`.** The epoch adapter is written in `on_step_end`, which fires *before* that step's dev pass reaches `state.log_history`, so `herald_epoch.json` carries the **previous** pass's losses: epoch-1's file records step 122, not step 244. To be fixed after the run (a trainer edit, not a mid-run change).
 
