@@ -107,7 +107,7 @@ export function ProtocolCues({ onOpen }: { onOpen: () => void }) {
       {c.state === "found" && (() => { const points = cuePoints(c, shown); return points.length ? <ul className="protocol-points">{points.map((k, i) => <li key={i}>
         <span>{k.segments.map((s, j) => s.hl ? <mark key={j}>{s.t}</mark> : <span key={j}>{s.t}</span>)}</span>
         <cite>{k.cite}</cite>
-      </li>)}</ul> : <p className="protocol-status">The matching county text is a heading or a list; open it below.</p>; })()}
+      </li>)}</ul> : <p className="protocol-status">No single rule to show here. The county text is below.</p>; })()}
       {c.state === "found" && <details className="protocol-more"><summary>County text · effective {c.passages[0]?.effective ?? "date not stated"}</summary>
         {c.passages.map((p) => <Passage key={`${p.doc}-${p.section}`} p={p} />)}</details>}
     </article>)}

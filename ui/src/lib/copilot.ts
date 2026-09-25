@@ -207,7 +207,8 @@ export function keyPoints(passages: { doc: string; section: string; text: string
  *  lead sentence of each passage. Either way a passage shows once across situations. */
 export function cuePoints(c: { passages: { doc: string; section: string; text: string }[]; points?: { text: string; cite: string; marks: string[] }[] },
   skip: Set<string>): KeyPoint[] {
-  if (!c.points?.length) return keyPoints(c.passages, 2, skip);   // no picks: each passage's lead sentence
+  if (!c.points) return keyPoints(c.passages, 2, skip);   // the model could not be asked: each passage's lead sentence
+  // an empty list is the model's judgement that these passages hold no rule for this situation: show none
   const out: KeyPoint[] = [];
   for (const p of c.points) {
     const key = `${p.cite}|${p.text}`;

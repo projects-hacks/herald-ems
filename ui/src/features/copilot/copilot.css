@@ -214,3 +214,15 @@
 .protocol-points mark { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--text-primary); font-weight: 700;
   padding: 0 3px; border-radius: 4px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 .protocol-points cite { font-style: normal; font-family: var(--font-mono); font-size: .8125rem; font-weight: 700; color: var(--low-fg); }
+
+/* ---------- every page wears the same glass: record, trends, handoff, camera, settings ---------- */
+.copilot .workspace-page .card, .copilot .workspace-page .metric-tile, .copilot .workspace-page-surface, .copilot .journey-summary > div,
+.copilot .care-readiness, .copilot .copilot-record > section {
+  background: var(--glass-1); -webkit-backdrop-filter: blur(22px) saturate(1.4); backdrop-filter: blur(22px) saturate(1.4);
+  border: 1px solid var(--glass-border); border-radius: 18px; box-shadow: var(--glass-edge), var(--glass-shadow); }
+.copilot .workspace-page { display: flex; flex-direction: column; gap: 16px; }
+.copilot .workspace-page-heading, .copilot .workspace-page h1 { font-family: var(--font-heading); font-weight: 700; letter-spacing: .01em; }
+.copilot .workspace-page .card h2 { font-family: var(--font-heading); font-weight: 600; letter-spacing: .1em; text-transform: uppercase; font-size: .95rem; }
+@media (max-width: 760px) {
+  .copilot .workspace-page .card, .copilot .workspace-page-surface { -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+}

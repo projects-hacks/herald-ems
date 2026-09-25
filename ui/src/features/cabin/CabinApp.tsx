@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Activity, BookOpen, Camera, ChevronRight, FileText, Info, Keyboard, Mic, Moon, Pause, Settings2, Sun, Users, WifiOff } from "lucide-react";
+import { Activity, BookOpen, Camera, ChevronLeft, ChevronRight, FileText, Info, Keyboard, Mic, Moon, Pause, Settings2, Sun, Users, WifiOff } from "lucide-react";
 import { ManualEntry } from "@/components/ManualEntry";
 import { PatientRoster } from "@/components/PatientRoster";
 import { CaptureBar } from "@/features/capture/CaptureBar";
@@ -63,7 +63,12 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   const open = (value: Panel) => { if (!panel) lastTrigger.current = document.activeElement as HTMLElement; setPanel(value); if (!value) requestAnimationFrame(() => document.getElementById("workspace-main")?.focus()); };
   const close = () => { setPanel(null); requestAnimationFrame(() => (lastTrigger.current?.isConnected ? lastTrigger.current : document.getElementById("workspace-main"))?.focus()); };
   useEffect(() => { if (panel) { page.current?.focus({ preventScroll: true }); page.current?.scrollIntoView?.({ block: "start" }); } }, [panel]);
-  useEffect(() => { setPanel(null); }, [s?.incident.id, s?.active_patient]);
+  const patientKey = s ? `${s.incident.id}|${s.active_patient}` : null;
+  const lastPatient = useRef<string | null>(null);
+  useEffect(() => {   // a different patient returns to Now; the first snapshot (a deep link, a reload) does not
+    if (patientKey && lastPatient.current && lastPatient.current !== patientKey) setPanel(null);
+    if (patientKey) lastPatient.current = patientKey;
+  }, [patientKey]);
   useEffect(() => {   // hotkeys and older links still name pages; they land in the record's matching view
     if (ui.page === "overview") return;
     if (ui.page === "patient" || ui.page === "trends") { setRecordView(ui.page === "trends" ? "trends" : "facts"); setPanel("record"); }
@@ -81,7 +86,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   const multi = (s?.patients?.length ?? 0) > 1;
   return <div className={`cabin workspace-shell copilot ${panel ? "workspace-task" : ""} ${panel === "camera" ? "workspace-camera" : ""} ${ui.typeScale > 1 ? "cabin-large-text" : ""}`}><div className="workspace-body">
     <header className="copilot-header">
-      {panel ? <button className="copilot-back" onClick={close} aria-label="Back to now"><ChevronRight size={18} className="rotate-180" />Now</button>
+      {panel ? <button className="copilot-back" onClick={close} aria-label="Back to now"><ChevronLeft size={18} />Now</button>
         : <span className="copilot-mark" aria-label="Herald"><Activity size={22} strokeWidth={2.6} aria-hidden /></span>}
       <h1 className="copilot-patient">{s ? patientLine(s) : "Waiting for the vehicle"}</h1>
       <PresencePill p={pill} />
