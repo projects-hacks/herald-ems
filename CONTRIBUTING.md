@@ -43,6 +43,6 @@ Work on `feat/<area>` branches and merge to `main` through short PRs. `main` mus
 |---|---|
 | ML: STT, LLM/VLM serving, extraction, LoRA + benchmark | TBD |
 | State + relay backend | TBD |
-| Frontend: NOW screen, phone capture page, ED screen | TBD |
+| Frontend: NOW screen, phone capture page, ED screen | NOW screen: @tushar-fs; capture page and ED screen: TBD |
 | Data + eval | TBD |
 | Pitch + integration | TBD |

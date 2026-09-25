@@ -39,6 +39,7 @@ class Role(str, Enum):
     bystander = "bystander"
     device = "device"
     photo = "photo"
+    unknown = "unknown"
 
 
 class Status(str, Enum):

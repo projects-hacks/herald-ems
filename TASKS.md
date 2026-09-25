@@ -5,6 +5,21 @@ Deadline **Fri 2026-09-25, 8:00 PM**. Internal target: submit by 6:00 PM. Featur
 Where decisions live: product spec and pitch → `/home/hp18/Documents/team-last-minute/.agent/ideas/herald-ems-copilot.md` (Nano only) · models → `docs/MODEL_PLAN.md` · UI → `docs/UX_PLAN.md` · hackathon rules and history → `/home/hp18/Documents/team-last-minute/.agent/context.md` (Nano only). The full document map is in `AGENTS.md`.
 Status: ✅ done · 🔄 in progress · ⏳ todo · ⛔ blocked. Update this file in the same PR as the work.
 
+## Medic experience implementation — 2026-09-25 (@tushar-fs clone)
+
+- ✅ Ambulance workspace replaces the default medic sidebar: stable latest-reading positions, persistent capture/priority controls, large view, in-place details, daylight/night themes.
+- ✅ Explicit-start continuous ambient audio with bounded local clip uploads, unverified-speaker confirmation holds, and incident-scoped delayed extraction.
+- ✅ Camera preview → freeze → zoom → local photo reading; file picker/drop alternative; visible background reading status and camera cleanup.
+- ✅ Research and interaction rationale in `docs/AMBULANCE_WORKSPACE.md`; field simulation, real-device rehearsal, streaming STT/diarization and durable capture remain open. Browser screenshot checks blocked by browser download timeout.
+- ✅ Cabin checkpoint: 117 backend tests, 44 frontend tests, production build, theme-token contrast and whitespace checks pass; updated bundle and AudioWorklet served on port 8101. No claim of hardware or clinical validation.
+
+- ✅ Persistent voice/typed/photo capture and vocabulary-driven manual entry in the modern UI; release/permission race and keyboard interaction regressions covered.
+- ✅ Workflow navigation, screen-local phases, explicit identity incompleteness, contextual score tiles, timestamped vitals, and clearer verification/change/gap sections.
+- ✅ Atomic validated fact correction with retained evidence, audit trace, stale-edit conflicts and explicit confirmation.
+- ✅ Nonblocking disconnected state with last-received data and writes paused; receiving-system delivery distinguished from clinician acknowledgment.
+- ✅ Confirmed-fact handoff draft with unresolved fields, text download and collapsed packet diagnostics.
+- 🔄 Full lifecycle, durable offline persistence, receiver human acknowledgment, administration-event schema, integration and real medic validation remain open. See `docs/MEDIC_UX_IMPLEMENTATION.md` for boundaries and verification limitations.
+
 ## Checkpoint: Thu 2026-09-24, 00:50 UTC (Wed 17:50 PDT) (verified)
 **Live on port 8100:**
 - `ems-c-fp8` (fine-tuned extractor) for speech and `omni` for photos, with protocol lookup ready (371 sections, destination audit OK).
@@ -132,15 +147,15 @@ Docs: `docs/MODEL_PLAN.md`, `docs/LABELING_GUIDE.md`, `eval/`.
 | B9 | UI fixtures | ➡️ moved to Collaborator 1 (C1.5, spec S1) | the frontend can build every state without the Nano |
 | B10 | P11, P8, M8, M5, I2 | ➡️ moved: P8 + M8 → Collaborator 2 (S3, S4); P11 + M5 → Collaborator 3 (S5, S7); I2 → Collaborator 1 (S2). Rajeev reviews their `herald/` PRs | see the rows below |
 
-### Collaborator 1: NOW screen, trace, fixtures, clean-clone setup
+### Tushar Singh (@tushar-fs): NOW screen, trace, fixtures, clean-clone setup (claimed; was Collaborator 1)
 Docs: `docs/UX_PLAN.md` §1–2 (principles, tokens), §3.1 (NOW screen), §4 (trace), §5.7–5.8 (store, fixtures), §5.10 (build and serving).
 
 | # | Task | Hours | Needs | Done when |
 |---|---|---|---|---|
-| C1.1 | **U1:** toolchain (React + TS + Vite + Tailwind + shadcn/ui) and design tokens | 2 | — | `npm run build` produces `ui/dist`, served at `/` (UX_PLAN U1 checklist) |
-| C1.2 | **U2 frontend:** WebSocket store with heartbeat and stale detection, and a fixture player (`?fixture=…&speed=…`) with the REPLAY banner | 1.5 | C1.1 | stale scrim within 3 s of stopping the server; fixtures replay |
-| C1.3 | **U3:** NOW screen layout and states S0–S10, including **G.F.A.S.T. and RACE side by side** (primary scale first, the county name shown, `county_rule` on the `gfast_positive` alert) | 5 | C1.2 | a non-team viewer says "a checklist filling up"; U3 checklist |
-| C1.5 | **UI fixtures (B9)**: record `stroke_demo`, `rules_only`, `model_error`, `photo`, `offline` → `ui/public/fixtures/`. **Spec S1** | 1 | — | all five replay in the fixture player |
+| C1.1 | 🔄 `feat/c1-now-screen`: toolchain pinned per §5.3, tokens for both themes, `npm run contrast` passes (ratios match §2.2), build served at `/`; **left:** the `/?tokens` preview and grayscale screenshots. **U1:** toolchain (React + TS + Vite + Tailwind + shadcn/ui) and design tokens | 2 | — | `npm run build` produces `ui/dist`, served at `/` (UX_PLAN U1 checklist) |
+| C1.2 | 🔄 `feat/c1-now-screen`: store, heartbeat, stale detection, backoff, fixture player with replay controls; 21 vitest tests; **left:** the live stop-the-server check. **U2 frontend:** WebSocket store with heartbeat and stale detection, and a fixture player (`?fixture=…&speed=…`) with the REPLAY banner | 1.5 | C1.1 | stale scrim within 3 s of stopping the server; fixtures replay |
+| C1.3 | 🔄 `feat/c1-now-screen`: dashboard layout (sidebar with Overview / Patient / Vitals & trends / ED handoff / Transcript, top bar, KPI row), one Needs-attention queue replacing the alert slot (UX_PLAN §2 note), pre-alert card with ED sync, scores (G.F.A.S.T. first in Santa Clara), medic/explain/narrow layouts, S0/S1/S6/S9/S10; **left:** second-checklist popover, county-policy sheet, keyboard-order audit, the non-team viewer test. **U3:** NOW screen layout and states S0–S10, including **G.F.A.S.T. and RACE side by side** (primary scale first, the county name shown, `county_rule` on the `gfast_positive` alert) | 5 | C1.2 | a non-team viewer says "a checklist filling up"; U3 checklist |
+| C1.5 | 🔄 `stroke_demo` recorded (ems-c-fp8, relay authorized, 44 messages, ends 6/6 READY); four to go. **UI fixtures (B9)**: record `stroke_demo`, `rules_only`, `model_error`, `photo`, `offline` → `ui/public/fixtures/`. **Spec S1** | 1 | — | all five replay in the fixture player |
 | C1.6 | **Clean-clone setup (I2)**: `scripts/setup.sh` + README section; the Nano is wiped after the event. **Spec S2** | 2 | — | clean clone → tests pass → server runs |
 | C1.4 | **U6:** "Herald thinking" trace panel: every card state a–j, effects, the explain-mode stage line, and `rejected[]` as "Not recorded: … (implausible)" | 4 | C1.3 | T1–T10 in UX_PLAN §4.12 pass |
 
@@ -189,7 +204,8 @@ Docs: the product spec on the Nano (`/home/hp18/Documents/team-last-minute/.agen
 
 | From | Request | Status |
 |---|---|---|
-| — | — | — |
+| @tushar-fs | `relay.status().kept_local_pct` goes negative (−57.5% in the recorded stroke replay): typed input has no audio, and every good-link full sync re-sends the whole timeline, so bytes sent exceed local bytes. The ER footer would read "−57.5% kept on the vehicle". | ⏳ |
+| @tushar-fs | `scripts/replay.py` writes LKW_TIME in the box's clock (UTC) but the server reads clock times in `HERALD_TZ` (Pacific), so the demo's LKW clock shows about +06:04 instead of about +01:04. | ⏳ |
 
 ## P1: Speech → patient picture → NOW screen, gap-first
 | ID | Task | Owner | Status | Done when |

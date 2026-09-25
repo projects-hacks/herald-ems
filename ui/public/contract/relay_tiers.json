@@ -1,0 +1,106 @@
+{
+  "alert.readiness": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "code_status": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "meds.anticoagulant": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "allergies": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "stroke.lkw": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "complaint.chief": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "score.news2": {
+    "tier": 2,
+    "why": "deterioration / published score changed"
+  },
+  "score.race": {
+    "tier": 2,
+    "why": "deterioration / published score changed"
+  },
+  "score.gfast": {
+    "tier": 2,
+    "why": "deterioration / published score changed"
+  },
+  "vitals.sbp": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
+  "vitals.dbp": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
+  "vitals.hr": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
+  "vitals.spo2": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
+  "vitals.rr": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
+  "vitals.glucose": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
+  "vitals.consciousness": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
+  "stroke.deficits": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
+  "transport.eta_min": {
+    "tier": 4,
+    "why": "arrival logistics"
+  },
+  "transport.destination": {
+    "tier": 4,
+    "why": "arrival logistics"
+  },
+  "patient.age": {
+    "tier": 5,
+    "why": "demographics and context"
+  },
+  "patient.sex": {
+    "tier": 5,
+    "why": "demographics and context"
+  },
+  "stroke.onset_witnessed": {
+    "tier": 5,
+    "why": "demographics and context"
+  },
+  "vitals.temp": {
+    "tier": 5,
+    "why": "demographics and context"
+  },
+  "vitals.on_oxygen": {
+    "tier": 5,
+    "why": "demographics and context"
+  },
+  "meds.list": {
+    "tier": 5,
+    "why": "demographics and context"
+  },
+  "scene.notes": {
+    "tier": 5,
+    "why": "demographics and context"
+  }
+}

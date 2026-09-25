@@ -1,0 +1,75 @@
+{
+  "stroke": {
+    "label": "Stroke alert",
+    "items": [
+      {
+        "key": "vitals.glucose",
+        "label": "Glucose"
+      },
+      {
+        "key": "stroke.lkw",
+        "label": "Last known well"
+      },
+      {
+        "key": "@gfast",
+        "label": "Stroke screen (G.F.A.S.T.)"
+      },
+      {
+        "key": "meds.anticoagulant",
+        "label": "Anticoagulants"
+      },
+      {
+        "key": "stroke.onset_witnessed",
+        "label": "Onset witnessed"
+      },
+      {
+        "key": "stroke.deficits",
+        "label": "Deficits described"
+      }
+    ],
+    "unknowns": [
+      "stroke.lkw",
+      "meds.anticoagulant",
+      "stroke.onset_witnessed",
+      "allergies"
+    ]
+  },
+  "stemi": {
+    "label": "STEMI alert",
+    "items": [
+      {
+        "key": "symptom.onset",
+        "label": "Symptom onset"
+      },
+      {
+        "key": "ecg.twelve_lead_time",
+        "label": "12-lead time"
+      },
+      {
+        "key": "ecg.attached",
+        "label": "12-lead attached"
+      },
+      {
+        "key": "allergies",
+        "label": "Allergies"
+      },
+      {
+        "key": "meds.anticoagulant",
+        "label": "Anticoagulants"
+      },
+      {
+        "key": "vitals.sbp",
+        "label": "Blood pressure"
+      }
+    ],
+    "unknowns": [
+      "symptom.onset",
+      "allergies",
+      "meds.anticoagulant"
+    ]
+  },
+  "_default_unknowns": [
+    "allergies",
+    "meds.list"
+  ]
+}

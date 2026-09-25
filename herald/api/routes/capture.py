@@ -35,7 +35,14 @@ async def post_transcript(body: TranscriptIn, cap=Depends(get_capture)):
 @router.post("/audio")
 async def post_audio(file: UploadFile = File(...), captured_by: CapturedBy = Form(CapturedBy.medic),
                      speaker: Optional[str] = Form(None), language: Optional[str] = Form(None),
+                     incident_id: Optional[str] = Form(None),
+                     ambient: bool = Form(False),
                      use_llm: bool = Form(True), c=Depends(get_ctx), cap=Depends(get_capture)):
+    if incident_id is not None and incident_id != cap.inc.id:
+        raise HTTPException(409, "Patient changed; this recording was not added to the current incident")
+    cap.ambient = ambient
+    if ambient:
+        captured_by, speaker = CapturedBy.other, "Ambient audio · speaker unverified"
     raw = await file.read()
     try:
         audio, sr = sf.read(io.BytesIO(raw), dtype="float32")
@@ -46,16 +53,21 @@ async def post_audio(file: UploadFile = File(...), captured_by: CapturedBy = For
     sf.write(c.settings.audio_dir / f"{audio_id}.wav", audio, sr)
     t0 = time.perf_counter()
     result = await run_in_threadpool(c.stt.transcribe, np.asarray(audio), sr, language)
+    if c.incident is not cap.inc:
+        raise HTTPException(409, "Patient changed during transcription; review the previous recording separately")
     result["ms"] = round((time.perf_counter() - t0) * 1000)
     if not result["text"]:
         return {"transcript": None, "facts": [], "stt": result}
-    return await cap.text(result["text"], captured_by, None, speaker, audio_id, use_llm,
+    return await cap.text(result["text"], captured_by, Role.unknown if ambient else None, speaker, audio_id, use_llm,
                           {"seconds": result["seconds"], "ms": result["ms"], "chunks": result["chunks"]})
 
 
 @router.post("/photo")
-async def post_photo(file: UploadFile = File(...), mode: str = Form("monitor"), cap=Depends(get_capture)):
+async def post_photo(file: UploadFile = File(...), mode: str = Form("monitor"),
+                     incident_id: Optional[str] = Form(None), cap=Depends(get_capture)):
     """Phone camera -> local VLM -> unconfirmed facts with the photo as provenance."""
+    if incident_id is not None and incident_id != cap.inc.id:
+        raise HTTPException(409, "Patient changed; this image was not added to the current incident")
     raw = await file.read()
     try:
         return await cap.photo(raw, mode)

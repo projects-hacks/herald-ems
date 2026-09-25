@@ -20,10 +20,18 @@ Broadcast = Callable[[], Awaitable[None]]
 class CaptureService:
     def __init__(self, ctx: AppContext, broadcast: Broadcast):
         self.ctx, self.broadcast = ctx, broadcast
+        self._incident = None
+        self.ambient = False
+
+    def for_incident(self):
+        """Bind request and its delayed extraction to the patient who was active at capture."""
+        scoped = CaptureService(self.ctx, self.broadcast)
+        scoped._incident = self.ctx.incident
+        return scoped
 
     @property
     def inc(self):
-        return self.ctx.incident
+        return self._incident if self._incident is not None else self.ctx.incident
 
     def _summary(self) -> dict:
         return self.ctx.tracer.summarize(self.inc.snapshot())
@@ -32,6 +40,12 @@ class CaptureService:
         """Ingest what validates; anything implausible or malformed is listed in `rejected` for the trace."""
         facts = []
         for f in facts_in:
+            if self.ambient:
+                f.captured_by = CapturedBy.other
+                f.role = Role.unknown
+                f.speaker = "Ambient audio · speaker unverified"
+                reason = "Ambient speech: verify the words, speaker, and patient before confirming"
+                f.provenance.hold_reason = "; ".join(filter(None, [f.provenance.hold_reason, reason]))
             try:
                 facts.append(self.inc.ingest(f, record=False))
             except ValueError as e:
@@ -166,6 +180,23 @@ class CaptureService:
         return {"photo_id": photo_id, "facts": [f.model_dump(mode="json") for f in facts]}
 
     # ---------- structured readings (monitor panel, device feed) ----------
+    async def correct(self, fact_id: str, value) -> dict:
+        inc, tracer = self.inc, self.ctx.tracer
+        before = tracer.summarize(inc.snapshot())
+        corrected = inc.correct(fact_id, value)
+        said = f"Corrected {self.ctx.vocab.label(corrected.key)} from {corrected.previous_value} to {corrected.value}"
+        inc.transcripts.append({
+            "id": new_id("t"), "ts": utcnow().isoformat(), "text": said, "captured_by": "medic",
+            "speaker": "medic correction", "audio_id": None, "fact_ids": [corrected.id],
+            "extract": {"rules": 0, "llm": None, "ms": 0},
+            "trace": {"heard": {"text": said, "speaker": "medic correction", "source": "structured"},
+                      "rules": {"ms": 0, "facts": [tracer.fact_view(corrected)]},
+                      "model": {"status": "off", "reason": "explicit medic correction; nothing to extract"},
+                      "guard": {"instruction_shaped": None},
+                      "effects": tracer.diff(before, tracer.summarize(inc.snapshot()))}})
+        await self.broadcast()
+        return corrected.model_dump(mode="json")
+
     async def structured(self, facts: list[FactIn]) -> list[dict]:
         """All-or-nothing: one invalid fact rejects the batch (ValueError). One trace entry per call."""
         tracer = self.ctx.tracer

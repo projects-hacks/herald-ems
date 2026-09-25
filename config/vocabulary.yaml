@@ -6,6 +6,16 @@
 #   require_tap: always starts unconfirmed (the medic confirms)
 # contradiction_keys: two different values from different sources are a contradiction, not a trend.
 keys:
+  patient.name:
+    label: Patient name (reported)
+    type: str
+    kind: history
+    require_tap: true
+  patient.identifier:
+    label: Patient identifier / wristband
+    type: str
+    kind: history
+    require_tap: true
   patient.age:
     label: Age
     type: int
@@ -215,6 +225,8 @@ keys:
     kind: measure
     merge: accumulate
 contradiction_keys:
+- patient.name
+- patient.identifier
 - allergies
 - code_status
 - meds.anticoagulant
