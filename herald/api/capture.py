@@ -121,8 +121,8 @@ class CaptureService:
                                         if injected and not skip else {})},
                            "effects": {"readiness": [], "alerts_new": [], "scores": [], "gaps_closed": []}}}
         self.inc.transcripts.append(entry)
-        if ctx.cues is not None:            # "show me the protocol for ..." becomes a county lookup, off the request path
-            ctx.cues.ask(self.inc.id, text)
+        asked = ctx.cues.ask(self.inc.id, text) if ctx.cues is not None else None   # "show me the protocol for ..."
+        entry["asked"] = bool(asked)
         if model["status"] == "running":
             self.ctx.speech_in_flight += 1
             asyncio.create_task(self._extract_counted(entry, text, captured_by, default_role, speaker, audio_id, injected))
@@ -130,6 +130,18 @@ class CaptureService:
         if model["status"] == "unavailable":
             raise ModelUnavailable(model["reason"])
         return {"transcript": entry, "facts": []}
+
+    def _forget(self, entry: dict) -> None:
+        """Drop overheard words that held nothing about the patient: the entry leaves the call's record and its audio
+        is deleted now, not at the end of the call. Only the count remains (telemetry)."""
+        with self.inc.lock:
+            if entry in self.inc.transcripts:
+                self.inc.transcripts.remove(entry)
+            audio_id = entry.get("audio_id")
+            if audio_id:
+                self.inc.media_ids["audio"].discard(audio_id)
+                (self.ctx.settings.audio_dir / f"{audio_id}.wav").unlink(missing_ok=True)
+        self.ctx.telemetry.record_stt_dropped("nothing clinical")      # counted beside the speech gates' drops
 
     async def _extract_counted(self, *args):
         try:
@@ -188,9 +200,16 @@ class CaptureService:
         before = self._summary()
         t0 = time.perf_counter()
         name = ctx.text_model.model_name()
+        overheard = captured_by == CapturedBy.other and default_role == Role.unknown   # the room microphone
         try:
             facts_in = await run_in_threadpool(partial(ctx.model_extractor.extract, dispatch=self.inc.dispatch),
                                                text, captured_by, default_role, speaker, audio_id)
+            discarded: list = []
+            if overheard and facts_in and ctx.fact_verifier is not None:
+                try:                        # a second read: do these overheard words say this about the patient?
+                    facts_in, discarded = await run_in_threadpool(ctx.fact_verifier.check, text, facts_in, self.inc.dispatch)
+                except Exception as e:      # not checked: every proposal stays, unconfirmed, and the trace says why
+                    discarded = [{"error": f"not checked: {str(e)[:120]}"}]
             if hold:
                 self._hold(facts_in, hold)
             usage = ctx.model_extractor.last_usage or {}
@@ -201,8 +220,11 @@ class CaptureService:
             entry["trace"]["model"] = {"status": "done", "name": name, "ms": round((time.perf_counter() - t0) * 1000),
                                        "tokens": usage.get("completion_tokens"), "proposed": len(facts_in),
                                        "facts": [tracer.fact_view(f) for f in added], "rejected": rejected,
+                                       "discarded": discarded,
                                        "auto_confirm_threshold": ctx.policy.auto_confirm}
             entry["trace"]["effects"] = tracer.diff(before, self._summary())
+            if overheard and not added and not entry.get("asked"):
+                self._forget(entry)         # overheard words with nothing clinical in them are not part of the record
         except IncidentEnded:
             # The call changed while local extraction was running. Discard the late result;
             # it must not mutate the ended patient or be persisted into the new call.

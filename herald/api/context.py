@@ -28,6 +28,7 @@ from ..extraction.guard import InstructionGuard, default_guard
 from ..knowledge import KnowledgeService
 from ..knowledge.cues import ProtocolCues
 from ..knowledge.keypoints import KeyPointPicker
+from ..extraction.verify import FactVerifier
 from ..knowledge.rerank import LLMReranker
 from ..models import LocalLLMClient, VisionReader, WhisperSTT
 from ..relay import LinkEmulator, Relay, RelayTiers, default_tiers
@@ -70,6 +71,7 @@ class AppContext:
     relay: Optional[Relay] = None
     knowledge: Optional[KnowledgeService] = None
     cues: Optional[ProtocolCues] = None           # the county passage for the situation Herald recognises
+    fact_verifier: Optional[FactVerifier] = None   # keeps only what overheard words say about the patient
     fhir: Optional[FhirExport] = None
     roster: Optional[PatientRoster] = None
     netem_mode: Optional[str] = None
@@ -246,6 +248,8 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
     ctx.relay = Relay(lambda: ctx.roster.incidents(), s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir,
                       egress=egress, ed_token=s.ed_token)
     ctx.restored = ctx.restore()
+    if text_model is None:                                  # real deployment: the local model checks overheard facts
+        ctx.fact_verifier = FactVerifier(knowing)
     if s.knowledge:
         if embedder is None and text_model is None:        # real deployment; tests pass their own (or none)
             from ..config import load_yaml

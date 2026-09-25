@@ -1,0 +1,4 @@
+# Outputs of pipeline_eval.py: synthetic speech (wav), transcripts, predictions and reports. Regenerate with the
+# commands in README.md; nothing here is patient data.
+out/
+out_*/

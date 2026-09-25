@@ -489,3 +489,16 @@ export interface HandoffSummary {                // snapshot.handoff
 **Test:** `tests/test_fhir_export.py` — full bundle shape across every resource type, unconfirmed facts (camera-sourced, low-confidence, and a rejected fact) proven absent, existing RxNorm/ICD-10-CM coding passed through unchanged, and the live endpoint.
 
 **What the report can't represent yet.** The five gaps listed in the first version (time of injury, before arrival, airway status, primary impression, 12-lead territory) were closed by the keys approved on 2026-09-24 (table above). They reach the report only once the extraction model emits them; until then they show as "not yet known" where required.
+
+## Overheard speech: the check step and what is kept (2026-09-25)
+- A transcript entry's `trace.model.discarded` lists the facts the extraction model proposed from room-microphone
+  speech (`captured_by: other`, role unknown) that the check step (`herald/extraction/verify.py`, prompt
+  `config/prompts/fact_verify.md`, the knowledge model) found the words do not state about the patient:
+  `[{key, value, why}]`, or `[{error}]` when the check could not run (every proposal then stays, unconfirmed).
+- Overheard speech that leaves no fact and asked for no protocol is removed from `transcripts` once extraction
+  finishes, and its audio is deleted; it is counted in `/api/telemetry` `stt_dropped["nothing clinical"]`.
+  The medic's own and typed words are always kept.
+- A monitor-camera frame that gives no new reading no longer adds a transcript entry; it is counted in
+  `capture.last` and `capture.counts`.
+- A transcript entry carries `asked: true` when its words asked for a county protocol.
+
