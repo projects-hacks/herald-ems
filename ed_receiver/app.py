@@ -8,6 +8,7 @@ Idempotent by sequence number: a retried packet is acknowledged again but never 
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -21,13 +22,25 @@ CLIENTS: set[WebSocket] = set()
 LINK = {"last_contact_at": None}   # any request from the ambulance (packet or idle probe)
 
 
+def _key_meta(meta: dict) -> dict:
+    """Display metadata for one vocabulary key: label, unit and type, so the screen can show "142 mg/dL".
+    The unit is the one config/vocabulary.yaml declares; a numeric key whose label carries the unit as a
+    parenthesized suffix instead ("ETA (min)") lends it from there. Either way the label drops the suffix."""
+    label, unit = meta["label"], meta.get("unit")
+    suffix = re.fullmatch(r"(?P<base>.+?)\s*\((?P<word>[^\s\d()]+)\)", label)
+    if suffix and (suffix["word"] == unit or (unit is None and meta.get("type") in ("int", "float"))):
+        label, unit = suffix["base"], unit or suffix["word"]
+    return {"label": label, "unit": unit, "type": meta.get("type")}
+
+
 @app.get("/api/meta")
 async def metadata():
     from herald.config import load_yaml
     from herald.core.vocabulary import default_vocabulary
     from herald.scoring import default_scales
-    keys = {key: {"label": meta["label"]} for key, meta in default_vocabulary().keys.items()}
-    keys.update({f"score.{sid}": {"label": default_scales()[sid].name} for sid in default_scales().ids()})
+    keys = {key: _key_meta(meta) for key, meta in default_vocabulary().keys.items()}
+    keys.update({f"score.{sid}": {"label": default_scales()[sid].name, "unit": None, "type": None}
+                 for sid in default_scales().ids()})
     return {"keys": keys, "display": load_yaml("ed_display.yaml")}
 
 

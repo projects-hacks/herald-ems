@@ -48,25 +48,27 @@ function Row({ icon, cat, title, badge, value, was, meta, actions, urgent, flash
           {meta && <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-meta text-text-muted">{meta}</p>}
           {children}
         </div>
-        {actions && <div className="ml-auto flex max-w-full flex-wrap items-center gap-2 self-center">{actions}</div>}
+        {actions && <div className="ml-auto flex max-w-full flex-wrap items-center gap-3 self-center">{actions}</div>}
       </div>
     </li>
   );
 }
 
 function PriorityBadge({ p }: { p: Priority }) {
-  return p === "high" ? <Badge tone="high" variant="solid" icon={OctagonAlert} className="rounded-[6px] px-1.5 text-[0.6875rem] tracking-wide">HIGH</Badge>
-    : p === "medium" ? <Badge tone="medium" className="rounded-[6px] px-1.5 text-[0.6875rem] tracking-wide">CHECK</Badge>
-    : <Badge tone="low" className="rounded-[6px] px-1.5 text-[0.6875rem] tracking-wide">INFO</Badge>;
+  return p === "high" ? <Badge tone="high" variant="solid" icon={OctagonAlert} className="rounded-[6px] px-1.5 tracking-wide">HIGH</Badge>
+    : p === "medium" ? <Badge tone="medium" className="rounded-[6px] px-1.5 tracking-wide">CHECK</Badge>
+    : <Badge tone="low" className="rounded-[6px] px-1.5 tracking-wide">INFO</Badge>;
 }
 
 function sourceIconOf(f: FactView): LucideIcon {
   return f.captured_by === "camera" ? Camera : f.captured_by === "device" ? Monitor : f.provenance.audio_id ? Mic : Keyboard;
 }
 
-function FactMeta({ f }: { f: FactView }) {
+function FactMeta({ f, confidence = true }: { f: FactView; confidence?: boolean }) {
   const Icon = sourceIconOf(f);
   const byModel = f.provenance.extractor?.startsWith("llm:");
+  // Low confidence is the only reason a medic-mic model fact waits (§4.4a, P9): say so, "model 62% sure".
+  const lowConfidence = confidence && byModel && f.captured_by === "medic" && f.status === "unconfirmed" && !f.provenance.hold_reason;
   return (
     <>
       <Icon size={13} aria-hidden />
@@ -74,6 +76,7 @@ function FactMeta({ f }: { f: FactView }) {
       <span aria-hidden>·</span><span className="num">{hhmm(f.ts)}</span>
       {byModel && <><span aria-hidden>·</span><span className="inline-flex items-center gap-1 font-medium text-cat-neuro-fg"><Sparkles size={12} aria-hidden />local model</span></>}
       {f.provenance.hold_reason && <><span aria-hidden>·</span><span>{f.provenance.hold_reason}</span></>}
+      {lowConfidence && <><span aria-hidden>·</span><span>model {Math.round(f.confidence * 100)}% sure</span></>}
       <AudioEvidence id={f.provenance.audio_id} />
     </>
   );
@@ -103,8 +106,8 @@ function CodeStatusRow({ a }: { a: CodeStatus }) {
   const f = a.facts[0];
   return (
     <Row icon={ShieldAlert} cat="patient" title={a.label} badge={<PriorityBadge p="medium" />} value={f ? factValue(f) : undefined}
-      meta={<>{f && <FactMeta f={f} />}<span aria-hidden>·</span><span>never sent until you confirm</span></>}
-      actions={<ConfirmActions fact={f} />} />
+      meta={<>{f && <FactMeta f={f} confidence={false} />}<span aria-hidden>·</span><span>never sent until you confirm</span></>}
+      actions={f && <ConfirmActions fact={f} />} />
   );
 }
 

@@ -20,12 +20,13 @@ export function WorkspaceNav({ panel, onOpen, count, player }: { panel: Workspac
   const fixture = useHerald((s) => s.fixture);
   const replay = useHerald((s) => s.source === "fixture");
   const disconnected = useHerald((s) => s.stale || s.conn !== "open");
+  const incidentActive = useHerald((s) => !!s.snapshot && !s.snapshot.incident.ended_at);
   return <aside className="workspace-sidebar" aria-label="Herald workspace">
     <a className="workspace-logo" aria-label="Herald overview" href="#workspace-main" onClick={(event) => { event.preventDefault(); onOpen(null); }}>
       <span className="workspace-logo-mark"><Activity size={26} strokeWidth={2.4} /></span>
       <span>herald<span className="workspace-logo-dot">.</span><small>CARE IN THE MOMENT</small></span>
     </a>
-    <div className="workspace-team"><span className="workspace-team-icon"><ShieldCheck size={21} /></span><span>Medic workspace<small>{snapshot?.county.name || "On-board care team"}</small></span></div>
+    {!incidentActive && <div className="workspace-team"><span className="workspace-team-icon"><ShieldCheck size={21} /></span><span>Medic workspace<small>{snapshot?.county.name || "On-board care team"}</small></span></div>}
     <p className="workspace-nav-label">PATIENT CARE</p>
     <nav aria-label="Care workspace" className="workspace-nav">
       {ITEMS.map(({ panel: value, label, short, icon: Icon }) => <button key={label} type="button" aria-label={label} title={label} aria-current={panel === value ? "page" : undefined} onClick={() => onOpen(value)}>
@@ -38,11 +39,11 @@ export function WorkspaceNav({ panel, onOpen, count, player }: { panel: Workspac
           <button onClick={() => player.step()} aria-label="Next recorded message"><SkipForward size={18} /></button>
           <button onClick={() => player.restart()} aria-label="Restart replay"><RotateCcw size={18} /></button></div>
       </div>}
-      <div className="workspace-local"><span className="workspace-local-icon"><LockKeyhole size={18} /></span><strong>Built for the field</strong><p>Speech and images are processed on this vehicle.</p>
+      {!incidentActive && <div className="workspace-local"><span className="workspace-local-icon"><LockKeyhole size={18} /></span><strong>Built for the field</strong><p>Speech and images are processed on this vehicle.</p>
         <span className="workspace-engine-status">{replay ? "Recorded demo" : disconnected ? "Vehicle disconnected" : health?.llm_available === false ? "Extraction unavailable" : health?.llm_available ? "Local extraction ready" : "Checking local extraction"}</span>
-      </div>
+      </div>}
       <button className="workspace-settings" aria-current={panel === "settings" ? "page" : undefined} onClick={() => onOpen("settings")}><Settings2 size={19} />Settings & display<ArrowUpRight size={16} /></button>
-      <div className="workspace-edition"><span className="workspace-avatar"><UserRound size={18} /></span><span>On-board care<small>Herald EMS · Prototype</small></span></div>
+      {!incidentActive && <div className="workspace-edition"><span className="workspace-avatar"><UserRound size={18} /></span><span>On-board care<small>Herald EMS · Prototype</small></span></div>}
     </div>
   </aside>;
 }

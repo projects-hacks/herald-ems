@@ -88,15 +88,19 @@ function ReceiptStatus({ s }: { s: Snapshot }) {
 
 export function HandoffPage() {
   const s = useHerald((st) => st.snapshot);
+  const isReplay = useHerald((st) => st.source === "fixture");
   const h = useHandoff(s);
   if (!s) return null;
   const r = s.relay;
   const header = <PageHeader title="Handoff" description={r.authorized ? `Preparing handoff to ${r.authorized.destination}` : "Review the patient story, resolve missing information, then authorize the pre-alert."} />;
   const wrap = (body: React.ReactNode) => <div className="flex flex-col gap-5 px-6 pt-5 pb-6">{header}{body}</div>;
-  if (!r.configured) return wrap(<><StructuredHandoffReport /><details><summary className="min-h-12 p-3">Snapshot summary and text export</summary><HandoffReport s={s} /></details><Card><EmptyState icon={Send} cat="ed" title="The receiving link is not set up">The read-aloud report remains available. Ask your system administrator to connect the receiving department.</EmptyState></Card></>);
-  if (!r.authorized) return wrap(<><StructuredHandoffReport /><details><summary className="min-h-12 p-3">Snapshot summary and text export</summary><HandoffReport s={s} /></details><Card className="max-w-lg p-5"><AuthorizeForm s={s} /></Card></>);
+  // A replay has no /api/handoff to fetch: lead with the snapshot summary, expanded, instead of the empty fetched card.
+  const report = isReplay ? <HandoffReport s={s} />
+    : <><StructuredHandoffReport /><details><summary className="min-h-12 p-3">Snapshot summary and text export</summary><HandoffReport s={s} /></details></>;
+  if (!r.configured) return wrap(<>{report}<Card><EmptyState icon={Send} cat="ed" title="The receiving link is not set up">The read-aloud report remains available. Ask your system administrator to connect the receiving department.</EmptyState></Card></>);
+  if (!r.authorized) return wrap(<>{report}<Card className="max-w-lg p-5"><AuthorizeForm s={s} /></Card></>);
   return wrap(<>
-    <StructuredHandoffReport /><details><summary className="min-h-12 p-3">Snapshot summary and text export</summary><HandoffReport s={s} /></details>
+    {report}
     {r.link === "down" && <LinkDownNote />}
     <ReceiptStatus s={s} />
     <Card aria-labelledby="fields-h">

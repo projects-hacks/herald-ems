@@ -6,10 +6,11 @@
 import { Brain, ChevronRight, CircleDashed, Clock, Gauge, HeartPulse, MapPin, Navigation, Siren, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { useNow } from "@/hooks/useNow";
+import { elapsedAgo } from "@/lib/clock";
 import { clockSeconds, hhmmss } from "@/lib/format";
 import { showFieldTriage, strokeScales } from "@/lib/selectors";
 import { useHerald } from "@/lib/store";
-import type { Clock as ClockT, News2, Snapshot, StrokeScale } from "@/lib/types";
+import type { Alert, Clock as ClockT, News2, Snapshot, StrokeScale } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Badge, CAT_FG, ProgressBar, Value, type Cat, type Tone } from "@/components/kit";
 import { Sparkline } from "@/components/Sparkline";
@@ -50,9 +51,9 @@ function ClockTiles({ s }: { s: Snapshot }) {
   if (lkw) {
     const tap = lkwFact?.status === "unconfirmed";
     const at0 = lkw.label.replace(/^LKW\s*/, "");
-    const v = `+${hhmmss(clockSeconds(lkw, at, now))}`;
-    tiles.push(<Tile key="lkw" icon={Clock} cat="time" label="Last Known Well" value={v} clock aria={`Last known well ${at0}, ${v} ago${tap ? ", needs your tap" : ""}`}
-      footer={tap ? <Badge tone="medium">needs your tap</Badge> : <>since {at0}</>} />);
+    const ago = elapsedAgo(clockSeconds(lkw, at, now));
+    tiles.push(<Tile key="lkw" icon={Clock} cat="time" label="Last Known Well" value={at0} unit={`· ${ago}`} clock aria={`Last known well ${at0}, ${ago}${tap ? ", needs your tap" : ""}`}
+      footer={tap ? <Badge tone="medium">needs your tap</Badge> : <>when the patient was last normal</>} />);
   } else if (s.readiness.some((r) => r.id === "stroke")) {
     tiles.push(<Tile key="lkw" icon={CircleDashed} cat="time" label="Last Known Well" value="Not asked" quiet footer="ask when last normal" />);
   }
@@ -76,7 +77,7 @@ function news2Tone(n: News2): Tone {
   return !n.complete ? "neutral" : n.band === "high" ? "high" : n.band === "medium" || n.band === "low-medium" ? "medium" : "ok";
 }
 
-function ScoreTiles({ s, open }: { s: Snapshot; open: (d: ScoreDetail) => void }) {
+function ScoreTiles({ s, open, primaryOnly = false }: { s: Snapshot; open: (d: ScoreDetail) => void; primaryOnly?: boolean }) {
   const n = s.scores.news2;
   const history = s.scores.news2_history.filter((h) => h.complete).map((h) => h.score);
   const prev = history.length > 1 ? history[history.length - 2] : null;
@@ -92,8 +93,10 @@ function ScoreTiles({ s, open }: { s: Snapshot; open: (d: ScoreDetail) => void }
       aria={`NEWS2 ${n.applicability === "excluded" ? n.applicability_reason : n.complete ? `${n.score}, ${n.band}` : "incomplete"}. Show details.`}
       onOpen={() => open({ title: "NEWS2", cat: "heart", parts: n.parts, thresholds: n.thresholds, source: n.source, evidence: n.evidence, missing: n.missing, series: history })} />
   );
-  if (strokeActive) strokeScales(s).forEach(({ id, scale }, i) => tiles.push(scaleTile(id, scale, i === 0, s.county.name.replace(/,.*$/, ""), open)));
-  if (showFieldTriage(s)) {
+  const gfastRule = (s.alerts.find((a) => a.type === "gfast_positive") as Extract<Alert, { type: "gfast_positive" }> | undefined)?.county_rule;
+  if (strokeActive) strokeScales(s).slice(0, primaryOnly ? 1 : undefined).forEach(({ id, scale }, i) =>
+    tiles.push(scaleTile(id, scale, i === 0, s.county.name.replace(/,.*$/, ""), open, id === "GFAST" && scale.positive ? gfastRule : undefined)));
+  if (!primaryOnly && showFieldTriage(s)) {
     const ft = s.scores.field_triage;
     tiles.push(<Tile key="ft" icon={Siren} cat="attention" label="Field Triage" value={String(ft.red.length || ft.yellow.length)} unit={ft.red.length ? "red" : ft.yellow.length ? "yellow" : "criteria"}
       footer={`${ft.red.length} red · ${ft.yellow.length} yellow`} aria="Field triage. Show details."
@@ -102,7 +105,7 @@ function ScoreTiles({ s, open }: { s: Snapshot; open: (d: ScoreDetail) => void }
   return <>{tiles}</>;
 }
 
-function scaleTile(id: string, sc: StrokeScale, primary: boolean, county: string, open: (d: ScoreDetail) => void) {
+function scaleTile(id: string, sc: StrokeScale, primary: boolean, county: string, open: (d: ScoreDetail) => void, routing?: string) {
   const max = Object.values(sc.parts).reduce((a, p) => a + (p.max ?? 0), 0) || undefined;
   const tone: Tone = !sc.complete ? "neutral" : sc.positive ? "medium" : "ok";
   return (
@@ -110,21 +113,24 @@ function scaleTile(id: string, sc: StrokeScale, primary: boolean, county: string
       badge={<Badge tone={tone}>{sc.complete ? (sc.positive ? "positive" : "negative") : "incomplete"}</Badge>}
       footer={<>
         {sc.complete && max ? <ProgressBar frac={sc.score / max} cat="neuro" className="w-14 shrink-0" /> : <span>needs {sc.missing.length} more</span>}
-        {primary && <span className="truncate" title={`${county}'s primary stroke scale`}>primary</span>}
+        {routing ? <span className="truncate" title={routing}>{routing}</span>
+          : primary && <span className="truncate" title={`${county}'s primary stroke scale`}>primary</span>}
       </>}
-      aria={`${sc.name} ${sc.complete ? `${sc.score}${max ? ` of ${max}` : ""}, screen ${sc.positive ? "positive" : "negative"}` : "incomplete"}${primary ? `, ${county}'s primary scale` : ""}. Show details.`}
+      aria={`${sc.name} ${sc.complete ? `${sc.score}${max ? ` of ${max}` : ""}, screen ${sc.positive ? "positive" : "negative"}` : "incomplete"}${routing ? `. ${routing}` : primary ? `, ${county}'s primary scale` : ""}. Show details.`}
       onOpen={() => open({ title: sc.name, cat: "neuro", parts: sc.parts, thresholds: sc.thresholds, source: sc.source, evidence: sc.evidence, missing: sc.missing })} />
   );
 }
 
-export function StatTiles() {
+/** `overview` renders the cabin overview's subset — the clocks, NEWS2 and the county's primary stroke scale;
+ *  the trends panel renders every tile. */
+export function StatTiles({ overview = false }: { overview?: boolean } = {}) {
   const s = useHerald((st) => st.snapshot);
   const [detail, setDetail] = useState<ScoreDetail | null>(null);
   if (!s) return null;
   return (
     <div className="grid shrink-0 grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3" aria-label="Clocks and scores">
       <ClockTiles s={s} />
-      <ScoreTiles s={s} open={setDetail} />
+      <ScoreTiles s={s} open={setDetail} primaryOnly={overview} />
       <ScoreSheet d={detail} onClose={() => setDetail(null)} />
     </div>
   );

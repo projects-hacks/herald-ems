@@ -18,8 +18,9 @@ describe("alert order (UX_PLAN §2.3)", () => {
   const low: Alert = { type: "news2_rise", label: "NEWS2", from: 1, to: 3, band: "low" };
   const race: Alert = { type: "race_positive", label: "RACE", score: 6 };
   const change: Alert = { type: "significant_change", key: "vitals.hr", label: "Heart rate", series: [80, 110] };
-  it("HIGH before MEDIUM before LOW, newest first within a priority", () => {
-    expect(rankAlerts([low, race, high, change])).toEqual([high, change, race, low]);
+  it("HIGH, then a positive stroke screen, then MEDIUM, then LOW", () => {
+    // a routing-decisive positive screen outranks other patient changes (its own tier under HIGH)
+    expect(rankAlerts([low, race, high, change])).toEqual([high, race, change, low]);
   });
   it("arrival order beats the server's list order within a priority", () => {
     // the server lists alerts by type; the one that arrived last on screen must lead its group

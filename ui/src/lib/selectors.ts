@@ -4,7 +4,12 @@ import type { Alert, FactView, Snapshot, StrokeScale, StrokeScaleId } from "./ty
 
 // ---------- alert priority (UX_PLAN §2.3: IEC 60601-1-8 semantics, no sounds) ----------
 export type Priority = "high" | "medium" | "low";
-const RANK: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
+const RANK: Record<Priority, number> = { high: 0, medium: 2, low: 3 };
+/** Score-positive screens (G.F.A.S.T., RACE) decide routing, so they get their own tier directly under the
+ *  clinical-change (HIGH) alerts, above routine tap-confirms and other CHECK items. */
+function alertRank(a: Alert): number {
+  return a.type === "gfast_positive" || a.type === "race_positive" ? 1 : RANK[alertPriority(a)];
+}
 
 export function alertPriority(a: Alert): Priority {
   if (a.type === "trauma_alert_criteria") return a.level === "red" ? "high" : "medium";
@@ -24,6 +29,19 @@ export function alertKey(a: Alert): string {
     case "stemi_alert": return `${a.type}:${a.score}`;
   }
 }
+/** The composed title the queue rows show for an alert, as plain text (the cabin banner headline reuses it). */
+export function alertTitle(a: Alert): string {
+  switch (a.type) {
+    case "contradiction": return `${a.label}: sources disagree`;
+    case "news2_rise": return `NEWS2 rose ${a.from} → ${a.to} · ${a.band} band`;
+    case "news2_high": return `NEWS2 ${a.score} · high band`;
+    case "stemi_alert": return "STEMI Alert criteria met";
+    case "race_positive": return `RACE ${a.score} of 9: large-vessel screen positive`;
+    case "gfast_positive": return `G.F.A.S.T. ${a.score} of 4: screen positive`;
+    case "significant_change": return `${a.label} changed ${a.series.join(" → ")}`;
+    default: return a.label;
+  }
+}
 /** Contradictions and code-status confirmations can't be marked seen; they leave only when resolved. */
 export function dismissable(a: Alert): boolean {
   return a.type !== "contradiction" && a.type !== "confirm_required";
@@ -32,7 +50,7 @@ export function dismissable(a: Alert): boolean {
  *  server lists alerts by type, not time; without arrival data the later list position counts as newer). */
 export function rankAlerts(alerts: Alert[], arrival: Record<string, number> = {}): Alert[] {
   return alerts.map((a, i) => ({ a, t: arrival[alertKey(a)] ?? i }))
-    .sort((x, y) => RANK[alertPriority(x.a)] - RANK[alertPriority(y.a)] || y.t - x.t)
+    .sort((x, y) => alertRank(x.a) - alertRank(y.a) || y.t - x.t)
     .map((x) => x.a);
 }
 

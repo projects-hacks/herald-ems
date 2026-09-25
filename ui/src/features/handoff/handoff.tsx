@@ -44,10 +44,15 @@ export function useHandoff(s: Snapshot | null) {
   };
 }
 
-/** A figure the Health way: a big rounded number, a gray label under it. */
+/** The tint behind a figure tile, from its number's text tone (the presentation screen's tri-tile treatment). */
+const FIGURE_TINT: Record<string, string> = {
+  "text-ok-fg": "bg-ok-tint", "text-low-fg": "bg-low-tint", "text-medium-fg": "bg-medium-tint",
+};
+
+/** A figure as a tinted tile: a big rounded number over a gray label, on the tone's tint (sent / queued / held). */
 export function Figure({ n, label: l, tone, big = false, className }: { n: number | string; label: string; tone: string; big?: boolean; className?: string }) {
   return (
-    <div className={cn("flex min-w-0 flex-col", className)}>
+    <div className={cn("flex min-w-0 flex-col items-center rounded-[16px] p-2.5 text-center", FIGURE_TINT[tone] ?? "bg-surface-2", className)}>
       <span className={cn("rounded-num", big ? "text-kpi" : "text-value leading-7", tone)}>{n}</span>
       <span className="truncate text-meta text-text-muted">{l}</span>
     </div>

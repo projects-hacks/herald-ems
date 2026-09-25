@@ -1,5 +1,5 @@
 # Display order and type scale from docs/UX_PLAN.md §§2.5, 2.8 and 3.4; no clinical decision rules.
-critical_keys: [stroke.lkw, meds.anticoagulant, allergies, code_status, score.race, score.news2]
+critical_keys: [stroke.lkw, transport.eta_min, score.gfast, meds.anticoagulant, allergies, code_status, score.news2]
 critical_px: 48
 body_px: 32
 highlight_ms: 2000
