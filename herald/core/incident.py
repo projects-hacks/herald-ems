@@ -27,6 +27,7 @@ class Incident:
         self.projector = projector
         self.facts: list[Fact] = []
         self.transcripts: list[dict] = []
+        self.audit_log: list[dict] = []
         self.news2_history: list[dict] = []   # score history, recorded once per utterance by the projector
         self.ed_sync: dict[str, dict] = {}
         self.lock = threading.RLock()
@@ -49,11 +50,17 @@ class Incident:
                 self.commit()
             return fact
 
-    def set_status(self, fact_id: str, status: Status) -> Fact:
+    def set_status(self, fact_id: str, status: Status, actor: str = "medic") -> Fact:
         with self.lock:
             for f in self.facts:
                 if f.id == fact_id:
+                    previous = f.status
                     f.status = status
+                    if previous != status:
+                        self.audit_log.append({
+                            "at": utcnow().isoformat(), "action": "fact_status_changed", "actor": actor,
+                            "fact_id": f.id, "key": f.key, "from": previous.value, "to": status.value,
+                        })
                     self.commit()
                     return f
         raise KeyError(fact_id)

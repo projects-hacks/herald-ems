@@ -79,11 +79,11 @@ function ScoreTiles({ s, open }: { s: Snapshot; open: (d: ScoreDetail) => void }
   const prev = history.length > 1 ? history[history.length - 2] : null;
   const tiles: React.ReactNode[] = [
     <Tile key="news2" icon={Gauge} label="NEWS2" value={n.complete ? String(n.score) : "—"}
-      badge={<Badge tone={news2Tone(n)}>{n.complete ? n.band : "incomplete"}</Badge>}
+      badge={<Badge tone={news2Tone(n)}>{n.applicability === "excluded" ? "not applicable" : n.complete ? n.band : "incomplete"}</Badge>}
       footer={history.length > 1
         ? <><Sparkline values={history} width={56} height={16} label={`NEWS2 ${history.join(" to ")}`} className="text-herald-accent" />{prev !== null && prev !== n.score && <span className="num">{n.score > prev ? "↑" : "↓"} from {prev}</span>}</>
-        : n.complete ? "first reading" : `needs ${n.missing.length} more`}
-      aria={`NEWS2 ${n.complete ? `${n.score}, ${n.band}` : "incomplete"}. Show details.`}
+        : n.applicability_reason ?? (n.complete ? "first reading" : `needs ${n.missing.length} more`)}
+      aria={`NEWS2 ${n.applicability === "excluded" ? n.applicability_reason : n.complete ? `${n.score}, ${n.band}` : "incomplete"}. Show details.`}
       onOpen={() => open({ title: "NEWS2", parts: n.parts, thresholds: n.thresholds, source: n.source, evidence: n.evidence, missing: n.missing, series: history })} />,
   ];
   strokeScales(s).forEach(({ id, scale }, i) => tiles.push(scaleTile(id, scale, i === 0, s.county.name.replace(/,.*$/, ""), open)));

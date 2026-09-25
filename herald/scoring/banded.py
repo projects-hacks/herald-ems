@@ -30,7 +30,30 @@ class BandedScore:
                 return pts
         return p["above"]
 
+    def _applicability(self, values: dict[str, Any]) -> tuple[str, str | None, list[str]]:
+        """Whether a published score applies; its clinical conditions live in its definition."""
+        rule = self.d.get("applicability", {})
+        missing = []
+        for requirement in rule.get("requires", []):
+            value = values.get(requirement["key"])
+            if value is None:
+                missing.append(requirement["key"])
+                return "unknown", requirement["missing"], missing
+            if value < requirement["minimum"]:
+                return "excluded", requirement["below"], missing
+        for exclusion in rule.get("excludes_when_present", []):
+            if values.get(exclusion["key"]) is not None:
+                return "excluded", exclusion["reason"], missing
+        return "applicable", None, missing
+
     def evaluate(self, values: dict[str, Any]) -> dict:
+        applicability, applicability_reason, applicability_missing = self._applicability(values)
+        if applicability != "applicable":
+            return {"name": self.name, "score": 0, "complete": False,
+                    "band": "not_applicable" if applicability == "excluded" else "incomplete",
+                    "any_single_3": False, "parts": {}, "missing": [], "thresholds": self.d["thresholds_text"],
+                    "source": self.d["source"], "evidence": self.d["evidence"], "applicability": applicability,
+                    "applicability_reason": applicability_reason, "applicability_missing": applicability_missing}
         parts, missing = {}, []
         for p in self.parameters:
             v = values.get(p["key"])
@@ -50,7 +73,9 @@ class BandedScore:
                     break
         return {"name": self.name, "score": total, "complete": complete, "band": band,
                 "any_single_3": top >= 3, "parts": parts, "missing": missing,
-                "thresholds": self.d["thresholds_text"], "source": self.d["source"], "evidence": self.d["evidence"]}
+                "thresholds": self.d["thresholds_text"], "source": self.d["source"], "evidence": self.d["evidence"],
+                "applicability": applicability, "applicability_reason": applicability_reason,
+                "applicability_missing": applicability_missing}
 
     def relay_text(self, result: dict) -> Optional[str]:
         """The line the relay sends once the score is complete (definition `relay_text`, e.g. "{score} {band}")."""

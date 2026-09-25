@@ -49,7 +49,12 @@ async def post_audio(file: UploadFile = File(...), captured_by: CapturedBy = For
     c.settings.audio_dir.mkdir(parents=True, exist_ok=True)
     sf.write(c.settings.audio_dir / f"{audio_id}.wav", audio, sr)
     t0 = time.perf_counter()
-    result = await run_in_threadpool(c.stt.transcribe, np.asarray(audio), sr, language)
+    try:
+        result = await run_in_threadpool(c.stt.transcribe, np.asarray(audio), sr, language)
+    except Exception as e:
+        ms = round((time.perf_counter() - t0) * 1000)
+        await cap.stt_failure(audio_id, captured_by, speaker, str(e), ms)
+        raise HTTPException(503, "speech-to-text failed; recording kept for retry") from None
     result["ms"] = round((time.perf_counter() - t0) * 1000)
     if not result["text"]:
         return {"transcript": None, "facts": [], "stt": result}
@@ -58,6 +63,18 @@ async def post_audio(file: UploadFile = File(...), captured_by: CapturedBy = For
                               {"seconds": result["seconds"], "ms": result["ms"], "chunks": result["chunks"]})
     except ModelUnavailable as e:
         raise HTTPException(503, str(e))
+
+
+@router.post("/transcripts/{entry_id}/retry")
+async def retry_transcript(entry_id: str, cap=Depends(get_capture)):
+    try:
+        return {"transcript": await cap.retry_text(entry_id)}
+    except KeyError:
+        raise HTTPException(404) from None
+    except ModelUnavailable as e:
+        raise HTTPException(503, str(e)) from None
+    except ValueError as e:
+        raise HTTPException(409, str(e)) from None
 
 
 @router.post("/photo")

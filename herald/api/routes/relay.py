@@ -15,7 +15,6 @@ router = APIRouter(prefix="/api")
 
 class Authorize(BaseModel):
     destination: str
-    scope: str = "stroke pre-alert set"
 
 
 class RelayConfig(BaseModel):
@@ -25,7 +24,7 @@ class RelayConfig(BaseModel):
 @router.post("/relay/authorize")
 async def relay_authorize(body: Authorize, c=Depends(get_ctx), h=Depends(get_hub)):
     """The medic authorizes destination + scope once; in-scope updates then flow on their own."""
-    c.relay.authorize(body.destination, body.scope)
+    c.relay.authorize(body.destination, c.pre_alert_scope())
     await h.broadcast()
     return c.relay.status()
 

@@ -43,7 +43,7 @@ async def ingest(req: Request):
     p = json.loads(raw)
     inc = INCIDENTS.setdefault(p["i"], {"fields": {}, "history": {}, "packets": [], "applied": [],
                                         "duplicates": 0, "bytes": 0, "timeline": [], "dest": p.get("dest"),
-                                        "queued_on_rig": 0, "first_at": now()})
+                                        "audit": [], "queued_on_rig": 0, "first_at": now()})
     if p["q"] in inc["applied"]:
         inc["duplicates"] += 1
         await push()
@@ -52,13 +52,17 @@ async def ingest(req: Request):
         if inc["fields"].get(k, {}).get("v") != v:
             inc["history"].setdefault(k, []).append({"v": v, "t": now()})
         inc["fields"][k] = {"v": v, "seq": p["q"], "t": now()}
+    for key in p.get("rm", []):
+        previous = inc["fields"].pop(key, None)
+        inc["audit"].append({"at": now(), "action": "withdrawn", "key": key, "seq": p["q"],
+                             "previous": previous["v"] if previous else None})
     if p.get("tl"):
         inc["timeline"] = p["tl"]
     inc["applied"].append(p["q"])
     inc["bytes"] += len(raw)
     inc["queued_on_rig"] = p.get("x", 0)
     inc["packets"].append({"seq": p["q"], "tier": p.get("tier"), "bytes": len(raw),
-                           "keys": list(p.get("f", {}).keys()), "at": now()})
+                           "keys": list(p.get("f", {}).keys()), "removed": p.get("rm", []), "at": now()})
     await push()
     return {"ack": p["q"]}
 

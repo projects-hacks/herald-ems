@@ -1,9 +1,14 @@
 """HTTP/WebSocket behaviour the screens rely on: heartbeat, monitor-panel and failed-photo trace
 entries, all-or-nothing structured facts, and the /classic/ safety-net page."""
+import io
+
+import numpy as np
+import soundfile as sf
 from fastapi.testclient import TestClient
 
 from ed_receiver import app as ed_mod
-from fakes import FakeVision, make_client
+from fakes import FakeModel, FakeVision, make_client, test_settings as fake_settings
+from herald.api import build_context, create_app
 
 MONITOR = {"captured_by": "device", "role": "device", "speaker": "monitor", "confidence": 0.99,
            "provenance": {"extractor": "manual"}}
@@ -76,6 +81,71 @@ def test_ed_receiver_heartbeat_and_last_contact():
         ws.receive_json()
         ws.send_text("ping")
         assert ws.receive_json()["type"] == "pong"
+
+
+def test_ed_receiver_removes_withdrawn_facts_once_and_keeps_an_audit_event():
+    c = TestClient(ed_mod.app)
+    c.post("/reset")
+    c.post("/ingest", json={"i": "inc-1", "q": 1, "tier": "critical", "f": {"meds.anticoagulant": True}, "x": 0})
+    assert c.post("/ingest", json={"i": "inc-1", "q": 2, "tier": "critical", "f": {},
+                                    "rm": ["meds.anticoagulant"], "x": 0}).json() == {"ack": 2}
+    state = c.get("/state").json()["incidents"]["inc-1"]
+    assert "meds.anticoagulant" not in state["fields"]
+    assert state["audit"][-1]["action"] == "withdrawn"
+    c.post("/ingest", json={"i": "inc-1", "q": 2, "tier": "critical", "f": {},
+                              "rm": ["meds.anticoagulant"], "x": 0})
+    assert len(c.get("/state").json()["incidents"]["inc-1"]["audit"]) == 1
+
+
+def test_relay_scope_is_derived_from_the_active_checklist_not_the_client_label():
+    c, _ = make_client(dispatch="fall")
+    response = c.post("/api/relay/authorize", json={"destination": "Valley Medical", "scope": "stroke pre-alert set"})
+    assert response.status_code == 200
+    assert response.json()["authorized"]["scope"] == "Trauma Alert pre-alert set"
+
+    c.post("/api/incident", json={"dispatch": "unknown"})
+    response = c.post("/api/relay/authorize", json={"destination": "Valley Medical"})
+    assert response.json()["authorized"]["scope"] == "patient update set"
+
+
+def wav_bytes():
+    buf = io.BytesIO()
+    sf.write(buf, np.zeros(800, dtype=np.float32), 16000, format="WAV", subtype="PCM_16")
+    return buf.getvalue()
+
+
+def test_stt_failure_keeps_audio_and_an_explicit_trace_entry(tmp_path):
+    class BrokenSTT:
+        model = "broken-stt"
+
+        def ready(self):
+            return False
+
+        def transcribe(self, *_args):
+            raise RuntimeError("microphone backend unavailable")
+
+    context = build_context(fake_settings(data_dir=tmp_path), text_model=FakeModel(name=None), stt=BrokenSTT(),
+                            vision=FakeVision())
+    client = TestClient(create_app(context))
+    response = client.post("/api/audio", files={"file": ("clip.wav", wav_bytes(), "audio/wav")})
+    assert response.status_code == 503 and "recording kept" in response.json()["detail"]
+    entry = client.get("/api/state").json()["transcripts"][-1]
+    assert entry["stt"]["error"] == "microphone backend unavailable"
+    assert entry["trace"]["model"]["status"] == "error"
+    assert client.get(f"/api/audio/{entry['audio_id']}").status_code == 200
+
+
+def test_words_kept_while_the_model_is_down_can_be_retried_without_a_new_transcript():
+    model = FakeModel(name=None)
+    client, _ = make_client(model)
+    assert client.post("/api/transcript", json={"text": "pulse 88"}).status_code == 503
+    entry_id = client.get("/api/state").json()["transcripts"][-1]["id"]
+
+    assert client.post(f"/api/transcripts/{entry_id}/retry").status_code == 503
+    model.name = "recovered-model"
+    response = client.post(f"/api/transcripts/{entry_id}/retry")
+    assert response.status_code == 200 and response.json()["transcript"]["id"] == entry_id
+    assert len(client.get("/api/state").json()["transcripts"]) == 1
 
 
 def test_extraction_and_photo_reading_use_their_own_models(tmp_path):

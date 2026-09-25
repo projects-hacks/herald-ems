@@ -38,11 +38,13 @@ export interface Changed {
 }
 
 // ---------- scores (herald/scoring, config/scores/*.yaml) ----------
-export type News2Band = "incomplete" | "low" | "low-medium" | "medium" | "high";
+export type News2Band = "incomplete" | "not_applicable" | "low" | "low-medium" | "medium" | "high";
 export interface News2 {
   name: string; score: number; complete: boolean; band: News2Band; any_single_3: boolean;
   parts: Record<string, { value: FactValue; points: number }>; missing: string[];
   thresholds: string; source: string; evidence: string;
+  applicability: "applicable" | "unknown" | "excluded";
+  applicability_reason: string | null; applicability_missing: string[];
 }
 export interface News2Point { ts: string; score: number; complete: boolean; band: News2Band }
 /** An item-sum stroke scale: RACE, G.F.A.S.T. */
@@ -81,7 +83,7 @@ export interface TraceFact {
   status: FactStatus; confidence: number; extractor: string | null; relay: string; hold_reason: string | null;
   code?: Coding | (Coding | null)[] | null;
 }
-export interface SttInfo { seconds: number; chunks: { text: string; t: [number | null, number | null] }[]; ms?: number }
+export interface SttInfo { seconds: number | null; chunks: { text: string; t: [number | null, number | null] }[]; ms?: number; error?: string }
 export interface RejectedFact { key: string; value: FactValue; reason: string }
 export interface Trace {
   heard: { text: string; speaker?: string | null; audio_id?: string | null; photo_id?: string;
@@ -91,7 +93,7 @@ export interface Trace {
     // "unavailable": the extraction model isn't served, nothing was extracted, the words are kept (the POST got 503)
     status: "running" | "done" | "error" | "off" | "skipped" | "unavailable"; name?: string | null; ms?: number;
     tokens?: number | null; proposed?: number; auto_confirm_threshold?: number;
-    facts?: TraceFact[]; error?: string; reason?: string; rejected?: RejectedFact[];
+    facts?: TraceFact[]; error?: string; reason?: string; retry?: boolean; rejected?: RejectedFact[];
   };
   guard?: { instruction_shaped: string | null; policy?: string };
   effects: {
@@ -112,7 +114,7 @@ export interface TranscriptEntry {
 export type LinkState = "good" | "weak" | "down" | "unknown" | "not configured";
 export interface RelayLogEntry {
   ts: string; seq: number; tier: "critical" | "full"; bytes: number; keys: string[]; why: string[];
-  queued_after: number; result: "acked" | "failed"; rtt_ms?: number; error?: string;
+  removed: string[]; queued_after: number; result: "acked" | "failed"; rtt_ms?: number; error?: string;
 }
 export interface RelayStatus {
   configured: boolean; ed_url: string | null;
@@ -144,6 +146,8 @@ export interface Snapshot {
   facts: Record<string, FactView>;       // latest non-rejected fact per key
   events?: Record<string, FactView[]>;   // event keys (meds.given, procedures.done): every event, in order
   timeline: FactView[];                  // last 60 facts, all statuses
+  audit: { at: string; action: "fact_status_changed"; actor: string; fact_id: string; key: string;
+           from: FactStatus; to: FactStatus }[];
   transcripts: TranscriptEntry[];        // last 20
   ed_sync: Record<string, "sent" | "queued">;
   counters: { facts: number; cloud_ai_calls: number };

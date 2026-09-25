@@ -15,6 +15,7 @@ export function summarize(t: TranscriptEntry): string {
   for (const r of t.trace.effects.readiness) bits.push(`${r.label} ${r.from} → ${r.to} of ${r.total}`);
   if (t.trace.model.status === "running") bits.push("checking with the local model…");
   if (t.trace.model.status === "unavailable") bits.push("extraction model not running: words kept, nothing extracted");
+  if (t.stt?.error) bits.push("speech-to-text failed; recording kept for retry");
   return bits.join(" · ");
 }
 

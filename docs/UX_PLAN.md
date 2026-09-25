@@ -1113,7 +1113,7 @@ The interval comes from `HERALD_REASSESS_MIN` (default 10) and appears in the `r
 - **Not configured:** "ED link not set up on this vehicle (HERALD_ED_URL)." (muted).
 - **Configured, not authorized:**
   - If `facts["transport.destination"]` is known: `[ Authorize pre-alert → {destination} ]` (64 px).
-  - Otherwise: `[ Authorize pre-alert… ]`, which opens a dialog with a destination field and the fixed scope "stroke pre-alert set".
+  - Otherwise: `[ Authorize pre-alert… ]`, which opens a dialog with a destination field. The backend derives the scope from the active checklist (for example, "Trauma Alert pre-alert set"); callers cannot label a trauma or medical pre-alert as stroke.
   - The helper text under either button: "Once authorized, confirmed updates in this scope are sent automatically. Unconfirmed facts never leave the vehicle."
   - The button calls `POST /api/relay/authorize`.
 - **Rows:** ED-set keys in tier order: tier 1, then derived scores, vitals, logistics, and context (the same order as `relay.TIERS`).
@@ -2537,7 +2537,7 @@ export interface TraceFact {
 }
 // extractor: "llm:<name>" (every speech fact now), "vision:<name>", "manual" (monitor panel).
 // Legacy, older recordings only: "rules", "rules+llm:<name>".
-export interface SttInfo { seconds: number; chunks: { text: string; t: [number | null, number | null] }[]; ms?: number }
+export interface SttInfo { seconds: number | null; chunks: { text: string; t: [number | null, number | null] }[]; ms?: number; error?: string }
 export interface RejectedFact { key: string; value: FactValue; reason: string }  // implausible or malformed
 export type ModelStatus = "running" | "done" | "error" | "off" | "unavailable" | "skipped";   // §4.1
 export interface Trace {
@@ -2556,6 +2556,7 @@ export interface Trace {
     auto_confirm_threshold?: number;  // speech done: the calibrated threshold used; never hard-code it
     error?: string;                   // error: first 200 characters
     reason?: string;                  // off, unavailable, skipped (backend wording; explain mode)
+    retry?: boolean;                  // running: a preserved unavailable transcript is being re-extracted
     // REMOVED 2026-09-24: agreed_with_rules, overridden_by_rules (older recordings may carry them; ignore)
   };
   guard?: { instruction_shaped: string | null; policy?: string };   // absent on photo entries;
@@ -2578,7 +2579,7 @@ export interface TranscriptEntry {
 export type LinkState = "good" | "weak" | "down" | "unknown" | "not configured";
 export interface RelayLogEntry {
   ts: string; seq: number; tier: "critical" | "full"; bytes: number; keys: string[]; why: string[];
-  queued_after: number; result: "acked" | "failed"; rtt_ms?: number; error?: string;
+  removed: string[]; queued_after: number; result: "acked" | "failed"; rtt_ms?: number; error?: string;
 }
 export interface RelayStatus {
   configured: boolean; ed_url: string | null;
@@ -2607,6 +2608,8 @@ export interface Snapshot {
   facts: Record<string, FactView>;                        // latest non-rejected fact per key
   events: Record<string, FactView[]>;                     // event keys (meds.given, procedures.done): every event in order; show these as a list (a timeline of doses and procedures), not only facts[key]
   timeline: FactView[];                                   // last 60 facts, all statuses
+  audit: { at: string; action: "fact_status_changed"; actor: string; fact_id: string; key: string;
+           from: FactStatus; to: FactStatus }[];           // last 60 confirmation/rejection actions
   transcripts: TranscriptEntry[];                         // last 20
   ed_sync: Record<string, "sent" | "queued">;             // = relay.sync
   counters: { facts: number; cloud_ai_calls: number };
@@ -2643,12 +2646,15 @@ export type CaptureResponse =
   | { transcript: TranscriptEntry; facts: [] }             // 200: running, off, skipped (facts arrive on /ws)
   | { transcript: null; facts: []; stt: unknown };         // 200 from /api/audio when nothing was heard
 export interface CaptureUnavailable { detail: string }     // 503: extraction model not served; the entry is still on /ws
+// POST /api/transcripts/{id}/retry re-runs only a transcript preserved with model status "unavailable".
+// POST /api/audio returns 503 on speech-to-text failure after recording a trace entry whose `stt.error` is set.
 
 // ---------- ED receiver (ed_receiver/app.py view()) ----------
 export interface EdIncident {
   fields: Record<string, { v: FactValue; seq: number; t: string }>;
   history: Record<string, { v: FactValue; t: string }[]>;
-  packets: { seq: number; tier: "critical" | "full"; bytes: number; keys: string[]; at: string }[];
+  packets: { seq: number; tier: "critical" | "full"; bytes: number; keys: string[]; removed: string[]; at: string }[];
+  audit: { at: string; action: "withdrawn"; key: string; seq: number; previous: FactValue | null }[];
   applied: number[]; duplicates: number; bytes: number;
   timeline: { k: string; v: FactValue; t: string; r: Role; s: string | null }[];
   dest: string | null; queued_on_rig: number; first_at: string;

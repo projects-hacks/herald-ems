@@ -84,6 +84,12 @@ class Relay:
         rows = [(*self.tiers.priority[k], k, v) for k, v in cur.items() if self.acked.get(k) != v]
         return sorted(rows, key=lambda r: (r[0], r[2]))
 
+    def withdrawals(self) -> list[tuple[int, str, str]]:
+        """Confirmed values the ED acknowledged but the medic subsequently withdrew."""
+        current = self.critical_values()
+        rows = [(*self.tiers.priority[key], key) for key in self.acked if key not in current and key in self.tiers]
+        return sorted(rows, key=lambda row: (row[0], row[2]))
+
     # ---------- link state ----------
     def link_state(self) -> str:
         if not self.results:
@@ -100,26 +106,37 @@ class Relay:
     # ---------- packets ----------
     def _build(self, budget: int) -> Optional[dict]:
         inc = self.get_incident()
-        rows = self.pending()
+        rows = [(*row, False) for row in self.pending()] + [(*row, None, True) for row in self.withdrawals()]
+        rows.sort(key=lambda row: (row[0], row[2]))
         if not rows:
             return None
-        fields, why = {}, []
-        for prio, rationale, key, value in rows:
+        fields, removed, why = {}, [], []
+        for _prio, rationale, key, value, withdraw in rows:
             trial = dict(fields)
-            trial[key] = value
+            trial_removed = [*removed]
+            if withdraw:
+                trial_removed.append(key)
+            else:
+                trial[key] = value
             body = {"i": inc.id, "q": self.seq + 1, "tier": "critical", "f": trial,
-                    "dest": (self.authorized or {}).get("destination"), "x": len(rows) - len(trial)}
-            if fields and len(_compact(body)) > budget:
+                    "dest": (self.authorized or {}).get("destination"),
+                    "x": len(rows) - len(trial) - len(trial_removed)}
+            if trial_removed:
+                body["rm"] = trial_removed
+            if (fields or removed) and len(_compact(body)) > budget:
                 break
-            fields[key] = value
+            fields, removed = trial, trial_removed
             if rationale not in why:
                 why.append(rationale)
             if len(_compact(body)) > budget:   # always send at least the top item
                 break
         self.seq += 1
-        return {"i": inc.id, "q": self.seq, "tier": "critical", "f": fields,
-                "dest": (self.authorized or {}).get("destination"), "x": len(rows) - len(fields),
-                "_why": why}
+        packet = {"i": inc.id, "q": self.seq, "tier": "critical", "f": fields,
+                  "dest": (self.authorized or {}).get("destination"),
+                  "x": len(rows) - len(fields) - len(removed), "_why": why}
+        if removed:
+            packet["rm"] = removed
+        return packet
 
     def _build_full(self) -> Optional[dict]:
         inc = self.get_incident()
@@ -184,7 +201,8 @@ class Relay:
         wire_len = len(_compact({k: v for k, v in pkt.items() if not k.startswith("_")}))
         t0 = time.perf_counter()
         entry = {"ts": utcnow().isoformat(), "seq": pkt["q"], "tier": pkt["tier"], "bytes": wire_len,
-                 "keys": list(pkt["f"].keys()), "why": pkt["_why"], "queued_after": pkt["x"]}
+                 "keys": list(pkt["f"].keys()), "removed": pkt.get("rm", []), "why": pkt["_why"],
+                 "queued_after": pkt["x"]}
         try:
             ack = await self._send(pkt)
             rtt = (time.perf_counter() - t0) * 1000
@@ -193,6 +211,8 @@ class Relay:
             self.results.append((True, rtt))
             for k, v in pkt["f"].items():
                 self.acked[k] = v
+            for k in pkt.get("rm", []):
+                self.acked.pop(k, None)
             if pkt["tier"] == "full":
                 self.full_synced_facts = pkt["_n"]
             self.bytes_sent += wire_len
@@ -205,7 +225,7 @@ class Relay:
             entry.update(result="failed", error=str(e)[:120])
             # If the link got worse, drop the in-flight packet so the next one is rebuilt smaller.
             # Sequence numbers are never reused for different content; re-sent values are idempotent.
-            if self.link_state() in ("weak", "down") and len(pkt["f"]) > 1:
+            if self.link_state() in ("weak", "down") and len(pkt["f"]) + len(pkt.get("rm", [])) > 1:
                 self.inflight = None
         self.log.append(entry)
         return entry

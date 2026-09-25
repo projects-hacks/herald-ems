@@ -55,7 +55,7 @@ def test_news2_consciousness_and_oxygen():
 
 
 BASE = {"vitals.rr": 18, "vitals.spo2": 97, "vitals.on_oxygen": False, "vitals.sbp": 130,
-        "vitals.hr": 80, "vitals.consciousness": "A", "vitals.temp": 37.0}
+        "vitals.hr": 80, "vitals.consciousness": "A", "vitals.temp": 37.0, "patient.age": 18}
 
 
 def test_news2_all_normal_is_low_zero():
@@ -77,6 +77,15 @@ def test_news2_missing_input_is_incomplete_never_guessed():
     vals.pop("vitals.temp")
     r = S.news2(vals)
     assert r["complete"] is False and r["band"] == "incomplete" and "Temperature" in r["missing"]
+
+
+def test_news2_is_withheld_until_age_is_known_and_for_children_or_documented_pregnancy():
+    r = S.news2({key: value for key, value in BASE.items() if key != "patient.age"})
+    assert r["applicability"] == "unknown" and r["applicability_missing"] == ["patient.age"]
+    r = S.news2({**BASE, "patient.age": 15})
+    assert r["applicability"] == "excluded" and r["band"] == "not_applicable"
+    r = S.news2({**BASE, "patient.age": 28, "patient.pregnancy_weeks": 24})
+    assert r["applicability"] == "excluded" and "pregnancy" in r["applicability_reason"]
 
 
 def test_race_threshold_and_completeness():

@@ -64,6 +64,11 @@ class AppContext:
         self.incident = Incident(dispatch, vocabulary=self.vocab, policy=self.policy, projector=self.projector)
         return self.incident
 
+    def pre_alert_scope(self) -> str:
+        """Describe the current checklist truthfully; authorization never relies on caller-provided wording."""
+        labels = [row["label"] for row in self.incident.snapshot()["readiness"]]
+        return f"{' + '.join(labels)} pre-alert set" if labels else "patient update set"
+
     def full_state(self) -> dict:
         snap = self.incident.snapshot()
         snap["handoff"] = self.handoff.summary(self.handoff.build(self.incident, snapshot=snap))

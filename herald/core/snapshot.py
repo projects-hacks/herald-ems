@@ -81,6 +81,7 @@ class Projector:
                 "facts": latest,
                 "events": {k: v for k, v in events.items() if v},
                 "timeline": [self.fact_view(f) for f in inc.facts[-60:]],
+                "audit": inc.audit_log[-60:],
                 "transcripts": inc.transcripts[-20:],
                 "ed_sync": inc.ed_sync,
                 "counters": {"facts": len(inc.facts), "cloud_ai_calls": 0},
@@ -127,6 +128,8 @@ class Projector:
         for label in results["news2"]["missing"]:
             key = next(p["key"] for p in news2.parameters if p["label"] == label)
             add(key, f"{self.vocab.label(key)} (for NEWS2)", key in all_vals, kind_key=key)
+        for key in results["news2"].get("applicability_missing", []):
+            add(key, f"{self.vocab.label(key)} (for NEWS2 applicability)", key in all_vals, kind_key=key)
         seeds = self.checklists.default_unknowns + [u for aid in alert_ids for u in self.checklists.unknowns(aid)]
         for key in seeds:
             add(key, self.vocab.label(key), key in all_vals, kind_key=key)

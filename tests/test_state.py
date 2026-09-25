@@ -45,6 +45,7 @@ def test_contradiction_from_other_speaker_needs_confirm():
 
 def test_scores_use_confirmed_facts_only():
     inc = Incident()
+    inc.ingest(FactIn(key="patient.age", value=40, captured_by=CapturedBy.medic, confidence=0.99))
     inc.ingest(FactIn(key="vitals.spo2", value=88, captured_by=CapturedBy.camera, confidence=0.99))
     assert "vitals.spo2" not in inc.values(confirmed_only=True)
     assert "SpO2 (scale 1)" in inc.snapshot()["scores"]["news2"]["missing"]
@@ -52,6 +53,7 @@ def test_scores_use_confirmed_facts_only():
 
 def test_news2_rise_alert():
     inc = Incident(dispatch="stroke")
+    feed(inc, "68-year-old female.")
     feed(inc, "BP 182 over 104, pulse 92, SpO2 95 on room air, respirations 18, temp 37.1, alert.")
     feed(inc, "Pulse 104, breathing 22, sat 94, temp 38.4.")
     snap = inc.snapshot()

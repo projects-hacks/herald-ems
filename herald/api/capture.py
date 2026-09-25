@@ -86,6 +86,39 @@ class CaptureService:
             raise ModelUnavailable(model["reason"])
         return {"transcript": entry, "facts": []}
 
+    async def retry_text(self, entry_id: str) -> dict:
+        """Retry words preserved while the extraction model was unavailable, without creating a duplicate entry."""
+        entry = next((entry for entry in self.inc.transcripts if entry["id"] == entry_id), None)
+        if entry is None:
+            raise KeyError(entry_id)
+        if entry["trace"]["model"]["status"] != "unavailable":
+            raise ValueError("only words kept while the extraction model was unavailable can be retried")
+        if not self.ctx.text_model.available():
+            raise ModelUnavailable("the extraction model is still not running")
+        captured_by = CapturedBy(entry["captured_by"])
+        speaker, text = entry.get("speaker"), entry["text"]
+        default_role = source_role(captured_by, speaker)
+        entry["trace"]["model"] = {"status": "running", "name": self.ctx.text_model.model_name(), "retry": True}
+        await self.broadcast()
+        asyncio.create_task(self._extract(entry, text, captured_by, default_role, speaker, entry.get("audio_id"), None))
+        return entry
+
+    async def stt_failure(self, audio_id: str, captured_by: CapturedBy, speaker: Optional[str], error: str,
+                          ms: int) -> dict:
+        """Keep an evidence-backed trace when speech-to-text fails before words are available."""
+        before = self._summary()
+        stt = {"seconds": None, "chunks": [], "ms": ms, "error": error[:200]}
+        entry = {"id": new_id("t"), "ts": utcnow().isoformat(), "text": "[speech-to-text failed]",
+                 "captured_by": captured_by.value, "speaker": speaker, "audio_id": audio_id, "fact_ids": [],
+                 "extract": {"rules": 0, "llm": None, "ms": 0}, "stt": stt,
+                 "trace": {"heard": {"text": "", "speaker": speaker or captured_by.value, "audio_id": audio_id,
+                                      "stt": stt}, "rules": {"ms": 0, "facts": [], "rejected": []},
+                           "model": {"status": "error", "error": f"speech-to-text failed: {error[:160]}"},
+                           "guard": {"instruction_shaped": None}, "effects": self.ctx.tracer.diff(before, before)}}
+        self.inc.transcripts.append(entry)
+        await self.broadcast()
+        return entry
+
     @staticmethod
     def _hold(facts: list, phrase: str) -> None:
         """Instruction-shaped speech: nothing from the utterance may confirm itself, and the screen says why."""
