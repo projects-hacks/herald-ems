@@ -1,5 +1,7 @@
 # Herald UX plan
 
+**Open UX audit, 2026-09-25:** [MEDIC_UX_AUDIT.md](MEDIC_UX_AUDIT.md) records 16 prioritized findings from the medic workspace review, including empty/offline states, unsent note loss, camera routing and ownership, and task discoverability. The audit now includes the follow-up status for the camera/page correction; remaining findings are explicitly listed. The earlier populated-screen checks did not cover these workflows. No API contract changes accompany the audit.
+
 **Version 2, full detail (2026-09-23; updated 2026-09-24 for model-only extraction).** This replaces the compressed version 1 from earlier the same day. Every decision in version 1 still stands, except where the 2026-09-24 change note below replaces it; this version adds the detail behind it.
 **Demo:** Fri 2026-09-25. **Feature freeze:** Fri 11:00. **Owners:** frontend teammates build the screens; backend owns the data contracts and `/api/telemetry`; pitch owns the stage, the 3 m test, and the video.
 
@@ -349,7 +351,7 @@ Each principle has five parts:
 | H1 | An unconfirmed fact looks confirmed | Dashed outline + `circle-question-mark` + "needs your tap"; relay line "Held"; no confirmed styling until `status == confirmed` | Grayscale screenshot; U13 test |
 | H2 | A stale screen looks live | WebSocket heartbeat; grey scrim; "last update … ago" (§3.1 S6) | Kill the server during the U2 test |
 | H3 | The emulated link is mistaken for a real outage | "(emulated)" whenever `state.netem` is set; ED `?demo=1` label | U10 |
-| H4 | Wrong patient (old incident still on screen) | Incident id and start time in the header; "New incident" asks for confirmation | U8 |
+| H4 | Wrong patient (old incident still on screen) | Crew-facing active patient label, confirmed identity when known, and call start time in the header; retain the crew label for multi-patient calls; "New incident" asks for confirmation. Internal incident IDs remain in audit/export metadata, not the main patient heading. | U8 |
 | H5 | A score is computed from unconfirmed or missing inputs | Prevented by the engine (confirmed-only); UI shows "incomplete" and the missing list | U3 |
 | H6 | The extraction model is down or fails, and the screen looks as if the words were captured as facts (there is no fallback extractor since 2026-09-24) | The words are always saved and shown first, on their own card. `unavailable` and `error` say "Nothing was extracted from these words" on the card and in the ticker. The header chip turns HIGH "Extraction model not running ({name})" from `llm_available == false` or a 503, and MEDIUM "Extraction error" after an `error` (§3.1.3, §3.1.14, §4.3 d–e). The capture bar and presenter input show the 503 message. | U3, U4, U6 (T2, T3) |
 | H7 | An alert is missed because it is queued | Alert count badge in the top band; "1 of N" navigation | U3 |
@@ -383,6 +385,11 @@ This principle turns existing team decisions into a design rule.
 
 ---
 ## 2. Visual system
+
+## Medic workspace redesign, 2026-09-25
+
+The default medic application now uses the clinical workspace described in [MEDIC_WORKSPACE_REDESIGN.md](MEDIC_WORKSPACE_REDESIGN.md): daylight by default, a consistent teal interaction palette, seven task destinations, persistent patient/connection context, documented vitals, a pre-alert checklist, and accessible capture controls. The existing React, shadcn/Radix and Lucide foundation remains. Night mode and saved theme preferences remain available. This supersedes the older Apple Health styling description for the medic workspace; clinical status semantics and confirmation requirements remain in force. The protocol library consumes the existing GET search and page-image endpoints; no API or snapshot contract changed.
+
 
 > **Visual refresh (2026-09-24, @tushar-fs, branch `feat/c1-now-screen`).** The first build followed this section literally and read as dated and flat (the team's verdict); a second pass as a card grid was still judged cluttered and hard to scan. The NOW screen is now a **dashboard**: a sidebar with pages, an inset canvas, a KPI row, and one attention queue. **The rules of §1 and §2.3–2.4 are unchanged:** priority is color + icon + word, never color alone; every text pair is ≥4.5:1 and every control or fill ≥3:1 (`npm run contrast` checks all of them, both themes); critical text stays 20 px (≥16′ at 0.7 m). What changed, and where the values now live:
 >
@@ -657,6 +664,8 @@ Checklist segments use shape as well as color:
 - **Hit areas can extend past the visual edge through padding.** For example, a 24 px ▶ glyph sits inside a 48 px button.
 
 ### 2.8 Motion
+
+**Ambulance workspace refinement (2026-09-25).** Group supporting work into Capture & evidence and Receiving team. Their order may change only in explicit Arrange cards mode: pointer drag or Move earlier/later, followed by Save layout; Cancel restores the prior order and Reset previews the default. Store only the validated card-order preference locally, never patient content. New facts never rearrange modules. Patient context, priority review, the reading group, connection status and recording controls are not draggable. Expansion is component-specific: a selected reading reveals its confirmed history; transcript, evidence and handoff open their own details. There is no whole-page Large view. Browser zoom and accessible text scaling remain available. These are prototype interaction decisions, not clinical validation; see `AMBULANCE_WORKSPACE.md`.
 
 Durations and easing come from the Material 3 motion tokens [47] (verified in the source):
 - **Durations:** short1 = 50 ms, short2 = 100, short3 = 150, short4 = 200, medium1 = 250.

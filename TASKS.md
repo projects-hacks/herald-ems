@@ -1,5 +1,13 @@
 # TASKS.md: Herald task board
 
+## Component-focused workspace refinement — Tushar, 2026-09-25
+
+- ✅ Grouped Capture & evidence / Receiving team cards with explicit drag or button ordering, Save/Cancel/Reset and layout-only persistence.
+- ✅ Individual vital expansion replaces whole-page Large view; removed public incident ID fragments; retained clinical identifiers and provenance in details.
+- ✅ Component audit follow-up: camera stop/stale-state clarity, focused transcript details, mismatch navigation, active-patient relay copy and keyboard focus recovery.
+- ✅ 95 UI tests and 465 backend tests pass (one backend skip); build and theme contrast checks pass. Firefox screenshots and pointer-drag persistence checked; physical medic/device acceptance remains open. Details: [WORKSPACE_POLISH.md](docs/WORKSPACE_POLISH.md).
+- Branch: `feat/workspace-polish` in the owner's clone. This iteration is not yet committed or merged.
+
 ## Tushar review follow-up (Fri 25 Sep)
 
 Owner-requested integration: `feat/c1-now-screen` + `feat/agentic-capture` + `feat/ui-review-gaps`, checked together on `feat/merge-tushar-work` before updating main. The ambulance workspace is the default medic screen; detailed and guided-demo views remain available. See [MERGE_VERIFICATION.md](docs/MERGE_VERIFICATION.md). This delivery does not waive real-model, physical-device or clinical acceptance gates.
@@ -395,3 +403,21 @@ These are in nobody's lane. To claim one, put your GitHub handle in "Claimed by"
 | D4 | Ask the organizers: does the overall prize depend on track? → submit to Community Impact (recommended) or Local Agentic | lead | ⏳ Thu AM |
 | D5 | Fill in owners (`CONTRIBUTING.md` §5) | Rajeev | 🔄 lanes assigned in this file; collaborators add handles
 | D6 | HF token in `~/.config/herald/secrets.env`; private repo `rajeev-chaurasia/herald-extractor-lora` | lead | ✅ |
+
+## Medic workspace redesign — 2026-09-25
+
+- ✅ Cohesive responsive medic shell, patient context, documented vital cards with confirmed-history sparklines, overview pre-alert readiness, theme and capture controls.
+- ✅ Seven task destinations, accessible phone navigation, replay controls, and county protocol search using existing cited passages and original page images.
+- ✅ 102 frontend tests; 465 backend tests passed, one skipped. Browser navigation checked on desktop, tablet and phone, including 150% text.
+- Design, workflow map, scope and verification notes: [MEDIC_WORKSPACE_REDESIGN.md](docs/MEDIC_WORKSPACE_REDESIGN.md). Hardware/real-model field validation remains open.
+
+## Medic workspace UX audit — 2026-09-25
+
+- ✅ Audit completed: 16 prioritized findings with evidence, reproduction paths, proposed corrections, and acceptance criteria in [MEDIC_UX_AUDIT.md](docs/MEDIC_UX_AUDIT.md). Isolated browser checks repeated three times; no live patient/device mutations.
+- ⏳ Fixes remain open: unknown/empty states, patient-scoped note drafts, direct note entry, camera routing and ownership, unified capture flow, task hierarchy, readable statuses, and replay handoff. The earlier passing build/tests do not establish completion of these workflows.
+
+## Camera and page correction — 2026-09-25
+
+- ✅ Replaced the disconnected heading/Close details card with one camera workspace, accessible capture-method tabs, consistent controls, compact starting actions, patient context, and photo recovery. Top-level care destinations use page content and explicit unavailable states.
+- ✅ 108 frontend tests; TypeScript/build and theme contrast pass. Responsive camera, keyboard tabs, photo recovery, replay restrictions, and enlarged-text checks passed with intercepted API calls. Default-size starting actions clear the dock on desktop/tablet/phone in three repeated checks.
+- Current implementation and remaining audit items: [MEDIC_WORKSPACE_REDESIGN.md](docs/MEDIC_WORKSPACE_REDESIGN.md), [MEDIC_UX_AUDIT.md](docs/MEDIC_UX_AUDIT.md).

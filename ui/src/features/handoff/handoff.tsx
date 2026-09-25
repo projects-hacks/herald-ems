@@ -6,7 +6,7 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { label, useContract } from "@/lib/contract";
 import { clockTime, factValue } from "@/lib/format";
-import { erRows, reconciled, type ErRow } from "@/lib/selectors";
+import { activeSync, erRows, reconciled, type ErRow } from "@/lib/selectors";
 import type { Snapshot } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ActionButton } from "@/components/ActionButton";
@@ -79,7 +79,7 @@ export function SyncTable({ s, rows }: { s: Snapshot; rows: ErRow[] }) {
             {row.state === "sent" ? <CircleCheck size={17} className="text-ok-fg" aria-label="sent" />
               : row.state === "queued" ? <Hourglass size={17} className="text-low-fg" aria-label="queued" /> : <Lock size={17} className="text-medium-fg" aria-label="held" />}
             <span className="truncate">{label(c, row.key)}</span>
-            <span className="truncate" title={row.why}>{row.state === "held" ? (s.relay.sync[row.key] === "sent" ? "receiving system has an earlier value" : "stays on the vehicle") : f ? factValue(f) : ""}</span>
+            <span className="truncate" title={row.why}>{row.state === "held" ? (activeSync(s)[row.key] === "sent" ? "receiving system has an earlier value" : "stays on the vehicle") : f ? factValue(f) : ""}</span>
             <span className="text-meta font-normal whitespace-nowrap text-text-muted">
               {row.state === "sent" ? "delivered"
                 : row.state === "queued" ? <Badge tone="low">queued</Badge>

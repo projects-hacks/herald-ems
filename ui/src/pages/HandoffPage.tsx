@@ -1,6 +1,6 @@
 // Clinician-first handoff: the report and unresolved patient information lead; transport plumbing is secondary.
 import { AlertCircle, CheckCircle2, ChevronDown, ClipboardList, Download, ListOrdered, Radio, Send, UserCheck } from "lucide-react";
-import { factValue, shortId, hhmm } from "@/lib/format";
+import { factValue, patientLabel, hhmm } from "@/lib/format";
 import { HandoffReport as StructuredHandoffReport } from "@/features/handoff/HandoffReport";
 import { allFacts, reconciled } from "@/lib/selectors";
 import { useHerald } from "@/lib/store";
@@ -26,7 +26,7 @@ function HandoffReport({ s }: { s: Snapshot }) {
   const transport = joinFacts([confirmed(s, "transport.destination"), confirmed(s, "transport.eta_min")]);
   const treatments = joinFacts(allFacts(s).filter((f) => ["meds.given", "procedures.done"].includes(f.key) && f.status === "confirmed"));
   const rows = [
-    ["Patient", patient || `Unknown patient · incident ${shortId(s.incident.id)}`],
+    ["Patient", patient || `${patientLabel(s)} · identity not confirmed · started ${hhmm(s.incident.started)}`],
     ["Problem", problem || "Chief complaint not captured"],
     ["Findings", findings || "No confirmed findings captured"],
     ["Latest vitals", vitals || "No confirmed vitals captured"],

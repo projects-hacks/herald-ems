@@ -17,8 +17,9 @@ export function summarize(t: TranscriptEntry): string {
   if (tap) bits.push(`${tap} need${tap === 1 ? "s" : ""} your tap`);
   if (t.trace.effects.alerts_new.some((a) => a.type === "contradiction")) bits.push("sources disagree · held");
   for (const r of t.trace.effects.readiness) bits.push(`${r.label} ${r.from} → ${r.to} of ${r.total}`);
-  if (t.trace.model.status === "running") bits.push("checking with the local model…");
-  if (t.trace.model.status === "unavailable") bits.push("extraction model not running: words kept, nothing extracted");
+  if (t.trace.model.status === "running") bits.push("Processing captured information…");
+  if (t.trace.model.status === "unavailable") bits.push("Extraction unavailable — captured words retained, no new facts extracted");
+  if (t.trace.model.status === "error") bits.push("Could not extract facts — review this capture");
   return bits.join(" · ");
 }
 
@@ -26,12 +27,24 @@ export const sourceIcon = (t?: TranscriptEntry) =>
   !t ? Mic : t.captured_by === "camera" ? Camera : t.captured_by === "device" ? Monitor : t.audio_id ? Mic : Keyboard;
 
 /** One captured utterance or photo, with the model step (or the monitor readings) and what changed on the screen. */
-export function TraceEntry({ t, wide = false }: { t: TranscriptEntry; wide?: boolean }) {
+export function TraceEntry({ t, wide = false, concise = false, onReview }: {
+  t: TranscriptEntry; wide?: boolean; concise?: boolean; onReview?: () => void;
+}) {
   const snapshot = useHerald((s) => s.snapshot);
   const blocked = useHerald((s) => s.source === "fixture" || s.stale || s.conn !== "open");
   const Icon = sourceIcon(t);
   const m = t.trace.model;
   const facts = [...t.trace.rules.facts, ...(m.facts ?? [])];
+  const failed = m.status === "error" || m.status === "unavailable";
+  const processing = <div className="mt-2 flex flex-wrap gap-1.5">
+    {/* trace.rules carries monitor/device readings; speech and photos come from the model. */}
+    {t.trace.heard.source === "structured" && <Badge icon={Monitor}>Monitor · {t.trace.rules.facts.length}</Badge>}
+    <Badge icon={Cpu} tone={m.status === "done" ? "accent" : failed ? "low" : "neutral"}>
+      Model · {m.status}{m.ms ? <> · <span className="num">{m.ms} ms</span></> : null}
+    </Badge>
+    {concise && t.trigger && <Badge>Capture trigger · {t.trigger}</Badge>}
+    {t.trace.effects.readiness.map((r) => <Badge key={r.label} icon={ListChecks} tone={r.ready ? "ok" : "neutral"}>{r.label} {r.from} → {r.to}/{r.total}</Badge>)}
+  </div>;
   return (
     <article className={cn("group/entry flex gap-3", wide ? "pl-5" : "pl-4")}>
       <IconTile icon={Icon} cat="speech" size={30} className="mt-3.5" />
@@ -41,7 +54,7 @@ export function TraceEntry({ t, wide = false }: { t: TranscriptEntry; wide?: boo
         </p>
         <p className="mt-0.5 text-body font-medium">“{t.text}”</p>
         {t.trigger && <div className="mt-3 rounded-xl border border-border-subtle p-3">
-          <p className="text-meta font-semibold">{t.trigger === "manual" ? "Show Herald" : "Automatic capture"} · {t.trigger}</p>
+          <p className="text-meta font-semibold">{t.trigger === "manual" ? "Show Herald" : "Automatic capture"}{!concise && <> · {t.trigger}</>}</p>
           {t.photo_id ? <a href={`/api/photo/${t.photo_id}`} target="_blank" rel="noreferrer"><img src={`/api/photo/${t.photo_id}`} alt="Stored capture evidence; open full image" className="my-2 max-h-36 rounded-lg" /></a> : <p className="text-meta text-text-muted">No image retained.</p>}
           <ul>{t.fact_ids.map((id) => {
             const fact = [...Object.values(snapshot?.facts ?? {}), ...Object.values(snapshot?.events ?? {}).flat()].find((f) => f.id === id);
@@ -49,18 +62,11 @@ export function TraceEntry({ t, wide = false }: { t: TranscriptEntry; wide?: boo
             return <li key={id} className="my-2 flex flex-wrap items-center gap-3 text-body"><span>{fact.label}: {formatValue(fact.value)}</span>
               {fact.verify?.status === "match" && <span className="text-meta">Label seen ✓ · ingredient only</span>}
               {fact.status === "unconfirmed" && !(fact.verify?.status === "mismatch" && !fact.verify.resolution) && <ActionButton disabled={blocked} pendingKey={`confirm:${id}`} onClick={() => api.confirm(id)} busyText="Confirming…" size="md">Confirm</ActionButton>}
-              {fact.verify?.status === "mismatch" && !fact.verify.resolution && <button className="min-h-12 px-3 text-herald-accent" onClick={() => useHerald.getState().setUi({ page: "overview" })}>Review mismatch</button>}
+              {fact.verify?.status === "mismatch" && !fact.verify.resolution && <button className="min-h-12 px-3 text-herald-accent" onClick={() => onReview ? onReview() : useHerald.getState().setUi({ page: "overview" })}>Review mismatch</button>}
             </li>;
           })}</ul>
         </div>}
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {/* trace.rules only carries monitor/device readings now; speech and photos come from the model */}
-          {t.trace.heard.source === "structured" && <Badge icon={Monitor}>Monitor · {t.trace.rules.facts.length}</Badge>}
-          <Badge icon={Cpu} tone={m.status === "done" ? "accent" : m.status === "error" || m.status === "unavailable" ? "low" : "neutral"}>
-            Model · {m.status}{m.ms ? <> · <span className="num">{m.ms} ms</span></> : null}
-          </Badge>
-          {t.trace.effects.readiness.map((r) => <Badge key={r.label} icon={ListChecks} tone={r.ready ? "ok" : "neutral"}>{r.label} {r.from} → {r.to}/{r.total}</Badge>)}
-        </div>
+        {!concise && processing}
         {wide && facts.length > 0 && (
           <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-meta text-text-secondary">
             {facts.map((f) => (
@@ -69,7 +75,9 @@ export function TraceEntry({ t, wide = false }: { t: TranscriptEntry; wide?: boo
           </ul>
         )}
         <AudioEvidence id={t.audio_id} />
-        <p className="mt-1.5 text-meta text-text-muted">{summarize(t)}</p>
+        <p role={failed ? "alert" : m.status === "running" ? "status" : undefined}
+          className={cn("mt-1.5 text-meta", failed ? "text-medium-fg" : "text-text-muted")}>{summarize(t)}</p>
+        {concise && <details className="mt-2"><summary className="min-h-12 cursor-pointer py-3 text-meta text-text-secondary">Processing details</summary>{processing}</details>}
       </div>
     </article>
   );

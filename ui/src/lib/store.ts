@@ -83,7 +83,7 @@ export function initialUi(search = typeof location === "undefined" ? "" : locati
   const narrow = typeof innerWidth === "number" && innerWidth < 1360;
   return {
     mode: q.get("mode") === "explain" ? "explain" : "medic",
-    theme: q.get("theme") === "light" ? "light" : q.get("theme") === "dark" ? "dark" : (p.theme ?? "dark"),
+    theme: q.get("theme") === "light" ? "light" : q.get("theme") === "dark" ? "dark" : (p.theme ?? "light"),
     typeScale: t === 1.25 || t === 1.5 ? t : (p.typeScale ?? 1),
     reducedMotion: p.reducedMotion ?? false,
     keyboardPtt: p.keyboardPtt ?? true,
