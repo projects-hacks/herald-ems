@@ -5,6 +5,8 @@ Tests and tools pass their own Settings and fakes (e.g. a stub TextModel) to `bu
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -13,6 +15,7 @@ from ..config import Settings, get_settings
 from ..config.county import CountyRegistry
 from ..core.confirmation import ConfirmationPolicy
 from ..core.incident import Incident
+from ..core.schema import Fact
 from ..core.ports import Normalizer, PhotoReader, SpeechToText, TextModel
 from ..core.roster import PatientRoster
 from ..core.snapshot import Projector
@@ -29,6 +32,8 @@ from ..scoring import ScaleRegistry, default_scales
 from ..telemetry import Telemetry
 from ..terminology import MedicationCoder, build_coder
 from .contract import UIContract
+from .media import dispose_incident_media
+from .persistence import IncidentStore
 from .trace import TraceRecorder
 
 
@@ -59,8 +64,10 @@ class AppContext:
     knowledge: Optional[KnowledgeService] = None
     roster: Optional[PatientRoster] = None
     netem_mode: Optional[str] = None
+    persistence: Optional[IncidentStore] = None
     extra: dict = field(default_factory=dict)
     capture_agent: object = None
+    evidence_dir: Optional[Path] = None      # where agentic capture keeps redacted stills (deleted with the call)
     frame_reader: object = None
     speech_in_flight: int = 0
 
@@ -75,14 +82,79 @@ class AppContext:
             return Incident(dispatch, vocabulary=self.vocab, policy=self.policy, projector=self.projector)
 
         self.roster = PatientRoster(factory)
+        self.restored = False
         patient = self.roster.add("Patient 1")
         if self.capture_agent is not None:
             self.capture_agent.patient_changed()
         return patient
 
+    def end_incident(self) -> dict:
+        cleanups = {
+            inc.id: dispose_incident_media(inc, audio_dir=self.settings.audio_dir,
+                                           photo_dir=self.settings.photo_dir, evidence_dir=self.evidence_dir)
+            for inc in self.roster.incidents()
+        }
+        result = {
+            "at": max(row["at"] for row in cleanups.values()),
+            "deleted": {kind: sorted(media_id for row in cleanups.values() for media_id in row["deleted"][kind])
+                        for kind in ("audio", "photo")},
+            "missing": {kind: sorted(media_id for row in cleanups.values() for media_id in row["missing"][kind])
+                        for kind in ("audio", "photo")},
+            "invalid": {kind: sorted(media_id for row in cleanups.values() for media_id in row["invalid"][kind])
+                        for kind in ("audio", "photo")},
+            "patients": cleanups,
+        }
+        if self.persistence:
+            self.persistence.discard()
+        return result
+
+    def persist(self) -> None:
+        if not self.persistence:
+            return
+        patients = []
+        for inc in self.roster.incidents():
+            with inc.lock:
+                patients.append({"id": inc.id, "label": inc.patient_label, "dispatch": inc.dispatch,
+                                 "started": inc.started.isoformat(),
+                                 "facts": [f.model_dump(mode="json") for f in inc.facts],
+                                 "transcripts": inc.transcripts, "audit": inc.audit_log,
+                                 "news2": inc.news2_history,
+                                 "media_ids": {k: sorted(v) for k, v in inc.media_ids.items()}})
+        self.persistence.save({"v": 1, "active": self.incident.id, "patients": patients,
+                               "relay": {"authorized": self.relay.authorized, "acked": self.relay.acked,
+                                         "ed_url": self.relay.ed_url}})
+
+    def restore(self) -> bool:
+        """Restore only an encrypted, unfinished call; corrupted state starts clean."""
+        payload = self.persistence.load() if self.persistence else None
+        if not payload or payload.get("v") != 1 or not payload.get("patients"):
+            return False
+        factory = self.roster._factory
+        roster = PatientRoster(factory)
+        for row in payload["patients"]:
+            inc = factory()
+            inc.id, inc.patient_label, inc.dispatch = row["id"], row.get("label"), row.get("dispatch")
+            inc.started = datetime.fromisoformat(row["started"])
+            inc.facts = [Fact.model_validate(fact) for fact in row.get("facts", [])]
+            inc.transcripts, inc.audit_log = row.get("transcripts", []), row.get("audit", [])
+            inc.news2_history = row.get("news2", [])
+            inc.media_ids = {"audio": set(), "photo": set()} | {kind: set(ids) for kind, ids in row.get("media_ids", {}).items()}
+            roster._incidents[inc.id], roster._labels[inc.id] = inc, inc.patient_label
+        roster.active_id = payload.get("active") if payload.get("active") in roster._incidents else next(iter(roster._incidents))
+        self.roster = roster
+        relay = payload.get("relay", {})
+        self.relay.ed_url, self.relay.authorized, self.relay.acked = relay.get("ed_url"), relay.get("authorized"), relay.get("acked", {})
+        return True
+
+    def pre_alert_scope(self) -> str:
+        """Describe the current checklist truthfully; authorization never relies on caller-provided wording."""
+        labels = [row["label"] for row in self.incident.snapshot()["readiness"]]
+        return f"{' + '.join(labels)} pre-alert set" if labels else "patient update set"
+
     def full_state(self) -> dict:
         snap = self.incident.snapshot()
         snap["patients"] = self.roster.summaries()
+        snap["restored"] = bool(getattr(self, "restored", False))
         snap["active_patient"] = self.incident.id
         snap["handoff"] = self.handoff.summary(self.handoff.build(self.incident, snapshot=snap))
         rs = self.relay.status()
@@ -129,9 +201,11 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
         tracer=TraceRecorder(vocab, tiers),
         contract=UIContract(vocab, tiers, trends, checklists, counties, scales),
         link=LinkEmulator(s.toxiproxy_url), coder=coder,
-        handoff=build_handoff(default_handoff_config(), vocab, scales, checklists, s))
+        handoff=build_handoff(default_handoff_config(), vocab, scales, checklists, s),
+        persistence=IncidentStore(s.state_dir, s.state_key_path) if s.persistence else None)
     ctx.new_incident(s.dispatch)
     ctx.relay = Relay(lambda: ctx.roster.incidents(), s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir)
+    ctx.restored = ctx.restore()
     if s.knowledge:
         if embedder is None and text_model is None:        # real deployment; tests pass their own (or none)
             from ..config import load_yaml
@@ -161,6 +235,7 @@ def wire_capture(ctx: AppContext, broadcast):
     service = CaptureService(ctx, broadcast)
     blur = FaceBlur(config["privacy"])
     store = EvidenceStore(ctx.settings.photo_dir, config["privacy"], blur)
+    ctx.evidence_dir = store.directory
     ctx.frame_reader = FrameReader(config, lambda: ctx.incident, ctx.vision, store,
                                    DrugCheck(ctx.coder, config["verify"]), ctx.tracer,
                                    ctx.vision_model.model_name, broadcast)

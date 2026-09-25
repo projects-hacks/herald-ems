@@ -46,6 +46,8 @@ class Settings(BaseModel):
     capture_config: str = "capture.yaml"
     root: Path = ROOT                             # the repo: web/, ui/dist/
     data_dir: Optional[Path] = None               # captured audio and photos (default: <root>/data)
+    persistence: bool = True                       # encrypted recovery for unfinished calls only
+    state_key_file: Optional[Path] = None          # separate from patient data; default ~/.config/herald/
     # protocol lookup (P9): build the county knowledge base (embeddings on CPU, cached per document version)
     knowledge: bool = True
     protocol_mirror: Optional[str] = None        # base URL of a document mirror: <mirror>/<county>/<doc_id>.pdf
@@ -88,6 +90,14 @@ class Settings(BaseModel):
         return (self.data_dir or self.root / "data") / "photos"
 
     @property
+    def state_dir(self) -> Path:
+        return (self.data_dir or self.root / "data") / "state"
+
+    @property
+    def state_key_path(self) -> Path:
+        return self.state_key_file or Path.home() / ".config" / "herald" / "state.fernet.key"
+
+    @property
     def terminology_index(self) -> Path:
         return (self.data_dir or self.root / "data") / "terminology" / "rxnorm_index.json"
 
@@ -125,6 +135,8 @@ class Settings(BaseModel):
             capture_auto=e.get("HERALD_CAPTURE_AUTO", "0") == "1",
             capture_config=e.get("HERALD_CAPTURE_CONFIG", "capture.yaml"),
             data_dir=Path(e["HERALD_DATA_DIR"]) if e.get("HERALD_DATA_DIR") else None,
+            persistence=e.get("HERALD_PERSISTENCE", "1") == "1",
+            state_key_file=Path(e["HERALD_STATE_KEY_FILE"]) if e.get("HERALD_STATE_KEY_FILE") else None,
             knowledge=e.get("HERALD_KNOWLEDGE", "1") == "1",
             protocol_mirror=opt("HERALD_PROTOCOL_MIRROR"),
             terminology=e.get("HERALD_TERMINOLOGY", "1") == "1",

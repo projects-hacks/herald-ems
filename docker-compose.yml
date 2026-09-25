@@ -29,8 +29,10 @@ services:
       HERALD_ED_URL: ${HERALD_ED_URL:-}
       HERALD_TZ: ${HERALD_TZ:-America/Los_Angeles}
       HERALD_COUNTY: ${HERALD_COUNTY:-santa_clara}
+      HERALD_STATE_KEY_FILE: /run/herald-state-key/state.fernet.key
     volumes:
       - ./data:/app/data                                  # captured audio/photos persist across container restarts
+      - herald-state-key:/run/herald-state-key             # encryption key stays separate from patient data
       - ~/.cache/huggingface:/root/.cache/huggingface:ro   # Whisper/embedding weights (herald/models/weights.py)
       - ./ui/dist:/app/ui/dist:ro                          # rebuild with `docker compose --profile ui-build run --rm ui-build`
     restart: unless-stopped
@@ -57,3 +59,6 @@ services:
       - ./ui:/app
       - /app/node_modules   # anonymous volume: keep the container's node_modules, don't let the bind mount hide it
     profiles: ["ui-build"]
+
+volumes:
+  herald-state-key:

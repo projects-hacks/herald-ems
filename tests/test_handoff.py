@@ -271,8 +271,10 @@ def test_text_is_deterministic(santa_clara_county):
 def test_api_handoff_and_snapshot_summary():
     c, _ = make_client()
     c.post("/api/incident", json={"dispatch": "fall"})
-    c.post("/api/facts", json=[{"key": "vitals.sbp", "value": 84, **MONITOR},
-                               {"key": "vitals.hr", "value": 118, **MONITOR}])
+    readings = c.post("/api/facts", json=[{"key": "vitals.sbp", "value": 84, **MONITOR},
+                                             {"key": "vitals.hr", "value": 118, **MONITOR}]).json()
+    for reading in readings:
+        c.post(f"/api/facts/{reading['id']}/confirm")
     r = c.get("/api/handoff")
     assert r.status_code == 200
     body = r.json()

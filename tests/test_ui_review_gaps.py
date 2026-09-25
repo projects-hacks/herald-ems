@@ -1,10 +1,14 @@
+import pytest
 from fastapi.testclient import TestClient
 from fakes import make_client
+from herald.core.incident import IncidentEnded
 from herald.core.schema import FactIn
 from ed_receiver.app import app, INCIDENTS, LINK
 
 
-def test_stale_patient_capture_rejected_and_scoped_work_keeps_original_patient():
+def test_stale_patient_capture_rejected_and_late_work_never_reaches_the_new_patient():
+    # A new incident ends the previous call (its media is deleted; nothing more may be written to it). Work still
+    # in flight for that call is refused, and it must never land on the new patient.
     client, ctx = make_client()
     original = ctx.incident
     scoped = client.app.state.capture.for_incident()
@@ -12,8 +16,9 @@ def test_stale_patient_capture_rejected_and_scoped_work_keeps_original_patient()
     headers = {"X-Herald-Patient": original.id}
     assert client.post("/api/facts", headers=headers, json=[]).status_code == 409
     assert client.post("/api/transcript", headers=headers, json={"text": "test", "use_llm": False}).status_code == 409
-    scoped.ingest_batch([FactIn(key="vitals.hr", value=95)])
-    assert original.latest("vitals.hr").value == 95
+    with pytest.raises(IncidentEnded):
+        scoped.ingest_batch([FactIn(key="vitals.hr", value=95)])
+    assert original.latest("vitals.hr") is None and original.ended_at is not None
     assert ctx.incident.latest("vitals.hr") is None
     assert ctx.incident.dispatch == "fall"
     assert client.get("/classic/capture.html").status_code == 200

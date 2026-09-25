@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 
+from ...core.incident import IncidentEnded
 from . import get_ctx, get_hub
 
 router = APIRouter(prefix="/api/patients")
@@ -32,7 +33,12 @@ async def patients(context=Depends(get_ctx)):
 
 @router.post("")
 async def add_patient(body: NewPatient, context=Depends(get_ctx), hub=Depends(get_hub)):
+    try:
+        context.incident.ensure_open()
+    except IncidentEnded as e:
+        raise HTTPException(409, str(e)) from None
     context.roster.add(body.label)
+    context.persist()
     await hub.broadcast()
     return context.full_state()
 
@@ -43,5 +49,6 @@ async def activate_patient(patient_id: str, context=Depends(get_ctx), hub=Depend
         context.roster.activate(patient_id)
     except KeyError:
         raise HTTPException(404, f"unknown patient '{patient_id}'") from None
+    context.persist()
     await hub.broadcast()
     return context.full_state()

@@ -163,6 +163,12 @@ function FindingRow({ a, s, onSeen }: { a: Alert; s: Snapshot; onSeen?: () => vo
       return <Row icon={Gauge} cat="heart" urgent={p === "high" && !!onSeen} flash={p === "high" && !!onSeen} badge={<PriorityBadge p={p} />}
         title={<>NEWS2 rose <span className="num">{a.from} → {a.to}</span> · {a.band} band</>} meta={parts.length ? <span>{parts.join(" · ")}</span> : undefined} actions={seen} />;
     }
+    case "news2_high":
+      return <Row icon={Gauge} tone="high" urgent={!!onSeen} flash={!!onSeen} badge={<PriorityBadge p="high" />}
+        title={<>NEWS2 <span className="num">{a.score}</span> · high band</>} actions={seen} />;
+    case "stemi_alert":
+      return <Row icon={ShieldAlert} tone="high" urgent={!!onSeen} flash={!!onSeen} badge={<PriorityBadge p="high" />}
+        title={<>STEMI Alert criteria met</>} meta={<span>{a.criteria.join(" · ")}</span>} actions={seen} />;
     case "race_positive":
       return <Row icon={Brain} cat="neuro" badge={<PriorityBadge p={p} />} title={<>RACE <span className="num">{a.score}</span> of 9: large-vessel screen positive</>}
         meta={<span>Threshold ≥ 5. Parts and published accuracy are on the RACE tile.</span>} actions={seen} />;

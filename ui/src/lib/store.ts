@@ -21,7 +21,7 @@ export interface UiState {
   heldAlerts: boolean;
   page: Page; sidebarCollapsed: boolean;
   presentationMode: boolean;
-  confirmNewIncident: boolean;
+  confirmNewIncident: boolean; confirmEndIncident: boolean;
   incidentPhase: IncidentPhase;
 }
 
@@ -97,6 +97,7 @@ export function initialUi(search = typeof location === "undefined" ? "" : locati
     presentationMode: q.get("present") === "1",
     confirmNewIncident: false,
     incidentPhase: "scene",
+    confirmEndIncident: false,
   };
 }
 

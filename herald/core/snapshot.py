@@ -67,7 +67,9 @@ class Projector:
             events = {k: [self.fact_view(f) for f in inc.facts if f.key == k and f.status != Status.rejected]
                       for k, m in self.vocab.keys.items() if m.get("merge") == "each"}
             return {
-                "incident": {"id": inc.id, "dispatch": inc.dispatch, "started": inc.started.isoformat()},
+                "incident": {"id": inc.id, "dispatch": inc.dispatch, "started": inc.started.isoformat(),
+                             "ended_at": inc.ended_at.isoformat() if inc.ended_at else None,
+                             "media_disposal": inc.media_disposal},
                 "summary": summary + (f" · {complaint}" if complaint else ""),
                 "readiness": readiness,
                 "needs_attention": {"missing": missing, "unknown": unknown},
@@ -81,6 +83,7 @@ class Projector:
                 "facts": latest,
                 "events": {k: v for k, v in events.items() if v},
                 "timeline": [self.fact_view(f) for f in inc.facts[-60:]],
+                "audit": inc.audit_log[-60:],
                 "transcripts": inc.transcripts[-20:],
                 "ed_sync": inc.ed_sync,
                 "counters": {"facts": len(inc.facts), "cloud_ai_calls": 0},
@@ -127,6 +130,8 @@ class Projector:
         for label in results["news2"]["missing"]:
             key = next(p["key"] for p in news2.parameters if p["label"] == label)
             add(key, f"{self.vocab.label(key)} (for NEWS2)", key in all_vals, kind_key=key)
+        for key in results["news2"].get("applicability_missing", []):
+            add(key, f"{self.vocab.label(key)} (for NEWS2 applicability)", key in all_vals, kind_key=key)
         seeds = self.checklists.default_unknowns + [u for aid in alert_ids for u in self.checklists.unknowns(aid)]
         for key in seeds:
             add(key, self.vocab.label(key), key in all_vals, kind_key=key)
@@ -157,6 +162,9 @@ class Projector:
                 alerts.append({"type": "significant_change", "key": c["key"], "label": c["label"],
                                "series": c["series"]})
         hist = [x for x in inc.news2_history if x["complete"]]
+        if hist and hist[-1]["band"] == "high" and not any(x["band"] == "high" for x in hist[:-1]):
+            alerts.append({"type": "news2_high", "label": "NEWS2", "score": hist[-1]["score"],
+                           "band": "high"})
         if len(hist) >= 2:
             a, b = hist[-2], hist[-1]
             if b["score"] - a["score"] >= 2 or (b["band"] in ("medium", "high") and b["band"] != a["band"]):

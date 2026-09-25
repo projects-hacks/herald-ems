@@ -1,0 +1,18 @@
+# Santa Clara County EMS Protocol 700-A08 STEMI, §3.2: a monitor interpretation of STEMI / acute MI suspected
+# starts the county STEMI Alert workflow. Herald only reports the device/medic's documented interpretation; it does
+# not interpret a 12-lead itself.
+id: stemi_700a08
+name: STEMI Alert (700-A08)
+kind: criteria
+county: santa_clara
+source: Santa Clara County EMS Protocol 700-A08 STEMI, §3.2
+thresholds_text: "12-lead monitor interpretation documented as STEMI / acute MI suspected"
+groups:
+  - {id: trigger, label: "STEMI interpretation documented (700-A08 §3.2)", short: STEMI, met: true, priority: high}
+trigger:
+  - {code: "3.2", type: one_of, key: ecg.stemi_reading, values: [true], required: true,
+     text: "12-lead monitor interpretation reads STEMI", finding: "monitor interpretation: {value}",
+     needs: "12-lead monitor interpretation"}
+relay_text: "met ({leaves})"
+relay_text_not_met: "not met"
+alert_type: stemi_alert

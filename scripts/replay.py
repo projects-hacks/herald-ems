@@ -7,12 +7,18 @@
 import argparse
 import atexit
 import json
+import sys
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import httpx
 from capture_replay import FrameReplay
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from herald.config import get_settings
 

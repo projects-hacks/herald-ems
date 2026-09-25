@@ -40,11 +40,13 @@ export interface Changed {
 }
 
 // ---------- scores (herald/scoring, config/scores/*.yaml) ----------
-export type News2Band = "incomplete" | "low" | "low-medium" | "medium" | "high";
+export type News2Band = "incomplete" | "not_applicable" | "low" | "low-medium" | "medium" | "high";
 export interface News2 {
   name: string; score: number; complete: boolean; band: News2Band; any_single_3: boolean;
   parts: Record<string, { value: FactValue; points: number }>; missing: string[];
   thresholds: string; source: string; evidence: string;
+  applicability: "applicable" | "unknown" | "excluded";
+  applicability_reason: string | null; applicability_missing: string[];
 }
 export interface News2Point { ts: string; score: number; complete: boolean; band: News2Band }
 /** An item-sum stroke scale: RACE, G.F.A.S.T. */
@@ -68,8 +70,11 @@ export type Alert =
   | { type: "confirm_required"; key: string; label: string; confirm_fact_id: string; facts: FactView[] }
   | { type: "significant_change"; key: string; label: string; series: number[] }
   | { type: "news2_rise"; label: string; from: number; to: number; band: News2Band }
+  | { type: "news2_high"; label: string; score: number; band: "high" }
   | { type: "race_positive"; label: string; score: number }
-  | { type: "gfast_positive"; label: string; score: number; county_rule: string; county: string };
+  | { type: "gfast_positive"; label: string; score: number; county_rule: string; county: string }
+  | { type: "stemi_alert"; score: "stemi_700a08"; label: string; level: "trigger"; criteria: string[];
+      county_rule?: string[]; county?: string };
 export type AlertType = Alert["type"];
 
 // ---------- clocks ----------
@@ -84,7 +89,7 @@ export interface TraceFact {
   status: FactStatus; confidence: number; extractor: string | null; relay: string; hold_reason: string | null;
   code?: Coding | (Coding | null)[] | null;
 }
-export interface SttInfo { seconds: number; chunks: { text: string; t: [number | null, number | null] }[]; ms?: number }
+export interface SttInfo { seconds: number | null; chunks: { text: string; t: [number | null, number | null] }[]; ms?: number; error?: string }
 export interface RejectedFact { key: string; value: FactValue; reason: string }
 export interface Trace {
   heard: { text: string; speaker?: string | null; audio_id?: string | null; photo_id?: string | null; frame_id?: string;
@@ -94,7 +99,7 @@ export interface Trace {
     // "unavailable": the extraction model isn't served, nothing was extracted, the words are kept (the POST got 503)
     status: "running" | "done" | "error" | "off" | "skipped" | "unavailable"; name?: string | null; ms?: number;
     tokens?: number | null; proposed?: number; auto_confirm_threshold?: number;
-    facts?: TraceFact[]; error?: string; reason?: string; rejected?: RejectedFact[];
+    facts?: TraceFact[]; error?: string; reason?: string; retry?: boolean; rejected?: RejectedFact[];
   };
   guard?: { instruction_shaped: string | null; policy?: string };
   effects: {
@@ -124,7 +129,7 @@ export type LinkState = "good" | "weak" | "down" | "unknown" | "not configured";
 export interface RelayLogEntry {
   patient?: string;
   ts: string; seq: number; tier: "critical" | "full"; bytes: number; keys: string[]; why: string[];
-  queued_after: number; result: "acked" | "failed"; rtt_ms?: number; error?: string;
+  removed: string[]; queued_after: number; result: "acked" | "failed"; rtt_ms?: number; error?: string;
 }
 export interface RelayStatus {
   patients?: Record<string, { triage: string | null; pending: number; sync: Record<string, "sent" | "queued"> }>;
@@ -146,9 +151,13 @@ export interface ProtocolStatus {
 // ---------- the snapshot (api/context.py full_state()) ----------
 export interface Snapshot {
   capture?: CaptureStatus;
-  incident: { id: string; dispatch: string | null; started: string };
+  incident: {
+    id: string; dispatch: string | null; started: string; ended_at: string | null;
+    media_disposal: MediaDisposal | null;
+  };
   patients: PatientSummary[];
   active_patient: string;
+  restored: boolean;                     // unfinished call recovered after a server restart
   summary: string;
   readiness: Readiness[];
   needs_attention: { missing: NeedItem[]; unknown: NeedItem[] };
@@ -160,6 +169,8 @@ export interface Snapshot {
   facts: Record<string, FactView>;       // latest non-rejected fact per key
   events?: Record<string, FactView[]>;   // event keys (meds.given, procedures.done): every event, in order
   timeline: FactView[];                  // last 60 facts, all statuses
+  audit: { at: string; action: "fact_status_changed"; actor: string; fact_id: string; key: string;
+           from: FactStatus; to: FactStatus }[];
   transcripts: TranscriptEntry[];        // last 20
   ed_sync: Record<string, "sent" | "queued">;
   counters: { facts: number; cloud_ai_calls: number };
@@ -174,6 +185,14 @@ export interface CaptureStatus {
   last: { ts: number; trigger: string; mode: string; reason: string; facts: string[]; photo_id: string | null } | null;
   counts: { frames: number; gated: number; captured: number; stored: number };
   error: string | null; pending: number;
+}
+
+export interface MediaDisposal {
+  at: string;
+  deleted: { audio: string[]; photo: string[] };
+  missing: { audio: string[]; photo: string[] };
+  invalid: { audio: string[]; photo: string[] };
+  patients?: Record<string, Omit<MediaDisposal, "patients">>;
 }
 export type NowMessage = { type: "state"; state: Snapshot } | { type: "pong"; t: string };
 

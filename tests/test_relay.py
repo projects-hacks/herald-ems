@@ -14,6 +14,7 @@ from herald.core.incident import Incident
 class FakeED:
     def __init__(self, fail_rate=0.0, seed=0):
         self.fields, self.applied, self.duplicates, self.bytes = {}, [], 0, []
+        self.withdrawals = []
         self.fields_by_patient = {}
         self.patient_order = []
         self.rng = random.Random(seed)
@@ -28,7 +29,13 @@ class FakeED:
             self.duplicates += 1
         else:
             self.fields.update(p["f"])
-            self.fields_by_patient.setdefault(p["i"], {}).update(p["f"])
+            for key in p.get("rm", []):
+                self.fields.pop(key, None)
+                self.withdrawals.append(key)
+            patient_fields = self.fields_by_patient.setdefault(p["i"], {})
+            patient_fields.update(p["f"])
+            for key in p.get("rm", []):
+                patient_fields.pop(key, None)
             self.patient_order.append(p["i"])
             self.applied.append(p["q"])
             self.bytes.append(len(wire))
@@ -110,6 +117,23 @@ def test_weak_link_sends_critical_first_in_small_packets():
     assert "meds.anticoagulant" in first and "stroke.lkw" in first
     assert "patient.age" not in first                          # demographics wait
     assert ed.bytes[0] <= 420
+
+
+def test_rejected_critical_fact_is_withdrawn_from_the_ed_with_an_audit_event():
+    inc = build_incident()
+    ed = FakeED()
+    relay = Relay(lambda: inc, transport=ed)
+    relay.authorize("Valley Medical")
+    asyncio.run(drain(relay))
+    assert ed.fields["meds.anticoagulant"] == "warfarin"
+
+    fact = inc.latest("meds.anticoagulant", confirmed_only=True)
+    inc.set_status(fact.id, Status.rejected)
+    asyncio.run(drain(relay))
+
+    assert "meds.anticoagulant" not in ed.fields
+    assert ed.withdrawals == ["meds.anticoagulant"]
+    assert relay.log[-1]["removed"] == ["meds.anticoagulant"]
 
 
 def test_weak_link_prioritizes_immediate_patient_before_minimal_patient():
