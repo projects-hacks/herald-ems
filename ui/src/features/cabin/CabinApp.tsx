@@ -21,12 +21,10 @@ import { HandoffPage } from "@/pages/HandoffPage";
 import type { CameraStatus } from "./CameraCapture";
 import { CameraWorkspace } from "./CameraWorkspace";
 import { useAmbient } from "./useAmbient";
-import { VitalReadings } from "./VitalReadings";
 import "./workspace.css";
 import "./capture-workspace.css";
 import "../copilot/copilot.css";
 import type { WorkspacePanel } from "./WorkspaceNav";
-import { CareSummary } from "./CareSummary";
 import { EdCard, HeraldActivity, MovementStrip, PatientKnown, PresencePill, ProtocolCues, ReplayBar, SituationBar } from "@/features/copilot/Copilot";
 import type { FixturePlayer } from "@/lib/ws";
 
@@ -122,7 +120,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
                 <button key={v} role="tab" aria-selected={recordView === v} onClick={() => setRecordView(v)}>{label}</button>)}
             </div>
             {(recordView === "facts" || panel === "patient") && <PatientPage />}
-            {recordView === "trends" && panel === "record" && <><StatTiles /><VitalReadings key={s?.active_patient ?? s?.incident.id} onReview={() => open(null)} onTrends={() => setRecordView("trends")} /><CareSummary onReview={() => open(null)} /><TrendsPage /></>}
+            {recordView === "trends" && panel === "record" && <><StatTiles clocks={false} /><TrendsPage /></>}
             {recordView === "transcript" && panel === "record" && <TranscriptPage onReview={() => open(null)} />}
           </div>}
           {panel === "patients" && <div className="workspace-page-surface"><h1 className="workspace-page-heading">Manage patients</h1><PatientRoster /></div>}

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceCards, validOrder } from "@/features/cabin/WorkspaceCards";
 import { CabinApp } from "@/features/cabin/CabinApp";
@@ -76,18 +76,6 @@ describe("component-focused ambulance view", () => {
     expect(screen.queryByRole("button", { name: "Large view" })).toBeNull();
     expect(document.body.textContent).not.toContain(snapshot.incident.id);
     expect(document.body.textContent).not.toContain(`…${snapshot.incident.id.slice(-4)}`);
-  });
-  it("expands only the selected reading and exposes confirmed history", () => {
-    render(<CabinApp />);
-    fireEvent.click(screen.getByRole("button", { name: "Record" }));
-    fireEvent.click(screen.getByRole("tab", { name: "Trends & scores" }));
-    const readings = within(screen.getByRole("region", { name: "Latest documented readings" }));
-    const expand = readings.getAllByRole("button", { name: /^Expand / })[0];
-    fireEvent.click(expand);
-    expect(readings.getByRole("heading", { name: "Recent confirmed readings" })).toBeTruthy();
-    expect(readings.getAllByRole("button", { name: /^Collapse / })).toHaveLength(1);
-    expect(readings.getAllByRole("button", { name: /^Expand / })).toHaveLength(3);
-    expect(screen.getByRole("button", { name: "Start listening" })).toBeTruthy();
   });
   it("restores focus to the originating card when returning to overview", async () => {
     render(<CabinApp />);

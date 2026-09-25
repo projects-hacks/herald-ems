@@ -56,9 +56,8 @@ describe("ambulance workspace", () => {
     render(<CabinApp />);
     fireEvent.click(screen.getByRole("button", { name: "Record" }));
     fireEvent.click(screen.getByRole("tab", { name: "Trends & scores" }));
-    const readings = within(screen.getByRole("region", { name: "Latest documented readings" }));
-    expect(readings.queryByText("177")).toBeNull();
-    expect(readings.getByText(/Needs verification/)).toBeTruthy();
+    expect(screen.queryByText("177")).toBeNull();          // an unconfirmed reading never appears as a documented value
+    expect(screen.queryByText("Latest confirmed readings")?.closest("section")?.textContent ?? "").not.toContain("177");
   });
   it("disables capture in a replay", () => {
     useHerald.setState({ source: "fixture" }); render(<CabinApp />);

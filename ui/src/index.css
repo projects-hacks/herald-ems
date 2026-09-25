@@ -11,7 +11,8 @@
      All bundled with the app, never fetched: Herald runs offline. */
   --font-sans: "Atkinson Hyperlegible Next Variable", "Atkinson Hyperlegible Next", ui-sans-serif, sans-serif;
   --font-rounded: var(--font-sans);
-  --font-mono: "Atkinson Hyperlegible Mono Variable", ui-monospace, monospace;
+  --font-mono: "Atkinson Hyperlegible Next Variable", "Atkinson Hyperlegible Next", ui-sans-serif, sans-serif;   /* values and clocks: the
+     reading face with fixed-width digits (tabular-nums below), not a typewriter mono */
   --font-heading: "Saira Condensed", "Arial Narrow", sans-serif;
 
   /* Herald tokens as Tailwind colors: text-high-fg, bg-ok-fill, bg-surface-2, border-border-control, ... */
@@ -125,6 +126,7 @@
 @utility num {
   font-variant-numeric: tabular-nums;
 }
+.font-mono { font-variant-numeric: tabular-nums slashed-zero; }
 @utility label-caps {
   font-size: var(--text-label);
   line-height: var(--text-label--line-height);
