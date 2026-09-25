@@ -107,7 +107,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
     <main id="workspace-main" tabIndex={-1} className="cabin-main">
       <span ref={urgentLive} className="sr-only" role="alert" />
       {!panel && <HeraldLive p={pill} paused={ui.capturePaused} disabled={isReplay || ambient.blocked} level={ambient.status.level}
-        waitingTap={!!ambient.status.waitingTap} monitor={monitor} onCamera={() => open("camera")}
+        waitingTap={!!ambient.status.waitingTap} warning={ambient.status.warning} monitor={monitor} onCamera={() => open("camera")}
         onToggle={() => setUi({ capturePaused: !ui.capturePaused })} />}
       {/* Now, in order of what a medic needs: the county passage for this situation as one sideways-scrolling
           band, then Needs you beside how the patient is moving and what the ED has. What Herald did is a record of
@@ -146,7 +146,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
             Listen and watch automatically when a call starts</label>
           <div className="cabin-actions"><button className="cabin-button" disabled={recording || ambient.status.queued > 0 || photo.busy} onClick={() => setUi({ confirmNewIncident: true })}>New incident…</button>
             <button className="cabin-button" onClick={() => setUi({ presentationMode: true })}>Guided demo</button><button className="cabin-button" onClick={() => setUi({ mode: "explain" })}>Detailed application view</button></div>
-          <details><summary><Info size={18} />Recording, privacy and what runs in the background</summary><p>Record only when authorized. After you start listening, Herald listens continuously and sends only speech, cut at natural pauses, to this vehicle’s server; everything is processed on the vehicle. Speaker identity is not detected. Every captured fact needs your confirmation before it counts toward scores or is shared.</p><p>Monitor watch keeps the camera on the equipment while you use other pages; the vehicle keeps useful stills and holds readings for your confirmation. Hiding this tab, changing patient, losing the connection or leaving the workspace stops capture. Unsent audio is not a durable backup. Handoff delivery status is a system acknowledgment, not proof a clinician has read it.</p></details>
+          <details><summary><Info size={18} />Recording, privacy and what runs in the background</summary><p>Record only when authorized. After you start listening, Herald listens continuously and sends only speech, cut at natural pauses, to this vehicle’s server; everything is processed on the vehicle. Speaker identity is not detected. Every captured fact needs your confirmation before it counts toward scores or is shared.</p><p>Monitor watch keeps the camera on the equipment while you use other pages; the vehicle keeps useful stills and holds readings for your confirmation. Capture continues while this tab is in the background. If the vehicle server is unreachable, speech waits in this page and is retried; after about a minute of waiting, or if a clip keeps failing, the oldest words are skipped and Herald says so. Pausing, changing patient or leaving the page stops capture; waiting audio is not a durable backup. Handoff delivery status is a system acknowledgment, not proof a clinician has read it.</p></details>
           <p className="cabin-muted">Prototype. Not validated for use during patient care.</p>
         </div>}
       </section>

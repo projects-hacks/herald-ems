@@ -98,3 +98,6 @@
 }
 [data-reduced-motion="true"] .herald-live *, [data-reduced-motion="true"] .herald-live *::before { animation: none !important; }
 .live-eye[data-failed] { border-color: color-mix(in srgb, var(--high-fg) 55%, transparent); } .live-eye[data-failed] .eye-text b { color: var(--high-fg); }
+/* capture goes on, but something needs saying: clips held while the server is unreachable, speech that was skipped */
+.live-warning { flex-basis: 100%; font-style: normal; font-weight: 700; font-size: .9375rem; color: var(--medium-fg); }
+.herald-live[data-warn] { border-color: color-mix(in srgb, var(--medium-fg) 55%, transparent); }

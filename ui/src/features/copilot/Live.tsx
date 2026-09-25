@@ -11,9 +11,9 @@ import type { MonitorStatus } from "@/features/capture/monitor";
 
 type OrbState = "listening" | "thinking" | "paused" | "down" | "waiting" | "replay";
 
-export function HeraldLive({ p, paused, disabled, onToggle, level, waitingTap, monitor, onCamera }: {
+export function HeraldLive({ p, paused, disabled, onToggle, level, waitingTap, warning, monitor, onCamera }: {
   p: Presence; paused: boolean; disabled?: boolean; onToggle: () => void; level: number; waitingTap: boolean;
-  monitor: MonitorStatus; onCamera: () => void;
+  warning?: string | null; monitor: MonitorStatus; onCamera: () => void;
 }) {
   const s = useHerald((st) => st.snapshot);
   const heard = s ? liveHeard(s) : null;
@@ -22,13 +22,15 @@ export function HeraldLive({ p, paused, disabled, onToggle, level, waitingTap, m
   const status = state === "down" ? p.text : state === "paused" ? "Paused — tap to listen and watch"
     : state === "waiting" ? "Tap anywhere to start listening" : state === "thinking" ? "Understanding what was just said…"
     : state === "replay" ? p.text : p.text;
-  return <section className="herald-live" data-state={state} aria-label="Herald">
+  const warn = !!warning && state !== "down" && state !== "paused" && state !== "replay";   // still listening, but the medic should know
+  return <section className="herald-live" data-state={state} data-warn={warn || undefined} aria-label="Herald">
     <button type="button" className="live-orb" style={{ "--level": state === "listening" ? level.toFixed(2) : "0" } as React.CSSProperties}
       disabled={disabled} onClick={onToggle} aria-label={state === "listening" || state === "thinking" ? "Pause listening and watching" : "Listen and watch"}>
       <span className="orb-halo" aria-hidden /><span className="orb-core" aria-hidden>{state === "down" && <TriangleAlert size={22} />}</span>
     </button>
     <div className="live-body">
-      <p className="live-status"><b>Herald</b><span role={state === "down" ? "alert" : "status"}>{status}</span></p>
+      <p className="live-status"><b>Herald</b><span role={state === "down" ? "alert" : "status"}>{status}</span>
+        {warn && <em className="live-warning" role="status">{warning}</em>}</p>
       {heard ? <figure className="live-heard" key={heard.id}>
         <blockquote>“{heard.segments.map((g, i) => g.hl ? <mark key={i}>{g.t}</mark> : <span key={i}>{g.t}</span>)}”</blockquote>
         <figcaption>{heard.who ?? "Heard"} · <span className="num">{hhmm(heard.ts)}</span></figcaption>
@@ -62,7 +64,7 @@ function LiveEye({ monitor, paused, onCamera }: { monitor: MonitorStatus; paused
       {on ? <span className="eye-scan" aria-hidden /> : <EyeOff size={22} aria-hidden />}
     </span>
     <span className="eye-text">
-      <b>{on ? <><Eye size={14} aria-hidden /> Watching the monitor</> : failed ? "Camera stopped" : paused ? "Camera paused" : monitor.starting ? "Starting the camera…" : "Camera off"}</b>
+      <b>{on ? <><Eye size={14} aria-hidden /> Watching the monitor</> : failed && monitor.retry && !paused ? "Camera reconnecting…" : failed ? "Camera stopped" : paused ? "Camera paused" : monitor.starting ? "Starting the camera…" : "Camera off"}</b>
       <span>{failed ? "Tap to restart or take a photo" : read ? read.text.replace(/^Read the monitor — /, "") : on ? "Waiting for a clear frame" : "Tap to aim or take a photo"}</span>
     </span>
   </button>;

@@ -1,7 +1,8 @@
 import { authHeaders } from "@/lib/authToken";
 
 /** `stream` is the live camera, so the copilot screen can show what Herald is looking at (a preview, never stored). */
-export interface MonitorStatus { active: boolean; starting: boolean; sent: number; message: string; error: boolean; stream?: MediaStream | null }
+/** `retry`: the camera stopped for a reason that passes (the server or its socket), not a refusal: start it again. */
+export interface MonitorStatus { active: boolean; starting: boolean; sent: number; message: string; error: boolean; stream?: MediaStream | null; retry?: boolean }
 export const monitorIdle: MonitorStatus = { active: false, starting: false, sent: 0, message: "Camera off", error: false };
 export interface MonitorRegion { x0: number; y0: number; x1: number; y1: number }
 
@@ -39,13 +40,13 @@ export class MonitorCapture {
   async start(roi: MonitorRegion) {
     if (this.disposed || this.state.active || this.state.starting) return;
     const token = ++this.generation;
-    this.update({ starting: true, error: false, message: "Allow camera access…" });
+    this.update({ starting: true, error: false, retry: false, message: "Allow camera access…" });
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("Camera needs HTTPS or localhost.");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: "environment" } } });
       if (token !== this.generation) { stream.getTracks().forEach((track) => track.stop()); return; }
       this.stream = stream; this.video.srcObject = stream;
-      stream.getTracks().forEach((track) => { track.onended = () => this.stop("Camera disconnected. Restart when ready.", true); });
+      stream.getTracks().forEach((track) => { track.onended = () => this.stop("Camera disconnected — reconnecting", true, true); });
       await this.video.play();
       if (token !== this.generation) return;
       const socket = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/frames`);
@@ -56,8 +57,8 @@ export class MonitorCapture {
         socket.onerror = socket.onclose = () => { window.clearTimeout(timeout); reject(new Error("Camera connection unavailable; another camera may own this patient’s feed.")); };
       });
       if (token !== this.generation) return;
-      socket.onclose = () => this.stop("Camera connection closed. Restart explicitly to resume.", true);
-      socket.onerror = () => this.stop("Camera connection failed.", true);
+      socket.onclose = () => this.stop("Camera link to the vehicle closed — reconnecting", true, true);
+      socket.onerror = () => this.stop("Camera link to the vehicle failed — reconnecting", true, true);
       socket.onmessage = (event) => {
         this.waitingSince = 0;
         try {
@@ -76,12 +77,14 @@ export class MonitorCapture {
       const tick = async () => {
         if (token !== this.generation) return;
         try { await this.frame(token); }
-        catch (error) { this.stop(error instanceof Error ? error.message : "Frame capture failed", true); return; }
+        catch (error) { this.stop(error instanceof Error ? error.message : "Frame capture failed", true, true); return; }
         if (token === this.generation) this.timer = window.setTimeout(tick, 1000 / Math.max(0.1, Math.min(1, status.fps_in || 1)));
       };
       await tick();
     } catch (error) {
-      if (token === this.generation) this.stop(error instanceof Error ? error.message : "Camera unavailable", true);
+      // a refused or missing camera is final; a server or socket failure passes, so it is retried
+      const refused = error instanceof DOMException || (error instanceof Error && /HTTPS|localhost/.test(error.message));
+      if (token === this.generation) this.stop(error instanceof Error ? error.message : "Camera unavailable", true, !refused);
     }
   }
   private async frame(token: number) {
@@ -100,12 +103,12 @@ export class MonitorCapture {
     this.waitingSince = Date.now(); this.socket.send(blob);
     this.update({ sent: this.state.sent + 1 });
   }
-  stop(message = "Camera off · monitoring paused", error = false) {
+  stop(message = "Camera off · monitoring paused", error = false, retry = false) {
     ++this.generation; window.clearTimeout(this.timer); this.waitingSince = 0;
     this.stream?.getTracks().forEach((track) => { track.onended = null; track.stop(); }); this.stream = undefined;
     if (this.socket) { this.socket.onclose = null; this.socket.onerror = null; this.socket.onmessage = null; this.socket.close(); this.socket = undefined; }
     this.video.srcObject = null;
-    this.update({ active: false, starting: false, stream: null, message, error });
+    this.update({ active: false, starting: false, stream: null, message, error, retry });
   }
   dispose() { this.disposed = true; this.stop(); }
 }
