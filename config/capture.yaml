@@ -24,6 +24,35 @@ monitor:
   stable_frames: 2          # Two successive usable ROI frames before automatic monitor reading.
   min_interval_s: 15        # Minimum interval between monitor-watch reads.
   max_interval_s: 60        # Permit a repeat point after a minute, even if values are unchanged.
+  # gate: the monitor-watch gate profile. These values REPLACE the matching keys of the global `gate:` block when the
+  # agent assesses the camera ROI for monitor-watch. The global values stay as they are: they protect the one-shot
+  # photo path, where a whole new scene is expected to differ from the last one. Engineering defaults pending
+  # mounted-camera tuning, NOT clinical thresholds; retune with scripts/capture/gate_probe.py --dir <real frames>.
+  #
+  # Measured 2026-09-25, pure CPU, synthetic renders of a camera photo of a laptop showing a monitor UI
+  # (scripts/capture/gate_probe.py). Against the global values the gate could never fire on a screen:
+  #   dark UI, full frame, one vital changing        change 0.0022   (global change_min 0.06)
+  #   ROI=screen on the dark UI                      bright   18.8   (global bright_min 25: not even `usable`,
+  #                                                                   so monitor_refresh never ran either)
+  #   ROI=screen on a white UI                       bright  238.3   (global bright_max 235)
+  #   tightest ROI around only the changing number   change 0.0589   (still under 0.06)
+  #   ROI=screen, one vital changing                 change 0.0075 (dark UI) / 0.0046 (white UI)
+  #   ROI=screen, four vitals changing               change 0.0209 (dark UI) / 0.0168 (white UI)
+  # Synthetic renders UNDERSTATE change: only the changed digits differ, while a real camera adds noise, exposure
+  # drift and small motion to every pixel. Read these as a floor.
+  gate:
+    change_min: 0.004       # Below the measured single-vital change on a screen-sized ROI for BOTH a dark UI
+                            # (0.0075) and a white UI (0.0046), with margin. A false "changed" costs one VLM read
+                            # and is bounded by min_interval_s (15 s); a missed change loses a trend point, so the
+                            # threshold errs low. Duplicate values are dropped again after the read
+                            # (herald/capture/reading.py `unchanged`), so a jumpy gate does not add facts.
+    bright_min: 12          # Admits the measured 18.8 of a dark monitor UI seen through a camera.
+    bright_max: 245         # Admits the measured 238.3 of a white monitor UI.
+    # `stable_max` is the ROI difference below which two successive frames count as the same picture
+    # (CaptureAgent.receive -> CapturePolicy.stable_frames). It is deliberately NOT change_min: a screen has to
+    # settle, and at 0.005 real camera noise alone would keep the ROI "moving" forever and no read would happen.
+    # 0.06 keeps today's behaviour (it was the global change_min); it is the first value to retune on real frames.
+    stable_max: 0.06
 triggers:
   - {'on': fact, key: meds.given, where: {by: crew}, mode: pill_bottle, purpose: verify, window_s: 8, reason: 'Crew medication recorded: check the visible label'} # Look-back/expiry in seconds.
   - {'on': fact, key: meds.list, mode: pill_bottle, purpose: record, window_s: 8, reason: 'Medication history recorded: read the visible label'} # Recent medication evidence.
