@@ -28,7 +28,7 @@ const citation = (p: ProtocolPassage) =>
 
 function Passage({ p, first }: { p: ProtocolPassage; first: boolean }) {
   return (
-    <details open={first} className="rounded-[14px] bg-surface-2 p-3">
+    <details open={first} className="card p-3">
       <summary className="cursor-pointer">
         <span className="font-semibold">{p.heading}</span>
         <span className="block text-meta text-text-muted">{citation(p)}</span>
@@ -78,16 +78,16 @@ export function ProtocolSearch({ open, query = "", onClose }: { open: boolean; q
   const answer = outcome && "answer" in outcome ? outcome.answer : null;
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" className="w-[36rem] max-w-full gap-0 border-border-subtle bg-surface-3 sm:max-w-xl">
+      <SheetContent side="right" className="w-[36rem] max-w-full gap-0 border-border-subtle bg-bg data-[side=right]:sm:max-w-xl">
         <SheetHeader className="px-6 pt-6">
-          <SheetTitle className="text-value font-bold">County protocols</SheetTitle>
+          <SheetTitle className="text-large-title font-bold">County protocols</SheetTitle>
           <SheetDescription className="text-body text-text-muted">The county's own text, quoted with its section and effective date.</SheetDescription>
         </SheetHeader>
         <div className="flex flex-col gap-4 overflow-y-auto px-6 pb-6 text-body">
           {review && review.length > 0 && <p className="text-medium-fg">Protocol updated: review county settings ({review.join(", ")}).</p>}
           <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void run(q); }}>
             <input value={q} onChange={(e) => setQ(e.target.value)} disabled={!live} aria-label="Search the county protocols"
-              placeholder="e.g. stroke destination" className="h-10 min-w-0 flex-1 rounded-[var(--radius-control)] border border-border-subtle bg-surface-2 px-3" />
+              placeholder="e.g. stroke destination" className="min-h-12 min-w-0 flex-1 rounded-lg border border-border-control bg-surface-2 px-3" />
             <Button type="submit" variant="primary" disabled={!live || busy !== "no" || !q.trim()}>Search</Button>
           </form>
           {!live && <p className="text-text-muted">Replay: protocol search needs the live server.</p>}
