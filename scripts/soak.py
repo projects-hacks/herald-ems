@@ -12,6 +12,7 @@ import json
 import math
 import re
 import shlex
+import statistics
 import subprocess
 import sys
 import time
@@ -145,6 +146,28 @@ def summarize(events: list[dict[str, Any]], duration_s: float, target_duration_s
     used = [e["memory"]["used_bytes"] for e in samples]
     final_growth = used[-1] - used[0] if len(used) >= 2 else None
     peak_growth = max(used) - used[0] if len(used) >= 2 else None
+    # `final_growth` differences two instantaneous samples 30 minutes apart, and on this box that is not enough to
+    # decide anything. MemAvailable includes reclaimable page cache and is lowered by CUDA allocations that are not
+    # charged to a cgroup (AGENTS.md), so the trace is a mean-reverting sawtooth: a measured run dipped and recovered
+    # between 22.2 and 31.9 GiB free, standard deviation 2.95 GiB, and its endpoint difference of +2.14 GiB was 0.73
+    # standard deviations -- less than the noise -- while the trend over all 61 samples was DOWNWARD in memory used.
+    # So it is kept and reported, but the trend statistics below are what the check uses.
+    #
+    # These are validated against traces with known answers by `scripts/soak_memory_verdict.py --self-test` and by
+    # tests/test_soak_memory.py: they fail a clean 3 GiB leak, still fail a 3 GiB leak buried in +-4 GiB of sawtooth,
+    # and clear trend-free noise including a trace that happens to stop in a dip. A statistic that cannot fail would be
+    # worthless here, so that is asserted rather than assumed.
+    growth_halves = growth_slope = noise_stdev = None
+    if len(used) >= 6:
+        third = max(1, len(used) // 3)
+        growth_halves = statistics.median(used[-third:]) - statistics.median(used[:third])
+        xs = [float(e["elapsed_s"]) for e in samples]
+        ys = [float(u) for u in used]
+        mx, my = statistics.mean(xs), statistics.mean(ys)
+        denom = sum((x - mx) ** 2 for x in xs)
+        if denom:
+            growth_slope = (sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / denom) * 3600.0
+        noise_stdev = statistics.stdev(ys)
     model_errors = sum(e.get("status") != "done" for e in model_rows)
     iteration_errors = sum(bool(e.get("error")) for e in events if e.get("type") == "iteration")
     relay_failures = sum(int(e.get("relay_failures", 0)) for e in events if e.get("type") == "iteration")
@@ -157,7 +180,14 @@ def summarize(events: list[dict[str, Any]], duration_s: float, target_duration_s
         "relay_failures_zero": relay_failures == 0,
         "no_competing_jobs": not contention,
         "latency_drift_within_20_pct": drift_pct is not None and drift_pct <= 20,
-        "final_memory_growth_within_1_gib": final_growth is not None and final_growth <= GIB,
+        # The same 1 GiB intent as before, measured between medians rather than endpoints WHEN there are enough
+        # samples to see a trend, and falling back to the endpoint when there are not: with two samples the endpoint
+        # is all there is, and a short run must not fail merely for being short.
+        "memory_growth_within_1_gib": (growth_halves if growth_halves is not None else final_growth) is not None
+                                      and (growth_halves if growth_halves is not None else final_growth) <= GIB,
+        # The same severity as a rate: 1 GiB per half-hour run is 2 GiB/hour. Only applies when a slope exists, so a
+        # run too short to fit one is not failed by it. A leak therefore has to beat two statistics, not one.
+        "memory_slope_within_2_gib_per_hour": growth_slope is None or growth_slope <= 2 * GIB,
     }
     return {
         "duration_s": round(duration_s, 1), "target_duration_s": target_duration_s,
@@ -166,7 +196,13 @@ def summarize(events: list[dict[str, Any]], duration_s: float, target_duration_s
         "relay_failures": relay_failures,
         "latency_ms": {"p95_all": percentile(latencies, .95), "p95_first_5m": first_p95,
                        "p95_last_5m": last_p95, "drift_pct": drift_pct},
-        "memory": {"final_growth_bytes": final_growth, "peak_growth_bytes": peak_growth},
+        "memory": {"final_growth_bytes": final_growth, "peak_growth_bytes": peak_growth,
+                   "trend_growth_bytes": growth_halves, "slope_bytes_per_hour": growth_slope,
+                   "noise_stdev_bytes": noise_stdev,
+                   # kept visible so the change of statistic is auditable, not hidden: this is what the old check said
+                   "endpoint_growth_within_1_gib": (final_growth is not None and final_growth <= GIB),
+                   "endpoint_growth_in_stdevs": (round(final_growth / noise_stdev, 2)
+                                                 if final_growth is not None and noise_stdev else None)},
         "competing_jobs": [{"pid": pid, "args": args} for pid, args in sorted(contention)],
         "scenario_steps": {
             "done": sum(e.get("status") == "done" for e in scenario_steps),
@@ -289,8 +325,22 @@ def run_scenario(client: httpx.Client, scenario: dict[str, Any], recorder: Recor
             "packets_acked": state["relay"]["packets_acked"], "summary": state["summary"]}
 
 
+def summarize_recorded(path: Path) -> dict[str, Any]:
+    """Re-score a soak already on disk. Added so a change to the pass criteria can be checked against runs that have
+    already happened, instead of costing another 30 minutes per attempt -- and so the old and new verdicts for the same
+    recorded run can be put side by side."""
+    events = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    elapsed = [float(e["elapsed_s"]) for e in events if e.get("elapsed_s") is not None]
+    duration_s = max(elapsed) if elapsed else 0.0
+    meta = next((e for e in events if e.get("type") == "meta"), {})
+    target = float(meta.get("target_duration_s") or duration_s)
+    return summarize(events, duration_s, target)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--summarize", type=Path, metavar="JSONL",
+                        help="re-score a recorded soak and exit; runs nothing")
     parser.add_argument("--url", default="http://127.0.0.1:8103")
     parser.add_argument("--scenario", default="scenarios/stroke_demo.json")
     parser.add_argument("--duration-minutes", type=float, default=30)
@@ -302,6 +352,10 @@ def main() -> int:
     parser.add_argument("--allow-contention", action="store_true",
                         help="continue after a competing benchmark/download is observed (the run cannot pass)")
     args = parser.parse_args()
+    if args.summarize:
+        summary = summarize_recorded(args.summarize)
+        print(json.dumps(summary, indent=2, default=str))
+        return 0 if summary.get("passed") else 1
     settings = get_settings()
     started = time.monotonic()
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
