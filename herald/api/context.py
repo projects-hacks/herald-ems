@@ -26,6 +26,7 @@ from ..egress import EgressPolicy, default_policy
 from ..extraction import ModelExtractor
 from ..extraction.guard import InstructionGuard, default_guard
 from ..knowledge import KnowledgeService
+from ..knowledge.cues import ProtocolCues
 from ..knowledge.rerank import LLMReranker
 from ..models import LocalLLMClient, VisionReader, WhisperSTT
 from ..relay import LinkEmulator, Relay, RelayTiers, default_tiers
@@ -67,6 +68,7 @@ class AppContext:
     coder: Optional[MedicationCoder] = None      # drug names -> RxNorm; None when the index isn't built
     relay: Optional[Relay] = None
     knowledge: Optional[KnowledgeService] = None
+    cues: Optional[ProtocolCues] = None           # the county passage for the situation Herald recognises
     fhir: Optional[FhirExport] = None
     roster: Optional[PatientRoster] = None
     netem_mode: Optional[str] = None
@@ -175,6 +177,8 @@ class AppContext:
             snap["capture"] = self.capture_agent.status()
         if self.knowledge is not None:
             snap["protocols"] = self.knowledge.status()
+        if self.cues is not None:
+            snap["protocol_cues"] = self.cues.view(snap)
         # E1: the real, measured decision (herald/egress/policy.py), not a literal -- core/snapshot.py has no I/O
         # and cannot know it, so the composition root fills it in here, the same way relay/protocols are merged in.
         egress_snapshot = self.egress.snapshot()
@@ -250,6 +254,8 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
         ctx.knowledge = KnowledgeService(lambda: counties.active, s.protocols_dir, ctx.relay.link_state,
                                          embedder=embedder or None, reranker=LLMReranker(knowing), vision=knowing,
                                          fetch=protocol_fetch, mirror=s.protocol_mirror, egress=egress)
+        ctx.cues = ProtocolCues(lambda: ctx.knowledge.kb if ctx.knowledge.ready else None,
+                                lambda: counties.active["id"])
     return ctx
 
 

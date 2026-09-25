@@ -169,6 +169,14 @@ row(h['vision_available'], f\"vision model {h['vision_model']}\")
 row(bool(h.get('terminology')), 'RxNorm drug coding ' + (h['terminology'] or {}).get('rxnorm_release', 'OFF'))
 row(h.get('cloud_ai_calls', 0) == 0, f\"cloud AI calls: {h.get('cloud_ai_calls', 0)}\")
 sys.exit(0 if h['stt_loaded'] and h['llm_available'] and h['vision_available'] else 1)" || die "not everything is ready (log: $RUN/app.log)"
+  # County protocol index: built on first start (embeds ~1,800 sections on the CPU, a couple of minutes), cached after.
+  local ready=""
+  for _ in $(seq 90); do
+    ready="$(curl -sf --max-time 5 "http://127.0.0.1:$PORT/api/protocols" | "$PY" -c "import json,sys; s=json.load(sys.stdin); print(s.get('sections', 0) if s.get('ready') else '')" 2>/dev/null || true)"
+    [ -n "$ready" ] && break
+    sleep 5
+  done
+  [ -n "$ready" ] && ok "county protocols indexed ($ready sections)" || warn "county protocol index still building; protocol passages appear when it finishes"
 }
 
 print_urls() {
