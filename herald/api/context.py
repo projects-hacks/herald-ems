@@ -77,6 +77,7 @@ class AppContext:
             return Incident(dispatch, vocabulary=self.vocab, policy=self.policy, projector=self.projector)
 
         self.roster = PatientRoster(factory)
+        self.restored = False
         return self.roster.add("Patient 1")
 
     def end_incident(self) -> dict:

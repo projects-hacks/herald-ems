@@ -25,6 +25,7 @@ class RelayConfig(BaseModel):
 async def relay_authorize(body: Authorize, c=Depends(get_ctx), h=Depends(get_hub)):
     """The medic authorizes destination + scope once; in-scope updates then flow on their own."""
     c.relay.authorize(body.destination, c.pre_alert_scope())
+    c.persist()
     await h.broadcast()
     return c.relay.status()
 
@@ -32,6 +33,7 @@ async def relay_authorize(body: Authorize, c=Depends(get_ctx), h=Depends(get_hub
 @router.post("/relay/config")
 async def relay_config(body: RelayConfig, c=Depends(get_ctx), h=Depends(get_hub)):
     c.relay.set_ed_url(body.ed_url)
+    c.persist()
     await h.broadcast()
     return c.relay.status()
 

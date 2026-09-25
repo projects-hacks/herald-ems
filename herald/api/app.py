@@ -26,7 +26,10 @@ def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
     async def lifespan(app: FastAPI):
         if ctx.settings.warm_stt:
             asyncio.get_running_loop().run_in_executor(None, getattr(ctx.stt, "warm", lambda: None))
-        task = asyncio.create_task(ctx.relay.run_forever(hub.broadcast))
+        async def relay_changed():
+            ctx.persist()
+            await hub.broadcast()
+        task = asyncio.create_task(ctx.relay.run_forever(relay_changed))
         ctx.telemetry.start()
         sync_task = None
         if ctx.knowledge is not None:

@@ -143,6 +143,14 @@ def test_unfinished_call_is_restored_from_an_encrypted_local_file(tmp_path):
     assert not stored.exists()
 
 
+def test_relay_authorization_is_saved_with_an_unfinished_call(tmp_path):
+    settings = fake_settings(data_dir=tmp_path, persistence=True)
+    client, _ = make_client(data_dir=tmp_path, persistence=True)
+    client.post("/api/relay/authorize", json={"destination": "Valley ED"})
+    restored = build_context(settings, text_model=FakeModel(name=None), stt=FakeSTT(), vision=FakeVision())
+    assert restored.relay.authorized["destination"] == "Valley ED"
+
+
 def test_relay_scope_is_derived_from_the_active_checklist_not_the_client_label():
     c, _ = make_client(dispatch="fall")
     response = c.post("/api/relay/authorize", json={"destination": "Valley Medical", "scope": "stroke pre-alert set"})
