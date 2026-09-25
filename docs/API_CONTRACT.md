@@ -70,6 +70,22 @@ Visual semantics: “Herald sees” off/watching/reading is technical status, no
 
 The standalone camera accessory uses `/capture.html`. Continuous camera requires localhost or HTTPS, explicit permission, visible preview and a stop control. It offers drag ROI and numeric-coordinate alternatives; a one-shot file input remains available. Camera close/tab hide/network failure stops the source; no automatic permission restart. Privacy is an in-memory ring buffer plus redacted used-evidence files, not continuous video storage. Face detection is fallible and requires spot checks. No field-safety or real-model acceptance claim is implied by fake tests.
 
+### Batch confirm: capture groups, one tap per reading (2026-09-25)
+
+Implements UX_PLAN.md's "tap burden" levers 1 and 2. One monitor frame yields HR/BP/SpO2/RR at once; the medic now confirms the *reading*, not each value. Engine: `herald/core/corroboration.py` (`CorroborationRules`, `BatchConfirmation`); content: `config/corroboration.yaml` (risk tiers, plausible-step deltas, medic-facing wording). No confidence gate and no auto-confirm anywhere in this path — a reading is only ever flagged for individual review or left for a one-tap batch; only the medic's tap moves a fact to `confirmed`.
+
+- Snapshot gains `capture_groups: CaptureGroup[]`, one entry per frame that still has an unconfirmed reading, oldest first.
+- `POST /api/readings/{frame_id}/confirm` — confirms every batchable reading of that frame in one call. 404 if the frame has no unconfirmed reading left (unknown id, or already fully confirmed). 409 if the incident has ended. Readings the rules flag (a jump past the configured plausible step, the first reading of a key when `first_reading: individual`, a held fact, an unresolved label mismatch, a contradiction, or any non-batchable key/source) are left `unconfirmed` and reported back in `individual` with why; they still need `/api/facts/{id}/confirm` or `/api/facts/confirm`.
+- Lever 2 (corroboration): only monitor-sourced vitals (`vitals.*`, `captured_by` camera/device) ever batch. A reading within its configured plausible step of the previous reading of that key is batchable; a reading that jumps past it is flagged, not auto-confirmed and not batched — same intent as the `significant_change` deltas in `config/trends.yaml`, kept as separate numbers so the two can be retuned apart. Medications, allergies, code status and identity/triage facts are always individual, whatever their source.
+
+```ts
+interface CaptureGroup {
+  frame_id: string; trigger: string | null; photo_id: string | null; ts: string;  // ISO
+  batch_fact_ids: string[];   // one POST confirms all of these
+  individual: {id: string; key: string; label: string; reason: string | null}[];
+}
+```
+
 
 ## `/api/telemetry` contract (backend-provided, U15)
 

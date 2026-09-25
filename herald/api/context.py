@@ -14,6 +14,7 @@ from ..checklists import ChecklistEngine
 from ..config import Settings, get_settings
 from ..config.county import CountyRegistry
 from ..core.confirmation import ConfirmationPolicy
+from ..core.corroboration import BatchConfirmation, CorroborationRules
 from ..core.incident import Incident
 from ..core.schema import Fact
 from ..core.ports import Normalizer, PhotoReader, SpeechToText, TextModel
@@ -189,7 +190,12 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
     counties = CountyRegistry(s.county)
     checklists = ChecklistEngine.from_config(counties)
     trends = TrendRules.from_config()
-    projector = Projector(vocab, scales, checklists, counties, trends, ZoneInfo(s.timezone), s.reassess_min)
+    corroboration = CorroborationRules.from_config()
+    problems = corroboration.problems(vocab)
+    if problems:
+        raise ValueError("config/corroboration.yaml: " + "; ".join(problems))
+    batch = BatchConfirmation(vocab, corroboration)
+    projector = Projector(vocab, scales, checklists, counties, trends, ZoneInfo(s.timezone), s.reassess_min, batch)
     tel = telemetry or Telemetry(s.metrics_url, s.price_overrides)
     model = text_model or LocalLLMClient(s.llm_url, s.llm_model, usage=tel)
     seeing = vision_model or (text_model if text_model is not None else LocalLLMClient(s.llm_url, s.vision_model, usage=tel))
