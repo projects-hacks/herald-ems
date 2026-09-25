@@ -290,7 +290,7 @@ export function AttentionQueue({ className }: { className?: string }) {
           {a.acknowledged.length > 0 && (
             <div className="px-5 pt-1">
               <button type="button" onClick={() => setShowSeen(!showSeen)} aria-expanded={showSeen}
-                className="inline-flex min-h-10 items-center gap-1.5 text-meta font-semibold text-text-muted hover:text-text-primary">
+                className="inline-flex min-h-12 items-center gap-1.5 text-meta font-semibold text-text-muted hover:text-text-primary">
                 {showSeen ? <ChevronDown size={15} aria-hidden /> : <ChevronRight size={15} aria-hidden />}Seen · {a.acknowledged.length}
               </button>
               {showSeen && <ul className="-mx-5 opacity-75">{a.acknowledged.map((al) => <FindingRow key={alertKey(al)} a={al} s={s} />)}</ul>}
