@@ -19,14 +19,14 @@ describe("ambulance workspace", () => {
   it("opens with explicit microphone off and never requests devices automatically", () => {
     render(<CabinApp />);
     expect(screen.getByRole("button", { name: "Start listening" })).toBeTruthy();
-    expect(screen.getByText("Microphone off")).toBeTruthy();
+    expect(screen.getByText("Not listening")).toBeTruthy();   // the presence pill is the whole system status
     expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
-    expect(screen.getByRole("region", { name: "How this patient is moving" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "Camera capture" })).toBeTruthy();
-    expect(screen.getByRole("status", { name: "Vehicle and ED status" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Patients" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Patients" }));
-    expect(screen.getByText("Patients · manage")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "How the patient is moving" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Herald is doing" })).toBeTruthy();
+    // controls only in the dock: no status prose, no disclaimers
+    const dock = within(screen.getByRole("contentinfo"));
+    expect(dock.queryByText(/camera/i, { selector: "p, span, small" })).toBeNull();
+    expect(dock.queryByText(/Microphone off|Record only when authorized|processed on the vehicle/)).toBeNull();
   });
   it("opens the county protocol search from the header", () => {
     render(<CabinApp />);
@@ -35,7 +35,7 @@ describe("ambulance workspace", () => {
   });
   it("exposes bounded push-to-talk and typed notes without starting the microphone", () => {
     render(<CabinApp />);
-    fireEvent.click(screen.getByRole("button", { name: "Type a note" }));
+    fireEvent.click(screen.getByRole("button", { name: "Type" }));
     expect(screen.getByRole("button", { name: /Hold to talk · medic/ })).toBeTruthy();
     expect(screen.getByLabelText("Spoken or typed note")).toBeTruthy();
     expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
@@ -46,15 +46,15 @@ describe("ambulance workspace", () => {
     expect(screen.getByRole("heading", { name: "Capture visual evidence" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Start listening" })).toBeTruthy();
     expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Back to overview" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to now" }));
     expect(screen.queryByRole("heading", { name: "Capture visual evidence" })).toBeNull();
   });
   it("never promotes an unverified reading into the glanceable value", () => {
     useHerald.setState({ snapshot: { ...snapshot, facts: { ...snapshot.facts, "vitals.hr": {
-      id: "pending", key: "vitals.hr", label: "Heart rate", value: 177, unit: "bpm", status: "unconfirmed", ts: new Date().toISOString(),
+      id: "pending", key: "vitals.hr", label: "Heart rate", value: 177, unit: "bpm", status: "unconfirmed", ts: new Date().toISOString(), provenance: {},
     } as Snapshot["facts"][string] } } });
     render(<CabinApp />);
-    fireEvent.click(screen.getByRole("button", { name: "Vitals & trends" }));
+    fireEvent.click(screen.getByRole("button", { name: "Trends & scores" }));
     const readings = within(screen.getByRole("region", { name: "Latest documented readings" }));
     expect(readings.queryByText("177")).toBeNull();
     expect(readings.getByText(/Needs verification/)).toBeTruthy();
@@ -90,7 +90,7 @@ describe("ambulance workspace", () => {
     expect(screen.queryByRole("button", { name: "Capture photo" })).toBeNull();
     expect(screen.getByRole("button", { name: "Enable auto capture" })).toBeTruthy();
   });
-  it.each(["Vitals & trends", "Patient record", "ED handoff", "Patients", "Review queue"])("explains unavailable patient data on %s", (name) => {
+  it.each(["Trends & scores", "Patient record", "ED handoff"])("explains unavailable patient data on %s", (name) => {
     useHerald.setState({ snapshot: null, conn: "closed" });
     render(<CabinApp />);
     fireEvent.click(screen.getByRole("button", { name }));

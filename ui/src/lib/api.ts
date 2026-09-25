@@ -41,6 +41,8 @@ export const api = {
   addPatient: (label: string) => act("patient:add", "/api/patients", { label }),
   confirm: (factId: string) => act(`confirm:${factId}`, `/api/facts/${factId}/confirm`, undefined, "Couldn't confirm. The Herald server didn't answer. Try again."),
   confirmMany: (ids: string[]) => act(`confirm-many:${ids.slice().sort().join(",")}`, "/api/facts/confirm", { ids }, "Couldn't confirm these readings. Review them and try again."),
+  confirmReading: (frameId: string) => act(`reading:${frameId}`, `/api/readings/${encodeURIComponent(frameId)}/confirm`, undefined,
+    "Couldn't confirm this reading. Review the values and try again."),
   reject: (factId: string) => act(`reject:${factId}`, `/api/facts/${factId}/reject`, undefined, "Couldn't reject. The Herald server didn't answer. Try again."),
   correct: (factId: string, value: unknown) => act(`correct:${factId}`, `/api/facts/${factId}/correct`, { value }, "Couldn't save the correction. Check the value and try again."),
   // A medic tapping a criterion the model never heard: the same generic structured-fact endpoint every manual

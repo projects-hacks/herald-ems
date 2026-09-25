@@ -4,7 +4,7 @@
 // New alerts are announced politely (HIGH assertively). Seen findings fold into "Seen" at the end.
 import {
   Brain, Camera, ChevronDown, ChevronRight, CircleCheck, CircleDashed, Gauge, GitCompareArrows, Inbox, Keyboard, Mic,
-  Monitor, OctagonAlert, ShieldAlert, Sparkles, TrendingUp, type LucideIcon,
+  Monitor, OctagonAlert, ShieldAlert, TrendingUp, type LucideIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAttention } from "@/hooks/useAttention";
@@ -15,6 +15,7 @@ import { useHerald } from "@/lib/store";
 import { MismatchCard } from "@/features/capture/MismatchCard";
 import { TraumaCriteriaChecklist } from "./TraumaCriteriaChecklist";
 import type { Alert, FactView, NeedItem, Snapshot } from "@/lib/types";
+import { readingCards, type ReadingCard } from "@/lib/copilot";
 import { cn } from "@/lib/utils";
 import { ActionButton, ActionNote, usePendingAction } from "@/components/ActionButton";
 import { AudioEvidence } from "@/components/AudioEvidence";
@@ -62,23 +63,21 @@ function PriorityBadge({ p }: { p: Priority }) {
 }
 
 function sourceIconOf(f: FactView): LucideIcon {
-  return f.captured_by === "camera" ? Camera : f.captured_by === "device" ? Monitor : f.provenance.audio_id ? Mic : Keyboard;
+  return f.captured_by === "camera" ? Camera : f.captured_by === "device" ? Monitor : f.provenance?.audio_id ? Mic : Keyboard;
 }
 
 function FactMeta({ f, confidence = true }: { f: FactView; confidence?: boolean }) {
   const Icon = sourceIconOf(f);
-  const byModel = f.provenance.extractor?.startsWith("llm:");
-  // Low confidence is the only reason a medic-mic model fact waits (§4.4a, P9): say so, "model 62% sure".
-  const lowConfidence = confidence && byModel && f.captured_by === "medic" && f.status === "unconfirmed" && !f.provenance.hold_reason;
+  // How the copilot works (which model, how sure) is not the medic's concern mid-call (docs/COPILOT_SCREENS.md):
+  // a row shows who said or showed it, when, and a clinical reason if it is held.
+  void confidence;
   return (
     <>
       <Icon size={13} aria-hidden />
       <span>{f.captured_by === "camera" ? `photo${f.speaker ? ` · ${f.speaker}` : ""}` : sourceName(f)}</span>
       <span aria-hidden>·</span><span className="num">{hhmm(f.ts)}</span>
-      {byModel && <><span aria-hidden>·</span><span className="inline-flex items-center gap-1 font-medium text-cat-neuro-fg"><Sparkles size={12} aria-hidden />local model</span></>}
-      {f.provenance.hold_reason && <><span aria-hidden>·</span><span>{f.provenance.hold_reason}</span></>}
-      {lowConfidence && <><span aria-hidden>·</span><span>model {Math.round(f.confidence * 100)}% sure</span></>}
-      <AudioEvidence id={f.provenance.audio_id} />
+      {f.provenance?.hold_reason && <><span aria-hidden>·</span><span>{f.provenance?.hold_reason}</span></>}
+      <AudioEvidence id={f.provenance?.audio_id} />
     </>
   );
 }
@@ -92,6 +91,16 @@ function ConfirmActions({ fact }: { fact: FactView }) {
       <CorrectFactDialog fact={fact} />
       <ActionButton pendingKey={`reject:${fact.id}`} onClick={() => api.reject(fact.id)} busyText="Saving…">Reject</ActionButton>
     </>
+  );
+}
+
+/** One monitor frame's readings, confirmed with one tap (the tap-burden ruling): values that jumped, first
+ *  readings and anything held stay as their own rows below with the reason. */
+function ReadingRow({ c }: { c: ReadingCard }) {
+  return (
+    <Row icon={Monitor} cat="heart" title={`Monitor reading · ${hhmm(c.ts)}`} value={c.text}
+      meta={c.individual.length ? <span>{c.individual.map((i) => i.label).join(", ")} {c.individual.length === 1 ? "needs" : "need"} a separate check</span> : undefined}
+      actions={<ActionButton pendingKey={`reading:${c.frameId}`} onClick={() => api.confirmReading(c.frameId)} busyText="Saving…" variant="primary" className="min-h-16">Confirm reading</ActionButton>} />
   );
 }
 
@@ -249,19 +258,15 @@ export function AttentionQueue({ className }: { className?: string }) {
     }
   }, [a]);
 
-  const confirmCount = a ? a.confirmAlerts.length + a.confirmFacts.length : 0;
+  const readings = s ? readingCards(s) : [];
+  const confirmCount = a ? a.confirmAlerts.length + a.confirmFacts.length + readings.length : 0;
   return (
     <Card id="needs-attention" tabIndex={-1} aria-labelledby="na-h" className={cn("outline-none", className)}>
-      <CardHeader icon={Inbox} cat="attention" title="Needs Attention" id="na-h"
-        actions={a && a.count > 0 ? <Count n={a.count} tone={a.urgent.length ? "high" : "neutral"} /> : undefined}
-        subtitle="Nothing unconfirmed leaves the vehicle." />
+      <CardHeader icon={Inbox} cat="attention" title="Needs you" id="na-h"
+        actions={a && a.count + readings.length > 0 ? <Count n={a.count + readings.length} tone={a.urgent.length ? "high" : "neutral"} /> : undefined} />
       <div className="min-h-0 flex-1 overflow-y-auto pb-2">
         {!s || !a ? <p className="px-5 py-4 text-critical text-text-muted">—</p> : <>
-          {a.count === 0 && (
-            <EmptyState icon={CircleCheck} cat="check" title="Nothing to confirm" className="py-5">
-              Anything Herald needs you to confirm, choose or acknowledge shows up here.
-            </EmptyState>
-          )}
+          {a.count + readings.length === 0 && <EmptyState icon={CircleCheck} cat="check" title="Nothing needs you right now" className="py-5" />}
           {a.urgent.length > 0 && (
             <Section title="Clinical change" count={a.urgent.length}>
               <ul>{a.urgent.map((al) => <FindingRow key={alertKey(al)} a={al} s={s} onSeen={() => markSeen(alertKey(al))} />)}</ul>
@@ -278,8 +283,9 @@ export function AttentionQueue({ className }: { className?: string }) {
             </Section>
           )}
           {confirmCount > 0 && (
-            <Section title="Verify what Herald captured" count={confirmCount}>
+            <Section title="Confirm what Herald captured" count={confirmCount}>
               <ul>
+                {readings.map((c) => <ReadingRow key={c.frameId} c={c} />)}
                 {a.confirmAlerts.map((al) => <CodeStatusRow key={alertKey(al)} a={al as CodeStatus} />)}
                 {a.confirmFacts.map((f) => f.verify?.status === "mismatch" && !f.verify.resolution
                   ? <MismatchCard key={f.id} fact={f} /> : <TapRow key={f.id} f={f} />)}
