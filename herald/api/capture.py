@@ -117,6 +117,8 @@ class CaptureService:
                                         if injected and not skip else {})},
                            "effects": {"readiness": [], "alerts_new": [], "scores": [], "gaps_closed": []}}}
         self.inc.transcripts.append(entry)
+        if ctx.cues is not None:            # "show me the protocol for ..." becomes a county lookup, off the request path
+            ctx.cues.ask(self.inc.id, text)
         if model["status"] == "running":
             self.ctx.speech_in_flight += 1
             asyncio.create_task(self._extract_counted(entry, text, captured_by, default_role, speaker, audio_id, injected))

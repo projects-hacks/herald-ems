@@ -1,121 +1,120 @@
 /* Herald clinical workspace tokens. Teal indicates interaction; priority colors retain their clinical meanings.
    Category colors identify content, never a patient state. Both themes are checked by scripts/contrast.mjs. */
 
-/* Night cab (default). The palette comes from ambulance livery: a graphite ground, high-visibility lime for what is
-   live and the one primary action, amber for decisions waiting on the medic, Star-of-Life blue for information and the
-   ED, and red kept for danger alone so it never loses its meaning. */
+/* Night (default): dark-first and cool. A deep navy base with four surface levels a few percent apart, text hierarchy by
+   lightness, hairline borders in translucent white, and one vivid accent, cyan, for what is live and the one primary
+   action. Functional colours mean one thing each: red danger, amber needs you, green confirmed/sent, blue the county's
+   words and the ED. Categories are identity only and stay neutral. */
 :root,
 [data-theme="dark"] {
-  --bg: #07090C;
-  --canvas: #07090C;
-  --surface-1: #0E1319;          /* cards, the sidebar */
-  --surface-2: #151C24;          /* rows, tiles, secondary buttons */
-  --surface-3: #1E2833;          /* hover and pressed fills */
-  --border-subtle: #232F3C;
-  --border-control: #7F8E9D;     /* >= 3:1 on cards and rows */
-  --text-primary: #F1F5F8;
-  --text-secondary: #C6D0D9;
-  --text-muted: #9AA8B5;
-  --text-disabled: #5D6873;
+  --bg: #070B14;                 /* level 0: base */
+  --canvas: #070B14;
+  --surface-1: #0D1320;          /* level 1: raised (cards) */
+  --surface-2: #131B2B;          /* level 2: elevated (rows, buttons) */
+  --surface-3: #1A2436;          /* level 3: highest (hover, popovers) */
+  --border-subtle: rgb(255 255 255 / .08);
+  --border-control: #7B8AA2;     /* >= 3:1 on every level */
+  --text-primary: #EEF3FA;
+  --text-secondary: #B2BED0;
+  --text-muted: #8C9AB0;
+  --text-disabled: #56637A;
 
-  --accent: #C8F53B;             /* livery lime: links, focus, the live state */
-  --on-accent: #0B1200;
-  --accent-fill: #C8F53B;        /* the one primary action: dark ink on lime */
-  --on-accent-fill: #0B1200;
-  --accent-tint: #1C2709;
-  --capture: #C8F53B;            /* listening */
-  --on-capture: #0B1200;
-  --scrim: rgb(2 4 6 / .78);
+  --accent: #22D3EE;             /* vivid cyan: links, focus, what is live */
+  --on-accent: #03151A;
+  --accent-fill: #22D3EE;        /* the one primary action: dark ink on cyan */
+  --on-accent-fill: #03151A;
+  --accent-tint: #0B2A33;
+  --capture: #22D3EE;            /* listening */
+  --on-capture: #03151A;
+  --scrim: rgb(3 6 12 / .78);
 
-  --high-fg: #FF5A4E;   --high-fill: #E0261C;   --high-on-fill: #FFFFFF;   --high-tint: #3A1310;
-  --medium-fg: #FFB020; --medium-fill: #FFB020; --medium-on-fill: #140C00; --medium-tint: #33250A;
+  --high-fg: #F87171;   --high-fill: #DC2626;   --high-on-fill: #FFFFFF;   --high-tint: #3A1216;
+  --medium-fg: #FBBF24; --medium-fill: #F59E0B; --medium-on-fill: #1A1000; --medium-tint: #33260B;
   --medium-fill-border: transparent;
-  --low-fg: #6FAEFF;    --low-fill: #6FAEFF;    --low-on-fill: #041329;    --low-tint: #0E1E36;
-  --ok-fg: #4ADE9B;     --ok-fill: #17744A;     --ok-on-fill: #FFFFFF;     --ok-tint: #0D2A1E;
+  --low-fg: #7FB2FF;    --low-fill: #7FB2FF;    --low-on-fill: #06142B;    --low-tint: #102039;
+  --ok-fg: #34D399;     --ok-fill: #047857;     --ok-on-fill: #FFFFFF;     --ok-tint: #0B2A22;
 
-  --cat-attention-fg: #FFB020; --cat-attention: #D98A00;
-  --cat-time-fg: #9DB4FF;      --cat-time: #3D5BD9;
-  --cat-heart-fg: #FF7A8A;     --cat-heart: #D6334B;
-  --cat-neuro-fg: #D59BFF;     --cat-neuro: #8A46C9;
-  --cat-ed-fg: #6FAEFF;        --cat-ed: #2B6AD8;
-  --cat-check-fg: #C8F53B;     --cat-check: #5E7F0C;
-  --cat-meds-fg: #5FE3D7;      --cat-meds: #0E8F85;
-  --cat-patient-fg: #9AA8B5;   --cat-patient: #56616C;
-  --cat-speech-fg: #7FC4FF;    --cat-speech: #2A7FC7;
+  --cat-attention-fg: #FBBF24; --cat-attention: #33260B;
+  --cat-time-fg: #B2BED0;      --cat-time: #1A2436;
+  --cat-heart-fg: #B2BED0;     --cat-heart: #1A2436;
+  --cat-neuro-fg: #B2BED0;     --cat-neuro: #1A2436;
+  --cat-ed-fg: #7FB2FF;        --cat-ed: #102039;
+  --cat-check-fg: #22D3EE;     --cat-check: #0B2A33;
+  --cat-meds-fg: #B2BED0;      --cat-meds: #1A2436;
+  --cat-patient-fg: #B2BED0;   --cat-patient: #1A2436;
+  --cat-speech-fg: #B2BED0;    --cat-speech: #1A2436;
 
   --shadow-1: 0 1px 0 rgb(255 255 255 / .03) inset, 0 2px 6px rgb(0 0 0 / .35);
   --shadow-2: 0 1px 0 rgb(255 255 255 / .04) inset, 0 10px 30px rgb(0 0 0 / .45);
   --shadow-3: 0 24px 70px rgb(0 0 0 / .7);
-  /* glass: three tiers over the glow. Fills stay dense enough that every text token keeps >= 4.5:1 even where the
-     glass sits over the brightest orb (the orbs are dim and heavily blurred to begin with). */
-  --glass-ground: #04060A;
-  --orb-a: rgb(200 245 59 / .42);     /* livery lime */
-  --orb-b: rgb(47 107 255 / .55);     /* Star-of-Life blue */
-  --orb-c: rgb(255 176 32 / .26);     /* amber */
-  --glass-1: rgb(13 19 27 / .50);     /* quiet panels */
-  --glass-2: rgb(15 22 31 / .64);     /* the hero: Needs you */
-  --glass-3: rgb(6 9 14 / .55);      /* chrome: header, dock */
+  --glass-ground: #060A12;
+  --orb-a: rgb(34 211 238 / .10);     /* cyan */
+  --orb-b: rgb(79 70 229 / .20);      /* indigo */
+  --orb-c: rgb(0 0 0 / 0);
+  --glass-1: #0F1624;
+  --glass-2: #131C2D;
+  --glass-3: rgb(9 14 24 / .92);
   --glass-border: rgb(255 255 255 / .09);
-  --glass-border-hi: rgb(255 255 255 / .16);
-  --glass-edge: inset 0 1px 0 rgb(255 255 255 / .07), inset 0 0 0 1px rgb(255 255 255 / .02);
-  --glass-shadow: 0 24px 60px -24px rgb(20 40 90 / .55), 0 2px 8px rgb(0 0 0 / .35);
+  --glass-border-hi: rgb(255 255 255 / .14);
+  --glass-edge: inset 0 1px 0 rgb(255 255 255 / .06);
+  --glass-shadow: 0 24px 60px -28px rgb(10 20 60 / .7), 0 2px 8px rgb(0 0 0 / .35);
   color-scheme: dark;
 }
 
-/* Daylight: sun on the tablet. Cool concrete ground, near-black ink, the same lime as a filled action with dark ink,
-   and darker partners for any coloured text on white. */
+/* Daylight: sun on the tablet. The same system on a cool light base; the accent darkens to teal so text and filled
+   actions keep their contrast on white. */
 [data-theme="light"] {
-  --bg: #E6EBEF;
-  --canvas: #E6EBEF;
+  --bg: #EEF2F7;
+  --canvas: #EEF2F7;
   --surface-1: #FFFFFF;
-  --surface-2: #F0F3F6;
-  --surface-3: #E1E7EC;
-  --border-subtle: #D2DAE1;
-  --border-control: #5C6C79;
-  --text-primary: #0A1016;
-  --text-secondary: #2F3D49;
-  --text-muted: #4B5A67;
-  --text-disabled: #A7B1BA;
+  --surface-2: #F3F6FA;
+  --surface-3: #E6ECF3;
+  --border-subtle: rgb(10 20 40 / .09);
+  --border-control: #5D6B80;
+  --text-primary: #0B1220;
+  --text-secondary: #334155;
+  --text-muted: #4E5B70;
+  --text-disabled: #A5B0C0;
 
-  --accent: #3F6400;
+  --accent: #0E7490;
   --on-accent: #FFFFFF;
-  --accent-fill: #3F6400;        /* in sun, lime on white has no edge: the fill darkens to olive, ink turns white */
+  --accent-fill: #0E7490;
   --on-accent-fill: #FFFFFF;
-  --accent-tint: #EEF8D4;
-  --capture: #3F6400;
+  --accent-tint: #DDF4F8;
+  --capture: #0E7490;
   --on-capture: #FFFFFF;
-  --scrim: rgb(230 235 239 / .82);
+  --scrim: rgb(238 242 247 / .82);
 
-  --high-fg: #C2140B;   --high-fill: #D0180E;   --high-on-fill: #FFFFFF;   --high-tint: #FFE7E4;
-  --medium-fg: #9A5B00; --medium-fill: #FFB020; --medium-on-fill: #140C00; --medium-tint: #FFF1D6;
-  --medium-fill-border: #9A5B00;
-  --low-fg: #1756B8;    --low-fill: #1756B8;    --low-on-fill: #FFFFFF;    --low-tint: #E3EEFF;
-  --ok-fg: #13703F;     --ok-fill: #13703F;     --ok-on-fill: #FFFFFF;     --ok-tint: #E2F5EA;
+  --high-fg: #B91C1C;   --high-fill: #DC2626;   --high-on-fill: #FFFFFF;   --high-tint: #FDE8E8;
+  --medium-fg: #92400E; --medium-fill: #F59E0B; --medium-on-fill: #1A1000; --medium-tint: #FEF3C7;
+  --medium-fill-border: #92400E;
+  --low-fg: #1D4ED8;    --low-fill: #1D4ED8;    --low-on-fill: #FFFFFF;    --low-tint: #E0EAFF;
+  --ok-fg: #047857;     --ok-fill: #047857;     --ok-on-fill: #FFFFFF;     --ok-tint: #D1FAE5;
 
-  --cat-attention-fg: #9A5B00; --cat-attention: #D98A00;
-  --cat-time-fg: #3346A8;      --cat-time: #3D5BD9;
-  --cat-heart-fg: #B3203A;     --cat-heart: #D6334B;
-  --cat-neuro-fg: #6D35A6;     --cat-neuro: #8A46C9;
-  --cat-ed-fg: #1756B8;        --cat-ed: #2B6AD8;
-  --cat-check-fg: #3F6400;     --cat-check: #5E7F0C;
-  --cat-meds-fg: #0A6F67;      --cat-meds: #0E8F85;
-  --cat-patient-fg: #4B5A67;   --cat-patient: #56616C;
-  --cat-speech-fg: #1B63A6;    --cat-speech: #2A7FC7;
+  --cat-attention-fg: #92400E; --cat-attention: #FEF3C7;
+  --cat-time-fg: #334155;      --cat-time: #E6ECF3;
+  --cat-heart-fg: #334155;     --cat-heart: #E6ECF3;
+  --cat-neuro-fg: #334155;     --cat-neuro: #E6ECF3;
+  --cat-ed-fg: #1D4ED8;        --cat-ed: #E0EAFF;
+  --cat-check-fg: #0E7490;     --cat-check: #DDF4F8;
+  --cat-meds-fg: #334155;      --cat-meds: #E6ECF3;
+  --cat-patient-fg: #334155;   --cat-patient: #E6ECF3;
+  --cat-speech-fg: #334155;    --cat-speech: #E6ECF3;
 
-  --shadow-1: 0 1px 2px rgb(10 16 22 / .06);
-  --shadow-2: 0 8px 24px rgb(10 16 22 / .08);
-  --shadow-3: 0 24px 60px rgb(10 16 22 / .2);
-  --glass-ground: #E4EAF0;
-  --orb-a: rgb(200 245 59 / .45);
-  --orb-b: rgb(47 107 255 / .22);
-  --orb-c: rgb(255 176 32 / .20);
-  --glass-1: rgb(255 255 255 / .62);
-  --glass-2: rgb(255 255 255 / .80);
-  --glass-3: rgb(248 250 252 / .74);
-  --glass-border: rgb(255 255 255 / .75);
-  --glass-border-hi: rgb(255 255 255 / .95);
-  --glass-edge: inset 0 1px 0 rgb(255 255 255 / .9), 0 0 0 1px rgb(10 16 22 / .06);
-  --glass-shadow: 0 24px 50px -24px rgb(40 70 120 / .35), 0 2px 6px rgb(10 16 22 / .06);
+  --shadow-1: 0 1px 2px rgb(10 20 40 / .06);
+  --shadow-2: 0 8px 24px rgb(10 20 40 / .08);
+  --shadow-3: 0 24px 60px rgb(10 20 40 / .2);
+  --glass-ground: #E8EDF4;
+  --orb-a: rgb(34 211 238 / .16);
+  --orb-b: rgb(79 70 229 / .10);
+  --orb-c: rgb(0 0 0 / 0);
+  --glass-1: #FFFFFF;
+  --glass-2: #FFFFFF;
+  --glass-3: rgb(248 250 252 / .94);
+  --glass-border: rgb(10 20 40 / .10);
+  --glass-border-hi: rgb(10 20 40 / .16);
+  --glass-edge: inset 0 1px 0 rgb(255 255 255 / .9), 0 0 0 1px rgb(10 20 40 / .06);
+  --glass-shadow: 0 24px 50px -24px rgb(30 60 120 / .28), 0 2px 6px rgb(10 20 40 / .06);
   color-scheme: light;
 }
 

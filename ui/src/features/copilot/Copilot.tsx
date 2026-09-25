@@ -1,23 +1,31 @@
 // The copilot screen's own regions: the presence pill, what Herald did, how the
 // patient moved, and what the ED has. Everything here is a clinical outcome or an action; system status appears
 // only when something has stopped working.
-import { ArrowDownRight, ArrowUpRight, BookOpenCheck, Ear, FileText, Monitor, Pause, Play, RotateCcw, Send, ShieldCheck, SkipForward, TriangleAlert } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BookOpenCheck, Download, Ear, FileText, Share2, UserRound, Monitor, Pause, Play, RotateCcw, Send, ShieldCheck, SkipForward, TriangleAlert } from "lucide-react";
 import type { FixturePlayer } from "@/lib/ws";
+import type { ProtocolCue } from "@/lib/types";
 import { api } from "@/lib/api";
-import { activity, edHas, type ActivityKind, type Presence } from "@/lib/copilot";
+import { activity, cuePoints, edHas, patientKnown, SAFETY_KEYS, type ActivityKind, type Presence } from "@/lib/copilot";
+import { GROUPS } from "@/lib/selectors";
+import { clockSeconds, factValue, hhmmss } from "@/lib/format";
+import { useNow } from "@/hooks/useNow";
 import { useContract } from "@/lib/contract";
 import { hhmm } from "@/lib/format";
 import { useHerald } from "@/lib/store";
 import { Sparkline } from "@/components/Sparkline";
 import { ActionButton } from "@/components/ActionButton";
 
-export function PresencePill({ p }: { p: Presence }) {
-  return <span className="presence-pill" data-tone={p.tone} role={p.tone === "down" ? "alert" : "status"}>
-    {p.tone === "down" ? <TriangleAlert size={16} aria-hidden /> : <span className="presence-dot" aria-hidden />}{p.text}
-  </span>;
+/** The whole system status, and the one capture control: tap to pause or resume listening and watching. */
+export function PresencePill({ p, paused, disabled, onToggle }: { p: Presence; paused: boolean; disabled?: boolean; onToggle: () => void }) {
+  const live = p.tone === "ok";
+  return <button type="button" className="presence-pill" data-tone={p.tone} disabled={disabled} onClick={onToggle}
+    aria-label={live && !paused ? "Pause listening" : "Start listening"}>
+    {p.tone === "down" ? <TriangleAlert size={16} aria-hidden /> : <span className="presence-dot" aria-hidden />}
+    <span role={p.tone === "down" ? "alert" : "status"}>{paused ? "Paused — tap to listen and watch" : p.text}</span>
+  </button>;
 }
 
-const KIND_ICON: Record<ActivityKind, typeof Ear> = { heard: Ear, read: Monitor, checked: ShieldCheck, sent: Send };
+const KIND_ICON: Record<ActivityKind, typeof Ear> = { heard: Ear, read: Monitor, checked: ShieldCheck, found: BookOpenCheck, sent: Send };
 
 export function HeraldActivity({ onAll }: { onAll: () => void }) {
   const s = useHerald((st) => st.snapshot);
@@ -61,33 +69,52 @@ export function EdCard({ onHandoff }: { onHandoff: () => void }) {
   const contract = useContract();
   if (!s) return null;
   const ed = edHas(s, (k) => contract?.keys[k]?.label ?? k);
+  const destFact = s.facts["transport.destination"];
+  const dest = ed.destination ?? (destFact?.status === "confirmed" ? String(destFact.value) : null);
   return <section className="copilot-ed" aria-labelledby="ed-h">
     <h2 id="ed-h">{ed.destination ? `${ed.destination} has` : "The ED has"}</h2>
     {!ed.configured ? <p>No receiving ED set for this vehicle.</p> : !ed.authorized ? <p>Nothing yet — sharing not authorized. Confirmed facts stay on this vehicle.</p>
       : ed.sent.length ? <p className="ed-sent">{ed.sent.slice(0, 8).join(" · ")}{ed.sent.length > 8 ? ` · +${ed.sent.length - 8} more` : ""}</p>
       : <p>Nothing sent yet.</p>}
-    {ed.lastAck && <p className="ed-meta">Last received {hhmm(ed.lastAck)}{s.relay.link === "down" ? " · link down, updates held" : ""}</p>}
+    {ed.lastAck && <p className="ed-meta">Last delivered {hhmm(ed.lastAck)} (system acknowledgement)</p>}
+    {ed.authorized && s.relay.link === "down" && <p className="ed-link-down" role="status">Link to the ED is down — updates are held on this vehicle</p>}
     {ed.waiting > 0 && <p className="ed-meta">{ed.waiting} captured {ed.waiting === 1 ? "fact waits" : "facts wait"} for your confirmation before sending</p>}
-    <button className="cabin-button" onClick={onHandoff}><FileText size={19} />Handoff report</button>
+    <div className="ed-actions">
+      {ed.configured && !ed.authorized && <ActionButton pendingKey="authorize" variant="primary" className="min-h-16"
+        busyText="Sharing…" onClick={() => api.authorize(dest ?? "Receiving ED")}><Share2 size={19} />Share with {dest ?? "the ED"}</ActionButton>}
+      <button className="cabin-button" onClick={onHandoff}><FileText size={19} />Handoff report</button>
+      <a className="cabin-button" href="/api/handoff/fhir" download={`herald-${s.incident.id}.fhir.json`}><Download size={19} />Export (FHIR)</a>
+    </div>
   </section>;
 }
 
-/** The county's own words for the situation Herald recognised: quoted, cited, dated. Herald adds nothing. */
+function Passage({ p }: { p: ProtocolCue["passages"][number] }) {
+  return <figure>
+    <blockquote>{p.text}</blockquote>
+    <figcaption><strong>{p.doc === p.title || !p.title ? `Policy ${p.doc}` : `${p.doc} · ${p.title}`} §{p.section}</strong>
+      {p.page ? <span> · p. {p.page}</span> : null}{p.effective ? <span> · effective {p.effective}</span> : null}
+      {p.shortened && <span> · shortened</span>}{p.text_layer_uncertain && <span> · text layer uncertain, check the page</span>}</figcaption>
+  </figure>;
+}
+
+/** The county's own words for the situation Herald recognised: quoted, cited, dated. Herald adds nothing. One passage
+ *  per situation on the screen; the rest are a tap away. */
 export function ProtocolCues({ onOpen }: { onOpen: () => void }) {
   const cues = useHerald((st) => st.snapshot?.protocol_cues);   // select the stored array: a fresh [] would re-render forever
   if (!cues?.length) return null;
+  const shown = new Set<string>();                        // a passage appears once, under the first situation that found it
   return <section className="copilot-protocol" aria-labelledby="protocol-h">
     <h2 id="protocol-h"><BookOpenCheck size={16} aria-hidden />County protocol</h2>
     {cues.map((c) => <article key={c.id} className="protocol-cue" data-state={c.state}>
       <h3>{c.title}</h3>
       {c.state === "searching" && <p className="protocol-status" role="status">Finding the county passage…</p>}
       {c.state === "not_covered" && <p className="protocol-status">The county documents on this vehicle do not cover this.</p>}
-      {c.passages.map((p) => <figure key={`${p.doc}-${p.section}`}>
-        <blockquote>{p.text}</blockquote>
-        <figcaption><strong>{p.doc === p.title || !p.title ? `Policy ${p.doc}` : `${p.doc} · ${p.title}`} §{p.section}</strong>
-          {p.page ? <span> · p. {p.page}</span> : null}{p.effective ? <span> · effective {p.effective}</span> : null}
-          {p.shortened && <span> · shortened</span>}{p.text_layer_uncertain && <span> · text layer uncertain, check the page</span>}</figcaption>
-      </figure>)}
+      {c.state === "found" && (() => { const points = cuePoints(c, shown); return points.length ? <ul className="protocol-points">{points.map((k, i) => <li key={i}>
+        <span>{k.segments.map((s, j) => s.hl ? <mark key={j}>{s.t}</mark> : <span key={j}>{s.t}</span>)}</span>
+        <cite>{k.cite}</cite>
+      </li>)}</ul> : <p className="protocol-status">No single rule to show here. The county text is below.</p>; })()}
+      {c.state === "found" && <details className="protocol-more"><summary>County text · effective {c.passages[0]?.effective ?? "date not stated"}</summary>
+        {c.passages.map((p) => <Passage key={`${p.doc}-${p.section}`} p={p} />)}</details>}
     </article>)}
     <button className="activity-all" onClick={onOpen}>All protocols</button>
   </section>;
@@ -102,5 +129,59 @@ export function ReplayBar({ player }: { player: FixturePlayer }) {
     <button onClick={() => fixture.playing ? player.pause() : player.play()} aria-label={fixture.playing ? "Pause replay" : "Play replay"}>{fixture.playing ? <Pause size={18} /> : <Play size={18} />}</button>
     <button onClick={() => player.step()} aria-label="Next recorded message"><SkipForward size={18} /></button>
     <button onClick={() => player.restart()} aria-label="Restart replay"><RotateCcw size={18} /></button>
+  </div>;
+}
+
+/** What Herald knows so far: fields appear as they are heard or read. Unconfirmed values say so; the newest glows. */
+export function PatientKnown({ onRecord }: { onRecord: () => void }) {
+  const s = useHerald((st) => st.snapshot);
+  const now = useNow();
+  if (!s) return null;
+  const groups = patientKnown(s, GROUPS);
+  if (!groups.length) return <section className="copilot-known glass-1" aria-labelledby="known-h"><h2 id="known-h"><UserRound size={16} aria-hidden />Patient</h2>
+    <p className="activity-empty">Nothing confirmed yet. Details appear here as you confirm them.</p></section>;
+  return <section className="copilot-known glass-1" aria-labelledby="known-h">
+    <h2 id="known-h"><UserRound size={16} aria-hidden />Patient</h2>
+    {groups.map((g) => <div key={g.name} className="known-group" data-group={g.name}>
+      <h3>{g.name}</h3>
+      <dl>{g.facts.map((f) => <div key={f.id} data-status={f.status} data-safety={SAFETY_KEYS.includes(f.key) || undefined}
+        data-new={now - Date.parse(f.ts) < 20000 || undefined}>
+        <dt>{f.label}</dt><dd>{factValue(f)}{f.status === "unconfirmed" && <small>not confirmed</small>}</dd>
+      </div>)}</dl>
+    </div>)}
+    <button className="activity-all" onClick={onRecord}>Sources</button>
+  </section>;
+}
+
+const span = (sec: number) => { const m = Math.floor(Math.abs(sec) / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} m` : `${m} min`; };
+
+/** The situation at a glance, under the patient line: how ready each pre-alert is (and what it still lacks), and the
+ *  clocks that are running. Readiness is gap-first: the missing items are named, not counted. */
+export function SituationBar() {
+  const s = useHerald((st) => st.snapshot);
+  const at = useHerald((st) => st.lastStateAt);
+  const now = useNow();
+  if (!s || (!s.readiness.length && !s.clocks.some((c) => c.id !== "scene"))) return null;
+  const clock = (id: string) => s.clocks.find((c) => c.id === id);
+  const lkw = clock("lkw"), eta = clock("eta"), due = clock("reassess");
+  return <div className="situation-bar" role="group" aria-label="Situation">
+    {s.readiness.map((r) => {
+      const missing = r.items.filter((i) => i.state === "missing").map((i) => i.label);
+      const toConfirm = r.items.filter((i) => i.state === "pending").length;
+      return <span key={r.id} className="sit-ready" data-ready={r.ready || undefined}>
+        <b>{r.label}</b>
+        <span className="sit-meter" aria-hidden>{r.items.map((i) => <i key={i.key} data-state={i.state} />)}</span>
+        <span className="num">{r.done} of {r.total}</span>
+        {r.ready ? <em>ready</em> : missing.length ? <em>missing {missing.slice(0, 2).join(", ").toLowerCase()}{missing.length > 2 ? ` +${missing.length - 2}` : ""}</em> : null}
+        {!r.ready && toConfirm > 0 && <em className="sit-pending">{toConfirm} to confirm</em>}
+      </span>;
+    })}
+    {lkw && <span className="sit-clock" data-unconfirmed={s.facts["stroke.lkw"]?.status === "unconfirmed" || undefined}><b>LKW</b> {lkw.label.replace(/^LKW\s*/, "")} <span className="num">+{span(clockSeconds(lkw, at, now))}</span>
+      {s.facts["stroke.lkw"]?.status === "unconfirmed" && <small>not confirmed</small>}</span>}
+    {eta && (() => { const left = clockSeconds(eta, at, now); const tentative = s.facts["transport.eta_min"]?.status === "unconfirmed";
+      return <span className="sit-clock" data-unconfirmed={tentative || undefined}><b>ETA</b> <span className="num">{left > 0 ? hhmmss(left).replace(/^00:/, "") : `due ${span(-left)} ago`}</span>
+        {tentative && <small>not confirmed</small>}</span>; })()}
+    {due && (() => { const left = clockSeconds(due, at, now); return <span className="sit-clock" data-overdue={left <= 0 || undefined}><b>Vitals</b>
+      <span className="num">{left > 0 ? `due in ${hhmmss(left).replace(/^00:/, "")}` : "due now"}</span></span>; })()}
   </div>;
 }

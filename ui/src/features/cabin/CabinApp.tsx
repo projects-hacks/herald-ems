@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Activity, BookOpen, Camera, ChevronRight, FileText, Info, Keyboard, Mic, Moon, Pause, Settings2, Sun, Users, WifiOff } from "lucide-react";
+import { Activity, BookOpen, Camera, ChevronLeft, FileText, Info, Keyboard, Moon, Settings2, Sun, Users, WifiOff } from "lucide-react";
 import { ManualEntry } from "@/components/ManualEntry";
 import { PatientRoster } from "@/components/PatientRoster";
 import { CaptureBar } from "@/features/capture/CaptureBar";
@@ -21,13 +21,11 @@ import { HandoffPage } from "@/pages/HandoffPage";
 import type { CameraStatus } from "./CameraCapture";
 import { CameraWorkspace } from "./CameraWorkspace";
 import { useAmbient } from "./useAmbient";
-import { VitalReadings } from "./VitalReadings";
 import "./workspace.css";
 import "./capture-workspace.css";
 import "../copilot/copilot.css";
 import type { WorkspacePanel } from "./WorkspaceNav";
-import { CareSummary, PatientSafetySummary } from "./CareSummary";
-import { EdCard, HeraldActivity, MovementStrip, PresencePill, ProtocolCues, ReplayBar } from "@/features/copilot/Copilot";
+import { EdCard, HeraldActivity, MovementStrip, PatientKnown, PresencePill, ProtocolCues, ReplayBar, SituationBar } from "@/features/copilot/Copilot";
 import type { FixturePlayer } from "@/lib/ws";
 
 // One screen. Everything that is not "Now" opens from the control that needs it (the ED card opens the handoff, the
@@ -63,7 +61,12 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   const open = (value: Panel) => { if (!panel) lastTrigger.current = document.activeElement as HTMLElement; setPanel(value); if (!value) requestAnimationFrame(() => document.getElementById("workspace-main")?.focus()); };
   const close = () => { setPanel(null); requestAnimationFrame(() => (lastTrigger.current?.isConnected ? lastTrigger.current : document.getElementById("workspace-main"))?.focus()); };
   useEffect(() => { if (panel) { page.current?.focus({ preventScroll: true }); page.current?.scrollIntoView?.({ block: "start" }); } }, [panel]);
-  useEffect(() => { setPanel(null); }, [s?.incident.id, s?.active_patient]);
+  const patientKey = s ? `${s.incident.id}|${s.active_patient}` : null;
+  const lastPatient = useRef<string | null>(null);
+  useEffect(() => {   // a different patient returns to Now; the first snapshot (a deep link, a reload) does not
+    if (patientKey && lastPatient.current && lastPatient.current !== patientKey) setPanel(null);
+    if (patientKey) lastPatient.current = patientKey;
+  }, [patientKey]);
   useEffect(() => {   // hotkeys and older links still name pages; they land in the record's matching view
     if (ui.page === "overview") return;
     if (ui.page === "patient" || ui.page === "trends") { setRecordView(ui.page === "trends" ? "trends" : "facts"); setPanel("record"); }
@@ -81,23 +84,30 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   const multi = (s?.patients?.length ?? 0) > 1;
   return <div className={`cabin workspace-shell copilot ${panel ? "workspace-task" : ""} ${panel === "camera" ? "workspace-camera" : ""} ${ui.typeScale > 1 ? "cabin-large-text" : ""}`}><div className="workspace-body">
     <header className="copilot-header">
-      {panel ? <button className="copilot-back" onClick={close} aria-label="Back to now"><ChevronRight size={18} className="rotate-180" />Now</button>
+      {panel ? <button className="copilot-back" onClick={close} aria-label="Back to now"><ChevronLeft size={18} />Now</button>
         : <span className="copilot-mark" aria-label="Herald"><Activity size={22} strokeWidth={2.6} aria-hidden /></span>}
       <h1 className="copilot-patient">{s ? patientLine(s) : "Waiting for the vehicle"}</h1>
-      <PresencePill p={pill} />
+      <PresencePill p={pill} paused={ui.capturePaused} disabled={isReplay || ambient.blocked}
+        onToggle={() => setUi({ capturePaused: !ui.capturePaused })} />
       {isReplay && player && <ReplayBar player={player} />}
       <div className="copilot-header-actions">
+        {s?.capture?.auto && <CaptureControl stopOnly />}   {/* the vehicle's connected camera: a direct stop */}
+        <button className="cabin-button" aria-label="Camera" aria-pressed={panel === "camera"} onClick={() => open("camera")}><Camera size={19} /></button>
+        <button className="cabin-button" aria-label="Type a note" aria-pressed={panel === "notes"} onClick={() => open("notes")}><Keyboard size={19} /></button>
         <button className="cabin-button" aria-label="Record" aria-pressed={panel === "record"} onClick={() => openRecord("facts")}><FileText size={19} /><span className="patients-button-label">Record</span></button>
         <button className="cabin-button" aria-label="Protocols" onClick={() => setProtocols(true)}><BookOpen size={19} /><span className="patients-button-label">Protocols</span></button>
         {multi && <button className="cabin-button" aria-label="Patients" onClick={() => open("patients")}><Users size={19} /><span className="patients-button-label">Patients</span></button>}
+        <button className="cabin-button" aria-label={ui.theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          onClick={() => setUi({ theme: ui.theme === "dark" ? "light" : "dark" })}>{ui.theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}</button>
         <button className="cabin-button" aria-label="Settings" onClick={() => open("settings")}><Settings2 size={19} /></button>
       </div>
+      {!panel && <SituationBar />}
     </header>
     <div className="cabin-sticky-status"><ConnectBand /><StaleOverlay /><RestoredCallBanner />{multi && <PatientRoster />}</div>
     <main id="workspace-main" tabIndex={-1} className="cabin-main">
       <span ref={urgentLive} className="sr-only" role="alert" />
       <div hidden={!!panel} className="copilot-grid">
-        <div className="copilot-primary"><PatientSafetySummary onReview={() => openRecord("facts")} /><AttentionQueue className="copilot-needs" /></div>
+        <div className="copilot-primary"><AttentionQueue className="copilot-needs" /><PatientKnown onRecord={() => openRecord("facts")} /></div>
         <div className="copilot-side">
           <ProtocolCues onOpen={() => setProtocols(true)} />
           <HeraldActivity onAll={() => openRecord("transcript")} />
@@ -116,7 +126,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
                 <button key={v} role="tab" aria-selected={recordView === v} onClick={() => setRecordView(v)}>{label}</button>)}
             </div>
             {(recordView === "facts" || panel === "patient") && <PatientPage />}
-            {recordView === "trends" && panel === "record" && <><StatTiles /><VitalReadings key={s?.active_patient ?? s?.incident.id} onReview={() => open(null)} onTrends={() => setRecordView("trends")} /><CareSummary onReview={() => open(null)} /><TrendsPage /></>}
+            {recordView === "trends" && panel === "record" && <><StatTiles clocks={false} /><TrendsPage /></>}
             {recordView === "transcript" && panel === "record" && <TranscriptPage onReview={() => open(null)} />}
           </div>}
           {panel === "patients" && <div className="workspace-page-surface"><h1 className="workspace-page-heading">Manage patients</h1><PatientRoster /></div>}
@@ -127,6 +137,8 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
         {panel === "settings" && <div className="cabin-settings workspace-page-surface"><h1 className="workspace-page-heading">Settings</h1>
           <div className="cabin-actions">{([1, 1.25, 1.5] as const).map((scale) => <button className="cabin-button" key={scale} aria-pressed={ui.typeScale === scale} onClick={() => setUi({ typeScale: scale })}>Text {scale * 100}%</button>)}
             <button className="cabin-button" onClick={() => setUi({ theme: ui.theme === "dark" ? "light" : "dark" })}>{ui.theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}{ui.theme === "dark" ? "Daylight theme" : "Night theme"}</button></div>
+          <label className="copilot-switch"><input type="checkbox" checked={ui.autoCapture} onChange={(e) => setUi({ autoCapture: e.target.checked, capturePaused: !e.target.checked })} />
+            Listen and watch automatically when a call starts</label>
           <div className="cabin-actions"><button className="cabin-button" onClick={() => setProtocols(true)}>Search protocols</button>
             <button className="cabin-button" disabled={recording || ambient.status.queued > 0 || photo.busy} onClick={() => setUi({ confirmNewIncident: true })}>New incident…</button>
             <button className="cabin-button" onClick={() => setUi({ presentationMode: true })}>Guided demo</button><button className="cabin-button" onClick={() => setUi({ mode: "explain" })}>Detailed application view</button></div>
@@ -135,16 +147,6 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
         </div>}
       </section>
     </main>
-    <footer className="copilot-dock">
-      {s?.capture?.auto && <CaptureControl stopOnly />}
-      <button className={`cabin-button copilot-mic ${recording ? "recording" : "primary"}`} disabled={ambient.blocked || (!recording && ui.heldAlerts)}
-        style={recording ? { ["--level" as string]: String(Math.min(1, ambient.status.level * 4)) } : undefined}
-        onClick={() => recording ? ambient.pause() : void ambient.start()}>
-        {recording ? <Pause size={24} /> : <Mic size={24} />}{ambient.status.listening ? "Listening — pause" : ambient.status.starting ? "Starting…" : "Start listening"}
-        {ambient.status.queued > 0 && <span className="sr-only">{ambient.status.queued} clips processing</span>}</button>
-      {panel !== "camera" && <button className="cabin-button" onClick={() => open("camera")}><Camera size={23} />Camera</button>}
-      {panel !== "notes" && <button className="cabin-button" onClick={() => open("notes")}><Keyboard size={21} />Type</button>}
-    </footer>
     <ProtocolSearch open={protocols} onClose={() => setProtocols(false)} />
   </div></div>;
 }

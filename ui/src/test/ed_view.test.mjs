@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { newestPatient, fieldKeys, isNewField, formatValue, esc, observedElapsed } from '../../../ed_receiver/web/view.mjs';
+import { newestPatient, fieldKeys, isNewField, formatValue, esc, observedElapsed, hhmm } from '../../../ed_receiver/web/view.mjs';
 import { journeyGroups, renderJourney } from '../../../ed_receiver/web/journey.mjs';
 it('opens newest received incident and retains unknown keys', () => {
   const incidents = { old: { first_at: '2026-09-24' }, newest: { first_at: '2026-09-25' } };
@@ -24,6 +24,6 @@ it('shows only received journey points with units, times, and escaped care event
   ];
   expect(journeyGroups(timeline).vitals).toHaveLength(1);
   const html = renderJourney({ timeline }, { 'vitals.sbp': { label: 'Systolic BP', unit: 'mmHg' } });
-  expect(html).toContain('132 mmHg'); expect(html).toContain('17:00:00 UTC');
+  expect(html).toContain('132 mmHg'); expect(html).toContain(hhmm('2026-09-25T17:00:00Z'));   // the observed time, local 24-hour
   expect(html).not.toContain('<script>'); expect(html).toContain('Time unavailable');
 });

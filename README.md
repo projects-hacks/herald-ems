@@ -100,7 +100,7 @@ scripts/herald.sh up          # add --pull to fast-forward to origin/main first
 ```
 
 It skips whatever is already running and verifies the rest: the one-time data (RxNorm drug index, Whisper and
-embedding weights), the shipped models on HP Z Runtime :8080 (`ems-e-v2-fp8` for speech -> facts, `qwen3vl-fp8` for
+embedding weights), the shipped models on HP Z Runtime :8080 (`ems-e-v2-fp8` for speech -> facts, `herald-f` for
 photos, the monitor and protocol reranking; served one at a time and only if memory allows), the UI build, the ED
 screen (:8200) behind the link emulator (:9000), and the app (:8100) with Whisper preloaded. It exits non-zero
 unless speech, extraction and vision all report ready, then prints the URLs. `scripts/herald.sh status`,

@@ -27,6 +27,7 @@ from ..extraction import ModelExtractor
 from ..extraction.guard import InstructionGuard, default_guard
 from ..knowledge import KnowledgeService
 from ..knowledge.cues import ProtocolCues
+from ..knowledge.keypoints import KeyPointPicker
 from ..knowledge.rerank import LLMReranker
 from ..models import LocalLLMClient, VisionReader, WhisperSTT
 from ..relay import LinkEmulator, Relay, RelayTiers, default_tiers
@@ -255,7 +256,7 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
                                          embedder=embedder or None, reranker=LLMReranker(knowing), vision=knowing,
                                          fetch=protocol_fetch, mirror=s.protocol_mirror, egress=egress)
         ctx.cues = ProtocolCues(lambda: ctx.knowledge.kb if ctx.knowledge.ready else None,
-                                lambda: counties.active["id"])
+                                lambda: counties.active["id"], picker=KeyPointPicker(knowing))
     return ctx
 
 

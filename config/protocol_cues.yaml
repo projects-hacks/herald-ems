@@ -5,9 +5,19 @@
 # the documents do not cover it, the screen says so instead of showing the nearest passage.
 #
 # when: a cue is active if ANY listed alert type is present (snapshot.alerts[].type) OR ANY listed checklist is open
-# (snapshot.readiness[].id). Order is display order: the most specific situation first.
+# (snapshot.readiness[].id); a `from_facts` cue becomes one lookup per heard value of those keys. Order is display order.
 # Queries were checked against the Santa Clara index on 2026-09-25 (each returns the passage named in `expect`).
 passages: 2          # chosen passages shown per cue
+# Asking by voice or typing: an utterance that contains one of these phrases becomes a lookup for whatever follows it
+# ("show me the protocol for chest pain" -> "chest pain"). A fixed command vocabulary, like a hotword, not extraction.
+requests:
+  phrases: ["show me the protocol for", "pull up the protocol for", "open the protocol for", "what does the protocol say about",
+            "protocol for", "look up the protocol for", "show me the protocol on"]
+  keep: 3             # the most recent requests stay on screen for this patient
+  # Appended to a spoken request and to a heard presentation before searching: a medic asking for "the protocol for
+  # stroke" wants prehospital care, not the stroke-center definition a bare "stroke" retrieves. Checked on the Santa
+  # Clara index 2026-09-25: stroke -> 602 §VI.E (destination), chest pain -> 700-A08 §8, overdose -> 700-A15 §2.
+  context: prehospital treatment
 max_chars: 700       # a longer passage is cut at a sentence boundary and marked as shortened; the full text is one tap away
 cues:
   - id: stroke_destination
@@ -30,6 +40,10 @@ cues:
     when: {alerts: [sepsis_prenotification], checklists: [sepsis]}
     query: sepsis alert criteria notify receiving hospital
     expect: 700-A04 §1.4
+  # Any presentation: whatever the complaint or impression turns out to be ("chest pain", "seizure", "overdose"), its
+  # value is the query. One lookup per distinct value; the most specific situation cues above still come first.
+  - id: presentation
+    from_facts: [impression.primary, complaint.chief]
   - id: stroke_alert
     title: Stroke alert
     when: {checklists: [stroke]}

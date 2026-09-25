@@ -5,7 +5,7 @@ import { factValue, formatValue } from "./format";
 import type { CaptureGroup, FactView, Health, Snapshot } from "./types";
 
 // ---------- the activity feed: clinical outcomes of what Herald did, never telemetry ----------
-export type ActivityKind = "heard" | "read" | "checked" | "sent";
+export type ActivityKind = "heard" | "read" | "checked" | "found" | "sent";
 export interface ActivityLine { id: string; ts: string; kind: ActivityKind; text: string }
 
 const SHORT: Record<string, string> = {
@@ -61,6 +61,11 @@ export function activity(s: Snapshot, limit = 6, label: (key: string) => string 
     const what = vitals.length ? `Read the monitor — ${readingText(vitals)}` : `Read a photo — ${facts.map((f) => `${f.label} ${factValue(f)}`).join(", ")}`;
     lines.push({ id: `r:${k}`, ts, kind: "read", text: clip(what, 110) });
   }
+  for (const c of s.protocol_cues ?? []) {
+    const p = c.passages[0];
+    if (c.state !== "found" || !p || !c.found_at) continue;
+    lines.push({ id: `f:${c.id}`, ts: c.found_at, kind: "found", text: `Found Policy ${p.doc} §${p.section} for ${c.asked ? `“${c.query}”` : c.title.toLowerCase()}` });
+  }
   // A relay packet re-sends the whole picture; the feed names only what reached the ED for the first time.
   const dest = s.relay.authorized?.destination ?? "the ED";
   const delivered = new Set<string>();
@@ -71,7 +76,7 @@ export function activity(s: Snapshot, limit = 6, label: (key: string) => string 
     fresh.forEach((k) => delivered.add(k));
     if (!fresh.length) continue;
     const names = fresh.slice(0, 3).map(label).join(", ") + (fresh.length > 3 ? ` +${fresh.length - 3} more` : "");
-    lines.push({ id: `s:${p.seq}:${p.ts}`, ts: p.ts, kind: "sent", text: `Sent ${names} to ${dest} — received` });
+    lines.push({ id: `s:${p.seq}:${p.ts}`, ts: p.ts, kind: "sent", text: `Sent ${names} to ${dest} — delivered` });
   }
   return lines.sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, limit);
 }
@@ -99,7 +104,7 @@ export function presence(o: {
 }): Presence {
   if (o.replay) return { tone: "replay", text: "Demo replay · recorded scenario" };
   if (o.offline) return { tone: "down", text: o.hasSnapshot ? "Offline — vehicle server disconnected, showing last state" : "Connecting to the vehicle…" };
-  if (o.health?.llm_available === false) return { tone: "down", text: "Extraction model down — speech is kept but not becoming facts" };
+  if (o.health?.llm_available === false) return { tone: "down", text: "Speech is not becoming facts right now — words are kept; enter key facts by hand" };
   if (o.micError) return { tone: "down", text: /https|localhost|secure/i.test(o.micError) ? "Microphone blocked by the browser — open Herald via localhost" : `Microphone stopped — ${o.micError}` };
   if (o.cameraError) return { tone: "down", text: `Camera stopped — ${o.cameraError}` };
   const doing = [o.listening && "Listening", o.monitorWatching && "watching the monitor"].filter(Boolean) as string[];
@@ -116,8 +121,8 @@ export function patientLine(s: Snapshot): string {
   const summary = s.summary || "";
   const parts = [summary && summary.includes(" · ") ? summary
     : [summary, s.incident.dispatch].filter(Boolean).join(" · ") || "New patient"];
-  const eta = f("transport.eta_min"), dest = f("transport.destination");
-  if (eta || dest) parts.push([eta && `ETA ${formatValue(eta.value)} min`, dest && `→ ${factValue(dest)}`].filter(Boolean).join(" "));
+  const dest = f("transport.destination");   // the ETA counts down in the situation bar; one ETA on screen, not two
+  if (dest) parts[parts.length - 1] += ` → ${factValue(dest)}`;
   return parts.join(" · ");
 }
 
@@ -131,4 +136,86 @@ export function edHas(s: Snapshot, label: (key: string) => string): EdHas {
     waiting: allFacts(s).filter((f) => f.status === "unconfirmed").length,
     lastAck: s.relay.last_ack_at, authorized: !!s.relay.authorized, configured: s.relay.configured,
   };
+}
+
+// ---------- what Herald knows about the patient ----------
+/** Whatever has been heard or read, grouped; the fields exist because they were said, not because a form has them.
+ *  Vitals are left to the monitor and the movement strip; the safety keys lead. */
+export const SAFETY_KEYS = ["allergies", "meds.anticoagulant", "code_status"];
+const HIDE = (k: string) => k.startsWith("vitals.") || k.startsWith("score.") || k.startsWith("exam.") || k === "transport.eta_min"
+  || k === "transport.destination" || k === "meds.list";   // exam items add up into the scores; the medication list repeats the anticoagulant
+export interface KnownGroup { name: string; facts: FactView[] }
+export function patientKnown(s: Snapshot, groups: [string, (key: string) => boolean][]): KnownGroup[] {
+  const facts = Object.values(s.facts).filter((f) => f.status === "confirmed" && !HIDE(f.key));   // unconfirmed ones wait in Needs you
+  const safety = SAFETY_KEYS.map((k) => facts.find((f) => f.key === k)).filter((f): f is FactView => !!f);
+  const rest = facts.filter((f) => !SAFETY_KEYS.includes(f.key));
+  const out: KnownGroup[] = safety.length ? [{ name: "Safety", facts: safety }] : [];
+  for (const [name, test] of groups) {
+    const g = rest.filter((f) => test(f.key)).sort((a, b) => a.ts.localeCompare(b.ts));
+    if (g.length) out.push({ name, facts: g });
+  }
+  const other = rest.filter((f) => !groups.some(([, test]) => test(f.key)));
+  if (other.length) out.push({ name: "Other", facts: other });
+  return out;
+}
+
+// ---------- county passages as a quick view ----------
+/** The county's own sentences, never a model's paraphrase: each chosen passage is cut into sentences, its section
+ *  numbering dropped, and the shortest sentences that carry the passage's substance kept. Highlighting is plain
+ *  pattern matching (numbers with units and time windows, facility names, the words that were asked). */
+export interface Segment { t: string; hl?: boolean }
+export interface KeyPoint { segments: Segment[]; cite: string }
+
+const UNIT = String.raw`(?:mg|mcg|g|mL|ml|L|mmHg|%|minutes?|mins?|hours?|hrs?|seconds?|days?|years?|kg|joules?|J|bpm)`;
+const HL = [
+  new RegExp(String.raw`\b(?:[a-z-]+\s)?\(?\d+(?:\.\d+)?\)?\s*${UNIT}\b`, "gi"),           // "forty-five (45) minutes", "324 mg"
+  /\b(?:Comprehensive|Primary|Thrombectomy-Capable)\s+Stroke\s+Center\b|\bSTEMI\s+(?:Receiving\s+)?Center\b|\bTrauma\s+Center\b|\b(?:Level\s+[IVX]+)\b/gi,
+];
+/** Only what a medic scans for: numbers with their units and time windows, and destination facilities. Marking every
+ *  word of the question would mark everything, which marks nothing. */
+export function highlight(text: string, exact: string[] = []): Segment[] {
+  const phrases = exact.filter((m) => m && text.includes(m)).map((m) => new RegExp(m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"));
+  const patterns = [...HL, ...phrases];
+  const marks: [number, number][] = [];
+  for (const re of patterns) for (const m of text.matchAll(re)) marks.push([m.index!, m.index! + m[0].length]);
+  marks.sort((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [];
+  for (const [s, e] of marks) { const last = merged.at(-1); if (last && s <= last[1]) last[1] = Math.max(last[1], e); else merged.push([s, e]); }
+  const out: Segment[] = []; let i = 0;
+  for (const [s, e] of merged) { if (s > i) out.push({ t: text.slice(i, s) }); out.push({ t: text.slice(s, e), hl: true }); i = e; }
+  if (i < text.length) out.push({ t: text.slice(i) });
+  return out;
+}
+export function keyPoints(passages: { doc: string; section: string; text: string }[], max = 2, skip: Set<string> = new Set()): KeyPoint[] {
+  const out: KeyPoint[] = [];
+  for (const p of passages) {
+    const cite = `${p.doc} §${p.section}`;
+    if (skip.has(cite)) continue;                         // already shown under another situation
+    skip.add(cite);
+    const body = p.text.replace(/^\s*[\d.]+[.)]?\s+/, "").replace(/^[A-Z]\.\s+/, "").trim();
+    const sentences = body.split(/(?<=[.;])\s+(?=[A-Z(])/).map((s) => s.trim()).filter((s) => s.length > 12);
+    let lead = sentences[0] ?? body;
+    if (lead.endsWith(":")) lead = body.slice(0, 260);    // "shall be transported to:" means nothing without what follows
+    if (lead.trimEnd().endsWith(":")) continue;            // ...and if nothing follows in this passage, it is not a key point
+    const text = lead.length > 240 ? `${lead.slice(0, 237).replace(/\s+\S*$/, "")} …` : lead;
+    out.push({ segments: highlight(text), cite });
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+/** The model's picks when it made them (each already verified server-side to be the county's words), otherwise the
+ *  lead sentence of each passage. Either way a passage shows once across situations. */
+export function cuePoints(c: { passages: { doc: string; section: string; text: string }[]; points?: { text: string; cite: string; marks: string[] }[] },
+  skip: Set<string>): KeyPoint[] {
+  if (!c.points) return keyPoints(c.passages, 2, skip);   // the model could not be asked: each passage's lead sentence
+  // an empty list is the model's judgement that these passages hold no rule for this situation: show none
+  const out: KeyPoint[] = [];
+  for (const p of c.points) {
+    const key = `${p.cite}|${p.text}`;
+    if (skip.has(key)) continue;
+    skip.add(key); skip.add(p.cite);
+    out.push({ segments: highlight(p.text, p.marks), cite: p.cite });
+  }
+  return out;
 }

@@ -27,6 +27,7 @@ export function alertKey(a: Alert): string {
     case "news2_high": return `${a.type}:${a.score}`;
     case "race_positive": case "gfast_positive": return `${a.type}:${a.score}`;
     case "stemi_alert": return `${a.type}:${a.score}`;
+    default: { const x = a as { type: string; label?: string }; return `${x.type}:${x.label ?? ""}`; }   // a score added in config
   }
 }
 /** The composed title the queue rows show for an alert, as plain text (the cabin banner headline reuses it). */
@@ -112,7 +113,7 @@ export function allFacts(s: Snapshot): FactView[] {
   return [...new Map([...Object.values(s.facts), ...Object.values(s.events ?? {}).flat()].map((f) => [f.id, f])).values()];
 }
 export function activeSync(s: Snapshot) {
-  return s.relay.authorized ? s.relay.patients?.[s.active_patient ?? s.incident.id]?.sync ?? s.relay.sync : {};
+  return (s.relay.authorized ? s.relay.patients?.[s.active_patient ?? s.incident.id]?.sync ?? s.relay.sync : undefined) ?? {};
 }
 export function patientPacket(s: Snapshot, patient?: string) { return !patient || patient === (s.active_patient ?? s.incident.id); }
 export interface ErRow { key: string; state: ErRowState; seq: number | null; why: string; held: "tap" | "disagree" | null }

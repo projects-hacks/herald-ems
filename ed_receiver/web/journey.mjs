@@ -1,4 +1,4 @@
-import { esc, formatValue } from './view.mjs';
+import { esc, formatValue, hhmm } from './view.mjs';
 
 /** Only the confirmed history actually delivered in a full sync; never fetch vehicle state. */
 export function journeyGroups(timeline) {
@@ -17,7 +17,7 @@ export function renderJourney(incident, keys) {
   const { vitals, care } = journeyGroups(incident.timeline);
   const at = (point) => {
     const date = new Date(point.o ?? point.t);
-    return Number.isFinite(date.getTime()) ? date.toISOString().slice(11, 19) + ' UTC' : 'Time unavailable';
+    return Number.isFinite(date.getTime()) ? hhmm(date) : 'Time unavailable';   // local 24-hour, like every other time here
   };
   const pointText = (point) => `${formatValue(point.v)}${keys[point.k]?.unit ? ` ${keys[point.k].unit}` : ''}`;
   return `<section class="card journey"><h2>Journey received from the ambulance</h2>

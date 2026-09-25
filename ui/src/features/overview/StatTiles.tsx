@@ -110,11 +110,11 @@ function scaleTile(id: string, sc: StrokeScale, primary: boolean, county: string
   const max = Object.values(sc.parts).reduce((a, p) => a + (p.max ?? 0), 0) || undefined;
   const tone: Tone = !sc.complete ? "neutral" : sc.positive ? "medium" : "ok";
   return (
-    <Tile key={id} icon={Brain} cat="neuro" label={sc.name} value={sc.complete ? String(sc.score) : "—"} unit={sc.complete && max ? `/ ${max}` : undefined} wide={!!routing}
+    <Tile key={id} icon={Brain} cat="neuro" label={sc.name} value={sc.complete ? String(sc.score) : "—"} unit={sc.complete && max ? `/ ${max}` : undefined}
       badge={<Badge tone={tone}>{sc.complete ? (sc.positive ? "positive" : "negative") : "incomplete"}</Badge>}
       footer={<>
         {sc.complete && max ? <ProgressBar frac={sc.score / max} cat="neuro" className="w-14 shrink-0" /> : <span>needs {sc.missing.length} more</span>}
-        {routing ? <span className="break-words">{routing}</span>
+        {routing ? <span className="line-clamp-2 break-words" title={routing}>{routing}</span>
           : primary && <span className="truncate" title={`${county}'s primary stroke scale`}>primary</span>}
       </>}
       aria={`${sc.name} ${sc.complete ? `${sc.score}${max ? ` of ${max}` : ""}, screen ${sc.positive ? "positive" : "negative"}` : "incomplete"}${routing ? `. ${routing}` : primary ? `, ${county}'s primary scale` : ""}. Show details.`}
@@ -124,13 +124,13 @@ function scaleTile(id: string, sc: StrokeScale, primary: boolean, county: string
 
 /** `overview` renders the cabin overview's subset — the clocks, NEWS2 and the county's primary stroke scale;
  *  the trends panel renders every tile. */
-export function StatTiles({ overview = false }: { overview?: boolean } = {}) {
+export function StatTiles({ overview = false, clocks = true }: { overview?: boolean; clocks?: boolean } = {}) {
   const s = useHerald((st) => st.snapshot);
   const [detail, setDetail] = useState<ScoreDetail | null>(null);
   if (!s) return null;
   return (
-    <div className="grid shrink-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3" aria-label="Clocks and scores">
-      <ClockTiles s={s} />
+    <div className="grid shrink-0 grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))] gap-3" aria-label="Clocks and scores">
+      {clocks && <ClockTiles s={s} />}
       <ScoreTiles s={s} open={setDetail} primaryOnly={overview} />
       <ScoreSheet d={detail} onClose={() => setDetail(null)} />
     </div>
