@@ -49,14 +49,25 @@ fi
 # block path fails to start on sm_121: replace the two quantization --extra's with --extra '--quantization=fp8'
 # (per-tensor, the run E path; it also quantizes the vision tower, so re-run eval/vision_bench.py).
 #
-# herald-f FAILED the protocol-reranking kept-ability gate (MODEL_CARD.md); serving it below does not make it
-# Herald's extractor. Set HERALD_LLM_MODEL=herald-f and HERALD_VISION_MODEL=herald-f only as the speech+photos
-# half of the split stack (docs/RUNBOOK.md §7), with qwen3vl-fp8 (above) still serving reranking/figures/
-# translation -- never point HERALD_KNOWLEDGE_MODEL (or any reranking path) at herald-f.
+# herald-f IS THE SHIPPING VISION MODEL as of 2026-09-25: photos, the patient monitor, protocol-figure transcription
+# AND protocol-passage reranking. It is NOT the extractor -- speech->facts stays on ems-e-v2-fp8, which wins the stroke
+# screen (G.F.A.S.T. complete on 14 of 17 calls against 11-12), speaker roles (0.972 vs 0.950) and calibration (1
+# wrong auto-confirm at the shipping threshold against 3). So: HERALD_VISION_MODEL=herald-f, HERALD_LLM_MODEL
+# unchanged, and HERALD_KNOWLEDGE_MODEL UNSET so reranking follows the vision label onto herald-f.
+#
+# Yes, reranking on herald-f fails the kept-ability gate (38/52 top-1 against a 41/52 bar). It ships anyway, as a
+# recorded exception: the untuned model is better at reranking by 3 questions but materially worse at real photos
+# (f1 0.580 median against 0.727, monitors 0.536-0.577 against 0.713), and two resident 30B models do not fit. E v2
+# was benched as the alternative reranker over 3 runs -- the task is text-only -- and scored worse still, 36/52.
+# See docs/RUN_F_REPORT.md §9. An earlier version of this comment said never to point reranking at herald-f; that
+# predates the vision measurements.
 HERALD_F_REPO="${HF_REPO_ID}-merged-f"
+# PER-TENSOR FP8, and it must stay that way: every published herald-f number (photos, camera renders, forms,
+# reranking, figures, speech) was measured on this exact argument list. The fp8_per_block path described above has
+# never been started on sm_121, so switching to it would invalidate the numbers rather than confirm them.
 HERALD_F_ARGS="--label herald-f --gpu-memory-fraction 0.35 \
     --extra '--max-model-len=16384' --extra '--limit-mm-per-prompt={\"image\":2,\"video\":0}' \
-    --extra '--quantization=fp8_per_block' --extra '--quantization-config={\"ignore\":[\"re:.*visual.*\"]}'"
+    --extra '--quantization=fp8'"
 if [ "$what" = herald-f-dry ]; then         # print exactly what would run (token elided), start nothing
   printf 'sg zrt -c %q\n' "HF_TOKEN=*** zrt serve hf:${HERALD_F_REPO} ${HERALD_F_ARGS}"   # copy-pasteable quoting
   echo "# the command sg runs (what zrt receives): HF_TOKEN=*** zrt serve hf:${HERALD_F_REPO} ${HERALD_F_ARGS}"

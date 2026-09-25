@@ -1,0 +1,125 @@
+# Per-vital SEVERITY bands, so an abnormal value shows as abnormal on the medic screen even when it is not changing.
+# This is a display and triage-attention aid, NOT a diagnosis and NOT a treatment recommendation (AGENTS.md
+# invariant 3). It colours the value; the medic decides.
+#
+# WHY THIS EXISTS, and how it differs from the two ranges already in the project:
+#   - config/vocabulary.yaml `range` is a PHYSICAL-PLAUSIBILITY bound: it rejects "sats 400" as impossible. It says
+#     nothing about whether a plausible value is dangerous.
+#   - config/trends.yaml `change_rules` flag MOVEMENT: SpO2 that fell 3 points. They say nothing about a value that is
+#     dangerous but steady -- an SpO2 that has sat at 84% all call raises no change flag, so before this it showed in
+#     neutral grey while a 2-point wobble showed amber. That is backwards for triage attention (docs/RUN_F_REPORT is
+#     the model work; this is the UI-review finding, owner sign-off 2026-09-25).
+#   - THIS file is absolute clinical SEVERITY: where a value sits, regardless of whether it moved.
+#
+# SCOPE, and how it withdraws (this is a GENERIC EMS copilot, not a stroke tool). These bands are the ADULT NEWS2
+# ranges. RCP does not validate NEWS2 for children or documented pregnancy, and NEWS2 uses a different SpO2 target
+# for hypercapnic (scale-2) patients such as COPD on controlled oxygen. So this colouring WITHDRAWS for exactly the
+# patients NEWS2 itself withdraws for: herald/core/vital_severity.py takes an `applicable` gate, and the snapshot
+# passes it from the live NEWS2 applicability (config/scores/news2.yaml) -- when NEWS2 is `excluded` (age < 16 or
+# pregnancy_weeks present), no vital is coloured, because a red tuned to adults is actively wrong for a child (a
+# paediatric HR of 120 is normal) or a woman whose obstetric physiology differs. Silence is the safe failure; a
+# wrong colour is not. KNOWN GAP, recorded not hidden: there is no scale-2 (COPD target 88-92%) handling yet, so a
+# hypercapnic patient on target oxygen would still read amber on SpO2; there is no fact on this vehicle that marks a
+# patient as scale-2, so it cannot be gated on until one exists. Documented for the clinical reviewer.
+#
+# The boundaries are taken from the SAME published NEWS2 chart the score on the screen already uses
+# (config/scores/news2.yaml), so a tile's colour can never contradict the NEWS2 band beside it. `critical` is the
+# value range that scores NEWS2's maximum 3 points for that parameter; `abnormal` is the range that scores 1-2. A
+# value scoring 0 is `normal`. Two vitals have no NEWS2 parameter (glucose, and the diastolic half of BP); their
+# bands cite their own sources below. Tested at every boundary in tests/test_vital_ranges.py, exactly like the score
+# tables.
+#
+# bands: ordered low -> high. Each: {below: x} or {at_or_below: x} or {at_or_above: x} or {from: a, to: b}
+#        (from inclusive, to exclusive), plus the severity. First matching band wins; if none match -> normal.
+# severity: normal | abnormal | critical. Only abnormal and critical get colour; normal is the neutral category tone.
+# Missing / non-numeric values have no severity (the tile stays neutral); that is handled in the engine, not here.
+
+source_news2: >-
+  Royal College of Physicians. National Early Warning Score (NEWS) 2. London: RCP; December 2017. The critical band
+  for each vital below is the value range scoring 3 points for that parameter in the NEWS2 chart; abnormal is the
+  range scoring 1-2. Reproduced here so a vital tile and the NEWS2 tile beside it cannot disagree.
+
+vitals:
+  vitals.spo2:
+    unit: "%"
+    # NEWS2 SCALE 1 (the default, target 94-98%): <=91 -> 3 pts, 92-93 -> 2, 94-95 -> 1, >=96 -> 0.
+    bands:
+      - {at_or_below: 91, severity: critical}
+      - {from: 92, to: 96, severity: abnormal}
+    # NEWS2 SCALE 2, for hypercapnic (chronic type 2 respiratory failure, usually COPD) patients whose TARGET range
+    # is 88-92%. On this scale a normal SpO2 is a problem (too high, risk of losing hypoxic drive) and the target
+    # band is not coloured. From the RCP NEWS2 Scale 2 chart, on air: >=93 scores 3, 88-92 scores 0 (target),
+    # 86-87 -> 1, 84-85 -> 2, <=83 -> 3. So critical = <=83 or >=93 on air, abnormal = 84-87, target 88-92 neutral.
+    #   RCP NEWS2 (Dec 2017), Scale 2; target 88-92% per BTS/GOLD for chronic hypercapnic respiratory failure.
+    # This scale applies ONLY when a clinician says so (the chart's own note: "ONLY use Scale 2 under the direction
+    # of a qualified clinician"), so it is gated on the patient.spo2_scale fact being 2 -- never inferred. Default
+    # (no such fact) is Scale 1 above.
+    scale_2_bands:
+      - {at_or_below: 83, severity: critical}
+      - {from: 84, to: 88, severity: abnormal}
+      - {from: 88, to: 93, severity: normal}
+      - {at_or_above: 93, severity: critical}
+
+  vitals.sbp:
+    unit: mmHg
+    # NEWS2 systolic: <=90 -> 3, 91-100 -> 2, 101-110 -> 1, 111-219 -> 0, >=220 -> 3.
+    bands:
+      - {at_or_below: 90, severity: critical}
+      - {from: 91, to: 111, severity: abnormal}
+      - {from: 111, to: 220, severity: normal}
+      - {at_or_above: 220, severity: critical}
+
+  vitals.hr:
+    unit: /min
+    # NEWS2 pulse: <=40 -> 3, 41-50 -> 1, 51-90 -> 0, 91-110 -> 1, 111-130 -> 2, >=131 -> 3.
+    bands:
+      - {at_or_below: 40, severity: critical}
+      - {from: 41, to: 51, severity: abnormal}
+      - {from: 51, to: 91, severity: normal}
+      - {from: 91, to: 131, severity: abnormal}
+      - {at_or_above: 131, severity: critical}
+
+  vitals.rr:
+    unit: /min
+    # NEWS2 respiratory rate: <=8 -> 3, 9-11 -> 1, 12-20 -> 0, 21-24 -> 2, >=25 -> 3.
+    bands:
+      - {at_or_below: 8, severity: critical}
+      - {from: 9, to: 12, severity: abnormal}
+      - {from: 12, to: 21, severity: normal}
+      - {from: 21, to: 25, severity: abnormal}
+      - {at_or_above: 25, severity: critical}
+
+  vitals.temp:
+    unit: °C
+    # NEWS2 temperature: <=35.0 -> 3, 35.1-36.0 -> 1, 36.1-38.0 -> 0, 38.1-39.0 -> 1, >=39.1 -> 2.
+    # NEWS2's own maximum for temperature is 2 points, so nothing here is `critical` by the NEWS2 rule; <=35.0
+    # (hypothermia) is the 3-point-equivalent floor and is the one temperature the chart weights most, so it is the
+    # single critical band and the high fever range is abnormal.
+    bands:
+      - {at_or_below: 35.0, severity: critical}
+      - {from: 35.0, to: 36.1, severity: abnormal}
+      - {from: 36.1, to: 38.1, severity: normal}
+      - {at_or_above: 38.1, severity: abnormal}
+
+  vitals.glucose:
+    unit: mg/dL
+    # No NEWS2 parameter for glucose. Bands from the American Diabetes Association Standards of Care in Diabetes-2024
+    # (Diabetes Care 2024;47 Suppl 1): level 2 hypoglycaemia <54 mg/dL is clinically significant and the level at
+    # which neuroglycopenia is expected; <70 is level 1 hypoglycaemia. Marked hyperglycaemia >=250 mg/dL is the
+    # common DKA/HHS working threshold (ADA). These are attention bands for a display, not treatment thresholds.
+    source: >-
+      American Diabetes Association. Standards of Care in Diabetes-2024. Diabetes Care 2024;47(Suppl. 1).
+      Hypoglycaemia level 2 <54 mg/dL; level 1 <70 mg/dL. Hyperglycaemia attention threshold >=250 mg/dL.
+    bands:
+      - {below: 54, severity: critical}
+      - {from: 54, to: 70, severity: abnormal}
+      - {from: 70, to: 250, severity: normal}
+      - {at_or_above: 250, severity: abnormal}
+
+  vitals.dbp:
+    unit: mmHg
+    # No NEWS2 parameter for diastolic BP (NEWS2 uses systolic only). Diastolic is shown but not coloured, because
+    # there is no single published prehospital attention band for it that would not overlap confusingly with the
+    # systolic colour on the same reading. Listed with no bands so the engine treats every diastolic value as
+    # neutral and this decision is explicit rather than an omission.
+    bands: []

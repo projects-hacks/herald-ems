@@ -32,6 +32,16 @@ class TrendRules:
     def text(self, key: str) -> str:
         return self.rules[key]["text"]
 
+    def floor(self, key: str) -> Optional[float]:
+        """The smallest change worth noticing for this vital: its `abs_change` threshold, or the size of its
+        `falls_by` step. A display hint only — a sparkline uses it as a minimum visible span so a sub-threshold
+        wobble does not fill the card as dramatically as a large move. None when the rule has no magnitude."""
+        r = self.rules.get(key, {})
+        for field in ("abs_change", "falls_by"):
+            if field in r:
+                return r[field]
+        return None
+
     def significant(self, key: str, old: float, new: float) -> bool:
         r = self.rules[key]
         return any([

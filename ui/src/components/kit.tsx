@@ -2,7 +2,7 @@
 // title in its category's color with a small glyph; values as a big rounded number with a small gray unit; rounded-
 // square icon tiles with white glyphs (as in the iPad sidebar and Settings); inset-grouped lists with hairlines;
 // iOS buttons (filled, gray, plain); capsule badges; a ring for progress. One place for the look.
-import { Brain, CircleCheck, Clock, HeartPulse, Inbox, Mic, Pill, Send, UserRound, type LucideIcon } from "lucide-react";
+import { Brain, Camera, CircleCheck, Clock, HeartPulse, Inbox, Keyboard, Mic, Monitor, Pill, Send, TriangleAlert, UserRound, type LucideIcon } from "lucide-react";
 import type { Cat } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 
@@ -130,15 +130,48 @@ export function IconTile({ icon: Icon, cat, size = 32, className, iconClassName 
 }
 
 /** A value the Health way: a big rounded number and a small gray unit. */
-export function Value({ value, unit, size = "kpi", muted, className }: {
-  value: React.ReactNode; unit?: React.ReactNode; size?: "kpi" | "clock" | "value"; muted?: boolean; className?: string;
+export function Value({ value, unit, size = "kpi", muted, severity, className }: {
+  value: React.ReactNode; unit?: React.ReactNode; size?: "kpi" | "clock" | "value"; muted?: boolean;
+  severity?: "abnormal" | "critical"; className?: string;
 }) {
+  // A clinical severity (config/vital_ranges.yaml, backend-computed) colours the number AND adds a word+icon badge,
+  // so an out-of-range value is never distinguished by colour alone (IEC 60601-1-8 / WCAG: colour + text + shape).
+  const sev = severity ? SEVERITY[severity] : null;
   return (
-    <span className={cn("inline-flex min-w-0 items-baseline gap-1", className)}>
-      <span className={cn("rounded-num truncate", size === "kpi" ? "text-kpi" : size === "clock" ? "text-clock" : "text-value", muted && "text-text-muted")}>{value}</span>
+    <span className={cn("inline-flex min-w-0 items-baseline gap-1.5", className)}>
+      <span className={cn("rounded-num truncate", size === "kpi" ? "text-kpi" : size === "clock" ? "text-clock" : "text-value",
+        sev ? TEXT[sev.tone] : muted && "text-text-muted")}>{value}</span>
       {unit && <span className="shrink-0 text-body font-semibold text-text-muted">{unit}</span>}
+      {sev && <SeverityBadge severity={severity!} />}
     </span>
   );
+}
+
+/** Clinical severity -> a priority tone and the word a medic reads. Critical is the danger red, abnormal the amber
+ *  "needs you". One place, so a tile, a list row and a badge always say the same thing. */
+export const SEVERITY: Record<"abnormal" | "critical", { tone: Tone; word: string }> = {
+  abnormal: { tone: "medium", word: "out of range" },
+  critical: { tone: "high", word: "critical" },
+};
+
+/** The badge that must accompany any severity colour, so the value is never distinguished by colour alone. */
+export function SeverityBadge({ severity, className }: { severity: "abnormal" | "critical"; className?: string }) {
+  const s = SEVERITY[severity];
+  return <Badge tone={s.tone} icon={TriangleAlert} className={className}>{s.word}</Badge>;
+}
+
+/** Where a value came from, as a small labelled glyph: camera (a photo), monitor (a device feed), voice, or typed.
+ *  Shown wherever a value appears, not only in the full Facts tab, so a photo-read vital is never mistaken for a
+ *  spoken one on the tiles. `aria-label` carries the word for screen readers. */
+export function SourceIcon({ capturedBy, hasAudio, className }: {
+  capturedBy: "medic" | "other" | "device" | "camera"; hasAudio?: boolean; className?: string;
+}) {
+  // camera -> a photo, device -> a monitor feed, an audio clip -> spoken, otherwise typed. A spoken value is
+  // captured_by "medic"/"other" with an audio_id, not a distinct source value, so voice is keyed off hasAudio.
+  const [Icon, label] = capturedBy === "camera" ? [Camera, "photo"]
+    : capturedBy === "device" ? [Monitor, "monitor"]
+    : hasAudio ? [Mic, "voice"] : [Keyboard, "typed"];
+  return <Icon size={13} aria-label={label} className={cn("shrink-0 text-text-muted", className)} />;
 }
 
 /** Capsule badge: soft (tinted, the default), solid (the one thing that must stand out) or outline (quiet). */

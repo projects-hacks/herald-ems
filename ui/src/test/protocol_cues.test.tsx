@@ -8,7 +8,7 @@ import type { ProtocolCue, Snapshot } from "@/lib/types";
 
 const base = (parseFixture(readFileSync("public/fixtures/stroke_demo.jsonl", "utf8"))[0].msg as { state: Snapshot }).state;
 const quote = "3.2. If patient has four (4) points on the G.F.A.S.T stroke screening transport the patient to a Comprehensive Stroke Center.";
-const show = (cues: ProtocolCue[]) => { useHerald.setState({ snapshot: { ...base, protocol_cues: cues } }); render(<ProtocolCues onOpen={() => {}} />); };
+const show = (cues: ProtocolCue[]) => { useHerald.setState({ snapshot: { ...base, protocol_cues: cues } }); render(<ProtocolCues />); };
 
 describe("county protocol cues", () => {
   afterEach(cleanup);

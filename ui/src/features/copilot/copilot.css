@@ -44,10 +44,10 @@
 /* ---------- layout ---------- */
 .copilot .cabin-main { max-width: 1680px; }
 .copilot-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr); gap: 28px; align-items: start; }
-.copilot-primary, .copilot-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.copilot-primary { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
 /* section labels: instrument-panel captions */
-.copilot-activity h2, .copilot-movement h2, .copilot-ed h2, .copilot-protocol h2, .copilot-needs h2, .copilot-known h2 {
+.copilot-activity h2, .copilot-movement h2, .copilot-ed h2, .copilot-protocol h2, .copilot-needs h2 {
   font-family: var(--font-heading); font-weight: 700; font-size: 1.0625rem; letter-spacing: -.005em; text-transform: none; }
 
 /* ---------- Needs you: the hero ---------- */
@@ -69,6 +69,13 @@
 .heard-what { flex: 1 1 9rem; min-width: 0; display: flex; flex-direction: column; }
 .heard-label { font-size: .875rem; color: var(--text-muted); font-weight: 600; }
 .heard-value { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); overflow-wrap: anywhere; line-height: 1.25; }
+/* A vital being confirmed shows its clinical severity: the value takes the priority colour and the word sits under
+   it, never colour alone. Backend-computed and scope-gated (no colour for children / documented pregnancy). */
+.heard-facts li[data-severity="abnormal"] .heard-value { color: var(--medium-fg); }
+.heard-facts li[data-severity="critical"] .heard-value { color: var(--high-fg); }
+.heard-severity { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-size: .75rem; font-weight: 700; }
+.heard-severity[data-severity="abnormal"] { color: var(--medium-fg); }
+.heard-severity[data-severity="critical"] { color: var(--high-fg); }
 .heard-actions { display: flex; gap: 4px; margin-left: auto; }
 
 /* ---------- quiet side panels: ruled, not boxed ---------- */
@@ -91,6 +98,15 @@
 .copilot-movement li > svg { color: var(--medium-fg); }
 .copilot-movement li span { font-size: .875rem; color: var(--text-muted); }
 .copilot-movement li small { flex-basis: 100%; font-size: .8125rem; color: var(--medium-fg); font-weight: 700; }
+/* Clinical severity of the latest value: the number takes the priority colour AND the SeverityTag word+icon sits
+   beside it, so it is never colour alone (IEC 60601-1-8 / WCAG). Backend-computed and already scope-gated. */
+.copilot-movement li[data-severity="abnormal"] strong { color: var(--medium-fg); }
+.copilot-movement li[data-severity="critical"] strong { color: var(--high-fg); }
+.movement-flat { font-family: var(--font-mono); font-size: 1.3rem; color: var(--text-muted); }
+.movement-severity { display: inline-flex; align-items: center; gap: 4px; font-size: .8125rem; font-weight: 700;
+  padding: 1px 8px; border-radius: 999px; }
+.movement-severity[data-severity="abnormal"] { color: var(--medium-fg); background: var(--medium-tint); }
+.movement-severity[data-severity="critical"] { color: var(--high-fg); background: var(--high-tint); }
 
 .copilot-ed { border-top-color: color-mix(in srgb, var(--low-fg) 45%, var(--glass-border)); }
 .copilot-ed .ed-sent { color: var(--text-primary); font-weight: 700; line-height: 1.5; }
@@ -186,22 +202,10 @@
 .copilot-replay button { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--accent); }
 @media (max-width: 760px) { .copilot-mark { display: none; } }
 
-/* ---------- what Herald knows: fields appear as they are said ---------- */
-.copilot-known { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px 18px; border-radius: 18px; }
-.copilot-known h2 { margin: 0; display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
-.known-group h3 { margin: 0 0 6px; font-size: .8125rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
-.known-group dl { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.known-group dl > div { min-width: 7.5rem; max-width: 100%; padding: 7px 14px; border-radius: 12px; background: color-mix(in srgb, var(--text-primary) 4%, transparent);
-  border: 1px solid transparent; transition: background var(--dur-medium1) var(--ease-standard), border-color var(--dur-medium1); }
-.known-group dt { font-size: .8125rem; color: var(--text-muted); }
-.known-group dd { margin: 2px 0 0; font-size: 1.125rem; font-weight: 700; color: var(--text-primary); line-height: 1.3; overflow-wrap: anywhere; }
-.known-group dd small { display: block; font-size: .8125rem; font-weight: 700; color: var(--medium-fg); letter-spacing: .02em; }
-.known-group [data-status="unconfirmed"] dd { text-decoration: underline dotted color-mix(in srgb, var(--medium-fg) 70%, transparent); text-underline-offset: 4px; }
-.known-group [data-safety] { border-color: color-mix(in srgb, var(--medium-fg) 45%, transparent); }
-.known-group [data-new] { border-color: color-mix(in srgb, var(--accent) 60%, transparent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent); animation: just-heard 1.2s var(--ease-emphasized-decelerate) both; }
+/* a fact that just arrived in the patient bar pulses once, so a new allergy or history item is noticed */
+.patient-chip[data-new] { animation: just-heard 1.2s var(--ease-emphasized-decelerate) both; }
 @keyframes just-heard { from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); } to { box-shadow: 0 0 0 10px transparent; } }
-@media (prefers-reduced-motion: reduce) { .known-group [data-new] { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .patient-chip[data-new] { animation: none; } }
 .ed-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .ed-actions .cabin-button { text-decoration: none; }
 
@@ -220,6 +224,38 @@
 .sit-clock .num { font-family: var(--font-mono); font-weight: 700; color: var(--text-primary); }
 .sit-clock[data-overdue] { border-color: color-mix(in srgb, var(--high-fg) 60%, transparent); }
 .sit-clock[data-overdue] .num { color: var(--high-fg); }
+
+/* ---------- the patient as a bar under the patient line (replaces the Patient card) ----------
+   Same pill idiom as the situation bar. Safety facts lead with a warning glyph and an amber edge, so an allergy or an
+   anticoagulant is never something to look for; every chip keeps its label, so the signal is never colour alone. */
+.patient-bar { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.patient-chip { display: inline-flex; align-items: baseline; gap: 6px; max-width: 28rem; min-height: 36px; padding: 6px 12px;
+  border-radius: 999px; background: var(--glass-1); border: 1px solid var(--glass-border); font-size: .9375rem;
+  color: var(--text-primary); }
+.patient-chip b { font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+.patient-chip span { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.patient-chip svg { align-self: center; flex-shrink: 0; color: var(--medium-fg); }
+.patient-chip[data-safety] { background: var(--medium-tint); border-color: color-mix(in srgb, var(--medium-fg) 55%, transparent); }
+.patient-chip[data-safety] b { color: var(--medium-fg); }
+.patient-chip[data-new] { border-color: var(--accent); }
+.patient-empty { font-size: .9375rem; color: var(--text-muted); }
+.patient-details { min-height: 36px; padding: 0 6px; font-weight: 700; color: var(--accent); }
+
+/* ---------- county protocol as one band that scrolls sideways ---------- */
+.protocol-strip { display: flex; gap: 14px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity;
+  padding-bottom: 6px; }
+.protocol-strip:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 12px; }
+/* A card grows to share the row (one situation spans the width, so its text wraps less and the band stays short) and
+   never shrinks below a readable width; past that the row scrolls. Capped height, so the band cannot push Needs you
+   -- the priority -- off a 1080p screen; a long passage scrolls inside its own card. */
+.protocol-strip .protocol-cue { flex: 1 0 min(30rem, 88%); scroll-snap-align: start; max-height: 11.5rem; overflow-y: auto;
+  gap: 4px; padding: 10px 16px; border-top: 0; border-radius: 14px; background: var(--glass-1); border: 1px solid var(--glass-border); }
+.protocol-strip .protocol-cue h3 { margin: 0; font-size: 1rem; }
+.protocol-strip .protocol-points li { font-size: .9375rem; }
+.cabin-main > .copilot-protocol { margin-bottom: 16px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline;
+  column-gap: 14px; row-gap: 8px; padding: 12px 20px 12px; }
+.cabin-main > .copilot-protocol > .protocol-strip { grid-column: 1 / -1; }
+.cabin-main > .copilot-protocol .protocol-note { margin: 0; }
 .protocol-more summary { min-height: 48px; display: flex; align-items: center; cursor: pointer; font-weight: 700; color: var(--low-fg); }
 .protocol-more[open] summary { margin-bottom: 8px; }
 .movement-strip-mono, .copilot-movement li strong { font-family: var(--font-mono); }
@@ -271,15 +307,31 @@ html:has(.copilot) { font-size: clamp(16px, calc(0.3vw + 11px), 19px); }
   .copilot:not(.workspace-task) .workspace-body { height: 100dvh; min-height: 0; }
   .copilot:not(.workspace-task) .cabin-main { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-top: 16px; padding-bottom: 16px; }
   .copilot:not(.workspace-task) .herald-live { flex-shrink: 0; margin-bottom: 16px; }
+  .copilot:not(.workspace-task) .cabin-main > .copilot-protocol { flex-shrink: 0; }   /* one band; its cards scroll */
   .copilot:not(.workspace-task) .copilot-grid { flex: 1; min-height: 0; align-items: stretch; gap: 20px;
-    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.6fr); }
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
   .copilot:not(.workspace-task) .copilot-primary { min-height: 0; }
   .copilot:not(.workspace-task) .copilot-needs { height: 100%; min-height: 0; }
-  .copilot:not(.workspace-task) .copilot-rest { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px;
-    display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .copilot:not(.workspace-task) .copilot-rest { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }
 }
-@media (min-width: 1100px) and (max-width: 1399px) and (min-height: 640px) {   /* a 1280 tablet: one column beside Needs you */
+@media (min-width: 1100px) and (max-width: 1399px) and (min-height: 640px) {   /* a 1280 tablet */
   .copilot:not(.workspace-task) .copilot-grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
-  .copilot:not(.workspace-task) .copilot-rest { display: flex; }
+}
+/* A short landscape screen (a 1280x800 vehicle tablet): the header, Herald and the protocol band used to take ~700 of
+   800px and Needs you -- the priority -- was left a sliver. Compact the two bands so Needs you keeps real height:
+   Herald's live caption is one line and its chips one scrolling row, and the protocol band shows the title and the
+   key passage first; the card scrolls inside itself to its full county text, so nothing becomes unreachable. */
+@media (min-width: 1100px) and (min-height: 640px) and (max-height: 900px) {
+  .copilot:not(.workspace-task) .herald-live { padding-block: 10px; gap: 16px; }
+  .copilot:not(.workspace-task) .live-orb { width: 64px; height: 64px; }
+  .copilot:not(.workspace-task) .orb-core { width: 46px; height: 46px; }
+  .copilot:not(.workspace-task) .live-heard blockquote { font-size: 1.0625rem; display: -webkit-box; -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical; overflow: hidden; }
+  .copilot:not(.workspace-task) .live-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+  .copilot:not(.workspace-task) .live-chips li { flex-shrink: 0; min-height: 30px; padding: 3px 10px; }
+  .copilot:not(.workspace-task) .live-eye .eye-view { width: 88px; }
+  .copilot:not(.workspace-task) .herald-live { margin-bottom: 10px; }
+  .copilot:not(.workspace-task) .cabin-main > .copilot-protocol { margin-bottom: 10px; padding-block: 8px; }
+  .copilot:not(.workspace-task) .protocol-strip .protocol-cue { max-height: 7.5rem; padding-block: 8px; }
 }
 .activity-aside { margin: 0; font-size: .875rem; color: var(--text-muted); }

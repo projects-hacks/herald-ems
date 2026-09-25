@@ -7,6 +7,12 @@
 export type Role = "medic" | "patient" | "family" | "bystander" | "device" | "photo" | "unknown";
 export type CapturedBy = "medic" | "other" | "device" | "camera";
 export type FactStatus = "unconfirmed" | "confirmed" | "rejected";
+// Absolute clinical severity of a vital VALUE, from config/vital_ranges.yaml (backend-computed). Present only when a
+// value is out of range, so its absence means "normal or not a graded vital" -- an older vehicle or a fixture simply
+// omits it. It colours the value on the screen; it is never a diagnosis (AGENTS.md invariant 3). Distinct from
+// `significant` on a trend, which means the value MOVED: a reading can be abnormal without moving, and moving without
+// being abnormal.
+export type VitalSeverity = "abnormal" | "critical";
 /** A record is one event (a medication given, a procedure): only the fields said are present (config/vocabulary.yaml). */
 export type FactRecord = Record<string, string | number | boolean>;
 export type FactValue = string | number | boolean | string[] | FactRecord | null;
@@ -27,6 +33,7 @@ export interface FactView {
   role: Role; speaker: string | null; captured_by: CapturedBy; confidence: number;
   provenance: Provenance; ts: string; status: FactStatus;
   previous_value: FactValue; previous_ts: string | null;
+  severity?: VitalSeverity;
   code?: Coding | (Coding | null)[] | null;
   verify?: { status: "match" | "mismatch"; label_drug: string; photo_id: string | null; resolution: "kept" | "edited" | null } | null;
 }
@@ -45,6 +52,12 @@ export interface Changed {
   // Optional: a recorded fixture or an older vehicle predates these fields, so a screen must read
   // their absence as "nothing is waiting" rather than crash or claim an unconfirmed reading.
   unconfirmed?: boolean; unconfirmed_fact_ids?: string[]; message?: string;
+  // Absolute severity of the LATEST reading (config/vital_ranges.yaml), so a trend tile can colour a value that is
+  // dangerous even when it did not move enough to be `significant`. Absent when the latest value is in range.
+  severity?: VitalSeverity;
+  // The smallest change worth noticing for this vital (config/trends.yaml abs_change / falls_by): a display hint the
+  // sparkline uses as a minimum visible span, so a sub-threshold wobble does not render as dramatically as a cliff.
+  floor?: number;
 }
 
 // ---------- scores (herald/scoring, config/scores/*.yaml) ----------

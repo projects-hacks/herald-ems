@@ -283,6 +283,48 @@ def test_every_qa_gold_citation_resolves_to_a_section_that_holds_the_quote(kb):
             assert flat(r["answer_quote"]) in flat(with_items), r["id"]
 
 
+# ── the sync manifest is read on the GET /api/state path, so it must never raise ──
+# summary() feeds herald/api/context.py full_state(), which is what the medic screen polls. On 2026-09-25 the app
+# returned 500 from /api/state during startup: manifest.json existed but was zero-length, because the file is
+# rewritten while the protocol index builds, and _manifest() guarded only for the file being absent. The fields it
+# provides (review_required, last_sync) are optional, so an unreadable manifest must degrade to {} rather than take
+# the whole snapshot down with it.
+@pytest.mark.parametrize("content, why", [
+    ("", "zero-length, which is what a half-written file looks like"),
+    ("   \n", "whitespace only"),
+    ('{"501": {"review_required": true}', "truncated mid-object"),
+    ("not json at all", "not json"),
+    ("null", "valid json but not an object"),
+])
+def test_an_unreadable_manifest_degrades_instead_of_failing_the_snapshot(tmp_path, content, why):
+    county = copy.deepcopy(COUNTY)
+    county["documents"] = []                      # no documents: summary() still has to answer
+    kb = KnowledgeBase(county, tmp_path)
+    # _manifest() reads <protocols_dir>/<county id>/manifest.json, not <protocols_dir>/manifest.json. Writing it to
+    # the wrong place makes this test pass for the wrong reason (the file simply does not exist), so assert it landed.
+    manifest = tmp_path / county["id"] / "manifest.json"
+    manifest.parent.mkdir(parents=True, exist_ok=True)
+    manifest.write_text(content)
+    assert kb.dir == manifest.parent
+    s = kb.summary()                              # must not raise, whatever is in the file
+    assert s["county"] == county["id"], f"summary() lost its county with a manifest that is {why}"
+    assert s["review_required"] == []
+    assert s["last_sync"] is None
+
+
+def test_a_good_manifest_is_still_read(tmp_path):
+    """The degradation above must not swallow a manifest that is fine."""
+    county = copy.deepcopy(COUNTY)
+    county["documents"] = []
+    kb = KnowledgeBase(county, tmp_path)
+    manifest = kb.dir / "manifest.json"
+    manifest.parent.mkdir(parents=True, exist_ok=True)
+    manifest.write_text(json.dumps(
+        {"_last_sync": "2026-09-25T00:00:00Z", "501": {"review_required": True}, "605": {"review_required": False}}))
+    s = kb.summary()
+    assert s["last_sync"] == "2026-09-25T00:00:00Z"
+    assert s["review_required"] == ["501"]
+
 def test_a_lead_in_section_carries_the_items_listed_under_it(kb):
     """602 §VI.E.1 ends "Stroke shall be transported to:"; the destinations are its sub-items. A quote of it must hold
     the rule, and the sub-items stay their own citable sections."""

@@ -28,13 +28,37 @@ describe("ambulance workspace", () => {
     expect(screen.getByRole("button", { name: "Listen and watch" })).toBeTruthy();
     expect(screen.getByText(/Paused — tap to listen and watch/)).toBeTruthy();
     expect(screen.getByRole("region", { name: "How the patient is moving" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "What Herald did" })).toBeTruthy();
+    expect(screen.getByRole("group", { name: "Patient" })).toBeTruthy();                // the patient bar, not a card
+    expect(screen.queryByRole("region", { name: "What Herald did" })).toBeNull();      // a system record, not on Now
     expect(screen.queryByText(/Record only when authorized|processed on the vehicle/)).toBeNull();   // no disclaimers on Now
   });
-  it("opens the county protocol search from the header", () => {
+  it("keeps What Herald did one tap away on the Record page", () => {
     render(<CabinApp />);
-    fireEvent.click(screen.getByRole("button", { name: "Protocols" }));
-    expect(screen.getByRole("dialog", { name: "County protocols" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Record" }));
+    fireEvent.click(screen.getByRole("tab", { name: "What Herald did" }));
+    expect(screen.getByRole("region", { name: "What Herald did" })).toBeTruthy();
+  });
+  it("shows safety facts first in the patient bar, marked as safety", () => {
+    const f = (key: string, label: string, value: unknown, ts: string) => ({ id: key, key, label, value, unit: null,
+      status: "confirmed", ts, captured_by: "medic", provenance: {}, role: "medic", speaker: null, confidence: 1,
+      previous_value: null, previous_ts: null }) as unknown as Snapshot["facts"][string];
+    const early = "2026-09-25T10:00:00Z", late = "2026-09-25T10:05:00Z";
+    useHerald.setState({ snapshot: { ...snapshot, facts: {
+      "stroke.onset_witnessed": f("stroke.onset_witnessed", "Onset witnessed", true, early),
+      "allergies": f("allergies", "Allergies", ["aspirin"], late),
+    } } });
+    render(<CabinApp />);
+    const chips = screen.getByRole("group", { name: "Patient" }).querySelectorAll(".patient-chip");
+    expect(chips[0].textContent).toContain("Allergies");             // safety leads even though it came later
+    expect(chips[0].getAttribute("data-safety")).not.toBeNull();
+  });
+  it("does not offer a manual protocol search: the copilot surfaces the county passage on its own", () => {
+    // The medic knows their protocols; Herald's job is to suggest the relevant passage unprompted (ProtocolCues) or
+    // on a spoken ask, not to be a reference the medic types into. The manual search drawer was removed from the
+    // cabin (owner, 2026-09-25); the agentic path (auto-cues + "show me the protocol for …") covers it.
+    render(<CabinApp />);
+    expect(screen.queryByRole("button", { name: "Protocols" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "County protocols" })).toBeNull();
   });
   it("exposes bounded push-to-talk and typed notes without starting the microphone", () => {
     useHerald.setState({ ui: initialUi("?capture=off") }); render(<CabinApp />);

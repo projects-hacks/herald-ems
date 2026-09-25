@@ -123,9 +123,31 @@ gates:
 - id: recall_floors
   group: speech
   title: trauma.criteria and infection.suspected recall
-  cmd: [eval/bench_extract.py, --extractor, llm, --model, '{label}', --gold, eval/gold_v2.jsonl,
-        --keys, 'trauma.criteria,infection.suspected', --dump, '{dump}']
-  metrics: {recall: recall, precision: precision, f1: f1}
+  # TWO HARNESS BUGS, not a moved bar. The 0.6 bar is unchanged; only the measurement was broken.
+  #
+  # Bug 1 (the gold set): this pointed at eval/gold_v2.jsonl, which contains trauma.criteria 0 times and
+  # infection.suspected 0 times, so the recall it measured could only ever be 0.0. herald-f and the 4B "failed" it
+  # identically at 0.0, which is what gave the flaw away. eval/gold_v3.jsonl has 10 and 9 of them (verified).
+  #
+  # Bug 2 (the metric): repointing at gold_v3 STILL returned 0.0. eval/scoring.yaml puts prefixes [trauma.,
+  # infection.] in the `broad` group, and score() keeps only `group_of(key) is None`, so grouped keys are excluded
+  # from the headline precision/recall/f1 BY DESIGN -- to keep the headline comparable with numbers published before
+  # those keys existed. Reading headline `recall` for these two keys is therefore structurally 0.0 on ANY gold set.
+  # They have to be scored through the group mechanism: --group-gold + groups.broad.recall. The group gold file can
+  # be gold_v3.jsonl itself, because group_gold reads each row's "facts" and filters by group_of(). --keys narrows
+  # both gold and pred first (bench_extract.py lines 266-268), so the broad group here contains exactly these keys.
+  #
+  # Split per key, because §6 states a floor for each and the two behave nothing alike. Measured on herald-f, 3 runs:
+  #   infection.suspected  recall 0.889 / 0.778 / 0.889, precision 1.0 throughout          -> PASSES the 0.6 floor
+  #   trauma.criteria      recall 0.25 / 0.25 / 0.25,    precision 0.5 / 0.8 / 0.8         -> FAILS, and stably so
+  # trauma.criteria fails for every model measured (herald-f 0.25, E v2 0.188, run F 4B 0.062), so it is a
+  # pre-existing capability gap that bug 1 had been hiding -- not a run F regression. Product answer: no automatic
+  # field-triage or sepsis criteria claim; the medic confirms a checklist and the score uses confirmed criteria only
+  # (owner, 2026-09-25). See docs/RUN_F_REPORT.md "known limitations" for the table and the failure examples.
+  cmd: [eval/bench_extract.py, --extractor, llm, --model, '{label}', --gold, eval/gold_v3.jsonl,
+        --keys, 'trauma.criteria,infection.suspected', --group-gold, 'broad=eval/gold_v3.jsonl',
+        --dump, '{dump}']
+  metrics: {recall: groups.broad.recall, precision: groups.broad.precision, f1: groups.broad.f1}
   checks:
   - {metric: recall, op: '>=', value: 0.6}                         # §6 "recall >= 0.6"
 
@@ -149,22 +171,44 @@ gates:
 
 - id: calibration
   group: speech
-  title: confidence at the configured threshold, held-out
-  # config/confirmation.yaml auto_confirm_threshold is 0.8 (team lead, 2026-09-24); E v2 scored wrong=1 there, which is
-  # exactly the bar. If the refit moves the threshold, change it here and in config/confirmation.yaml together.
+  title: confidence at the configured threshold, HELD-OUT
+  # The threshold is FIT on the dev split (calibration_fit, gold_v1) and REPORTED here on held-out gold_v2. Fitting
+  # and reporting on the same set is circular and would flatter any model (owner, 2026-09-25).
+  # config/confirmation.yaml auto_confirm_threshold is 0.8 (team lead, 2026-09-24); E v2 scored wrong=1 there. If the
+  # refit moves the threshold, change it here and in config/confirmation.yaml together.
+  #
+  # --extra-gold IS REQUIRED AND IS NOT OPTIONAL POLISH. 11 keys have their gold ONLY in eval/gold_v2_broad.jsonl
+  # (meds.given, procedures.done, vitals.pain, vitals.gcs_eye/verbal/total, ecg.stemi_reading, ecg.transmitted,
+  # trauma.criteria, trauma.mechanism, trauma.injuries) and 4 only in eval/gold_v2_gfast.jsonl. Unlike
+  # bench_extract.score(), which EXCLUDES grouped keys from the headline, calibrate_confidence.correct() judges every
+  # extracted fact against the gold it was given and returns False when the key is absent -- so a missing gold file
+  # silently counts every CORRECT broad fact as a wrong auto-confirm. Without the broad gold this gate reported E v2
+  # at 5 wrong and herald-f at 11; with it they are 1 and 3. The 2026-09-24 E v2 baseline of 1 was measured with
+  # --extra-gold, so the gate had been comparing against a differently-scored number the whole time (found
+  # 2026-09-25 while re-confirming E v2 on the shipping stack).
   cmd: [eval/calibrate_confidence.py, --model, '{label}', --gold, eval/gold_v2.jsonl,
-        --gfast-gold, eval/gold_v2_gfast.jsonl, --threshold, '0.8', --dump, '{dump}']
+        --gfast-gold, eval/gold_v2_gfast.jsonl, --extra-gold, eval/gold_v2_broad.jsonl,
+        --threshold, '0.8', --dump, '{dump}']
   select: {threshold: 0.8}                                         # the per-threshold row, not the header line
   metrics: {wrong_auto: wrong_auto, auto_confirmed: auto_confirmed, precision: precision}
   checks:
   - {metric: wrong_auto, op: '<=', value: 1}                       # §6 "held-out auto-confirmed wrong <= 1"
 
-- id: calibration_sweep
+- id: calibration_fit
   group: speech
-  title: the full threshold sweep, for the refit decision
+  title: threshold sweep on the DEV split, to fit the threshold
   report_only: true                                                # informational: a person picks the threshold
-  cmd: [eval/calibrate_confidence.py, --model, '{label}', --gold, eval/gold_v2.jsonl,
-        --gfast-gold, eval/gold_v2_gfast.jsonl]
+  # gold_v1 is the dev set. The threshold chosen from this sweep is then verified on held-out gold_v2 by the
+  # `calibration` gate above, so the reported number is never the one the threshold was tuned on.
+  # --extra-gold for the same reason as the gate above: without eval/gold_v1_broad.jsonl every correct broad-group
+  # fact counts as a wrong auto-confirm, and the threshold would be fitted against inflated wrong counts.
+  cmd: [eval/calibrate_confidence.py, --model, '{label}', --gold, eval/gold_v1.jsonl,
+        --gfast-gold, eval/gold_v1_gfast.jsonl, --extra-gold, eval/gold_v1_broad.jsonl,
+        --dump, '{dump}']
+  # The sweep prints a HEADER line (auroc, wrong_facts, eligible_facts) and then one row per threshold. Without a
+  # select, pick() took the LAST line -- the 0.99 threshold row -- so every metric here came back None.
+  # `mode` appears only on the header line, which makes it the unambiguous selector.
+  select: {mode: joint}
   metrics: {auroc: auroc, wrong_facts: wrong_facts, eligible_facts: eligible_facts}
 
 # ───────────────────────────── photos ─────────────────────────────

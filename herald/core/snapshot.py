@@ -19,6 +19,7 @@ from .clock import parse_clock
 from .corroboration import BatchConfirmation, CorroborationRules
 from .schema import Fact, Status, utcnow
 from .trends import TrendRules
+from .vital_severity import VitalRanges
 from .vocabulary import Vocabulary, default_vocabulary, norm_value
 
 SCORE_HISTORY = "news2"          # the score whose history drives the "rose" alert
@@ -27,10 +28,13 @@ SCORE_HISTORY = "news2"          # the score whose history drives the "rose" ale
 class Projector:
     def __init__(self, vocabulary: Vocabulary, scales: ScaleRegistry, checklists: ChecklistEngine,
                  counties: CountyRegistry, trends: TrendRules, tz: ZoneInfo, reassess_min: Optional[int] = None,
-                 batch: Optional[BatchConfirmation] = None):
+                 batch: Optional[BatchConfirmation] = None, vital_ranges: Optional[VitalRanges] = None):
         self.vocab, self.scales, self.checklists = vocabulary, scales, checklists
         self.counties, self.trends, self.tz, self.reassess_override = counties, trends, tz, reassess_min
         self.batch = batch or BatchConfirmation(vocabulary, CorroborationRules.from_config())
+        # Absolute clinical severity per vital value (config/vital_ranges.yaml). Empty ranges = no severity ever, so
+        # an older config or a test that omits it degrades to the previous "no colour" behaviour rather than failing.
+        self.vital_ranges = vital_ranges or VitalRanges({})
 
     # ---------- score history (called on commit) ----------
     def record_scores(self, inc) -> None:
@@ -40,11 +44,27 @@ class Projector:
             inc.news2_history.append({"ts": utcnow().isoformat(), "score": n["score"],
                                       "complete": n["complete"], "band": n["band"]})
 
-    def fact_view(self, f: Fact) -> dict:
+    def fact_view(self, f: Fact, vitals_applicable: bool = True, spo2_scale: int = 1) -> dict:
         d = f.model_dump(mode="json")
         d["label"] = self.vocab.label(f.key)
         d["unit"] = f.unit or self.vocab.meta(f.key).get("unit")
+        # Absolute clinical severity of this value, so the screen can colour an abnormal-but-steady reading, not only
+        # a changing one (config/vital_ranges.yaml). None for everything that has no coloured band (non-vitals,
+        # diastolic BP, mid-range values); the field is only added when there is a severity to show, so the snapshot
+        # shape for non-vitals is unchanged. `vitals_applicable` withdraws the colouring for the patients the adult
+        # NEWS2 chart is not valid for (paediatric, documented pregnancy) -- see VitalRanges.severity.
+        severity = self.vital_ranges.severity(f.key, f.value, applicable=vitals_applicable, spo2_scale=spo2_scale)
+        if severity:
+            d["severity"] = severity
         return d
+
+    def _vitals_applicable(self, results: dict) -> bool:
+        """Whether the adult NEWS2-derived severity colouring applies to this patient. It withdraws for exactly the
+        patients NEWS2 itself withdraws for: `excluded` means paediatric or documented pregnancy (config/scores/
+        news2.yaml applicability). `incomplete` (age not yet known) still colours, because before an age is spoken
+        the working assumption on an EMS call is an adult and an out-of-range value is worth flagging; the moment a
+        paediatric age arrives the colouring withdraws."""
+        return results.get("news2", {}).get("applicability") != "excluded"
 
     # ---------- the picture ----------
     def snapshot(self, inc) -> dict:
@@ -59,12 +79,16 @@ class Projector:
             alert_ids = self.checklists.active(inc.dispatch, complaint, all_vals, results_all)
             readiness, items = self._readiness(alert_ids, vals, all_vals, results, results_all, started)
             missing, unknown = self._needs_attention(readiness, items, alert_ids, vals, all_vals, results)
-            changed = self._trends(inc)
+            vitals_applicable = self._vitals_applicable(results_all)
+            # NEWS2 SpO2 scale: 2 only when the medic has CONFIRMED it (RCP: Scale 2 under clinician direction only;
+            # patient.spo2_scale is require_tap). Anything else, including an unconfirmed proposal, is Scale 1.
+            spo2_scale = 2 if vals.get("patient.spo2_scale") == 2 else 1
+            changed = self._trends(inc, vitals_applicable, spo2_scale)
             alerts = self._alerts(inc, changed, results, county, vals)
             summary = " ".join([str(all_vals["patient.age"])] if "patient.age" in all_vals else [])
             if "patient.sex" in all_vals:
                 summary = f"{summary} {str(all_vals['patient.sex']).upper()[:1]}".strip()
-            latest = {f.key: self.fact_view(f) for f in inc.facts if f.status != Status.rejected}
+            latest = {f.key: self.fact_view(f, vitals_applicable, spo2_scale) for f in inc.facts if f.status != Status.rejected}
             # event keys (vocabulary merge "each": a dose given, a procedure) keep every event, in order; `facts`
             # still holds the latest one per key for screens that show one value
             events = {k: [self.fact_view(f) for f in inc.facts if f.key == k and f.status != Status.rejected]
@@ -151,7 +175,7 @@ class Projector:
         return [f for f in inc.history(key)
                 if f.status == Status.confirmed or self.trends.counts_unconfirmed(f.captured_by.value)]
 
-    def _trends(self, inc) -> list[dict]:
+    def _trends(self, inc, vitals_applicable: bool = True, spo2_scale: int = 1) -> list[dict]:
         changed = []
         for key in self.trends.keys():
             h = self._trend_points(inc, key)
@@ -159,10 +183,18 @@ class Projector:
                 series = [f.value for f in h]
                 waiting = [f for f in h if f.status != Status.confirmed]
                 direction = "up" if series[-1] > series[-2] else ("down" if series[-1] < series[-2] else "flat")
+                latest_severity = self.vital_ranges.severity(key, series[-1], applicable=vitals_applicable,
+                                                             spo2_scale=spo2_scale)
                 row = {"key": key, "label": self.vocab.label(key), "series": series,
                        "times": [(f.provenance.observed_at or f.ts).isoformat() for f in h], "delta": series[-1] - series[0],
                        "direction": direction,
                        "significant": self.trends.significant(key, series[-2], series[-1]),
+                       # Absolute severity of the latest reading, so the trend tile colours a value that is dangerous
+                       # even when it has not moved enough to be `significant` (config/vital_ranges.yaml).
+                       **({"severity": latest_severity} if latest_severity else {}),
+                       # The smallest change worth noticing (config/trends.yaml), so a sparkline can keep a minimum
+                       # visible span and a sub-threshold wobble does not look like a cliff. Display hint only.
+                       **({"floor": self.trends.floor(key)} if self.trends.floor(key) is not None else {}),
                        # Labelled for the screen: which of these readings still need the medic's tap.
                        "unconfirmed": bool(waiting), "unconfirmed_fact_ids": [f.id for f in waiting]}
                 if waiting:
@@ -246,10 +278,12 @@ class Projector:
 
 
 def build_projector(settings, counties: CountyRegistry) -> Projector:
+    from ..config import load_yaml
     vocab = default_vocabulary()
     return Projector(vocab, default_scales(), ChecklistEngine.from_config(counties), counties,
                      TrendRules.from_config(), ZoneInfo(settings.timezone), settings.reassess_min,
-                     BatchConfirmation(vocab, CorroborationRules.from_config()))
+                     BatchConfirmation(vocab, CorroborationRules.from_config()),
+                     VitalRanges.from_config(load_yaml))
 
 
 @lru_cache(maxsize=1)

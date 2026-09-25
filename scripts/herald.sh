@@ -10,7 +10,8 @@
 #   1. checks this checkout against origin/main (warns if it is behind; `up --pull` fast-forwards first)
 #   2. one-time data: the RxNorm drug index (~10 min, network) and the Whisper + embedding weights
 #   3. the shipped model stack on ZRT :8080 -- ems-e-v2-fp8 (speech -> facts) and herald-f (photos, the monitor,
-#      figures and protocol reranking) -- served one at a time, each only if missing and only if memory allows
+#      figures and protocol reranking) -- served one at a time, each only if missing and only if memory allows.
+#      The untuned qwen3vl-fp8 is the baseline and the rollback: HERALD_VISION_MODEL=qwen3vl-fp8 switches back.
 #   4. the React UI build (npm ci / npm run build only when sources changed)
 #   5. the ED link emulator (Toxiproxy :9000 -> ED screen) and the ED screen (:8200)
 #   6. the Herald app (:8100) with Whisper preloaded, then waits until speech, extraction and vision all report ready
@@ -101,6 +102,7 @@ EOF
 ensure_model() {   # label, serve_models.sh target, GB it needs
   local label="$1" target="$2" need="$3"
   if served "$label"; then ok "$label serving"; return; fi
+  [ -n "$target" ] || die "no serve_models.sh target known for label '$label': add it to serve_target_for()"
   local avail; avail="$(mem_avail_gb)"
   [ "$avail" -ge $((need + 16)) ] || die "$label is not served and only ${avail} GB is free (needs ~${need} GB + 16 GB headroom). Stop another model first: sg zrt -c 'zrt status'"
   warn "$label not served: starting it (${need} GB; first start can take several minutes)"
@@ -109,11 +111,38 @@ ensure_model() {   # label, serve_models.sh target, GB it needs
   die "$label did not become ready within 30 minutes: sg zrt -c 'zrt status'"
 }
 
+serve_gib_for() {      # roughly what a label needs resident; measured on this box, 2026-09-25
+  case "$1" in
+    ems-e-v2-fp8)   echo 18 ;;   # measured 17.7 GB VRAM
+    herald-f)       echo 42 ;;   # measured 40.9 GB VRAM
+    qwen3vl-fp8)    echo 44 ;;   # measured 39.9-43.1 GB VRAM
+    herald-f4b-fp8) echo 16 ;;   # measured 13.9 GB VRAM
+    omni)           echo 44 ;;
+    *)              echo 44 ;;   # unknown: assume a 30B
+  esac
+}
+
+serve_target_for() {   # the scripts/serve_models.sh target that serves a given label
+  case "$1" in
+    ems-e-v2-fp8)   echo ems ;;
+    qwen3vl-fp8)    echo vision ;;
+    herald-f)       echo herald-f ;;
+    herald-f4b-fp8) echo f4b ;;
+    omni)           echo omni ;;
+    *)              echo "" ;;
+  esac
+}
+
 ensure_models() {
   say "Models (ZRT :8080)"
   sg zrt -c "zrt status" >/dev/null 2>&1 || die "ZRT is not reachable: is the zrt service running? (sg zrt -c 'zrt status')"
-  ensure_model "$LLM" ems 18      # one at a time: never load two big models at once (memory safety)
-  case "$VISION" in herald-f) ensure_model "$VISION" herald-f 42 ;; *) ensure_model "$VISION" vision 44 ;; esac
+  # The target and the size are derived from the LABEL, not hardcoded per job. The vision job used to run
+  # `serve_models.sh vision` whatever label it wanted, and that target serves qwen3vl-fp8 -- so with
+  # HERALD_VISION_MODEL=herald-f an unserved box would quietly start the wrong 30B and then fail the readiness check
+  # against a label nobody asked for. A `case` on herald-f fixes that one label; a lookup fixes every label and stops
+  # with a clear message on one it does not know, instead of falling back to something arbitrary.
+  ensure_model "$LLM" "$(serve_target_for "$LLM")" "$(serve_gib_for "$LLM")"   # one at a time: never two big loads
+  ensure_model "$VISION" "$(serve_target_for "$VISION")" "$(serve_gib_for "$VISION")"
 }
 
 build_ui() {
