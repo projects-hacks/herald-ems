@@ -11,8 +11,7 @@
 #   is "unknown", never "absent".
 # - Mental status and vital signs J-N are computed from their own facts, never extracted as criteria.
 # - Criterion S (vehicle telemetry), X.3 (EMS provider judgment), X.4 (hanging) and X.5 (drowning) have no fact in
-#   the vocabulary and are not represented; the bleeding-disorder half of X.1 likewise (see the report in
-#   docs/UX_PLAN.md §5.9c).
+#   the vocabulary and are not represented; the bleeding-disorder half of X.1 likewise.
 # In Santa Clara a Yellow hit is still a Trauma Alert: Policy 602 §VI.C (PDF p. 14) defines Trauma Alert Patients as
 # meeting the Red criteria "or Moderate Risk Mechanism of Injury or EMS Judgement (Yellow Criteria)". Destination
 # rules (602 §VI.C.2-4, §VI.D) are quoted from config/counties/santa_clara.json, not here.

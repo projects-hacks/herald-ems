@@ -1,4 +1,4 @@
-// Clocks are HH:MM:SS everywhere (Pulsara's convention, UX_PLAN §3.0); numbers never tween.
+// Clocks are HH:MM:SS everywhere (Pulsara's convention); numbers never tween.
 import type { FactRecord, FactValue, FactView, Snapshot } from "./types";
 
 const pad = (n: number) => String(Math.floor(n)).padStart(2, "0");

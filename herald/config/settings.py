@@ -47,8 +47,15 @@ class Settings(BaseModel):
     unit_id: Optional[str] = None                 # this vehicle's unit ID, e.g. "Medic 25" (Policy 501 §III.A.1.a)
     # relay and demo link emulation
     ed_url: Optional[str] = None
+    ed_token: Optional[str] = None                # B7: sent as X-Herald-Token on every /ingest, /ping and /state
+                                                  # call to ed_receiver; must match its own ED_RECEIVER_TOKEN
     toxiproxy_url: str = "http://127.0.0.1:8474"
     # serving
+    device_token: Optional[str] = None            # B7: shared secret every mutating /api/* request must present
+                                                  # (header X-Herald-Token); unset = disabled (local dev default).
+                                                  # HERALD_DEVICE_TOKEN. GET requests and /ws are never gated: a
+                                                  # tablet reading the live picture needs no secret, only writing
+                                                  # to it does.
     ui: str = "new"                               # "classic" serves web/ at / as well
     capture_source: str = "off"
     capture_auto: bool = False
@@ -143,7 +150,9 @@ class Settings(BaseModel):
             dispatch=e.get("HERALD_DISPATCH", "possible stroke"),
             unit_id=opt("HERALD_UNIT_ID"),
             ed_url=opt("HERALD_ED_URL"),
+            ed_token=opt("HERALD_ED_TOKEN"),
             toxiproxy_url=e.get("TOXIPROXY_URL", cls.model_fields["toxiproxy_url"].default),
+            device_token=opt("HERALD_DEVICE_TOKEN"),
             ui=e.get("HERALD_UI", "new"),
             capture_source=e.get("HERALD_CAPTURE_SOURCE", "off"),
             capture_auto=e.get("HERALD_CAPTURE_AUTO", "0") == "1",

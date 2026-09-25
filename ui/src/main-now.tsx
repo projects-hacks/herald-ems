@@ -1,14 +1,16 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import "@fontsource-variable/inter";
-import "@fontsource-variable/jetbrains-mono";
+import "@fontsource-variable/atkinson-hyperlegible-next";
+import "@fontsource-variable/atkinson-hyperlegible-mono";
+import "@fontsource/saira-condensed/600.css";
+import "@fontsource/saira-condensed/700.css";
 import "./index.css";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { loadContract } from "@/lib/contract";
 import { connectLive, playFixture, type FixturePlayer } from "@/lib/ws";
 import { NowApp } from "@/screens/NowApp";
 
-// ?fixture=<name>&speed=<n> replays a recorded session with no backend (UX_PLAN §5.8); otherwise connect live.
+// ?fixture=<name>&speed=<n> replays a recorded session with no backend; otherwise connect live.
 const q = new URLSearchParams(location.search);
 const fixture = q.get("fixture");
 let player: FixturePlayer | null = null;

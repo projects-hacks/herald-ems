@@ -70,6 +70,29 @@ Visual semantics: “Herald sees” off/watching/reading is technical status, no
 
 The standalone camera accessory uses `/capture.html`. Continuous camera requires localhost or HTTPS, explicit permission, visible preview and a stop control. It offers drag ROI and numeric-coordinate alternatives; a one-shot file input remains available. Camera close/tab hide/network failure stops the source; no automatic permission restart. Privacy is an in-memory ring buffer plus redacted used-evidence files, not continuous video storage. Face detection is fallible and requires spot checks. No field-safety or real-model acceptance claim is implied by fake tests.
 
+### Relay consent scope (2026-09-25)
+
+`POST /api/relay/authorize` (`{destination: string}`) already derived the medic-facing scope label from whichever checklists are actually open (`herald/api/context.py` `pre_alert_scope`, never a client-supplied string; see `test_relay_scope_is_derived_from_the_active_checklist_not_the_client_label`). What was missing: the relay send itself ignored that scope and always sent every tier. Fixed in `herald/relay/tiers.py` (`RelayScopes`) + `config/relay.yaml` `scopes`/`default_scope`: a same-purpose alert pre-alert (stroke/trauma/sepsis/stemi — the checklist alert ids in `config/checklists.yaml`) now authorizes only relay tiers 1-3 (critical facts, score changes, current vitals/exam); tiers 4-5 (arrival logistics, demographics) flow only once no specific alert checklist is open, under the broader `patient_update` (default) scope, which is the unrestricted, every-tier send.
+
+- `authorized` (in relay status / `POST /api/relay/authorize`'s response) gains `alert_ids: string[]` alongside the existing `destination`, `scope` (label, unchanged) and `at`. Empty when no alert checklist was open at authorization time (the broad scope). Old persisted/fixture snapshots without it behave as empty (unrestricted), matching prior behaviour.
+- `sync`/`pending` in relay status, and everything the relay actually sends, are filtered by the ceiling of the authorized `alert_ids`; nothing new here for the UI to read, but a "critical only" view of `sync`/`pending` while a stroke/trauma/sepsis/STEMI alert is the open scope is expected, not a bug.
+
+### Batch confirm: capture groups, one tap per reading (2026-09-25)
+
+Cuts the tap burden without auto-confirming anything. One monitor frame yields HR/BP/SpO2/RR at once; the medic now confirms the *reading*, not each value. Engine: `herald/core/corroboration.py` (`CorroborationRules`, `BatchConfirmation`); content: `config/corroboration.yaml` (risk tiers, plausible-step deltas, medic-facing wording). No confidence gate and no auto-confirm anywhere in this path — a reading is only ever flagged for individual review or left for a one-tap batch; only the medic's tap moves a fact to `confirmed`.
+
+- Snapshot gains `capture_groups: CaptureGroup[]`, one entry per frame that still has an unconfirmed reading, oldest first.
+- `POST /api/readings/{frame_id}/confirm` — confirms every batchable reading of that frame in one call. 404 if the frame has no unconfirmed reading left (unknown id, or already fully confirmed). 409 if the incident has ended. Readings the rules flag (a jump past the configured plausible step, the first reading of a key when `first_reading: individual`, a held fact, an unresolved label mismatch, a contradiction, or any non-batchable key/source) are left `unconfirmed` and reported back in `individual` with why; they still need `/api/facts/{id}/confirm` or `/api/facts/confirm`.
+- Lever 2 (corroboration): only monitor-sourced vitals (`vitals.*`, `captured_by` camera/device) ever batch. A reading within its configured plausible step of the previous reading of that key is batchable; a reading that jumps past it is flagged, not auto-confirmed and not batched — same intent as the `significant_change` deltas in `config/trends.yaml`, kept as separate numbers so the two can be retuned apart. Medications, allergies, code status and identity/triage facts are always individual, whatever their source.
+
+```ts
+interface CaptureGroup {
+  frame_id: string; trigger: string | null; photo_id: string | null; ts: string;  // ISO
+  batch_fact_ids: string[];   // one POST confirms all of these
+  individual: {id: string; key: string; label: string; reason: string | null}[];
+}
+```
+
 
 ## `/api/telemetry` contract (backend-provided, U15)
 
@@ -437,5 +460,23 @@ export interface HandoffSummary {                // snapshot.handoff
 - **Read-aloud.** Offer `text` in a monospace block with a copy button for the radio report.
 - **Refresh.** Re-fetch when `snapshot.handoff` changes. The summary counts are cheap enough to badge the tab, e.g. "3 not yet known".
 - **Wording.** Don't reword lines in the UI: they are the county's words and the config's templates.
+
+## FHIR R4 export contract (backend, X2, 2026-09-25)
+
+`GET /api/handoff/fhir` returns the current incident's confirmed record as a FHIR R4 `Bundle` (`type: "collection"`), for a records request or a receiving system that wants structured data instead of the read-aloud report. Same confirmed-only guarantee as `/api/handoff` and the relay (AGENTS.md invariant 4): a fact waiting for the medic's tap never appears, whatever resource type it would otherwise become. Engine: `herald/reporting/fhir.py` (`FhirExport`); coding content: `config/fhir_codes.yaml` (LOINC for vitals/age, a local `http://herald.local/fhir/scores` system for Herald's own computed scores — text-only, since they aren't LOINC panels). No SNOMED CT or other UMLS-licensed vocabulary is used; drug/allergy `Coding` is only ever the RxNorm/ICD-10-CM codes `herald/terminology/` already resolved onto the fact (`config/terminology.yaml` systems), passed through unchanged — this export invents no coding of its own.
+
+| Resource | From | Notes |
+|---|---|---|
+| `Patient` (one, id `patient-<incident id>`) | `patient.name`, `patient.identifier`, `patient.sex` | `gender` mapped to the FHIR value set; no `birthDate` (only a spoken age is known) |
+| `Observation` (vital-signs) | every confirmed reading of `vitals.*` in `config/fhir_codes.yaml` `vitals` | one Observation **per confirmed reading**, not just the latest — the trend, like the NOW screen's movement view |
+| `Observation` (social-history) | `patient.age` | LOINC 30525-0 "Age"; one per confirmed reading |
+| `Observation` (survey) | `snapshot()["scores"]`, i.e. computed from confirmed facts only | one per score once it's `complete` (`relay_text` non-null, the same gate the relay uses); `valueString` is that same line |
+| `MedicationAdministration` | `meds.given` (each confirmed dose event) | `medicationCodeableConcept.coding` present only when the fact already carries an RxNorm `Coding` |
+| `AllergyIntolerance` | the latest confirmed `allergies` list, one resource per item | coding present only when the fact already carries one (RxNorm or the NEMSIS drug-class ICD-10-CM code) |
+| `Condition` | `impression.primary` (`verificationStatus: unconfirmed`, noted as the crew's stated impression, not a diagnosis) and each confirmed `trauma.injuries` item (`verificationStatus: provisional`) | text-only `code`; Herald never diagnoses (AGENTS.md invariant 3) |
+
+**Known limitation, flagged for a clinical/coding review pass, not silently shipped as verified:** the LOINC codes in `config/fhir_codes.yaml` are the standard, commonly used codes for these panels, assembled from memory for this change and not re-checked against a live LOINC lookup in this session. Give them one review before this export is relied on outside a demo.
+
+**Test:** `tests/test_fhir_export.py` — full bundle shape across every resource type, unconfirmed facts (camera-sourced, low-confidence, and a rejected fact) proven absent, existing RxNorm/ICD-10-CM coding passed through unchanged, and the live endpoint.
 
 **What the report can't represent yet.** The five gaps listed in the first version (time of injury, before arrival, airway status, primary impression, 12-lead territory) were closed by the keys approved on 2026-09-24 (table above). They reach the report only once the extraction model emits them; until then they show as "not yet known" where required.

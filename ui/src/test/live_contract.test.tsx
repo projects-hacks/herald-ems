@@ -1,6 +1,6 @@
 // The screens against a real snapshot captured from the server on 2026-09-24 (run E v2, every call type): a fall with
 // chest pain, medications given (records), two open checklists (STEMI and trauma), county scores. Guards the UI
-// against the contract as it is now, not as it was when the screens were written (UX_PLAN §5.6).
+// against the contract as it is now, not as it was when the screens were written.
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";

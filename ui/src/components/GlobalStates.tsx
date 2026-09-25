@@ -1,4 +1,4 @@
-// States every live screen handles (UX_PLAN §3.0, §3.1.12): connecting, can't connect, stale, toast, and the
+// States every live screen handles: connecting, can't connect, stale, toast, and the
 // new-incident confirmation. The replay controls live in the sidebar.
 import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -96,9 +96,9 @@ export function EndIncidentDialog() {
         <DialogTitle>End this call?</DialogTitle>
         <DialogDescription>This permanently deletes this call&apos;s audio and photos. Patient facts remain on screen for review until you start a new incident.</DialogDescription>
         <DialogFooter>
-          <button type="button" onClick={() => setUi({ confirmEndIncident: false })} className="min-h-11 rounded-[var(--radius-control)] border border-border-subtle bg-surface-2 px-4 text-button font-semibold">Cancel</button>
+          <button type="button" onClick={() => setUi({ confirmEndIncident: false })} className="min-h-12 rounded-[var(--radius-control)] border border-border-subtle bg-surface-2 px-4 text-button font-semibold">Cancel</button>
           <button type="button" onClick={async () => { if (await api.endIncident()) setUi({ confirmEndIncident: false }); }}
-            className="min-h-11 rounded-[var(--radius-control)] bg-accent-fill px-4 text-button font-semibold text-on-accent-fill">End call and delete media</button>
+            className="min-h-16 rounded-[var(--radius-control)] bg-accent-fill px-4 text-button font-semibold text-on-accent-fill">End call and delete media</button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -110,7 +110,7 @@ export function PresenterBar() {
   const ui = useHerald((s) => s.ui);
   const setUi = useHerald((s) => s.setUi);
   if (!ui.presenterOpen) return null;
-  const btn = "min-h-11 rounded-[var(--radius-control)] bg-surface-2 px-3.5 text-button font-semibold hover:bg-surface-3";
+  const btn = "min-h-12 rounded-[var(--radius-control)] bg-surface-2 px-3.5 text-button font-semibold hover:bg-surface-3";
   return (
     <div className="fixed inset-x-4 bottom-4 z-40 flex flex-wrap items-center gap-2 rounded-[22px] bg-surface-1/95 px-4 py-3 shadow-[var(--shadow-3)] backdrop-blur-xl" role="region" aria-label="Presenter">
       <span className="text-meta font-semibold text-text-secondary">Presenter</span>

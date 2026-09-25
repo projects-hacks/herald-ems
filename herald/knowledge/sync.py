@@ -15,6 +15,8 @@ from typing import Callable, Optional
 
 import httpx
 
+from ..egress import EgressPolicy
+
 Fetch = Callable[[str, dict], httpx.Response]
 
 
@@ -24,10 +26,13 @@ def _http_fetch(url: str, headers: dict, timeout: float = 20.0) -> httpx.Respons
 
 class ProtocolSync:
     def __init__(self, kb_getter: Callable, link_state: Callable[[], str], cfg: dict,
-                 fetch: Optional[Fetch] = None, clock: Callable[[], float] = time.time):
+                 fetch: Optional[Fetch] = None, clock: Callable[[], float] = time.time,
+                 egress: Optional[EgressPolicy] = None):
         self.kb_getter, self.link_state, self.cfg = kb_getter, link_state, cfg["sync"]
         self.fetch = fetch or (lambda url, h: _http_fetch(url, h, self.cfg["timeout_s"]))
         self.clock = clock
+        self.egress = egress   # E1: gates the real fetch below; a test-injected `fetch` is exercised regardless,
+                                # the same way an allow-listed county document mirror always was
         self.last_run = 0.0
         self.last_result: Optional[dict] = None
 
@@ -50,6 +55,13 @@ class ProtocolSync:
             if not url:
                 continue
             checked += 1
+            if self.egress is not None:
+                decision = self.egress.decide(url, purpose="protocol_sync", link_state=self.link_state())
+                if decision.action == "deny":
+                    errors.append({"doc": doc["id"], "error": f"egress policy denied: {decision.reason}"})
+                    continue
+                if decision.action == "queue":
+                    continue    # not an error: retried the next time due() lets a sync run
             entry = manifest.get(doc["id"], {})
             headers = {k: v for k, v in (("If-None-Match", entry.get("etag")),
                                          ("If-Modified-Since", entry.get("last_modified"))) if v}

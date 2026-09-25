@@ -18,3 +18,10 @@ async def get_handoff(format: Optional[str] = None, c=Depends(get_ctx)):
     if format is not None and format not in ids:
         raise HTTPException(400, f"format must be one of {', '.join(ids)}")
     return c.handoff.build(c.incident, format)
+
+
+@router.get("/handoff/fhir")
+async def get_handoff_fhir(c=Depends(get_ctx)):
+    """The current incident's confirmed record as a FHIR R4 Bundle (Patient, vitals/score Observations,
+    MedicationAdministration, AllergyIntolerance, Condition). Confirmed facts only, exactly like /api/handoff."""
+    return c.fhir.build(c.incident)

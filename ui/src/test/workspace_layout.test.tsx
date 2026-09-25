@@ -79,7 +79,8 @@ describe("component-focused ambulance view", () => {
   });
   it("expands only the selected reading and exposes confirmed history", () => {
     render(<CabinApp />);
-    fireEvent.click(screen.getByRole("button", { name: "Vitals & trends" }));
+    fireEvent.click(screen.getByRole("button", { name: "Record" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Trends & scores" }));
     const readings = within(screen.getByRole("region", { name: "Latest documented readings" }));
     const expand = readings.getAllByRole("button", { name: /^Expand / })[0];
     fireEvent.click(expand);
@@ -90,9 +91,9 @@ describe("component-focused ambulance view", () => {
   });
   it("restores focus to the originating card when returning to overview", async () => {
     render(<CabinApp />);
-    const trigger = screen.getByRole("button", { name: "Open read-aloud handoff" });
+    const trigger = screen.getByRole("button", { name: "Handoff report" });
     trigger.focus(); fireEvent.click(trigger);
-    fireEvent.click(screen.getByRole("button", { name: "Back to overview" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to now" }));
     await act(async () => { await new Promise((resolve) => requestAnimationFrame(resolve)); });
     expect(document.activeElement).toBe(trigger);
   });
@@ -100,11 +101,12 @@ describe("component-focused ambulance view", () => {
     useHerald.setState({ source: "live", stale: true, snapshot: { ...snapshot, capture: { auto: true, sees: "watching", pending: 0 } as NonNullable<Snapshot["capture"]> } });
     render(<CabinApp />);
     expect(screen.getByRole("button", { name: "Stop auto capture" })).toBeTruthy();
-    expect(screen.getByText("Camera last known: watching · disconnected")).toBeTruthy();
+    // one honest line for the whole system: disconnected, showing the last known state
+    expect(screen.getByText(/Offline — vehicle server disconnected, showing last state/)).toBeTruthy();
   });
-  it("does not claim a camera is off when its status is absent", () => {
+  it("does not claim the camera is watching when its status is absent", () => {
     render(<CabinApp />);
-    expect(screen.getByText("Connected camera: status unavailable")).toBeTruthy();
+    expect(screen.queryByText(/watching the monitor/)).toBeNull();
   });
   it("uses a reflowing layout for enlarged accessibility text", () => {
     useHerald.setState({ ui: { ...initialUi(""), typeScale: 1.5 } });

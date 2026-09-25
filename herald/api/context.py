@@ -14,6 +14,7 @@ from ..checklists import ChecklistEngine
 from ..config import Settings, get_settings
 from ..config.county import CountyRegistry
 from ..core.confirmation import ConfirmationPolicy
+from ..core.corroboration import BatchConfirmation, CorroborationRules
 from ..core.incident import Incident
 from ..core.schema import Fact
 from ..core.ports import Normalizer, PhotoReader, SpeechToText, TextModel
@@ -21,13 +22,15 @@ from ..core.roster import PatientRoster
 from ..core.snapshot import Projector
 from ..core.trends import TrendRules
 from ..core.vocabulary import Vocabulary, default_vocabulary
+from ..egress import EgressPolicy, default_policy
 from ..extraction import ModelExtractor
 from ..extraction.guard import InstructionGuard, default_guard
 from ..knowledge import KnowledgeService
+from ..knowledge.cues import ProtocolCues
 from ..knowledge.rerank import LLMReranker
 from ..models import LocalLLMClient, VisionReader, WhisperSTT
 from ..relay import LinkEmulator, Relay, RelayTiers, default_tiers
-from ..reporting import LINE_KINDS, HandoffBuilder, HandoffConfig, default_handoff_config
+from ..reporting import LINE_KINDS, FhirExport, HandoffBuilder, HandoffConfig, default_handoff_config
 from ..scoring import ScaleRegistry, default_scales
 from ..telemetry import Telemetry
 from ..terminology import MedicationCoder, build_coder
@@ -61,9 +64,12 @@ class AppContext:
     contract: UIContract
     link: LinkEmulator
     handoff: HandoffBuilder
+    egress: EgressPolicy           # E1: the one decision point every outbound HTTP call passes through
     coder: Optional[MedicationCoder] = None      # drug names -> RxNorm; None when the index isn't built
     relay: Optional[Relay] = None
     knowledge: Optional[KnowledgeService] = None
+    cues: Optional[ProtocolCues] = None           # the county passage for the situation Herald recognises
+    fhir: Optional[FhirExport] = None
     roster: Optional[PatientRoster] = None
     netem_mode: Optional[str] = None
     persistence: Optional[IncidentStore] = None
@@ -148,10 +154,14 @@ class AppContext:
         self.relay.ed_url, self.relay.authorized, self.relay.acked = relay.get("ed_url"), relay.get("authorized"), relay.get("acked", {})
         return True
 
-    def pre_alert_scope(self) -> str:
-        """Describe the current checklist truthfully; authorization never relies on caller-provided wording."""
-        labels = [row["label"] for row in self.incident.snapshot()["readiness"]]
-        return f"{' + '.join(labels)} pre-alert set" if labels else "patient update set"
+    def pre_alert_scope(self) -> tuple[str, list[str]]:
+        """The medic-facing label and the checklist alert ids actually open right now (`config/relay.yaml`
+        `scopes` maps each id to what it may send). Authorization never relies on caller-provided wording or scope:
+        both come from the checklist truthfully, every time."""
+        readiness = self.incident.snapshot()["readiness"]
+        labels, alert_ids = [row["label"] for row in readiness], [row["id"] for row in readiness]
+        label = f"{' + '.join(labels)} pre-alert set" if labels else "patient update set"
+        return label, alert_ids
 
     def full_state(self) -> dict:
         snap = self.incident.snapshot()
@@ -167,6 +177,13 @@ class AppContext:
             snap["capture"] = self.capture_agent.status()
         if self.knowledge is not None:
             snap["protocols"] = self.knowledge.status()
+        if self.cues is not None:
+            snap["protocol_cues"] = self.cues.view(snap)
+        # E1: the real, measured decision (herald/egress/policy.py), not a literal -- core/snapshot.py has no I/O
+        # and cannot know it, so the composition root fills it in here, the same way relay/protocols are merged in.
+        egress_snapshot = self.egress.snapshot()
+        snap["counters"]["cloud_ai_calls"] = egress_snapshot["cloud_ai_calls"]
+        snap["counters"]["cloud_calls_refused"] = egress_snapshot["cloud_calls_refused"]
         return snap
 
 
@@ -189,16 +206,27 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
     counties = CountyRegistry(s.county)
     checklists = ChecklistEngine.from_config(counties)
     trends = TrendRules.from_config()
-    projector = Projector(vocab, scales, checklists, counties, trends, ZoneInfo(s.timezone), s.reassess_min)
+    corroboration = CorroborationRules.from_config()
+    problems = corroboration.problems(vocab)
+    if problems:
+        raise ValueError("config/corroboration.yaml: " + "; ".join(problems))
+    batch = BatchConfirmation(vocab, corroboration)
+    fhir = FhirExport.from_config(vocab, scales)
+    fhir_problems = fhir.problems()
+    if fhir_problems:
+        raise ValueError("config/fhir_codes.yaml: " + "; ".join(fhir_problems))
+    projector = Projector(vocab, scales, checklists, counties, trends, ZoneInfo(s.timezone), s.reassess_min, batch)
     tel = telemetry or Telemetry(s.metrics_url, s.price_overrides)
-    model = text_model or LocalLLMClient(s.llm_url, s.llm_model, usage=tel)
-    seeing = vision_model or (text_model if text_model is not None else LocalLLMClient(s.llm_url, s.vision_model, usage=tel))
+    egress = default_policy(s)
+    model = text_model or LocalLLMClient(s.llm_url, s.llm_model, usage=tel, egress=egress)
+    seeing = vision_model or (text_model if text_model is not None
+                              else LocalLLMClient(s.llm_url, s.vision_model, usage=tel, egress=egress))
     # Split stack (TRAINING_PLAN §7a): reranking, figure transcription and translation can run on a different label
     # from photo reading, for when a fine-tune wins speech and photos but loses the base model's kept abilities.
     # Unset (the default and today's stack) it is the *same object* as `seeing`, so nothing about the single-model
     # path changes. Extraction (`model`) and photo reading (`seeing`) are never moved by this setting.
-    knowing = knowledge_model or (LocalLLMClient(s.llm_url, s.knowledge_model, usage=tel) if s.knowledge_model
-                                  else seeing)
+    knowing = knowledge_model or (LocalLLMClient(s.llm_url, s.knowledge_model, usage=tel, egress=egress)
+                                  if s.knowledge_model else seeing)
     coder = build_coder(s, vocab, normalizer)
     model_extractor = ModelExtractor(model, vocabulary=vocab, finetuned_labels=s.finetuned_models, coder=coder)
     ctx = AppContext(
@@ -210,11 +238,12 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
         model_extractor=model_extractor,
         tracer=TraceRecorder(vocab, tiers),
         contract=UIContract(vocab, tiers, trends, checklists, counties, scales),
-        link=LinkEmulator(s.toxiproxy_url), coder=coder,
-        handoff=build_handoff(default_handoff_config(), vocab, scales, checklists, s),
+        link=LinkEmulator(s.toxiproxy_url), egress=egress, coder=coder,
+        handoff=build_handoff(default_handoff_config(), vocab, scales, checklists, s), fhir=fhir,
         persistence=IncidentStore(s.state_dir, s.state_key_path) if s.persistence else None)
     ctx.new_incident(s.dispatch)
-    ctx.relay = Relay(lambda: ctx.roster.incidents(), s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir)
+    ctx.relay = Relay(lambda: ctx.roster.incidents(), s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir,
+                      egress=egress, ed_token=s.ed_token)
     ctx.restored = ctx.restore()
     if s.knowledge:
         if embedder is None and text_model is None:        # real deployment; tests pass their own (or none)
@@ -224,7 +253,9 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
             embedder = HFEmbedder(e["model"], e["query_prefix"], e["device"], offline=s.models_offline)
         ctx.knowledge = KnowledgeService(lambda: counties.active, s.protocols_dir, ctx.relay.link_state,
                                          embedder=embedder or None, reranker=LLMReranker(knowing), vision=knowing,
-                                         fetch=protocol_fetch, mirror=s.protocol_mirror)
+                                         fetch=protocol_fetch, mirror=s.protocol_mirror, egress=egress)
+        ctx.cues = ProtocolCues(lambda: ctx.knowledge.kb if ctx.knowledge.ready else None,
+                                lambda: counties.active["id"])
     return ctx
 
 

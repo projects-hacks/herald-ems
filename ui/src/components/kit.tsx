@@ -10,7 +10,7 @@ export type { Cat };
 
 // ---------- color vocabularies ----------
 
-/** Status tones (UX_PLAN §2.3–2.4): they carry meaning, always with an icon or a word. */
+/** Status tones: they carry meaning, always with an icon or a word. */
 export type Tone = "neutral" | "accent" | "ok" | "medium" | "high" | "low";
 /** Each category's glyph, for tiles and titles. */
 export const CAT_ICON: Record<Cat, LucideIcon> = {

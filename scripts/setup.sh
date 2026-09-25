@@ -119,7 +119,7 @@ sys.exit(0 if any(p.get('state') == 'Ready' for p in procs) else 1)
       warn "$label is not serving. Start it with (takes 3-23 min the first time; shares the one GPU," \
            "coordinate with the team before running):"
       echo "        scripts/serve_models.sh $([ "$label" = ems-e-v2-fp8 ] && echo ems || echo vision)"
-      echo "     (needs HF_TOKEN / HF_REPO_ID in ~/.config/herald/secrets.env; see CONTRIBUTING.md)"
+      echo "     (public repos; no token needed)"
     fi
   done
 else

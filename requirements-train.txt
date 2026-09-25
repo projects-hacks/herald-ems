@@ -1,0 +1,17 @@
+# Training/fine-tuning/eval-only tooling: LoRA training and merging (scripts/train_lora.py, train_vlm_lora.py,
+# merge_lora.py, merge_vlm_lora.py, lora_common.py) and data prep that touches these (scripts/vision_train/,
+# scripts/ladder_probe.py). NOT needed to run the app (herald/) or to build/run the Docker image -- see
+# requirements.txt for that. Install on top of requirements.txt, in the same interpreter that has the
+# GB10-tuned torch/torchaudio/transformers (the `zgx` conda env; AGENTS.md), only when you are training or
+# merging a model:
+#
+#   pip install -r requirements.txt -r requirements-train.txt
+#
+# Versions below are floors, not pins: match whatever's already proven in the `zgx` env unless you have a
+# reason to move (torch/transformers stay pinned by that env, not by this file).
+accelerate>=1.0
+datasets>=3.0
+peft>=0.13
+safetensors>=0.4
+scipy>=1.14
+trl>=0.12

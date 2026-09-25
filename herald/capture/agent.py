@@ -40,6 +40,7 @@ class CaptureAgent:
         self.task = self.read_task = None
         self.frame_source = None
         self.last_error = None
+        self.flight_started = float("-inf")
         self.notify, self.hold = notify, hold
 
     def status(self):
@@ -76,14 +77,15 @@ class CaptureAgent:
 
     def enqueue(self, intent: CaptureIntent, *, manual=False):
         key = (intent.trigger, intent.fact_id)
-        if any((i.trigger, i.fact_id) == key for i, _, _ in self.pending):
+        if any((i.trigger, i.fact_id) == key for i, _, _, _ in self.pending):
             return
         if len(self.pending) >= self.pending.maxlen:
             self.last_error = "Capture queue full; request not queued"
             return
-        expiry = self.clock() + (self.config["manual_wait_s"] if manual else intent.window_s)
+        now = self.clock()
+        expiry = now + (self.config["manual_wait_s"] if manual else intent.window_s)
         insert = self.pending.appendleft if manual or intent.purpose == "verify" else self.pending.append
-        insert((intent, expiry, manual))
+        insert((intent, expiry, manual, now))
 
     def on_change(self, event: IncidentEvent):
         self.patient_changed()
@@ -110,7 +112,7 @@ class CaptureAgent:
         now = self.clock()
         if frame.ts > now or frame.ts < now - self.config["buffer_s"]:
             return None
-        if not self.auto and not any(manual for _, _, manual in self.pending):
+        if not self.auto and not any(manual for _, _, manual, _ in self.pending):
             return None
         if now - self.last_input < 1 / self.config["fps_in"]:
             return None
@@ -134,13 +136,17 @@ class CaptureAgent:
         self.patient_changed()
         now = self.clock()
         self.buffer.prune(now); self.monitor_buffer.prune(now)
-        while self.pending and self.pending[0][1] < now:
-            intent, _, _ = self.pending.popleft()
-            self.last_decisions.append({"ts": now, "trigger": intent.trigger, "mode": intent.mode,
-                                        "reason": "no usable frame before request expired", "facts": [], "photo_id": None})
+        # A queued intent's window must not run out while it is only waiting behind our own
+        # in-flight read (~5-7s): freeze expiry checks during that wait, then _read() restores
+        # the paused time to every intent still queued once the flight ends.
+        if not self.scheduler.in_flight:
+            while self.pending and self.pending[0][1] < now:
+                intent, _, _, _ = self.pending.popleft()
+                self.last_decisions.append({"ts": now, "trigger": intent.trigger, "mode": intent.mode,
+                                            "reason": "no usable frame before request expired", "facts": [], "photo_id": None})
         if not self.pending or self.scheduler.in_flight:
             return
-        intent, expiry, manual = self.pending[0]
+        intent, expiry, manual, enqueue_ts = self.pending[0]
         buffer = self.monitor_buffer if intent.mode == "monitor" and self.roi and not manual else self.buffer
         frame = buffer.best(now - intent.window_s, now, manual=manual, refresh=intent.trigger == "monitor_refresh")
         if frame is None or not self.scheduler.acquire(now, manual=manual, speech_busy=self.speech_busy()):
@@ -149,6 +155,7 @@ class CaptureAgent:
         token, owner, roi = self.generation, self.owner, self.roi
         valid = lambda: token == self.generation and owner == self.incident_id()
         self.counts["captured"] += 1
+        self.flight_started = now
         self.read_task = asyncio.create_task(self._read(frame, intent, roi, valid))
         if self.notify:
             await self.notify()
@@ -170,6 +177,16 @@ class CaptureAgent:
             if valid():
                 self.last_error = f"Capture failed: {str(e)[:160]}"
         finally:
+            finish = self.clock()
+            # Give back exactly the time each still-pending intent spent unable to be served
+            # because our own read held the single flight slot (overlap of [enqueued, now] with
+            # [flight_started, finish]); intents enqueued mid-flight are extended only for the
+            # remainder of the flight, not double-counted.
+            if self.pending:
+                self.pending = deque(
+                    ((i, exp + max(0.0, finish - max(ts, self.flight_started)), m, ts)
+                     for i, exp, m, ts in self.pending),
+                    maxlen=self.pending.maxlen)
             self.scheduler.release()
             if self.notify:
                 await self.notify()

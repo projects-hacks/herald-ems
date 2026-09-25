@@ -1,4 +1,4 @@
-// The contract between the Herald server and the screens (docs/UX_PLAN.md §5.6). Derived from
+// The contract between the Herald server and the screens. Derived from
 // herald/core/snapshot.py (Projector.snapshot), herald/relay/relay.py status(), herald/api/trace.py,
 // herald/api/capture.py and herald/api/context.py full_state(), checked against a live snapshot on 2026-09-24.
 // When the backend changes a field, change it here in the same PR.
@@ -10,7 +10,7 @@ export type FactStatus = "unconfirmed" | "confirmed" | "rejected";
 /** A record is one event (a medication given, a procedure): only the fields said are present (config/vocabulary.yaml). */
 export type FactRecord = Record<string, string | number | boolean>;
 export type FactValue = string | number | boolean | string[] | FactRecord | null;
-/** A code from a terminology (RxNorm, or ICD-10-CM for a class allergy); a list per item for list keys (UX_PLAN §5.9d). */
+/** A code from a terminology (RxNorm, or ICD-10-CM for a class allergy); a list per item for list keys. */
 export interface Coding { system: string; code: string }
 
 // ---------- facts ----------
@@ -19,7 +19,7 @@ export interface Provenance {
   observed_at?: string | null;
   audio_id: string | null; t_start: number | null; t_end: number | null; text: string | null;
   photo_id: string | null; crop: [number, number, number, number] | null; extractor: string | null;
-  hold_reason: string | null;       // why this fact waits for the medic's tap (UX_PLAN §5.9a)
+  hold_reason: string | null;       // why this fact waits for the medic's tap
   normalized?: { said: string; coded: string; method: string }[];   // drug names as said → coded (§5.9d)
 }
 export interface FactView {
@@ -65,6 +65,17 @@ export interface StrokeScale {
 }
 export interface FieldTriage { name: string; red: string[]; yellow: string[]; missing: string[]; source: string }
 export type StrokeScaleId = "RACE" | "GFAST";
+/** A live, per-patient criteria score's own detail (trauma_605, field_triage, sepsis_700a04, stemi_700a08),
+ * evaluated from confirmed facts only (herald/scoring/criteria.py). Not in `Scores` below because it is read
+ * by score id, not by a fixed field name; see selectors.ts's criteriaScore(). */
+export interface CriteriaRow {
+  code: string | null; label: string; state: "met" | "not_met" | "unknown"; group?: string;
+  finding?: string; needs?: string[]; parts?: CriteriaRow[];
+}
+export interface CriteriaScoreDetail {
+  name: string; county: string | null; applies: boolean; met: boolean; level: string | null;
+  complete: boolean; missing: string[]; criteria: CriteriaRow[]; source: string; thresholds: string | null;
+}
 export interface Scores {
   news2: News2; news2_history: News2Point[]; race: StrokeScale; gfast: StrokeScale; field_triage: FieldTriage;
   stroke_scales: StrokeScaleId[];          // the county's scales, primary first
@@ -73,7 +84,8 @@ export interface Scores {
 
 // ---------- alerts ----------
 export type Alert =
-  | { type: "trauma_alert_criteria" | "sepsis_prenotification"; label: string; level: string; score: string; criteria: string[]; county_rule?: string[]; county?: string }
+  | { type: "trauma_alert_criteria"; label: string; level: string; score: string; criteria: string[]; county_rule?: string[]; county?: string }
+  | { type: "sepsis_prenotification"; label: string; level: string; score: string; criteria: string[]; county_rule?: string[]; county?: string }
   | { type: "contradiction"; key: string; label: string; confirm_fact_id: string; facts: FactView[] }
   | { type: "confirm_required"; key: string; label: string; confirm_fact_id: string; facts: FactView[] }
   | { type: "significant_change"; key: string; label: string; series: number[];
@@ -148,12 +160,12 @@ export interface RelayStatus {
   authorized: { destination: string; scope: string; at: string } | null;
   link: LinkState; pending: { patient?: string; key: string; priority: number; why: string }[];
   sync: Record<string, "sent" | "queued">; bytes_sent: number; local_bytes: number;
-  kept_local_pct: number; packets_acked: number; retries: number; last_ack_at: string | null;
+  kept_local_pct: number; packets_acked: number; retries: number; duplicates_acked?: number; last_ack_at: string | null;
   clinician_acknowledgements?: Record<string, { at: string; status: "received" | "cath_lab_activated"; note?: string | null }[]>;
   log: RelayLogEntry[];
 }
 
-// ---------- protocol lookup (UX_PLAN §5.9b) ----------
+// ---------- protocol lookup ----------
 export interface ProtocolStatus {
   ready: boolean; county: string; sections: number; missing: string[]; review_required: string[];
   last_sync: string | null; destination_audit_ok: boolean;
@@ -171,9 +183,18 @@ export interface ProtocolAnswer {
   results: ProtocolPassage[];
 }
 
+/** herald/knowledge/cues.py: the county's own passage for a recognised situation, verbatim with its citation. */
+export interface ProtocolCue {
+  id: string; title: string; query: string;
+  state: "searching" | "found" | "not_covered";
+  passages: { doc: string; title: string | null; section: string; heading: string | null; page: number | null;
+    effective: string | null; text: string; shortened: boolean; text_layer_uncertain: boolean }[];
+}
+
 // ---------- the snapshot (api/context.py full_state()) ----------
 export interface Snapshot {
   capture?: CaptureStatus;
+  capture_groups?: CaptureGroup[];      // absent on older vehicles and recorded fixtures
   incident: {
     id: string; dispatch: string | null; started: string; ended_at: string | null;
     media_disposal: MediaDisposal | null;
@@ -200,6 +221,14 @@ export interface Snapshot {
   relay: RelayStatus;
   netem: "good" | "weak" | "down" | null;
   protocols?: ProtocolStatus;            // absent when protocol lookup is off
+  protocol_cues?: ProtocolCue[];         // the county passage for each situation Herald recognises (config/protocol_cues.yaml)
+}
+
+/** One camera frame's still-unconfirmed readings (herald/core/corroboration.py, docs/API_CONTRACT.md). */
+export interface CaptureGroup {
+  frame_id: string; trigger: string | null; photo_id: string | null; ts: string;
+  batch_fact_ids: string[];              // one POST /api/readings/{frame_id}/confirm confirms all of these
+  individual: { id: string; key: string; label: string; reason: string | null }[];
 }
 
 export interface CaptureStatus {

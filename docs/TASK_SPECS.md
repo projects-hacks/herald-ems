@@ -17,7 +17,7 @@ the tests, the acceptance bar, what bites on this box, and anything only Rajeev 
 4. **Tests:**
    - `~/miniforge3/envs/zgx/bin/python -m pytest -q` must pass before every commit.
    - New code gets tests. For API tests, use `tests/fakes.py` (`make_client`, `FakeModel`, `FakeVision`, `FakeSTT`); never call a real model in tests.
-5. **API contract changes** (new endpoints, new snapshot fields) are recorded in `docs/UX_PLAN.md` §5 in the same PR. Also add a line under "New in the contract" in TASKS.md.
+5. **API contract changes** (new endpoints, new snapshot fields) are recorded in `docs/API_CONTRACT.md` in the same PR.
 6. **The shared Python environment is `zgx`** (torch 2.14.0+cu130, built for this GPU).
    - **Never let pip replace torch, torchaudio, or transformers.**
    - Install with a constraints file:
@@ -39,7 +39,7 @@ the tests, the acceptance bar, what bites on this box, and anything only Rajeev 
 
 **Goal:** five recorded `/ws` message sequences in `ui/public/fixtures/`, so every frontend state can be built and tested on a laptop without the Nano. The REPLAY banner keeps them from being mistaken for live data.
 
-**Read:** `docs/UX_PLAN.md` §5.7–5.8 (store and fixture player), `scripts/record_ws.py`, `scripts/replay.py` (`--url`, `--fast`, `--no-llm`), `scenarios/stroke_demo.json`.
+**Read:** `scripts/record_ws.py`, `scripts/replay.py` (`--url`, `--fast`, `--no-llm`), `scenarios/stroke_demo.json`.
 
 **Steps** (on the Nano, your own port, e.g. 8101):
 1. Start your server with the relay pointed at the emulated link:
@@ -70,7 +70,7 @@ the tests, the acceptance bar, what bites on this box, and anything only Rajeev 
 
 **Goal:** the Nano is wiped after the event. Anyone must be able to go from a clean `git clone` to a running Herald with one script and the README.
 
-**Read:** `README.md`, `AGENTS.md` (Run, pitfalls), `scripts/serve_models.sh`, `scripts/run_dev.sh`, `requirements.txt`, `docs/UX_PLAN.md` §5.10 (`scripts/build_ui.sh`).
+**Read:** `README.md`, `AGENTS.md` (Run, pitfalls), `scripts/serve_models.sh`, `scripts/run_dev.sh`, `requirements.txt`, `docs/API_CONTRACT.md` (`scripts/build_ui.sh`).
 
 **Build `scripts/setup.sh`** (idempotent; every step prints what it did and what to do on failure):
 1. **Check the platform:** aarch64 + `nvidia-smi` present, and the `zgx` conda env with torch 2.14 (print the version). If the env is missing, print the exact commands from AGENTS.md; don't try to build it.
@@ -95,7 +95,7 @@ the tests, the acceptance bar, what bites on this box, and anything only Rajeev 
 
 Everything runs locally.
 
-**Read:** `herald/models/stt.py` (`WhisperSTT`), `herald/models/llm_client.py`, `herald/api/capture.py` (`CaptureService.text`), `herald/core/schema.py` (`Provenance`), `docs/UX_PLAN.md` §3.1.11 and §4.
+**Read:** `herald/models/stt.py` (`WhisperSTT`), `herald/models/llm_client.py`, `herald/api/capture.py` (`CaptureService.text`), `herald/core/schema.py` (`Provenance`), `docs/API_CONTRACT.md` and §4.
 
 > **Use `ctx.knowledge_model` for translation, not `ctx.vision_model` or `ctx.text_model`** (added 2026-09-25).
 > It is a `TextModel` on the app context and is always set, so there is nothing to guard against. By default it *is*
@@ -113,7 +113,7 @@ Everything runs locally.
 | LLM translator | `herald/models/translator.py` (`LLMTranslator`) | Uses the **vision/general model** (`ctx.vision_model`, i.e. `omni`), not the fine-tuned extractor. Prompt in `config/prompts/translate.md`: translate faithfully, add nothing, keep numbers, units, drug names and times exactly, return `{"translation": "..."}`. Strict JSON through `chat_json(schema=...)` |
 | Language detection | `WhisperSTT.transcribe` | Return the detected language in the result dict (`language`). With `language=None` Whisper detects it; read it from the pipeline output (`return_language=True`), and add a test using a fake pipeline |
 | Speech synthesis | `herald/core/ports.py` `SpeechSynthesizer.speak(text, lang) -> bytes (wav)`; `herald/models/tts.py` (`KokoroTTS`, `hexgrad/Kokoro-82M`, Spanish voice) | Runs on CPU or GPU in-process. The audio is saved as `data/audio/tts_<id>.wav` and served by the existing `GET /api/audio/{id}` |
-| Provenance | `herald/core/schema.py` `Provenance` | Add `original_text: Optional[str]` and `language: Optional[str]`. Record it in UX_PLAN §5 |
+| Provenance | `herald/core/schema.py` `Provenance` | Add `original_text: Optional[str]` and `language: Optional[str]`. Record it in `docs/API_CONTRACT.md` |
 | Patient speaks | `POST /api/interpret/listen` (audio, `speaker`) in a new router `herald/api/routes/interpret.py` | STT (detect) → if not English, translate to English → `CaptureService.text(english, captured_by=other, speaker=…)`, with `trace.heard` carrying `{original, language}` and provenance carrying the original. Facts from other speakers are already unconfirmed; keep it that way |
 | Medic speaks | `POST /api/interpret/say` `{text, target:"es"}` | Translate + TTS → `{translation, audio_id}`. It is logged as a transcript entry of kind `interpreter` (heard = English, translation = Spanish). It is **not** a fact |
 | Wiring | `herald/api/context.py` | `translator` and `tts` fields in `AppContext`, built in `build_context` (tests pass fakes) |
@@ -179,7 +179,7 @@ Everything runs locally.
 7. **UI.** The React NOW screen is Tushar's. Build the interpreter panel as a separate component
    (`ui/src/features/interpreter/InterpreterPanel.tsx`: "Patient speaks" and "Say to patient" buttons, the last
    exchange in both languages, ▶ for the Spanish audio, the "check the translation" warning) against your contract in
-   UX_PLAN §5, then tell Tushar where to place it. The React mic port (his list) is what "Patient speaks" records with;
+   `docs/API_CONTRACT.md`, then tell Tushar where to place it. The React mic port (his list) is what "Patient speaks" records with;
    until it lands, use the classic `web/` push-to-talk path.
 8. **Eval.** `eval/interpreter_v1.jsonl`:
    - 20 English medic lines (questions, instructions, reassurance) with reference Spanish;
@@ -232,7 +232,7 @@ Everything runs locally.
 | Triage category | `config/vocabulary.yaml`: new key `triage.category` (`type: str`, `kind: measure`, `values: [immediate, delayed, minimal, expectant, dead]`) | The medic's SALT category, captured like any fact (tap or voice), so it has provenance. Add `values` support to `Vocabulary.validate` (reject values outside the list) with a test |
 | Roster | `herald/core/roster.py` (`PatientRoster`) | `{patient_id: Incident}`, `labels`, `active_id`. Methods: `add(label) -> Incident` (via a factory the context passes in), `activate(id)`, `active()`, `summaries()` → `[{id, label, triage, summary, readiness_done, readiness_total}]` |
 | Context | `herald/api/context.py` | `AppContext.roster`. Keep `AppContext.incident` as a **property returning the active incident**, so capture, trace and every existing route keep working unchanged. `new_incident()` resets the roster to one patient |
-| Snapshot | `AppContext.full_state()` | Adds `patients` (the summaries) and `active_patient`. Record them in UX_PLAN §5 |
+| Snapshot | `AppContext.full_state()` | Adds `patients` (the summaries) and `active_patient`. Record them in `docs/API_CONTRACT.md` |
 | API | `herald/api/routes/patients.py` | `GET /api/patients`; `POST /api/patients {label}`; `POST /api/patients/{id}/activate`. Captures go to the active patient (no change to capture routes) |
 | Relay across patients | `herald/relay/relay.py` + `config/relay.yaml` | `Relay` takes a getter returning **all** incidents (keep single-incident construction working for existing tests). `config/relay.yaml` gains `triage_rank: {immediate: 0, delayed: 1, minimal: 2, expectant: 3, dead: 4, unknown: 1}`. Pending rows sort by (triage rank, tier, key). One packet still carries one patient (`i` = that incident's id), so the ED receiver needs no protocol change. `status()` reports per patient |
 | UI | NOW screen patient strip; ED screen shows every incoming patient | A patient strip with the triage color and name, where tapping switches. The ED screen lists patients by triage rank |
@@ -270,7 +270,7 @@ Everything runs locally.
 | Interface | `herald/core/ports.py` `Normalizer.normalize(key, value) -> NormalizedValue` (value, code, score, method) | |
 | Implementation | new package `herald/terminology/` (`rxnorm.py`: `RxNormNormalizer`) | Match in order, stopping at the first hit: exact (casefold) → fuzzy (`rapidfuzz` ratio ≥ 90 on names ≥ 5 characters) → phonetic (`jellyfish` Double Metaphone; accept only a single candidate). Return the ingredient name (lowercase), the RxCUI, the score, and the method. **No match: keep the spoken text and mark it unresolved**, never guess |
 | Where it runs | `ExtractionPipeline` (after extraction) and `VisionReader` (replacing its `lexicons.yaml` lookup) | Applies to `meds.list`, `meds.anticoagulant` (and derives it from `meds.list` when an item's ingredient is in the anticoagulant class), and drug `allergies`. The spoken form stays in `provenance.text` |
-| Schema | `FactIn.code: Optional[str]` (RxCUI) | Record it in UX_PLAN §5; the UI shows it in fact details |
+| Schema | `FactIn.code: Optional[str]` (RxCUI) | Record it in `docs/API_CONTRACT.md`; the UI shows it in fact details |
 | Wiring | `herald/api/context.py` | Built once and injected. Tests use a tiny in-memory index |
 
 **Steps:**
@@ -282,7 +282,7 @@ Everything runs locally.
 
 **Acceptance:** the unit tests pass; med and allergy recall on gold v2 improves with no precision loss beyond the run-to-run spread; the word list is gone.
 
-**As built (2026-09-24; results in MODEL_PLAN §0j, contract in UX_PLAN §5.9d):**
+**As built (2026-09-24; results in MODEL_PLAN §0j, contract in `docs/API_CONTRACT.md`):**
 - `jellyfish` has no Double Metaphone, so the phonetic step uses Metaphone plus a Levenshtein spelling floor.
 - Coding runs inside the model extractor and the photo reader (injected from the composition root through `herald/terminology/factory.py`), and on `POST /api/facts`. There is no rules path in the product any more.
 - Drug keys are content: `config/terminology.yaml` `keys` lists the list keys, record fields (`meds.given.drug`) and class files. Adding a key or a class is a config change.
@@ -372,7 +372,7 @@ take photos in an emergency, so the agent captures and proposes, and the medic o
 - The deadline is Fri 11 PM PDT.
 - Follow AGENTS.md rule 4: package by responsibility, interfaces in `herald/core/ports.py`, wiring only in the
   composition root, content in `config/`, settings in `herald/config/settings.py`, and the API contract recorded in
-  `docs/UX_PLAN.md` §5 in the same PR.
+  `docs/API_CONTRACT.md` in the same PR.
 - Work in your own clone (`~/work/tushar-fs/herald-ems`) on branch `feat/agentic-capture`; commits as you; PR to main.
 
 ### Design (package `herald/capture/`, one responsibility per module, each under ~300 lines)
@@ -437,7 +437,7 @@ record, not to words.
 - `HERALD_CAPTURE_AUTO`: `0` (default) or `1`, the starting state of the switch.
 - The config file path, if needed.
 
-### API contract (record all of it in `docs/UX_PLAN.md` §5, with TypeScript types)
+### API contract (record all of it in `docs/API_CONTRACT.md`, with TypeScript types)
 - `WS /ws/frames`: binary JPEG messages from the capture page (≤ 1280 px long side, ≤ `fps_in`). The server replies
   `{accepted, gate: {sharp, changed, passed}}` at most once a second, for the preview indicator.
 - `GET /api/capture/status` → `{auto, source, fps_in, roi, last: {ts, trigger, mode, reason, facts, photo_id} | null,
@@ -462,7 +462,7 @@ record, not to words.
    - **Drawing the ROI:** drag a box on the preview → `POST /api/capture/roi`.
 2. **NOW screen:**
    - **"Herald sees" indicator:** off (grey), watching (steady), or reading (pulse, while a vision call runs).
-     Colors and motion follow UX_PLAN's alarm rules; this is status, not an alarm.
+     Colors and motion follow the screen rules in AGENTS.md; this is status, not an alarm.
    - **On/off toggle.**
    - **"Show Herald" button**, with a mode picker defaulting to auto (monitor if an ROI is set, else label).
    - **Trace cards for automatic captures:** thumbnail, trigger and reason, facts proposed, and confirm taps
@@ -534,7 +534,7 @@ with `scripts/vision_train` renderers or pick from `eval/photos`; a vial label f
 5. **Stability:** a 30-minute soak (`scripts/soak.py`) with capture on at 1 fps. No memory growth over 1 GiB, and the
    memory guard (`docs/MEMORY_SAFETY.md`) never warns. The capture code runs in the app process, on the CPU; it
    loads no model.
-6. **Docs:** this spec's contract in `docs/UX_PLAN.md` §5; TASKS.md row; README "What Herald does" gains one line.
+6. **Docs:** this spec's contract in `docs/API_CONTRACT.md`; README "What Herald does" gains one line.
 
 ### Pitfalls
 - Don't send every frame to the model: the gate and the policy exist so that the 30B (1–3 s per image) is called

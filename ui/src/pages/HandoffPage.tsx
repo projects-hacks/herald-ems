@@ -2,7 +2,7 @@
 import { AlertCircle, CheckCircle2, ChevronDown, ClipboardList, Download, ListOrdered, Radio, Send, UserCheck } from "lucide-react";
 import { factValue, patientLabel, hhmm } from "@/lib/format";
 import { HandoffReport as StructuredHandoffReport } from "@/features/handoff/HandoffReport";
-import { allFacts, clinicianReceipt, reconciled } from "@/lib/selectors";
+import { allFacts, clinicianReceipt, reconciled, reconciledDuplicates } from "@/lib/selectors";
 import { useHerald } from "@/lib/store";
 import type { FactView, Snapshot } from "@/lib/types";
 import { Badge, Button, Card, CardHeader, Count, EmptyState, PageHeader } from "@/components/kit";
@@ -71,12 +71,14 @@ function ReceiptStatus({ s }: { s: Snapshot }) {
   const clinician = r.clinician_acknowledgements?.[s.incident.id]?.at(-1);
   const held = allFacts(s).filter((fact) => fact.status === "unconfirmed").length;
   const technical = reconciled(s);
+  const dupes = reconciledDuplicates(s);
   return <Card className="p-5" aria-label="Handoff receipt">
     <div className="flex items-start gap-3">
       <UserCheck size={22} className="mt-0.5 shrink-0 text-cat-ed-fg" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2"><h2 className="text-title font-semibold">Receipt</h2>
           <Badge tone={technical && !held ? "ok" : r.link === "down" ? "low" : "medium"}>{technical ? held ? `${held} facts still need verification` : "Confirmed updates delivered" : r.link === "down" ? "Waiting for link" : "Sending updates"}</Badge>
+          {technical && dupes !== null && <Badge tone="neutral">reconciled · {dupes} duplicate{dupes === 1 ? "" : "s"}</Badge>}
         </div>
         <p className="mt-1 text-body text-text-muted">{clinician
           ? `Receiving team: ${clinician.status === "cath_lab_activated" ? "Cath lab activated" : "Received"}${clinician.note ? ` · ${clinician.note}` : ""}`

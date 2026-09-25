@@ -1,6 +1,6 @@
 # AGENTS.md: rules for coding agents working on Herald
 
-Read this before changing anything. Then pick a task from `TASKS.md`.
+Read this before changing anything.
 
 ## HARD RULES (non-negotiable, override any default behaviour)
 1. **No AI attribution anywhere in contributions.** Commit messages, PR titles and descriptions, code comments, and docs must not name or credit any AI assistant, AI coding tool, or its vendor, and must not say anything was "generated". **Never add `Co-Authored-By:` trailers for tools.** Commits are authored by the human whose working copy it is. (Describing Herald's own on-device models, e.g., Whisper or Nemotron, is product documentation and is fine.)
@@ -17,8 +17,22 @@ Read this before changing anything. Then pick a task from `TASKS.md`.
    - **Open for extension, closed for modification.** A new score, checklist, county, prompt, or extractor is added by adding a data file or a registered class. It is never added by editing an `if/elif` chain inside an engine.
    - **Clinical and product content is versioned data, never Python literals.** That covers score tables and thresholds with their sources, checklists, relay tiers, change rules, the key vocabulary, county rules and destinations, model prompts and worked examples, and cost rates. It all lives under `config/`, carries its source citation, and is reviewed like code. The Python is the engine; `config/` is the content. Tests load the same files.
    - **Settings come from one settings object** (`herald/config/settings.py`, environment variables). No scattered `os.getenv`.
-   - **The public API is a contract.** `/api/*`, `/ws`, and the snapshot shape change only through `herald/api`, and every change is recorded in `docs/UX_PLAN.md` §5 in the same PR.
+   - **The public API is a contract.** `/api/*`, `/ws`, and the snapshot shape change only through `herald/api`, and every change is recorded in `docs/API_CONTRACT.md` in the same PR.
    - Every engine and every data file has tests, and `python -m pytest -q` passes before any commit.
+
+## The medic's screen: rules that do not move
+Herald is a copilot, not a dashboard or a second vitals monitor. The medic glances at it for one or two seconds, at arm's
+length, gloved, in a moving vehicle. Judge every UI change against that, and against these floors:
+- One screen. It shows what Herald needs from the medic (decisions, one tap each) and what Herald did on its own
+  (heard, read, checked, found, sent). Anything else opens from the control that needs it and closes back to it.
+- Text never below 13 px, critical values at least 20 px; touch targets at least 48 px, primary actions 64 px.
+- Priority is colour + icon + word, never colour alone; red means danger and nothing else. Both themes pass
+  `npm run contrast`.
+- No model internals on the clinical screen (no confidence, model names, frame counts). System status is silent while
+  working and one unmistakable line when something stopped.
+- Every captured fact starts unconfirmed; only confirmed facts reach the ED. Herald never recommends treatment: it
+  states what it heard, read and computed, and quotes the county's documents with their citation.
+- Offline: fonts and assets are bundled, never fetched.
 
 ## Document map: read these before you start
 
@@ -29,10 +43,8 @@ Every decision in this project was researched and written down. Before proposing
 |---|---|---|---|
 | [`README.md`](README.md) | Public overview for judges: what Herald does, how to run it, architecture, the evidence behind the scores. | You need the 2-minute picture, or you're changing anything user-visible about setup. | pitch + integration |
 | [`AGENTS.md`](AGENTS.md) (this file) | Hard rules, invariants, layout, run commands, pitfalls already hit on this box, the doc map. | Always, first. | everyone |
-| [`TASKS.md`](TASKS.md) | The task board: verified checkpoint, protect order P1–P10, model tasks M*, UI tasks U*, infra and deliverables, owners, done-criteria. | Before picking work; after finishing work (update the status in the same PR). | everyone |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Per-person git setup on the shared `hp18` login, shared secrets (HF token), branches, ports, GPU etiquette, owners. | Your first session; before your first commit. | lead |
 | [`docs/MODEL_PLAN.md`](docs/MODEL_PLAN.md) | Why each model was chosen (published benchmarks + measured GB10 throughput, with sources); exact serve flags; the audited bake-off (3 runs each, what's genuine vs noise vs test flaws); the complete fine-tuning plan with go/no-go checks; what NOT to do. | Before touching `herald/llm.py`, `extract_llm.py`, `vision.py`, `stt.py`, ZRT, or any training. | ML lead |
-| [`docs/UX_PLAN.md`](docs/UX_PLAN.md) | Evidence-based UI plan: principles tied to IEC 60601-1-8 alarm priorities, WCAG 2.2, human-AI interaction guidelines, FDA CDS guidance; color tokens and type scale; screen specs (NOW, "Herald thinking" trace, phone capture, ED screen, presenter controls); stack decision (React + TS + Vite + Tailwind + shadcn/ui) with a fallback gate; what HP/NVIDIA provide on the ZGX; U-task list. | Before any frontend work, and before adding any alert, color, or animation. | frontend lead |
 | [`eval/`](eval/) | Gold sets (`gold_v0.jsonl` tuning, `gold_v1.jsonl` dev, `gold_v2*.jsonl` held-out: two blind annotators each), benchmark (`bench_extract.py`, scorer v2, `--rescore`), saved predictions (`dumps/`), agreement (`agreement.py`), adversarial suite, test photos, and result history (`results.jsonl`). | Before claiming any accuracy number. Claims are judged on the held-out set only. | data + eval |
 | [`docs/TASK_SPECS.md`](docs/TASK_SPECS.md) | Complete specs for handed-off tasks (S1–S9: fixtures, clean-clone setup, interpreter, diarization, mass-casualty mode, RxNorm normalization, soak test, field robustness, agentic capture): design against the package layout, steps, tests, acceptance, pitfalls, and what needs Rajeev. | Before starting any S-task from your lane in TASKS.md. | owner of each task + Rajeev |
 | [`docs/LABELING_GUIDE.md`](docs/LABELING_GUIDE.md) | How every gold utterance is labeled: roles, keys, normalization, corrections, negations, and the rules settled during adjudication (§4b). | Before writing or labeling any gold item. | data |
@@ -66,16 +78,17 @@ An offline AI copilot for the back of the ambulance, running entirely on an HP Z
 ## Layout
 | Path | Responsibility | Notes |
 |---|---|---|
-| `config/` | **content** (reviewed data, with sources) | `vocabulary.yaml` (canonical keys, plausibility ranges), `scores/*.yaml` (NEWS2, RACE, G.F.A.S.T., field triage, and county criteria: Santa Clara Policy 605 trauma, 700-A04 sepsis), `checklists.yaml` (defaults; a county's `alerts` override them), `trends.yaml`, `relay.yaml`, `telemetry.yaml` (cost rates), `guard.yaml`, `grounding.yaml` + `numbers.yaml` (number words by language for the grounding check: English, Mexican Spanish), `terminology.yaml` + `terminology/` (RxNorm source and thresholds, drug classes by ATC, NEMSIS allergy classes), `stack.yaml`, `handoff.yaml` (handoff report formats: Policy 501, MIST, SBAR), `prompts/` (model prompts, worked examples, vision, STT), `counties/*.json` |
+| `config/` | **content** (reviewed data, with sources) | `vocabulary.yaml` (canonical keys, plausibility ranges), `scores/*.yaml` (NEWS2, RACE, G.F.A.S.T., field triage, and county criteria: Santa Clara Policy 605 trauma, 700-A04 sepsis), `checklists.yaml` (defaults; a county's `alerts` override them), `trends.yaml`, `corroboration.yaml` (batch-confirm tiers and plausible-step deltas), `relay.yaml`, `telemetry.yaml` (cost rates), `guard.yaml`, `grounding.yaml` + `numbers.yaml` (number words by language for the grounding check: English, Mexican Spanish), `terminology.yaml` + `terminology/` (RxNorm source and thresholds, drug classes by ATC, NEMSIS allergy classes), `stack.yaml`, `handoff.yaml` (handoff report formats: Policy 501, MIST, SBAR), `fhir_codes.yaml` (LOINC/local coding for the FHIR export), `prompts/` (model prompts, worked examples, vision, STT), `counties/*.json` |
 | `herald/config/` | settings and loading | `settings.py` (every environment variable, one object), `loader.py` (reads `config/`), `county.py` (county registry, live switch) |
-| `herald/core/` | domain model, no I/O | `schema.py` (`FactIn`/`Fact`), `vocabulary.py`, `incident.py` (fact store), `confirmation.py`, `snapshot.py` (`Projector`: the single source for every screen), `trends.py`, `clock.py`, `ports.py` (interfaces) |
+| `herald/core/` | domain model, no I/O | `schema.py` (`FactIn`/`Fact`), `vocabulary.py`, `incident.py` (fact store), `confirmation.py`, `corroboration.py` (batch confirm: capture groups, plausible-step flagging), `snapshot.py` (`Projector`: the single source for every screen), `trends.py`, `clock.py`, `ports.py` (interfaces) |
 | `herald/scoring/` | published scores and county criteria | data-driven engines (`banded`, `item_sum`, `criteria`) + `registry`; criterion rule types in `rules.py`; a new score is a new YAML file |
 | `herald/checklists/` | alert-ready checklists | engine over `config/checklists.yaml` + the active county's overrides for any alert (`alerts`) and its stroke checklist; `items.py` (record-field, score and alternative items) |
 | `herald/extraction/` | speech → facts | `model.py` (the only speech extractor), `confidence.py` (per-fact token confidence), `grounding.py` + `numbers.py` (said-value checks), `guard.py` (injection containment), `profiles.py`. The old rules extractor and rules+model merge are evaluation baselines in `eval/baselines/` (with their own frozen word lists) |
 | `herald/models/` | adapters to local model servers | `llm_client.py` (ZRT/vLLM, localhost only), `stt.py` (Whisper), `vision.py` (photo reading) |
 | `herald/terminology/` | drug and allergen names → RxNorm; drug-class allergies → ICD-10-CM | `rxnorm.py` (`RxNormNormalizer`: exact → product name → combination → contained / fuzzy → phonetic; never guesses), `allergy.py` (NEMSIS eHistory.06 classes), `coding.py` (`MedicationCoder`: codes the keys in `config/terminology.yaml`, drug classes, holds non-exact matches for a tap), `factory.py` (`build_coder`, shared by the app and the benchmarks). The index is built by `scripts/build_rxnorm_index.py` into `data/terminology/` (not in git): pinned NLM release + RxNav brand supplement |
 | `herald/relay/` | weak-link relay | `relay.py`, `tiers.py`, `netem.py` (Toxiproxy link emulation, demo only) |
-| `herald/reporting/` | the written handoff report | `handoff.py` (`HandoffBuilder`: MIST for trauma, SBAR for medical calls, from confirmed facts and computed scores), `lines.py` (line kinds), `view.py` (confirmed facts, provenance, wording), `text.py` (read-aloud text), `config.py` (loads and checks `config/handoff.yaml`). No model writes report text |
+| `herald/egress/` | egress policy (E1) | `policy.py` (`EgressPolicy`: ALLOW / QUEUE / DENY for every outbound URL, from `config/egress.yaml`); every outbound call (relay, protocol sync, local model requests) passes through it |
+| `herald/reporting/` | the written handoff report and structured export | `handoff.py` (`HandoffBuilder`: MIST for trauma, SBAR for medical calls, from confirmed facts and computed scores), `lines.py` (line kinds), `view.py` (confirmed facts, provenance, wording), `text.py` (read-aloud text), `config.py` (loads and checks `config/handoff.yaml`), `fhir.py` (`FhirExport`: confirmed-only FHIR R4 Bundle, `config/fhir_codes.yaml`). No model writes report text |
 | `herald/telemetry/` | tokens, power, cost | `collector.py`, `prometheus.py` |
 | `herald/api/` | HTTP + WebSocket only | `app.py` (factory), `context.py` (**composition root**), `capture.py`, `trace.py`, `contract.py`, `hub.py`, `routes/` |
 | `herald/app.py` | ASGI entry point | `uvicorn herald.app:app` |
@@ -93,6 +106,11 @@ $PY -m uvicorn ed_receiver.app:app --host 0.0.0.0 --port 8200 &
 HERALD_ED_URL=http://127.0.0.1:9000 PORT=8101 scripts/run_dev.sh   # your own port: 8101..8104; 8100 = demo
 # models: HERALD_LLM_MODEL = extraction (ems-e-v2-fp8, the fine-tuned extractor), HERALD_VISION_MODEL = photos (qwen3vl-fp8)
 # every setting: herald/config/settings.py; content (scores, checklists, prompts, county rules): config/
+# run_dev.sh binds 127.0.0.1 by default (B7). A tablet on the LAN needs HERALD_BIND_HOST=0.0.0.0 *and*
+# HERALD_DEVICE_TOKEN=<shared secret> (every mutating /api/* call must send it back as X-Herald-Token; open the
+# tablet's page once as .../?token=<the same secret>, ui/src/lib/authToken.ts remembers it) -- open the port with
+# no token and any other device on that Wi-Fi can read and write patient state. /api/egress (herald/egress/) is
+# the one place to see what left this box, was queued, or was refused, and why.
 $PY scripts/replay.py scenarios/stroke_demo.json --url http://localhost:8101 --no-llm
 $PY eval/bench_extract.py --extractor rules                # or: --extractor llm --model omni
 $PY scripts/build_rxnorm_index.py                          # once per clone: RxNorm index -> data/terminology/ (~10 min first time: RxNav)

@@ -1,4 +1,4 @@
-// The top bar of every page (UX_PLAN P3, read in one glance), as an iOS large-title header: the patient's avatar and
+// The top bar of every page (P3, read in one glance), as an iOS large-title header: the patient's avatar and
 // complaint as the title, the patient and incident details under it; on the right, how many things wait on the
 // medic, whether the pre-alert is ready, and the time. The two capsules jump to the summary, so nothing is missed
 // while another page is open (H7).

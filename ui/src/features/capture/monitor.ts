@@ -1,3 +1,5 @@
+import { authHeaders } from "@/lib/authToken";
+
 export interface MonitorStatus { active: boolean; starting: boolean; sent: number; message: string; error: boolean }
 export const monitorIdle: MonitorStatus = { active: false, starting: false, sent: 0, message: "Camera off", error: false };
 export interface MonitorRegion { x0: number; y0: number; x1: number; y1: number }
@@ -22,7 +24,7 @@ export class MonitorCapture {
     if (!this.disposed) this.changed(this.state);
   }
   private async request(path: string, body: object) {
-    const response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" },
+    const response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ ...body, incident_id: this.patient }), signal: AbortSignal.timeout(5000) });
     if (!response.ok) throw new Error(`Camera request rejected (${response.status}). Check the active patient.`);
     return response.json();

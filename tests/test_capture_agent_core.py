@@ -4,6 +4,8 @@ from herald.capture.agent import CaptureAgent
 from herald.capture.config import capture_config
 from herald.capture.types import CaptureResult, ROI
 from herald.capture.types import IncidentEvent
+from herald.core.incident import Incident
+from herald.core.schema import FactIn
 from test_capture_gate import frame
 
 
@@ -60,3 +62,56 @@ def test_eta_is_once_per_patient_not_once_per_toggle_or_region():
     assert not agent.pending
     owner[0] = "two"; agent.set_auto(True); agent.on_change(event)
     assert len(agent.pending) == 1
+
+
+def test_meds_given_verify_window_survives_our_own_inflight_read():
+    # A crew med dose queues a pill-label verify (window_s 8) while a monitor read (mode "monitor",
+    # 5-7s in reality) is already in flight. Single in-flight admission means the verify intent can
+    # only be served after that read releases; its window must not be consumed just by waiting.
+    async def run():
+        now = [0.0]
+        release = asyncio.Event()
+        calls = []
+
+        async def read(f, intent, roi, valid):
+            calls.append(intent.trigger)
+            if intent.trigger == "monitor_changed":
+                await release.wait()
+            return CaptureResult(["fact"])
+
+        agent = CaptureAgent(capture_config(), read, incident_id=lambda: "one", speech_busy=lambda: False,
+                             source="browser", clock=lambda: now[0])
+        agent.set_auto(True); agent.set_roi(ROI(0, 0, 1, 1))
+        agent.receive(frame(0))
+        now[0] = 1; agent.receive(frame(1))
+        await agent.step()
+        await asyncio.sleep(0)  # let the created read task actually start running
+        assert calls == ["monitor_changed"] and agent.scheduler.in_flight
+
+        dose = Incident().ingest(FactIn(key="meds.given", value={"drug": "naloxone", "by": "crew"}))
+        agent.on_change(IncidentEvent("facts_added", [dose]))
+        assert len(agent.pending) == 1
+        intent, expiry, manual, enqueued = agent.pending[0]
+        assert intent.trigger == "speech:meds.given" and intent.window_s == 8
+        assert expiry == enqueued + 8 == 9
+
+        # Its 8s deadline would already be gone here under the old behaviour; the in-flight read
+        # must freeze the countdown instead of dropping it.
+        now[0] = 9
+        await agent.step()
+        assert len(agent.pending) == 1
+        assert not any(d["trigger"] == "speech:meds.given" for d in agent.last_decisions)
+
+        now[0] = 11
+        release.set()
+        await agent.read_task  # monitor_changed finishes; queued deadlines are given back their wait
+
+        agent.receive(frame(11, offset=7))
+        await agent.step()
+        await agent.read_task
+        assert "speech:meds.given" in calls
+        last = agent.last_decisions[-1]
+        assert last["trigger"] == "speech:meds.given" and last["reason"] == "read" and last["facts"] == ["fact"]
+        assert not agent.pending
+        await agent.stop()
+    asyncio.run(run())

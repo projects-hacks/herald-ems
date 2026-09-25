@@ -1,10 +1,10 @@
-// Needs attention (UX_PLAN §3.1.6 and the alert slot §3.1.8, merged into one queue): everything that waits on the
+// Needs you (alerts and taps in one queue): everything that waits on the
 // medic, grouped in the order to handle it — urgent (HIGH), sources that disagree (choose a value), facts that need a
 // tap, new findings to acknowledge — then what hasn't been captured yet. One list, so nothing hides behind "1 of N".
 // New alerts are announced politely (HIGH assertively). Seen findings fold into "Seen" at the end.
 import {
   Brain, Camera, ChevronDown, ChevronRight, CircleCheck, CircleDashed, Gauge, GitCompareArrows, Inbox, Keyboard, Mic,
-  Monitor, OctagonAlert, ShieldAlert, Sparkles, TrendingUp, type LucideIcon,
+  Monitor, OctagonAlert, ShieldAlert, TrendingUp, type LucideIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAttention } from "@/hooks/useAttention";
@@ -13,7 +13,9 @@ import { factValue, formatValue, hhmm, sourceName } from "@/lib/format";
 import { alertKey, alertPriority, type Priority } from "@/lib/selectors";
 import { useHerald } from "@/lib/store";
 import { MismatchCard } from "@/features/capture/MismatchCard";
+import { TraumaCriteriaChecklist } from "./TraumaCriteriaChecklist";
 import type { Alert, FactView, NeedItem, Snapshot } from "@/lib/types";
+import { readingCards, type ReadingCard } from "@/lib/copilot";
 import { cn } from "@/lib/utils";
 import { ActionButton, ActionNote, usePendingAction } from "@/components/ActionButton";
 import { AudioEvidence } from "@/components/AudioEvidence";
@@ -28,12 +30,15 @@ type CodeStatus = Extract<Alert, { type: "confirm_required" }>;
 
 // ---------- one row: an iOS list row, with the separator inset past the tile ----------
 
-function Row({ icon, cat, title, badge, value, was, meta, actions, urgent, flash, children }: {
+/** tone paints the card's edge: high (danger), check (a decision waiting), live (Herald's own reading, one tap),
+ *  info (a finding to note). Colour is never the only signal: every row also has its icon and words. */
+function Row({ icon, cat, title, badge, value, was, meta, actions, urgent, flash, tone, children }: {
   icon?: LucideIcon; cat: Cat; title: React.ReactNode; badge?: React.ReactNode; value?: React.ReactNode; was?: string;
-  meta?: React.ReactNode; actions?: React.ReactNode; urgent?: boolean; flash?: boolean; children?: React.ReactNode;
+  meta?: React.ReactNode; actions?: React.ReactNode; urgent?: boolean; flash?: boolean; tone?: "high" | "check" | "live" | "info";
+  children?: React.ReactNode;
 }) {
   return (
-    <li className={cn("group/row flex gap-3.5 pl-5", urgent && "bg-high-tint")}>
+    <li data-tone={tone ?? (urgent ? "high" : "check")} className={cn("group/row flex gap-3.5 pl-5", urgent && "bg-high-tint")}>
       <IconTile icon={icon ?? CAT_ICON[cat]} cat={cat} size={34} className="mt-3.5" iconClassName={flash ? "flash-high" : undefined} />
       <div className="flex min-w-0 flex-1 flex-wrap items-start gap-x-3 gap-y-2 border-t border-border-subtle py-3.5 pr-5 group-first/row:border-t-0">
         <div className="min-w-0 flex-1 basis-64">
@@ -61,23 +66,21 @@ function PriorityBadge({ p }: { p: Priority }) {
 }
 
 function sourceIconOf(f: FactView): LucideIcon {
-  return f.captured_by === "camera" ? Camera : f.captured_by === "device" ? Monitor : f.provenance.audio_id ? Mic : Keyboard;
+  return f.captured_by === "camera" ? Camera : f.captured_by === "device" ? Monitor : f.provenance?.audio_id ? Mic : Keyboard;
 }
 
 function FactMeta({ f, confidence = true }: { f: FactView; confidence?: boolean }) {
   const Icon = sourceIconOf(f);
-  const byModel = f.provenance.extractor?.startsWith("llm:");
-  // Low confidence is the only reason a medic-mic model fact waits (§4.4a, P9): say so, "model 62% sure".
-  const lowConfidence = confidence && byModel && f.captured_by === "medic" && f.status === "unconfirmed" && !f.provenance.hold_reason;
+  // How the copilot works (which model, how sure) is not the medic's concern mid-call:
+  // a row shows who said or showed it, when, and a clinical reason if it is held.
+  void confidence;
   return (
     <>
       <Icon size={13} aria-hidden />
       <span>{f.captured_by === "camera" ? `photo${f.speaker ? ` · ${f.speaker}` : ""}` : sourceName(f)}</span>
       <span aria-hidden>·</span><span className="num">{hhmm(f.ts)}</span>
-      {byModel && <><span aria-hidden>·</span><span className="inline-flex items-center gap-1 font-medium text-cat-neuro-fg"><Sparkles size={12} aria-hidden />local model</span></>}
-      {f.provenance.hold_reason && <><span aria-hidden>·</span><span>{f.provenance.hold_reason}</span></>}
-      {lowConfidence && <><span aria-hidden>·</span><span>model {Math.round(f.confidence * 100)}% sure</span></>}
-      <AudioEvidence id={f.provenance.audio_id} />
+      {f.provenance?.hold_reason && <><span aria-hidden>·</span><span>{f.provenance?.hold_reason}</span></>}
+      <AudioEvidence id={f.provenance?.audio_id} />
     </>
   );
 }
@@ -91,6 +94,16 @@ function ConfirmActions({ fact }: { fact: FactView }) {
       <CorrectFactDialog fact={fact} />
       <ActionButton pendingKey={`reject:${fact.id}`} onClick={() => api.reject(fact.id)} busyText="Saving…">Reject</ActionButton>
     </>
+  );
+}
+
+/** One monitor frame's readings, confirmed with one tap (the tap-burden ruling): values that jumped, first
+ *  readings and anything held stay as their own rows below with the reason. */
+function ReadingRow({ c }: { c: ReadingCard }) {
+  return (
+    <Row tone="live" icon={Monitor} cat="heart" title={`Monitor reading · ${hhmm(c.ts)}`} value={c.text}
+      meta={c.individual.length ? <span>{c.individual.map((i) => i.label).join(", ")} {c.individual.length === 1 ? "needs" : "need"} a separate check</span> : undefined}
+      actions={<ActionButton pendingKey={`reading:${c.frameId}`} onClick={() => api.confirmReading(c.frameId)} busyText="Saving…" variant="primary" className="min-h-16">Confirm reading</ActionButton>} />
   );
 }
 
@@ -156,7 +169,12 @@ function FindingRow({ a, s, onSeen }: { a: Alert; s: Snapshot; onSeen?: () => vo
   const p = alertPriority(a);
   const seen = onSeen && <Button size="md" onClick={onSeen}>Mark seen</Button>;
   switch (a.type) {
-    case "trauma_alert_criteria": case "sepsis_prenotification":
+    case "trauma_alert_criteria":
+      return <Row icon={ShieldAlert} cat="attention" urgent={p === "high" && !!onSeen} badge={<PriorityBadge p={p} />} title={a.label} actions={seen}>
+        <TraumaCriteriaChecklist a={a} s={s} />
+        {a.county_rule?.map((line, i) => <p key={i} className="mt-2 text-body">{a.county && <span>{a.county}: </span>}{line}</p>)}
+      </Row>;
+    case "sepsis_prenotification":
       return <Row icon={ShieldAlert} cat="attention" urgent={p === "high" && !!onSeen} badge={<PriorityBadge p={p} />} title={a.label} actions={seen}>
         <ul className="mt-2 space-y-2 text-body">{a.criteria.map((line, i) => <li key={i}>{line}</li>)}</ul>
         {a.county_rule?.map((line, i) => <p key={i} className="mt-2 text-body">{a.county && <span>{a.county}: </span>}{line}</p>)}
@@ -215,7 +233,8 @@ function StillToCapture({ s }: { s: Snapshot }) {
         {gaps.length > 0 && <div className="flex flex-col gap-1.5"><p className="text-meta text-text-muted">{s.readiness[0]?.label ?? "Pre-alert"} checklist</p><Chips items={gaps} /></div>}
         {unknown.length > 0 && <div className="flex flex-col gap-1.5"><p className="text-meta text-text-muted">Not asked yet</p><Chips items={unknown} /></div>}
         {news2.length > 0 && (
-          <p className="text-body text-text-secondary"><span className="font-semibold text-text-primary">NEWS2 still needs </span>{news2.map((m) => m.label.replace(NEWS2_SUFFIX, "")).join(" · ")}</p>
+          <p className="text-body text-text-secondary"><span className="font-semibold text-text-primary">NEWS2 needs {news2.length} more {news2.length === 1 ? "value" : "values"}</span>
+            {news2.length <= 3 ? ` · ${news2.map((m) => m.label.replace(NEWS2_SUFFIX, "")).join(" · ")}` : ""}</p>
         )}
       </div>
     </Section>
@@ -243,19 +262,15 @@ export function AttentionQueue({ className }: { className?: string }) {
     }
   }, [a]);
 
-  const confirmCount = a ? a.confirmAlerts.length + a.confirmFacts.length : 0;
+  const readings = s ? readingCards(s) : [];
+  const confirmCount = a ? a.confirmAlerts.length + a.confirmFacts.length + readings.length : 0;
   return (
     <Card id="needs-attention" tabIndex={-1} aria-labelledby="na-h" className={cn("outline-none", className)}>
-      <CardHeader icon={Inbox} cat="attention" title="Needs Attention" id="na-h"
-        actions={a && a.count > 0 ? <Count n={a.count} tone={a.urgent.length ? "high" : "neutral"} /> : undefined}
-        subtitle="Nothing unconfirmed leaves the vehicle." />
+      <CardHeader icon={Inbox} cat="attention" title="Needs you" id="na-h"
+        actions={a && a.count + readings.length > 0 ? <Count n={a.count + readings.length} tone={a.urgent.length ? "high" : "neutral"} /> : undefined} />
       <div className="min-h-0 flex-1 overflow-y-auto pb-2">
         {!s || !a ? <p className="px-5 py-4 text-critical text-text-muted">—</p> : <>
-          {a.count === 0 && (
-            <EmptyState icon={CircleCheck} cat="check" title="Nothing to confirm" className="py-5">
-              Anything Herald needs you to confirm, choose or acknowledge shows up here.
-            </EmptyState>
-          )}
+          {a.count + readings.length === 0 && <EmptyState icon={CircleCheck} cat="check" title="Nothing needs you right now" className="py-5" />}
           {a.urgent.length > 0 && (
             <Section title="Clinical change" count={a.urgent.length}>
               <ul>{a.urgent.map((al) => <FindingRow key={alertKey(al)} a={al} s={s} onSeen={() => markSeen(alertKey(al))} />)}</ul>
@@ -272,8 +287,9 @@ export function AttentionQueue({ className }: { className?: string }) {
             </Section>
           )}
           {confirmCount > 0 && (
-            <Section title="Verify what Herald captured" count={confirmCount}>
+            <Section title="Confirm what Herald captured" count={confirmCount}>
               <ul>
+                {readings.map((c) => <ReadingRow key={c.frameId} c={c} />)}
                 {a.confirmAlerts.map((al) => <CodeStatusRow key={alertKey(al)} a={al as CodeStatus} />)}
                 {a.confirmFacts.map((f) => f.verify?.status === "mismatch" && !f.verify.resolution
                   ? <MismatchCard key={f.id} fact={f} /> : <TapRow key={f.id} f={f} />)}
@@ -290,7 +306,7 @@ export function AttentionQueue({ className }: { className?: string }) {
           {a.acknowledged.length > 0 && (
             <div className="px-5 pt-1">
               <button type="button" onClick={() => setShowSeen(!showSeen)} aria-expanded={showSeen}
-                className="inline-flex min-h-10 items-center gap-1.5 text-meta font-semibold text-text-muted hover:text-text-primary">
+                className="inline-flex min-h-12 items-center gap-1.5 text-meta font-semibold text-text-muted hover:text-text-primary">
                 {showSeen ? <ChevronDown size={15} aria-hidden /> : <ChevronRight size={15} aria-hidden />}Seen · {a.acknowledged.length}
               </button>
               {showSeen && <ul className="-mx-5 opacity-75">{a.acknowledged.map((al) => <FindingRow key={alertKey(al)} a={al} s={s} />)}</ul>}

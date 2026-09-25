@@ -1,0 +1,37 @@
+# Situational protocol lookup. When Herald recognises a situation -- a positive stroke screen, an open STEMI or trauma
+# checklist -- it searches the county's own documents in the background and puts the passage the local model chose on
+# the medic's screen, verbatim, with document, section, page and effective date. Only the QUERY is configured here;
+# what the medic reads is always the county's text, never a model's words (information, not advice). If retrieval says
+# the documents do not cover it, the screen says so instead of showing the nearest passage.
+#
+# when: a cue is active if ANY listed alert type is present (snapshot.alerts[].type) OR ANY listed checklist is open
+# (snapshot.readiness[].id). Order is display order: the most specific situation first.
+# Queries were checked against the Santa Clara index on 2026-09-25 (each returns the passage named in `expect`).
+passages: 2          # chosen passages shown per cue
+max_chars: 700       # a longer passage is cut at a sentence boundary and marked as shortened; the full text is one tap away
+cues:
+  - id: stroke_destination
+    title: Stroke destination
+    when: {alerts: [gfast_positive, race_positive]}
+    query: stroke destination comprehensive stroke center positive stroke screen
+    expect: 700-A13 §3.2
+  - id: stemi
+    title: STEMI
+    when: {alerts: [stemi_alert], checklists: [stemi]}
+    query: STEMI alert destination STEMI receiving center 12-lead
+    expect: 700-M09 §4.9.1.1
+  - id: trauma
+    title: Trauma destination
+    when: {alerts: [trauma_alert_criteria], checklists: [trauma]}
+    query: trauma triage criteria trauma center destination
+    expect: 602 §VI.C
+  - id: sepsis
+    title: Sepsis notification
+    when: {alerts: [sepsis_prenotification], checklists: [sepsis]}
+    query: sepsis alert criteria notify receiving hospital
+    expect: 700-A04 §1.4
+  - id: stroke_alert
+    title: Stroke alert
+    when: {checklists: [stroke]}
+    query: last known well stroke alert prehospital
+    expect: 700-A13 §3.1

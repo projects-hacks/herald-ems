@@ -19,3 +19,19 @@ tiers:
 # Bytes per packet by measured link state (an unmeasured link is treated as weak).
 budget_bytes: {good: 64000, weak: 420, down: 0}
 triage_rank: {immediate: 0, delayed: 1, minimal: 2, expectant: 3, dead: 4, unknown: 1}
+
+# Consent scope: which tiers above an authorization may actually send (herald/relay/tiers.py `RelayScopes`). The
+# medic authorizes a destination and a scope once (herald/api/context.py `pre_alert_scope`, built from the
+# checklist alert ids actually open, never a caller-supplied string); this maps that scope to a ceiling. A
+# same-purpose alert pre-alert (the checklist ids below, config/checklists.yaml) authorizes the clinical picture the
+# receiving team needs before arrival -- what's critical, whether the published score changed, current vitals and
+# exam (tiers 1-3) -- not the whole record. Arrival logistics and demographics (tiers 4-5) are not part of that
+# consent; they flow once no specific alert checklist is open and the broader `default_scope` authorization is in
+# force instead, which is today's unrestricted, every-tier send.
+scopes:
+  stroke: {ceiling: [1, 2, 3]}
+  trauma: {ceiling: [1, 2, 3]}
+  sepsis: {ceiling: [1, 2, 3]}
+  stemi: {ceiling: [1, 2, 3]}
+  patient_update: {ceiling: [1, 2, 3, 4, 5]}
+default_scope: patient_update

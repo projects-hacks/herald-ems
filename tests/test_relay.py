@@ -25,7 +25,8 @@ class FakeED:
         lost_request = self.rng.random() < self.fail_rate / 2
         if lost_request:
             raise ConnectionError("request lost")
-        if p["q"] in self.applied:
+        duplicate = p["q"] in self.applied
+        if duplicate:
             self.duplicates += 1
         else:
             self.fields.update(p["f"])
@@ -41,7 +42,7 @@ class FakeED:
             self.bytes.append(len(wire))
         if self.rng.random() < self.fail_rate / 2:   # applied, but the ACK is lost -> sender retries
             raise ConnectionError("ack lost")
-        return {"ack": p["q"]}
+        return {"ack": p["q"], "duplicate": duplicate} if duplicate else {"ack": p["q"]}
 
 
 def build_incident():
@@ -92,6 +93,38 @@ def test_reconciles_exactly_over_a_flaky_link():
         crit = r.critical_values()
         assert {k: ed.fields.get(k) for k in crit} == crit, f"seed {seed}: lost or stale fields"
         assert len(ed.applied) == len(set(ed.applied))       # no packet applied twice
+        assert r.duplicates_acked == ed.duplicates, f"seed {seed}: relay's own count disagrees with the ED's"
+
+
+def test_reconciliation_counter_reflects_a_real_retry_not_a_guess():
+    """P3.2: the 'N duplicates' shown after a restore is the ED's own count of resent sequence numbers it
+    already had, not a client-side estimate. An ack that gets lost after the ED applied the packet forces
+    exactly one retry, which the ED reports back as a duplicate; nothing here is inferred from a sequence gap.
+    A dispatch that opens no checklist keeps the incident's only pending field at one (no synthetic
+    "alert.readiness" riding along), so a failed send does not also drop the in-flight packet for being
+    oversized on a now-degraded link (relay.py's own weak-link shed rule)."""
+    inc = Incident(dispatch="abdominal pain")
+    fact = inc.ingest(FactIn(key="vitals.hr", value=92, captured_by=CapturedBy.medic, confidence=0.99), record=False)
+    inc.set_status(fact.id, Status.confirmed)
+    inc.commit()
+    ed = FakeED()
+    ack_lost_once = {"done": False}
+
+    async def flaky_once(wire: bytes) -> dict:
+        result = await ed(wire)
+        if not ack_lost_once["done"]:
+            ack_lost_once["done"] = True
+            raise ConnectionError("ack lost")   # the ED applied it; the client never saw the ack
+        return result
+
+    r = Relay(lambda: inc, transport=flaky_once)
+    r.authorize("Valley Medical")
+    assert r.status()["duplicates_acked"] == 0
+    asyncio.run(r.tick())   # applied at the ED, but the client times out and keeps the packet in flight
+    assert r.duplicates_acked == 0 and r.inflight is not None
+    asyncio.run(r.tick())   # retry: same sequence number, the ED reports it back as a duplicate
+    assert r.duplicates_acked == 1 == ed.duplicates
+    assert r.status()["duplicates_acked"] == 1
 
 
 def test_unconfirmed_facts_never_leave():
@@ -181,3 +214,74 @@ def test_two_patients_reconcile_without_duplicates_or_loss_on_flaky_link():
 def test_recorded_stroke_replay_kept_local_percentage_is_clamped():
     assert _kept_local_pct(bytes_sent=25837, bytes_without_relay=16403) == 0.0
     assert _kept_local_pct(bytes_sent=4100, bytes_without_relay=16400) == 75.0
+
+
+def test_local_bytes_are_counted_per_incident_not_just_as_one_pooled_total(tmp_path):
+    """E3: the "kept local" story has to survive a mass-casualty incident with several open patients, so
+    `status()` breaks bytes down per patient instead of only reporting one number across all of them."""
+    small = build_triage_incident("Passenger", "minimal", "arm pain")
+    big = build_triage_incident("Driver", "immediate", "difficulty breathing")
+    for i in range(20):
+        fact = big.ingest(FactIn(key="scene.notes", value=f"note {i}" * 10, captured_by=CapturedBy.medic,
+                                 confidence=0.99), record=False)
+        big.set_status(fact.id, Status.confirmed)
+    big.commit()
+    audio_id = "a_test_clip"
+    small.register_media("audio", audio_id)
+    (tmp_path / f"{audio_id}.wav").write_bytes(b"x" * 4096)
+
+    relay = Relay(lambda: [small, big], audio_dir=tmp_path)
+    status = relay.status()
+
+    assert status["patients"][small.id]["local_bytes"] > 4096          # its own facts, plus its own 4 KiB clip
+    assert status["patients"][big.id]["local_bytes"] > status["patients"][small.id]["local_bytes"] - 4096
+    assert status["local_bytes"] == sum(row["local_bytes"] for row in status["patients"].values())
+    # `big`'s clip never existed, so none of its byte count comes from `small`'s audio file.
+    assert status["patients"][big.id]["local_bytes"] < status["local_bytes"]
+
+
+def build_multi_tier_incident():
+    """One confirmed fact from each relay tier (config/relay.yaml), a stroke checklist and a trauma mechanism
+    both present, so a scope's tier ceiling and its cross-alert reach can both be exercised."""
+    inc = Incident(dispatch="possible stroke")
+    facts = [("stroke.lkw", "2026-09-25T10:00:00"),      # tier 1
+             ("score.race", None),                        # tier 2 is score-derived, not a plain fact; skipped here
+             ("vitals.sbp", 150),                          # tier 3
+             ("transport.eta_min", 12),                    # tier 4
+             ("patient.age", 68)]                          # tier 5
+    for key, value in facts:
+        if value is None:
+            continue
+        f = inc.ingest(FactIn(key=key, value=value, captured_by=CapturedBy.medic, confidence=0.99), record=False)
+        inc.set_status(f.id, Status.confirmed)
+    inc.commit()
+    return inc
+
+
+def test_authorized_scope_restricts_relay_to_its_tier_ceiling():
+    """B5: pending()/critical_values() must honour the scope the medic actually authorized, not send every tier
+    regardless of it (config/relay.yaml `scopes`, herald/relay/tiers.py `RelayScopes`)."""
+    inc = build_multi_tier_incident()
+    r = Relay(lambda: inc)
+
+    r.authorize("Valley Medical", "Stroke alert pre-alert set", ("stroke",))
+    scoped = r.critical_values(inc)
+    assert "stroke.lkw" in scoped and "vitals.sbp" in scoped          # tiers 1 and 3: in a stroke pre-alert's ceiling
+    assert "transport.eta_min" not in scoped and "patient.age" not in scoped  # tiers 4-5: not part of that consent
+    assert {k for _, _, _, k, _, _ in r.pending()} == set(scoped)
+
+    r.authorize("Valley Medical", "patient update set", ())
+    full = r.critical_values(inc)
+    assert "transport.eta_min" in full and "patient.age" in full      # no specific alert open: unrestricted again
+
+
+def test_relay_scopes_union_ceilings_across_simultaneously_open_alerts():
+    from herald.relay.tiers import RelayScopes, default_tiers
+    scopes = RelayScopes.from_config()
+    tiers = default_tiers()
+    stroke_only = scopes.allowed_keys(("stroke",), tiers)
+    trauma_only = scopes.allowed_keys(("trauma",), tiers)
+    both = scopes.allowed_keys(("stroke", "trauma"), tiers)
+    assert stroke_only == trauma_only            # both pre-alert scopes share the same tier-1-3 ceiling today
+    assert both == stroke_only                   # union of equal ceilings changes nothing, but must not shrink it
+    assert scopes.allowed_keys((), tiers) == scopes.allowed_keys(("not-a-real-alert",), tiers)  # falls back to default_scope

@@ -2,10 +2,14 @@
 #   herald      the FastAPI app + STT/embeddings. Needs the GPU and ZRT on the HOST (network_mode: host reaches
 #               ZRT at 127.0.0.1:8080, same address scripts/run_dev.sh uses). Start ZRT yourself first
 #               (scripts/serve_models.sh) -- this compose file deliberately never starts model servers.
+#               The UI (ui/dist) and the public STT/embedding weights are built INTO the image (Dockerfile's
+#               ui-build stage and its huggingface_hub prefetch step), so `docker compose up --build herald` alone
+#               is a complete, self-contained rebuild from a clean clone -- no separate npm or model-download step.
 #   ed-receiver everything AI-free about the mock ED screen. No GPU, any arch. Realistically you'd run this
 #               profile on a teammate's laptop, not this box, so the link between them is real (ed_receiver/app.py).
-#   ui-build    a one-shot container that builds ui/dist on the host bind mount, for hosts without node >= 22.
-#               `docker compose --profile ui-build run --rm ui-build`, then `docker compose up herald`.
+#   ui-build    OPTIONAL fast-iteration helper for the bare-metal path (scripts/run_dev.sh), not used by the
+#               `herald` service above: builds ui/dist straight onto the host bind mount, for hosts without
+#               node >= 22 installed. `docker compose --profile ui-build run --rm ui-build`.
 #
 # Quick start (Nano, ZRT already serving on :8080):
 #   docker compose up --build herald
@@ -13,6 +17,15 @@
 #
 # Full loop, two containers, emulated weak link (needs scripts/link.sh start 127.0.0.1:8200 on the host first):
 #   docker compose --profile full up --build
+#
+# Bind address and the device token (B7): HERALD_BIND_HOST defaults to 127.0.0.1 (Dockerfile). With
+# `network_mode: host` that means only this box can reach the app, exactly like a bare `scripts/run_dev.sh`. The
+# tablet in the back of the ambulance is a separate device on the LAN -- to let it reach the app, both of:
+#   HERALD_BIND_HOST=0.0.0.0                 # every interface, not just loopback
+#   HERALD_DEVICE_TOKEN=<a shared secret>    # every mutating /api/* request must present it (X-Herald-Token);
+#                                             # open the tablet's page once as .../?token=<the same secret> and
+#                                             # the UI remembers it (ui/src/lib/authToken.ts)
+# Skip HERALD_DEVICE_TOKEN and any other device on that LAN/Wi-Fi can read and write patient state.
 
 services:
   herald:
@@ -23,6 +36,8 @@ services:
     gpus: all
     environment:
       PORT: "8100"
+      HERALD_BIND_HOST: ${HERALD_BIND_HOST:-127.0.0.1}   # 0.0.0.0 to reach it from a tablet on the LAN; see above
+      HERALD_DEVICE_TOKEN: ${HERALD_DEVICE_TOKEN:-}      # set this whenever HERALD_BIND_HOST is not loopback
       HERALD_LLM_URL: http://127.0.0.1:8080/v1
       HERALD_LLM_MODEL: ${HERALD_LLM_MODEL:-}
       HERALD_VISION_MODEL: ${HERALD_VISION_MODEL:-qwen3vl-fp8}
@@ -33,8 +48,13 @@ services:
     volumes:
       - ./data:/app/data                                  # captured audio/photos persist across container restarts
       - herald-state-key:/run/herald-state-key             # encryption key stays separate from patient data
-      - ~/.cache/huggingface:/root/.cache/huggingface:ro   # Whisper/embedding weights (herald/models/weights.py)
-      - ./ui/dist:/app/ui/dist:ro                          # rebuild with `docker compose --profile ui-build run --rm ui-build`
+    # No bind mount for ui/dist or the Hugging Face cache: both are baked into the image at build time (see
+    # Dockerfile). A host mount here would SHADOW them with an empty directory on a clean clone (nothing has
+    # built ui/dist or downloaded the weights on the host yet) and silently break the UI or STT/embeddings.
+    # If you deliberately want to reuse a host Hugging Face cache instead of the one baked into the image
+    # (e.g. to skip re-downloading during `--build` while iterating), add back
+    # `~/.cache/huggingface:/root/.cache/huggingface:ro` yourself once that host cache is populated
+    # (`hf download openai/whisper-large-v3-turbo BAAI/bge-base-en-v1.5`).
     restart: unless-stopped
 
   ed-receiver:

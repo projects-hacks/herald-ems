@@ -15,17 +15,17 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("medic workspace navigation", () => {
-  it("keeps capture available across care screens and returns to the overview", () => {
+  it("is one screen: the record opens from the header, capture stays available, and Back returns to Now", () => {
     render(<CabinApp />);
-    const nav = within(screen.getByRole("navigation", { name: "Care workspace" }));
-    fireEvent.click(nav.getByRole("button", { name: "Patient record" }));
+    expect(screen.queryByRole("navigation", { name: "Care workspace" })).toBeNull();   // no page sidebar
+    fireEvent.click(screen.getByRole("button", { name: "Record" }));
     expect(screen.getByRole("heading", { name: "Patient", level: 1 })).toBeTruthy();
+    expect(screen.getByRole("tablist", { name: "Record views" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Start listening" })).toBeTruthy();
-    fireEvent.click(nav.getByRole("button", { name: "Protocol library" }));
-    expect(screen.getByRole("textbox", { name: "Search county protocols" })).toBeTruthy();
-    fireEvent.click(nav.getByRole("button", { name: "Overview" }));
-    expect(screen.getByRole("region", { name: "How this patient is moving" })).toBeTruthy();
-    expect(nav.getByRole("button", { name: "Overview" }).getAttribute("aria-current")).toBe("page");
+    fireEvent.click(screen.getByRole("button", { name: "Back to now" }));
+    expect(screen.getByRole("region", { name: "How the patient is moving" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Protocols" }));
+    expect(screen.getByRole("dialog", { name: "County protocols" })).toBeTruthy();
   });
   it("switches between server-provided checklists without inventing completion", () => {
     render(<CareSummary onReview={() => {}} />);

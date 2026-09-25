@@ -79,6 +79,35 @@ async def fact_action(fact_id: str, action: str, c=Depends(get_ctx), h=Depends(g
     return f.model_dump(mode="json")
 
 
+@router.post("/readings/{frame_id}/confirm")
+async def confirm_reading(frame_id: str, c=Depends(get_ctx), h=Depends(get_hub)):
+    """Confirm one capture's batchable readings in a single tap (herald/core/corroboration.py).
+
+    One monitor frame yields HR/BP/SpO2/RR at once; this confirms the whole reading as a set instead of
+    four separate taps. A reading the corroboration rules flag as needing its own look (a jump past the
+    plausible step, the first reading of a key, a held fact, an unresolved label mismatch or contradiction,
+    or any non-batchable key/source) is left unconfirmed and reported back in `individual` with why.
+    """
+    try:
+        c.incident.ensure_open()
+    except IncidentEnded as e:
+        raise HTTPException(409, str(e)) from None
+    facts = c.projector.batch.group(c.incident, frame_id)
+    if not facts:
+        raise HTTPException(404, "No unconfirmed reading for this frame")
+    decisions = c.projector.batch.review(facts)
+    confirmed = []
+    for d in decisions:
+        if d.batchable:
+            c.incident.set_status(d.fact_id, Status.confirmed)
+            confirmed.append(d.fact_id)
+    individual = [d.as_row() for d in decisions if not d.batchable]
+    if confirmed:
+        c.persist()
+        await h.broadcast()
+    return {"frame_id": frame_id, "confirmed": confirmed, "individual": individual}
+
+
 @router.post("/facts/confirm")
 async def confirm_facts(body: BulkConfirm, c=Depends(get_ctx), h=Depends(get_hub)):
     """Confirm selected independent readings in one medic action.

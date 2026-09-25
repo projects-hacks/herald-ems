@@ -1,5 +1,5 @@
 // A clinical action: pressed and disabled within 0.1 s, "Still waiting…" after 2 s, an inline error in words on
-// failure (UX_PLAN §3.0), and off in a replay. Buttons are at least 48 px, 64 px for primary actions.
+// failure, and off in a replay. Buttons are at least 48 px, 64 px for primary actions.
 // usePendingAction gives the same behavior to custom controls (the "Use this" choices).
 import { useEffect, useState } from "react";
 import { useHerald } from "@/lib/store";

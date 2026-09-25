@@ -14,10 +14,11 @@ from fastapi import FastAPI, WebSocket
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+from .auth import DeviceTokenMiddleware
 from .context import AppContext, build_context, wire_capture
 from .hub import Hub
 from .routes import capture as capture_routes
-from .routes import agentic_capture, handoff, incident, patients, protocols, relay, system
+from .routes import agentic_capture, egress, handoff, incident, patients, protocols, relay, system
 
 
 log = logging.getLogger("herald")
@@ -65,16 +66,35 @@ def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
                         if result and result.get("updated"):
                             await hub.broadcast()
             sync_task = asyncio.create_task(sync_loop())
+        cue_task = None
+        if ctx.cues is not None:
+            async def cue_loop():
+                # the copilot looks up the county passage for each situation it recognises, off the request path
+                loop = asyncio.get_running_loop()
+                while True:
+                    await asyncio.sleep(2)
+                    try:
+                        todo = ctx.cues.pending(ctx.incident.snapshot())
+                    except Exception:
+                        log.exception("protocol cues: could not read the situation")
+                        continue
+                    for cue in todo:
+                        await loop.run_in_executor(None, ctx.cues.resolve, cue)
+                        await hub.broadcast()
+            cue_task = asyncio.create_task(cue_loop())
         yield
         await ctx.capture_agent.stop()
         task.cancel()
         if sync_task:
             sync_task.cancel()
+        if cue_task:
+            cue_task.cancel()
 
     app = FastAPI(title="Herald", version="0.2.0", lifespan=lifespan)
+    app.add_middleware(DeviceTokenMiddleware, token=ctx.settings.device_token)
     app.state.ctx, app.state.hub = ctx, hub
     app.state.capture = capture_service
-    for module in (incident, patients, capture_routes, relay, system, protocols, handoff, agentic_capture):
+    for module in (incident, patients, capture_routes, relay, system, protocols, handoff, agentic_capture, egress):
         app.include_router(module.router)
 
     @app.websocket("/ws")

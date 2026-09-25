@@ -117,7 +117,7 @@ function VehicleStatus({ rail }: { rail: boolean }) {
   const replay = source === "fixture";
   const model = replay ? lastModel?.name ?? null : health?.llm_model ?? null;
   const [speechTone, speech]: [Tone, string] = replay ? ["neutral", "replay"] : health?.stt_loaded ? ["ok", "ready"] : ["low", "loading…"];
-  // There is no rules fallback: if the extraction model isn't served, nothing is extracted (UX_PLAN §3.1.14).
+  // There is no rules fallback: if the extraction model isn't served, nothing is extracted.
   const down = !replay && health !== null && health !== undefined && health.llm_available === false;
   const [modelTone, modelText]: [Tone, string] = down ? ["high", `${model ?? "model"} not running`]
     : lastModel?.status === "error" ? ["low", "last extraction failed"]
