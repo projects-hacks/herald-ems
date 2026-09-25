@@ -6,8 +6,32 @@ confidence:
   measure: joint                   # joint | value | order_free (herald/extraction/confidence.py); a threshold only
                                    # means something for the measure it was calibrated with
   top_logprobs: 5                  # alternatives per token (order_free needs them)
+# HISTORICAL, not a live setting: `herald-f` does not ship (docs/RUN_F_REPORT.md §9 — it failed the blocking
+# reranking gate), and this calibration is one of the reasons why. The live threshold is the 0.8 below, calibrated for
+# the shipping `ems-e-v2-fp8`, which admits 1 wrong auto-confirmed fact on held-out gold_v2. Kept because it is the
+# evidence for the decision and for whoever tunes the next 30B run.
+#
+# AUTO-CONFIRM WAS OFF FOR run F's 30B (`herald-f`), measured 2026-09-25. Set HERALD_AUTO_CONFIRM above 1.0 (the
+# policy compares `confidence >= auto_confirm`, and confidence is bounded at 1.0, so any value over 1 means "nothing
+# confirms itself"). Every fact from herald-f waits for a tap.
+# Why: no threshold reaches the §6 bar of at most 1 wrong auto-confirmed fact while still auto-confirming a
+# meaningful share. Fitted on the dev split and reported on held-out, never both on the same set:
+#   dev gold_v1  (286 facts, 26 wrong, auroc 0.747): 0.8 -> 8 wrong; 0.9 -> 6; 0.99 -> 2 at 27% coverage. Never <= 1.
+#   held-out gold_v2 (353 facts, 60 wrong, auroc 0.784): 0.8 -> 15 wrong; 0.93 -> 5; 0.99 -> 0 but only 14% coverage.
+# At comparable coverage herald-f admits 15 wrong facts where E v2 admits 1 (below), because its token confidence
+# barely separates right from wrong: auroc 0.784 against E v2's 0.804 held-out and 0.958 on dev. Choosing 0.99 on the
+# strength of the held-out zero would be picking the threshold that happened to win on the set we report -- dev still
+# shows 2 getting through. So this is a tuning item for a later run, not a ship blocker: with auto-confirm off the
+# one-tap-per-reading confirm carries the tap burden.
 calibration:
   model: ems-e-v2-fp8              # recalibrate when the extraction model changes (eval/calibrate_confidence.py)
+  run_f_30b:                       # herald-f, measured 2026-09-25 (MODEL_PLAN §0l); auto-confirm OFF, see above
+    dev_gold_v1: {facts: 286, wrong_facts: 26, auroc: 0.747,
+                  at_0_8: {auto_confirmed: 198, wrong: 8, coverage: 0.692},
+                  at_0_99: {auto_confirmed: 77, wrong: 2, coverage: 0.269}}
+    heldout_gold_v2: {facts: 353, wrong_facts: 60, auroc: 0.784,
+                      at_0_8: {auto_confirmed: 215, wrong: 15, coverage: 0.609},
+                      at_0_99: {auto_confirmed: 50, wrong: 0, coverage: 0.142}}
   run_e_v2:                        # live from 2026-09-24 (team lead's decision); MODEL_PLAN §0i. Judged with the
                                    # every-call gold too (--extra-gold eval/gold_v*_broad.jsonl)
     dev_gold_v1: {facts: 286, wrong_facts: 6, auroc: 0.958, at_0_8: {auto_confirmed: 193, wrong: 0, coverage: 0.675}}

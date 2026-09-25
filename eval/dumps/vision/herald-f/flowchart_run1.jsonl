@@ -1,0 +1,1 @@
+{"steps": 6, "errors": [], "node_recall": 0.875, "edge_recall": 0.857, "edge_recall_with_source": 0.857, "unsupported_steps": 0, "added_words": [], "added_word_rate": 0.0, "missed_nodes": ["n1"], "missed_edges": ["n1->n2"]}
