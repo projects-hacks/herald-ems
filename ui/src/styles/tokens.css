@@ -46,6 +46,19 @@
   --shadow-1: 0 1px 0 rgb(255 255 255 / .03) inset, 0 2px 6px rgb(0 0 0 / .35);
   --shadow-2: 0 1px 0 rgb(255 255 255 / .04) inset, 0 10px 30px rgb(0 0 0 / .45);
   --shadow-3: 0 24px 70px rgb(0 0 0 / .7);
+  /* glass: three tiers over the glow. Fills stay dense enough that every text token keeps >= 4.5:1 even where the
+     glass sits over the brightest orb (the orbs are dim and heavily blurred to begin with). */
+  --glass-ground: #04060A;
+  --orb-a: rgb(200 245 59 / .42);     /* livery lime */
+  --orb-b: rgb(47 107 255 / .55);     /* Star-of-Life blue */
+  --orb-c: rgb(255 176 32 / .26);     /* amber */
+  --glass-1: rgb(13 19 27 / .50);     /* quiet panels */
+  --glass-2: rgb(15 22 31 / .64);     /* the hero: Needs you */
+  --glass-3: rgb(6 9 14 / .55);      /* chrome: header, dock */
+  --glass-border: rgb(255 255 255 / .09);
+  --glass-border-hi: rgb(255 255 255 / .16);
+  --glass-edge: inset 0 1px 0 rgb(255 255 255 / .07), inset 0 0 0 1px rgb(255 255 255 / .02);
+  --glass-shadow: 0 24px 60px -24px rgb(20 40 90 / .55), 0 2px 8px rgb(0 0 0 / .35);
   color-scheme: dark;
 }
 
@@ -92,6 +105,17 @@
   --shadow-1: 0 1px 2px rgb(10 16 22 / .06);
   --shadow-2: 0 8px 24px rgb(10 16 22 / .08);
   --shadow-3: 0 24px 60px rgb(10 16 22 / .2);
+  --glass-ground: #E4EAF0;
+  --orb-a: rgb(200 245 59 / .45);
+  --orb-b: rgb(47 107 255 / .22);
+  --orb-c: rgb(255 176 32 / .20);
+  --glass-1: rgb(255 255 255 / .62);
+  --glass-2: rgb(255 255 255 / .80);
+  --glass-3: rgb(248 250 252 / .74);
+  --glass-border: rgb(255 255 255 / .75);
+  --glass-border-hi: rgb(255 255 255 / .95);
+  --glass-edge: inset 0 1px 0 rgb(255 255 255 / .9), 0 0 0 1px rgb(10 16 22 / .06);
+  --glass-shadow: 0 24px 50px -24px rgb(40 70 120 / .35), 0 2px 6px rgb(10 16 22 / .06);
   color-scheme: light;
 }
 
