@@ -8,8 +8,11 @@ import argparse
 import json
 import time
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import httpx
+
+from herald.config import get_settings
 
 ap = argparse.ArgumentParser()
 ap.add_argument("scenario")
@@ -20,7 +23,7 @@ ap.add_argument("--lkw-minutes-ago", type=int, default=64)
 a = ap.parse_args()
 
 sc = json.load(open(a.scenario))
-lkw = (datetime.now() - timedelta(minutes=a.lkw_minutes_ago)).strftime("%-I:%M")
+lkw = (datetime.now(ZoneInfo(get_settings().timezone)) - timedelta(minutes=a.lkw_minutes_ago)).strftime("%-I:%M")
 c = httpx.Client(base_url=a.url, timeout=120)
 
 
