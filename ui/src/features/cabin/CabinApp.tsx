@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Activity, BookOpen, Camera, ChevronLeft, ChevronRight, FileText, Info, Keyboard, Mic, Moon, Pause, Settings2, Sun, Users, WifiOff } from "lucide-react";
+import { Activity, BookOpen, Camera, ChevronLeft, FileText, Info, Keyboard, Mic, Moon, Pause, Settings2, Sun, Users, WifiOff } from "lucide-react";
 import { ManualEntry } from "@/components/ManualEntry";
 import { PatientRoster } from "@/components/PatientRoster";
 import { CaptureBar } from "@/features/capture/CaptureBar";
