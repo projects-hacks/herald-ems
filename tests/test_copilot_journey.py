@@ -25,11 +25,18 @@ def test_camera_to_confirmed_trend_and_handoff_without_image_retention(tmp_path)
     first = observe(132, 0)
     pending = client.get("/api/state").json()
     assert pending["facts"]["vitals.sbp"]["status"] == "unconfirmed"
-    assert not pending["changed"]
+    assert not pending["changed"]                      # one reading is not a trend
     assert "132" not in client.get("/api/handoff").json()["text"]
     assert client.post("/api/facts/confirm", json={"ids": [first]}).status_code == 200
     second = observe(88, 120)
-    assert not client.get("/api/state").json()["changed"]
+    # A camera reading raises the change in the cabin before it is tapped (config/trends.yaml
+    # unconfirmed_sources), labelled so the screen can ask for the tap -- and it still reaches
+    # neither the hospital nor the report until it is confirmed.
+    waiting = client.get("/api/state").json()
+    pending_trend = next(c for c in waiting["changed"] if c["key"] == "vitals.sbp")
+    assert pending_trend["unconfirmed"] and pending_trend["unconfirmed_fact_ids"] == [second]
+    assert "confirm the reading" in pending_trend["message"]
+    assert "88" not in client.get("/api/handoff").json()["text"]
     assert client.post("/api/facts/confirm", json={"ids": [second]}).status_code == 200
     state = client.get("/api/state").json()
     trend = next(change for change in state["changed"] if change["key"] == "vitals.sbp")
