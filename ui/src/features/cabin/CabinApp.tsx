@@ -27,7 +27,7 @@ import "./capture-workspace.css";
 import "../copilot/copilot.css";
 import type { WorkspacePanel } from "./WorkspaceNav";
 import { CareSummary } from "./CareSummary";
-import { EdCard, HeraldActivity, MovementStrip, PatientKnown, PresencePill, ProtocolCues, ReplayBar } from "@/features/copilot/Copilot";
+import { EdCard, HeraldActivity, MovementStrip, PatientKnown, PresencePill, ProtocolCues, ReplayBar, SituationBar } from "@/features/copilot/Copilot";
 import type { FixturePlayer } from "@/lib/ws";
 
 // One screen. Everything that is not "Now" opens from the control that needs it (the ED card opens the handoff, the
@@ -92,6 +92,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
         {multi && <button className="cabin-button" aria-label="Patients" onClick={() => open("patients")}><Users size={19} /><span className="patients-button-label">Patients</span></button>}
         <button className="cabin-button" aria-label="Settings" onClick={() => open("settings")}><Settings2 size={19} /></button>
       </div>
+      {!panel && <SituationBar />}
     </header>
     <div className="cabin-sticky-status"><ConnectBand /><StaleOverlay /><RestoredCallBanner />{multi && <PatientRoster />}</div>
     <main id="workspace-main" tabIndex={-1} className="cabin-main">

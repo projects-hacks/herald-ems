@@ -3,10 +3,11 @@
 // only when something has stopped working.
 import { ArrowDownRight, ArrowUpRight, BookOpenCheck, Download, Ear, FileText, Share2, UserRound, Monitor, Pause, Play, RotateCcw, Send, ShieldCheck, SkipForward, TriangleAlert } from "lucide-react";
 import type { FixturePlayer } from "@/lib/ws";
+import type { ProtocolCue } from "@/lib/types";
 import { api } from "@/lib/api";
-import { activity, edHas, patientKnown, SAFETY_KEYS, type ActivityKind, type Presence } from "@/lib/copilot";
+import { activity, edHas, keyPoints, patientKnown, SAFETY_KEYS, type ActivityKind, type Presence } from "@/lib/copilot";
 import { GROUPS } from "@/lib/selectors";
-import { factValue } from "@/lib/format";
+import { clockSeconds, factValue, hhmmss } from "@/lib/format";
 import { useNow } from "@/hooks/useNow";
 import { useContract } from "@/lib/contract";
 import { hhmm } from "@/lib/format";
@@ -82,22 +83,33 @@ export function EdCard({ onHandoff }: { onHandoff: () => void }) {
   </section>;
 }
 
-/** The county's own words for the situation Herald recognised: quoted, cited, dated. Herald adds nothing. */
+function Passage({ p }: { p: ProtocolCue["passages"][number] }) {
+  return <figure>
+    <blockquote>{p.text}</blockquote>
+    <figcaption><strong>{p.doc === p.title || !p.title ? `Policy ${p.doc}` : `${p.doc} · ${p.title}`} §{p.section}</strong>
+      {p.page ? <span> · p. {p.page}</span> : null}{p.effective ? <span> · effective {p.effective}</span> : null}
+      {p.shortened && <span> · shortened</span>}{p.text_layer_uncertain && <span> · text layer uncertain, check the page</span>}</figcaption>
+  </figure>;
+}
+
+/** The county's own words for the situation Herald recognised: quoted, cited, dated. Herald adds nothing. One passage
+ *  per situation on the screen; the rest are a tap away. */
 export function ProtocolCues({ onOpen }: { onOpen: () => void }) {
   const cues = useHerald((st) => st.snapshot?.protocol_cues);   // select the stored array: a fresh [] would re-render forever
   if (!cues?.length) return null;
+  const shown = new Set<string>();                        // a passage appears once, under the first situation that found it
   return <section className="copilot-protocol" aria-labelledby="protocol-h">
     <h2 id="protocol-h"><BookOpenCheck size={16} aria-hidden />County protocol</h2>
     {cues.map((c) => <article key={c.id} className="protocol-cue" data-state={c.state}>
       <h3>{c.title}</h3>
       {c.state === "searching" && <p className="protocol-status" role="status">Finding the county passage…</p>}
       {c.state === "not_covered" && <p className="protocol-status">The county documents on this vehicle do not cover this.</p>}
-      {c.passages.map((p) => <figure key={`${p.doc}-${p.section}`}>
-        <blockquote>{p.text}</blockquote>
-        <figcaption><strong>{p.doc === p.title || !p.title ? `Policy ${p.doc}` : `${p.doc} · ${p.title}`} §{p.section}</strong>
-          {p.page ? <span> · p. {p.page}</span> : null}{p.effective ? <span> · effective {p.effective}</span> : null}
-          {p.shortened && <span> · shortened</span>}{p.text_layer_uncertain && <span> · text layer uncertain, check the page</span>}</figcaption>
-      </figure>)}
+      {c.state === "found" && (() => { const points = keyPoints(c.passages, 2, shown); return points.length ? <ul className="protocol-points">{points.map((k, i) => <li key={i}>
+        <span>{k.segments.map((s, j) => s.hl ? <mark key={j}>{s.t}</mark> : <span key={j}>{s.t}</span>)}</span>
+        <cite>{k.cite}</cite>
+      </li>)}</ul> : <p className="protocol-status">The matching county text is a heading or a list; open it below.</p>; })()}
+      {c.state === "found" && <details className="protocol-more"><summary>County text · effective {c.passages[0]?.effective ?? "date not stated"}</summary>
+        {c.passages.map((p) => <Passage key={`${p.doc}-${p.section}`} p={p} />)}</details>}
     </article>)}
     <button className="activity-all" onClick={onOpen}>All protocols</button>
   </section>;
@@ -134,4 +146,32 @@ export function PatientKnown({ onRecord }: { onRecord: () => void }) {
     </div>)}
     <button className="activity-all" onClick={onRecord}>Sources</button>
   </section>;
+}
+
+const span = (sec: number) => { const m = Math.floor(Math.abs(sec) / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} m` : `${m} min`; };
+
+/** The situation at a glance, under the patient line: how ready each pre-alert is (and what it still lacks), and the
+ *  clocks that are running. Readiness is gap-first: the missing items are named, not counted. */
+export function SituationBar() {
+  const s = useHerald((st) => st.snapshot);
+  const at = useHerald((st) => st.lastStateAt);
+  const now = useNow();
+  if (!s || (!s.readiness.length && !s.clocks.some((c) => c.id !== "scene"))) return null;
+  const clock = (id: string) => s.clocks.find((c) => c.id === id);
+  const lkw = clock("lkw"), eta = clock("eta"), due = clock("reassess");
+  return <div className="situation-bar" role="group" aria-label="Situation">
+    {s.readiness.map((r) => {
+      const missing = r.items.filter((i) => i.state !== "done").map((i) => i.label);
+      return <span key={r.id} className="sit-ready" data-ready={r.ready || undefined}>
+        <b>{r.label}</b>
+        <span className="sit-meter" aria-hidden>{r.items.map((i) => <i key={i.key} data-state={i.state} />)}</span>
+        <span className="num">{r.done} of {r.total}</span>
+        {r.ready ? <em>ready</em> : missing.length ? <em>missing {missing.slice(0, 2).join(", ").toLowerCase()}{missing.length > 2 ? ` +${missing.length - 2}` : ""}</em> : null}
+      </span>;
+    })}
+    {lkw && <span className="sit-clock"><b>LKW</b> {lkw.label.replace(/^LKW\s*/, "")} <span className="num">+{span(clockSeconds(lkw, at, now))}</span></span>}
+    {eta && (() => { const left = clockSeconds(eta, at, now); return <span className="sit-clock"><b>ETA</b> <span className="num">{left > 0 ? hhmmss(left).replace(/^00:/, "") : "arriving"}</span></span>; })()}
+    {due && (() => { const left = clockSeconds(due, at, now); return <span className="sit-clock" data-overdue={left <= 0 || undefined}><b>Vitals</b>
+      <span className="num">{left > 0 ? `due in ${hhmmss(left).replace(/^00:/, "")}` : "due now"}</span></span>; })()}
+  </div>;
 }

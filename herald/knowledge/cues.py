@@ -36,6 +36,9 @@ class ProtocolCues:
         # longest phrase first, so "show me the protocol for" wins over its tail "protocol for"
         self.phrases: list[str] = sorted((p.lower() for p in req.get("phrases", [])), key=len, reverse=True)
         self.keep: int = req.get("keep", 3)
+        self.context: str = req.get("context", "")
+        ctx = self.context
+        self._q = (lambda topic: f"{topic} {ctx}".strip())
         self.asked: dict[str, list[dict]] = {}              # incident id -> the medic's own requests, newest first
         self.max_chars: int = cfg.get("max_chars", 700)
         self._kb, self._county = kb, county
@@ -56,7 +59,7 @@ class ProtocolCues:
             topic = re.sub(r"^(a|an|the)\s+", "", topic, flags=re.I)
             if len(topic) < 3:
                 return None
-            cue = {"id": f"asked:{topic.lower()}", "title": f"You asked: {topic}", "query": topic, "asked": True,
+            cue = {"id": f"asked:{topic.lower()}", "title": f"You asked: {topic}", "query": self._q(topic), "topic": topic, "asked": True,
                    "at": datetime.now(timezone.utc).isoformat()}
             with self._lock:
                 mine = [c for c in self.asked.get(incident_id, []) if c["id"] != cue["id"]]
@@ -69,7 +72,7 @@ class ProtocolCues:
         alerts = {a.get("type") for a in snap.get("alerts", [])}
         checklists = {r.get("id") for r in snap.get("readiness", [])}
         asked = self.asked.get((snap.get("incident") or {}).get("id", ""), [])
-        out, seen = list(asked), {c["query"].lower() for c in asked}
+        out, seen = list(asked), {c.get("topic", c["query"]).lower() for c in asked}
         for c in self.cues:
             if "from_facts" in c:                  # any presentation: the heard value is the query
                 for key in c["from_facts"]:
@@ -78,7 +81,8 @@ class ProtocolCues:
                     for v in values:
                         if isinstance(v, str) and len(v.strip()) > 2 and fact.get("status") != "rejected" and v.lower() not in seen:
                             seen.add(v.lower())
-                            out.append({"id": f"{c['id']}:{v.lower()}", "title": v.strip().capitalize(), "query": v.strip()})
+                            out.append({"id": f"{c['id']}:{v.lower()}", "title": v.strip().capitalize(), "query": self._q(v.strip()),
+                                        "topic": v.strip()})
             elif alerts & set(c["when"].get("alerts", [])) or checklists & set(c["when"].get("checklists", [])):
                 out.append(c)
         return out
@@ -130,6 +134,6 @@ class ProtocolCues:
         with self._lock:
             for c in self.active(snap):
                 r = self._results.get(self._key(c))
-                out.append({"id": c["id"], "title": c["title"], "query": c["query"], "asked": c.get("asked", False),
+                out.append({"id": c["id"], "title": c["title"], "query": c.get("topic", c["query"]), "asked": c.get("asked", False),
                             **(r if r else {"state": "searching", "passages": []})})
         return out

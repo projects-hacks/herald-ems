@@ -9,13 +9,13 @@
 # `up` does, in order, and skips any step that is already done:
 #   1. checks this checkout against origin/main (warns if it is behind; `up --pull` fast-forwards first)
 #   2. one-time data: the RxNorm drug index (~10 min, network) and the Whisper + embedding weights
-#   3. the shipped model stack on ZRT :8080 -- ems-e-v2-fp8 (speech -> facts) and qwen3vl-fp8 (photos, monitor,
-#      protocol reranking) -- served one at a time, each only if missing and only if memory allows
+#   3. the shipped model stack on ZRT :8080 -- ems-e-v2-fp8 (speech -> facts) and herald-f (photos, the monitor,
+#      figures and protocol reranking) -- served one at a time, each only if missing and only if memory allows
 #   4. the React UI build (npm ci / npm run build only when sources changed)
 #   5. the ED link emulator (Toxiproxy :9000 -> ED screen) and the ED screen (:8200)
 #   6. the Herald app (:8100) with Whisper preloaded, then waits until speech, extraction and vision all report ready
 #
-# Overrides: HERALD_PORT (8100) ED_PORT (8200) HERALD_LLM_MODEL (ems-e-v2-fp8) HERALD_VISION_MODEL (qwen3vl-fp8)
+# Overrides: HERALD_PORT (8100) ED_PORT (8200) HERALD_LLM_MODEL (ems-e-v2-fp8) HERALD_VISION_MODEL (herald-f)
 #            HERALD_BIND_HOST (127.0.0.1; 0.0.0.0 exposes the app to the LAN -- set HERALD_DEVICE_TOKEN too)
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -27,7 +27,7 @@ PORT="${HERALD_PORT:-8100}"
 ED_PORT="${ED_PORT:-8200}"
 LINK_PORT=9000
 LLM="${HERALD_LLM_MODEL:-ems-e-v2-fp8}"
-VISION="${HERALD_VISION_MODEL:-qwen3vl-fp8}"
+VISION="${HERALD_VISION_MODEL:-herald-f}"          # run F: photos, the monitor, figures, protocol reranking
 ZRT_URL="http://127.0.0.1:8080/v1"
 RUN="$ROOT/runs/stack"
 mkdir -p "$RUN"
@@ -107,7 +107,7 @@ ensure_models() {
   say "Models (ZRT :8080)"
   sg zrt -c "zrt status" >/dev/null 2>&1 || die "ZRT is not reachable: is the zrt service running? (sg zrt -c 'zrt status')"
   ensure_model "$LLM" ems 18      # one at a time: never load two big models at once (memory safety)
-  ensure_model "$VISION" vision 44
+  case "$VISION" in herald-f) ensure_model "$VISION" herald-f 42 ;; *) ensure_model "$VISION" vision 44 ;; esac
 }
 
 build_ui() {

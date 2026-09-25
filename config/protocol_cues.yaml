@@ -14,6 +14,10 @@ requests:
   phrases: ["show me the protocol for", "pull up the protocol for", "open the protocol for", "what does the protocol say about",
             "protocol for", "look up the protocol for", "show me the protocol on"]
   keep: 3             # the most recent requests stay on screen for this patient
+  # Appended to a spoken request and to a heard presentation before searching: a medic asking for "the protocol for
+  # stroke" wants prehospital care, not the stroke-center definition a bare "stroke" retrieves. Checked on the Santa
+  # Clara index 2026-09-25: stroke -> 602 §VI.E (destination), chest pain -> 700-A08 §8, overdose -> 700-A15 §2.
+  context: prehospital treatment
 max_chars: 700       # a longer passage is cut at a sentence boundary and marked as shortened; the full text is one tap away
 cues:
   - id: stroke_destination

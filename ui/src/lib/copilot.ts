@@ -157,3 +157,47 @@ export function patientKnown(s: Snapshot, groups: [string, (key: string) => bool
   if (other.length) out.push({ name: "Other", facts: other });
   return out;
 }
+
+// ---------- county passages as a quick view ----------
+/** The county's own sentences, never a model's paraphrase: each chosen passage is cut into sentences, its section
+ *  numbering dropped, and the shortest sentences that carry the passage's substance kept. Highlighting is plain
+ *  pattern matching (numbers with units and time windows, facility names, the words that were asked). */
+export interface Segment { t: string; hl?: boolean }
+export interface KeyPoint { segments: Segment[]; cite: string }
+
+const UNIT = String.raw`(?:mg|mcg|g|mL|ml|L|mmHg|%|minutes?|mins?|hours?|hrs?|seconds?|days?|years?|kg|joules?|J|bpm)`;
+const HL = [
+  new RegExp(String.raw`\b(?:[a-z-]+\s)?\(?\d+(?:\.\d+)?\)?\s*${UNIT}\b`, "gi"),           // "forty-five (45) minutes", "324 mg"
+  /\b(?:Comprehensive|Primary|Thrombectomy-Capable)\s+Stroke\s+Center\b|\bSTEMI\s+(?:Receiving\s+)?Center\b|\bTrauma\s+Center\b|\b(?:Level\s+[IVX]+)\b/gi,
+];
+/** Only what a medic scans for: numbers with their units and time windows, and destination facilities. Marking every
+ *  word of the question would mark everything, which marks nothing. */
+export function highlight(text: string): Segment[] {
+  const patterns = HL;
+  const marks: [number, number][] = [];
+  for (const re of patterns) for (const m of text.matchAll(re)) marks.push([m.index!, m.index! + m[0].length]);
+  marks.sort((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [];
+  for (const [s, e] of marks) { const last = merged.at(-1); if (last && s <= last[1]) last[1] = Math.max(last[1], e); else merged.push([s, e]); }
+  const out: Segment[] = []; let i = 0;
+  for (const [s, e] of merged) { if (s > i) out.push({ t: text.slice(i, s) }); out.push({ t: text.slice(s, e), hl: true }); i = e; }
+  if (i < text.length) out.push({ t: text.slice(i) });
+  return out;
+}
+export function keyPoints(passages: { doc: string; section: string; text: string }[], max = 2, skip: Set<string> = new Set()): KeyPoint[] {
+  const out: KeyPoint[] = [];
+  for (const p of passages) {
+    const cite = `${p.doc} §${p.section}`;
+    if (skip.has(cite)) continue;                         // already shown under another situation
+    skip.add(cite);
+    const body = p.text.replace(/^\s*[\d.]+[.)]?\s+/, "").replace(/^[A-Z]\.\s+/, "").trim();
+    const sentences = body.split(/(?<=[.;])\s+(?=[A-Z(])/).map((s) => s.trim()).filter((s) => s.length > 12);
+    let lead = sentences[0] ?? body;
+    if (lead.endsWith(":")) lead = body.slice(0, 260);    // "shall be transported to:" means nothing without what follows
+    if (lead.trimEnd().endsWith(":")) continue;            // ...and if nothing follows in this passage, it is not a key point
+    const text = lead.length > 240 ? `${lead.slice(0, 237).replace(/\s+\S*$/, "")} …` : lead;
+    out.push({ segments: highlight(text), cite });
+    if (out.length >= max) break;
+  }
+  return out;
+}

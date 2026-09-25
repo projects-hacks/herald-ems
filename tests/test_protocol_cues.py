@@ -76,13 +76,13 @@ def test_long_passages_are_shortened_at_a_sentence_and_marked():
 def test_the_medic_can_ask_for_a_protocol_by_voice():
     kb = FakeKB({"answerable": True, "chosen": 1, "results": [PASSAGE]})
     c = cues(kb)
-    assert c.ask("inc1", "Okay she's stable. Show me the protocol for heart attack, please.")["query"] == "heart attack"
+    assert c.ask("inc1", "Okay she's stable. Show me the protocol for heart attack, please.")["topic"] == "heart attack"
     snap = {"incident": {"id": "inc1"}, "alerts": [], "readiness": []}
     for cue in c.pending(snap):
         c.resolve(cue)
     view = c.view(snap)
     assert view[0]["asked"] and view[0]["title"] == "You asked: heart attack" and view[0]["state"] == "found"
-    assert kb.queries == ["heart attack"]
+    assert kb.queries == ["heart attack prehospital treatment"]      # the medic's words plus the configured context
     assert c.view({"incident": {"id": "other"}, "alerts": [], "readiness": []}) == []   # requests belong to their patient
 
 
@@ -102,4 +102,4 @@ def test_any_presentation_brings_its_own_county_passage():
     assert ids == ["presentation:seizure"]                 # one lookup per distinct presentation, not per key
     for cue in c.pending(snap):
         c.resolve(cue)
-    assert [q.lower() for q in kb.queries] == ["seizure"]
+    assert [q.lower() for q in kb.queries] == ["seizure prehospital treatment"]
