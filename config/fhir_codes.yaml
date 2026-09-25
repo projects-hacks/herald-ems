@@ -40,3 +40,44 @@ age:
   loinc: "30525-0"
   display: Age
   ucum: a
+
+# ---------- the handoff as a FHIR document (herald/reporting/fhir_document.py, GET /api/handoff/fhir) ----------
+# A FHIR R4 "document" Bundle (https://hl7.org/fhir/R4/documents.html): the first entry is a Composition whose
+# sections are the handoff report's own MIST/SBAR sections (config/handoff.yaml), each with the report lines as its
+# human-readable narrative and references to the coded resources behind those lines. Then the resources above,
+# an Encounter for the transport, the Device that assembled it, and a Provenance per resource naming who said it,
+# who confirmed it, and the clip or photo it came from. Checked 2026-09-25 against the published code systems:
+#   - LOINC 34133-9 "Summary of episode note": loinc.org/34133-9 (the LOINC document code used for transfer-of-care
+#     summaries such as the Continuity of Care Document). LOINC 67796-3 "EMS patient care report - version 3
+#     Document NEMSIS" was considered and not used: it names a NEMSIS v3 patient care report, which this is not.
+#   - v3-ActCode FLD "field" (an encounter outside a care facility and outside the patient's home): FHIR R4
+#     ActEncounterCode value set, hl7.org/fhir/R4/v3/ActEncounterCode/vs.html.
+#   - provenance-participant-type assembler / informant / verifier: hl7.org/fhir/R4/valueset-provenance-agent-type.html.
+document:
+  base_url: http://herald.local/fhir                     # fullUrl base; every reference resolves inside the bundle
+  identifier_system: http://herald.local/fhir/handoff-document
+  # "preliminary": assembled by Herald from crew-confirmed facts and not signed by the crew (no attester). A
+  # records system should treat it as the EMS handoff as of `date`, not as the signed patient care report.
+  status: preliminary
+  type: {system: http://loinc.org, code: "34133-9", display: Summary of episode note}
+  encounter_class: {system: http://terminology.hl7.org/CodeSystem/v3-ActCode, code: FLD, display: field}
+  participant_system: http://terminology.hl7.org/CodeSystem/provenance-participant-type
+  device_name: Herald
+  # Lines shown in bold in the document's narrative, so the receiver finds them at a glance: a confirmed value of
+  # one of these keys, or one of these scores ("@<id>") when it is positive / met (an alert criterion). Missing
+  # lines, trend series and incomplete or negative scores are never bold.
+  emphasis: [vitals.sbp, vitals.dbp, vitals.hr, vitals.rr, vitals.spo2, vitals.gcs_total, vitals.gcs_motor,
+             vitals.consciousness, vitals.temp, vitals.glucose, vitals.etco2, ecg.stemi_reading,
+             allergies, meds.anticoagulant,
+             "@gfast", "@race", "@trauma_605", "@field_triage", "@sepsis_700a04"]
+  words:
+    about_title: How this document was assembled
+    about: >-
+      Assembled on the ambulance by Herald from facts the crew confirmed. Facts still waiting for the crew's
+      confirmation are named but carry no value. Scores are computed from confirmed facts by published rules.
+      Not signed by the crew.
+    unit_unknown: unit not set
+    dispatch: "EMS response: {dispatch}"
+    audio: "audio clip {id}"
+    photo: "photo {id}"
+    confirmed_by: "{actor}"

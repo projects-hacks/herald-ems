@@ -13,7 +13,7 @@ import { useContract } from "@/lib/contract";
 import { hhmm } from "@/lib/format";
 import { useHerald } from "@/lib/store";
 import { Sparkline } from "@/components/Sparkline";
-import { ActionButton } from "@/components/ActionButton";
+import { ActionButton, ActionNote, usePendingAction } from "@/components/ActionButton";
 
 /** The whole system status, and the one capture control: tap to pause or resume listening and watching. */
 export function PresencePill({ p, paused, disabled, onToggle }: { p: Presence; paused: boolean; disabled?: boolean; onToggle: () => void }) {
@@ -200,8 +200,32 @@ export function PatientBar({ onDetails, limit = 6 }: { onDetails: () => void; li
         <b>{f.label}</b><span>{value}</span>
       </span>;
     }) : <span className="patient-empty">No history confirmed yet</span>}
+    <Spo2Target />
     <button className="patient-details" onClick={onDetails}>{more > 0 ? `+${more} more · Details` : "Details"}</button>
   </div>;
+}
+
+/** The NEWS2 SpO2 target as a one-tap switch: 94-98% (Scale 1) or 88-92% for hypercapnic respiratory failure such as
+ *  COPD (Scale 2). The tap is the clinician direction RCP requires, so it is written confirmed at once and re-bands
+ *  the SpO2 colouring everywhere; switching back is the same tap. Shown once there is an SpO2 reading, and not for a
+ *  patient the adult ranges do not fit (NEWS2 excluded: children, pregnancy), where no SpO2 colour is shown anyway. */
+function Spo2Target() {
+  const s = useHerald((st) => st.snapshot);
+  const setting = s?.facts["patient.spo2_scale"];
+  const scale2 = setting?.status === "confirmed" && Number(setting.value) === 2;
+  const next: 1 | 2 = scale2 ? 1 : 2;
+  const a = usePendingAction(`spo2-scale:${next}`);
+  if (!s || !s.facts["vitals.spo2"] || s.scores.news2?.applicability === "excluded") return null;
+  return <span className="spo2-target" data-scale={scale2 ? 2 : 1}>
+    <b>SpO₂ target</b><span className="num">{scale2 ? "88–92%" : "94–98%"}</span>
+    <button type="button" role="switch" aria-checked={scale2} aria-label="COPD SpO2 target, 88 to 92 percent"
+      className="spo2-switch" disabled={a.disabled} title={a.replay ? "Replay: actions are off" : undefined}
+      onClick={() => void api.setSpo2Scale(next)}>
+      <span className="spo2-track" aria-hidden><span className="spo2-knob" /></span>
+      {a.busy ? "Saving…" : "COPD"}
+    </button>
+    <ActionNote a={a} />
+  </span>;
 }
 
 

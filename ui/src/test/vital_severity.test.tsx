@@ -101,3 +101,39 @@ describe("vital severity on the medic screen", () => {
     expect(needs.textContent).toContain("critical");
   });
 });
+
+
+describe("SpO2 target switch", () => {
+  beforeEach(() => { Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: vi.fn() } }); });
+  afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+  const withSpo2 = (extra: Record<string, Snapshot["facts"][string]> = {}, applicability = "applicable") =>
+    useHerald.setState({ snapshot: { ...base, facts: { "vitals.spo2": fact({ value: 90 }), ...extra },
+      scores: { ...base.scores, news2: { ...base.scores.news2, applicability } } } as Snapshot,
+      source: "live", stale: false, conn: "open", ui: initialUi("") });
+
+  it("offers a one-tap switch that posts Scale 2 when on Scale 1", () => {
+    withSpo2();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 200 }));
+    render(<CabinApp />);
+    const sw = screen.getByRole("switch", { name: /COPD SpO2 target/ });
+    expect(sw.getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByRole("group", { name: "Patient" }).textContent).toContain("94–98%");
+    fireEvent.click(sw);
+    const call = fetchMock.mock.calls.find(([u]) => String(u).includes("/api/patient/spo2-scale"));
+    expect(call).toBeTruthy();
+    expect(JSON.parse(String((call![1] as RequestInit).body))).toEqual({ scale: 2 });
+  });
+
+  it("shows the COPD target as on once Scale 2 is confirmed", () => {
+    withSpo2({ "patient.spo2_scale": fact({ id: "s2", key: "patient.spo2_scale", label: "SpO2 target scale (NEWS2)", value: 2, unit: null }) });
+    render(<CabinApp />);
+    expect(screen.getByRole("switch", { name: /COPD SpO2 target/ }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("group", { name: "Patient" }).textContent).toContain("88–92%");
+  });
+
+  it("is not offered where adult ranges do not apply", () => {
+    withSpo2({}, "excluded");
+    render(<CabinApp />);
+    expect(screen.queryByRole("switch", { name: /COPD SpO2 target/ })).toBeNull();
+  });
+});

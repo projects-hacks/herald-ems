@@ -476,7 +476,7 @@ export interface HandoffSummary {                // snapshot.handoff
 
 | Resource | From | Notes |
 |---|---|---|
-| `Patient` (one, id `patient-<incident id>`) | `patient.name`, `patient.identifier`, `patient.sex` | `gender` mapped to the FHIR value set; no `birthDate` (only a spoken age is known) |
+| `Patient` (one, id `patient-<incident id>` with `_` → `-`) | `patient.name`, `patient.identifier`, `patient.sex` | `gender` mapped to the FHIR value set; no `birthDate` (only a spoken age is known) |
 | `Observation` (vital-signs) | every confirmed reading of `vitals.*` in `config/fhir_codes.yaml` `vitals` | one Observation **per confirmed reading**, not just the latest — the trend, like the NOW screen's movement view |
 | `Observation` (social-history) | `patient.age` | LOINC 30525-0 "Age"; one per confirmed reading |
 | `Observation` (survey) | `snapshot()["scores"]`, i.e. computed from confirmed facts only | one per score once it's `complete` (`relay_text` non-null, the same gate the relay uses); `valueString` is that same line |
@@ -487,6 +487,25 @@ export interface HandoffSummary {                // snapshot.handoff
 **Known limitation, flagged for a clinical/coding review pass, not silently shipped as verified:** the LOINC codes in `config/fhir_codes.yaml` are the standard, commonly used codes for these panels, assembled from memory for this change and not re-checked against a live LOINC lookup in this session. Give them one review before this export is relied on outside a demo.
 
 **Test:** `tests/test_fhir_export.py` — full bundle shape across every resource type, unconfirmed facts (camera-sourced, low-confidence, and a rejected fact) proven absent, existing RxNorm/ICD-10-CM coding passed through unchanged, and the live endpoint.
+
+### The handoff as a FHIR document (2026-09-25; changes the default of `GET /api/handoff/fhir`)
+`GET /api/handoff/fhir?type=document|collection&format=<id>`. **`type=document` is now the default**; `type=collection` returns the resources above unchanged (the previous default). `format` is the same override as `/api/handoff` (e.g. `mist`, `medical`); unknown `type` or `format` → 400. The NOW screen's "Export (FHIR)" link therefore downloads the document.
+
+The document is a FHIR R4 `Bundle` of `type: "document"` (https://hl7.org/fhir/R4/documents.html): `identifier` `{system: http://herald.local/fhir/handoff-document, value: "<incident id>/<report as_of>"}`, `timestamp` (assembly time), every entry with a `fullUrl` `http://herald.local/fhir/<Type>/<id>`, and every `reference` resolving inside the bundle. Engine: `herald/reporting/fhir_document.py` (`FhirDocument`, over `HandoffBuilder` + `FhirExport.sourced`); codes and wording: `config/fhir_codes.yaml` `document`.
+
+| Entry | Contents |
+|---|---|
+| `Composition` (first) | `type` LOINC 34133-9 "Summary of episode note" (`text` = the report title, e.g. "Medical handover (SBAR)"); `status: preliminary` and no `attester` (assembled from confirmed facts, not signed by the crew); `subject`, `encounter`, `date` = report `as_of`, `author` = the Device. `section`: "How this document was assembled" (with the format's citation), then **the report's own sections in order** (`title` = section label, e.g. "S: Situation"; `text` = XHTML list of the report lines plus the section's source, with `<b>` on a line that states a confirmed value of a `document.emphasis` key (vitals, allergies, anticoagulant) or an emphasis score that is positive/met (never on a "not yet known" line, a trend, or an incomplete/negative score); `entry` = the resources behind those lines, scores via their `@<score>` keys), then "Not yet known" and "Not yet confirmed, left out of this report" (names only, never values) when non-empty |
+| the collection's resources | exactly `FhirExport.sourced()` — the same confirmed-only resources as `type=collection` |
+| `Encounter` | `class` v3-ActCode `FLD` "field"; `status` `in-progress` until the incident is ended, then `finished` with `period.end`; `type[0].text` "EMS response: <dispatch>"; `hospitalization.destination.display` = the confirmed `transport.destination` |
+| `Device` | "Herald", `note` "Herald on <HERALD_UNIT_ID>" |
+| `Provenance` (one per resource built from facts) | `target` the resource; `recorded` its latest fact time; `agent`: `assembler` = the Device, `informant` = who said it (`"<speaker> (<role>)"`), `verifier` = who tapped confirm, from the incident audit log (absent when the policy confirmed the medic's own speech on ingest: no tap is claimed); `entity` `source` = "audio clip <id>" / "photo <id>" (ids only, never media) |
+
+**Resource ids are now valid FHIR ids** (`[A-Za-z0-9.-]{1,64}`) in both types: Herald's underscores become hyphens, e.g. `patient-inc-03f1ac7a3c` (was `patient-inc_03f1ac7a3c`, which FHIR rejects).
+
+**Codes checked 2026-09-25** against loinc.org/34133-9, the FHIR R4 ActEncounterCode value set and the R4 provenance participant type value set (citations in the config). LOINC 67796-3 (NEMSIS v3 patient care report) was deliberately not used: this document is not a NEMSIS PCR. Not yet checked with the official HL7 FHIR validator.
+
+**Test:** `tests/test_fhir_document.py` — document rules (identifier, timestamp, Composition first, unique fullUrls, valid ids), every reference resolves, Composition sections equal the report's (SBAR and MIST), waiting facts named but never valued, Provenance informant/verifier/source, Encounter and Device, and the endpoint's `type`/`format` handling.
 
 **What the report can't represent yet.** The five gaps listed in the first version (time of injury, before arrival, airway status, primary impression, 12-lead territory) were closed by the keys approved on 2026-09-24 (table above). They reach the report only once the extraction model emits them; until then they show as "not yet known" where required.
 
