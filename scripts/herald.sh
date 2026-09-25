@@ -30,8 +30,16 @@ LINK_PORT=9000
 LLM="${HERALD_LLM_MODEL:-ems-e-v2-fp8}"
 VISION="${HERALD_VISION_MODEL:-herald-f}"          # run F: photos, the monitor, figures, protocol reranking
 ZRT_URL="http://127.0.0.1:8080/v1"
-RUN="$ROOT/runs/stack"
+# One record per app port, so two people running Herald from the same checkout (the demo on 8100, a teammate on
+# 8103) never stop or restart each other's app. An older single record is moved under the port its app serves.
+STACK="$ROOT/runs/stack"
+RUN="$STACK/$PORT"
 mkdir -p "$RUN"
+if [ -f "$STACK/app.pid" ]; then
+  legacy_port="$(tr '\0' ' ' < "/proc/$(cat "$STACK/app.pid")/cmdline" 2>/dev/null | grep -oE -- '--port [0-9]+' | awk '{print $2}')"
+  if [ -n "$legacy_port" ]; then mkdir -p "$STACK/$legacy_port"; mv "$STACK/app.pid" "$STACK/$legacy_port/app.pid"
+  else rm -f "$STACK/app.pid"; fi
+fi
 # Every Herald model repo is public. A stale token in the environment makes public downloads fail with 401.
 unset HF_TOKEN HUGGING_FACE_HUB_TOKEN
 
@@ -160,15 +168,15 @@ build_ui() {
 
 ensure_link_and_ed() {
   say "ED screen and link"
-  if listening "$ED_PORT"; then
-    local owner; owner="$(ss -ltnpH "sport = :$ED_PORT" 2>/dev/null | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2)"
+  if taken_v4 127.0.0.1 "$ED_PORT"; then
+    local owner; owner="$(ss -ltnp4H "sport = :$ED_PORT" 2>/dev/null | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2)"
     local where; where="$( [ -n "$owner" ] && readlink "/proc/$owner/cwd" || echo unknown)"
     if [ "$where" = "$ROOT" ]; then ok "ED screen already on :$ED_PORT"
     else warn "ED screen on :$ED_PORT is running from $where (not this checkout); left as is"; fi
   else
     start_bg ed "$PY" -m uvicorn ed_receiver.app:app --host 127.0.0.1 --port "$ED_PORT"
-    for _ in $(seq 30); do listening "$ED_PORT" && break; sleep 0.5; done
-    listening "$ED_PORT" && ok "ED screen on :$ED_PORT" || die "ED screen did not start (log: $RUN/ed.log)"
+    for _ in $(seq 30); do taken_v4 127.0.0.1 "$ED_PORT" && break; sleep 0.5; done
+    taken_v4 127.0.0.1 "$ED_PORT" && ok "ED screen on :$ED_PORT" || die "ED screen did not start (log: $RUN/ed.log)"
   fi
   if ! listening 8474; then
     start_bg toxiproxy "$TOXI/toxiproxy-server" -host 127.0.0.1 -port 8474
