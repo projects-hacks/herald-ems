@@ -176,8 +176,19 @@ gates:
   # and reporting on the same set is circular and would flatter any model (owner, 2026-09-25).
   # config/confirmation.yaml auto_confirm_threshold is 0.8 (team lead, 2026-09-24); E v2 scored wrong=1 there. If the
   # refit moves the threshold, change it here and in config/confirmation.yaml together.
+  #
+  # --extra-gold IS REQUIRED AND IS NOT OPTIONAL POLISH. 11 keys have their gold ONLY in eval/gold_v2_broad.jsonl
+  # (meds.given, procedures.done, vitals.pain, vitals.gcs_eye/verbal/total, ecg.stemi_reading, ecg.transmitted,
+  # trauma.criteria, trauma.mechanism, trauma.injuries) and 4 only in eval/gold_v2_gfast.jsonl. Unlike
+  # bench_extract.score(), which EXCLUDES grouped keys from the headline, calibrate_confidence.correct() judges every
+  # extracted fact against the gold it was given and returns False when the key is absent -- so a missing gold file
+  # silently counts every CORRECT broad fact as a wrong auto-confirm. Without the broad gold this gate reported E v2
+  # at 5 wrong and herald-f at 11; with it they are 1 and 3. The 2026-09-24 E v2 baseline of 1 was measured with
+  # --extra-gold, so the gate had been comparing against a differently-scored number the whole time (found
+  # 2026-09-25 while re-confirming E v2 on the shipping stack).
   cmd: [eval/calibrate_confidence.py, --model, '{label}', --gold, eval/gold_v2.jsonl,
-        --gfast-gold, eval/gold_v2_gfast.jsonl, --threshold, '0.8', --dump, '{dump}']
+        --gfast-gold, eval/gold_v2_gfast.jsonl, --extra-gold, eval/gold_v2_broad.jsonl,
+        --threshold, '0.8', --dump, '{dump}']
   select: {threshold: 0.8}                                         # the per-threshold row, not the header line
   metrics: {wrong_auto: wrong_auto, auto_confirmed: auto_confirmed, precision: precision}
   checks:
@@ -189,8 +200,11 @@ gates:
   report_only: true                                                # informational: a person picks the threshold
   # gold_v1 is the dev set. The threshold chosen from this sweep is then verified on held-out gold_v2 by the
   # `calibration` gate above, so the reported number is never the one the threshold was tuned on.
+  # --extra-gold for the same reason as the gate above: without eval/gold_v1_broad.jsonl every correct broad-group
+  # fact counts as a wrong auto-confirm, and the threshold would be fitted against inflated wrong counts.
   cmd: [eval/calibrate_confidence.py, --model, '{label}', --gold, eval/gold_v1.jsonl,
-        --gfast-gold, eval/gold_v1_gfast.jsonl]
+        --gfast-gold, eval/gold_v1_gfast.jsonl, --extra-gold, eval/gold_v1_broad.jsonl,
+        --dump, '{dump}']
   # The sweep prints a HEADER line (auroc, wrong_facts, eligible_facts) and then one row per threshold. Without a
   # select, pick() took the LAST line -- the 0.99 threshold row -- so every metric here came back None.
   # `mode` appears only on the header line, which makes it the unambiguous selector.

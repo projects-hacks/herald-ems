@@ -1,46 +1,54 @@
 # The AI stack in HP's ZGX console terms (GET /api/stack). Status is computed live per component.
 #
-# THE SHIP STACK (owner decision, 2026-09-25, after the run F gate table): Whisper + ems-e-v2-fp8 for extraction +
-# untuned qwen3vl-fp8 for photos and protocol knowledge. This is the TRAINING_PLAN §7 rollback. The run F 30B
-# (`herald-f`) does NOT ship. The reasoning, in the order it decided the call:
-#   1. herald-f failed the protocol-reranking gate, which §6a treats as blocking: an ability we must keep cannot
-#      regress. Serving herald-f for anything would leave reranking on it, and there is no memory for a third model.
-#   2. E v2 wins the screens that matter. Stroke: G.F.A.S.T. renders complete on 14 of 17 stroke calls against 11-12
-#      for herald-f. Speaker roles: 0.973 against 0.950. Calibration: 1 wrongly auto-confirmed fact on held-out
-#      gold_v2 at threshold 0.8, against herald-f's 11 -- and no threshold got herald-f to <=1 while still
-#      auto-confirming a meaningful share, so herald-f would have shipped with auto-confirm off entirely.
-#   3. The untuned 30B passes reranking, figure transcription and translation, and E v2 + one 30B is a footprint we
-#      have already run, so the memory question is settled by evidence rather than arithmetic.
-# What this gives up: herald-f's overall extraction edge (held-out f1 0.964 vs 0.949, 3 runs each) and its sepsis
-# win (infection.suspected recall 0.889 vs E v2's 0.111). Both are recorded in docs/RUN_F_REPORT.md and on the
-# Hugging Face model card, honestly, including the gates it failed.
+# THE SHIP STACK (owner decision, 2026-09-25, revised after the vision numbers came in):
+#   Whisper                speech to text
+#   ems-e-v2-fp8   (4B)    speech to facts
+#   herald-f       (30B)   photos, the monitor, figures AND protocol retrieval reranking
+# The untuned qwen3vl-fp8 leaves the stack. Memory is unchanged: herald-f at 41 GB replaces qwen3vl at 43 GB.
+#
+# Why the split, job by job, all held-out and 3 runs unless noted:
+#   extraction -> E v2, not herald-f, even though herald-f wins overall f1 (0.964 vs 0.949). E v2 wins the things a
+#     medic actually reads: G.F.A.S.T. renders complete on 14 of 17 stroke calls against 11-12, speaker roles 0.972
+#     against 0.950, and 1 wrongly auto-confirmed fact on held-out gold_v2 at the shipping threshold of 0.8 against
+#     herald-f's 3 -- E v2 is the only one that meets the §6 bar of <= 1 there.
+#   photos     -> herald-f, by a clear margin on real phone photos: f1 0.727 against 0.606, monitors 0.713 against
+#     0.577, pill bottles 0.753 against 0.667 (97 images, 1 run each). On the synthetic camera-on-screen renders it is
+#     48/48 against 46/48. Run F trained on 2,400 image rows, which is where this came from.
+#   reranking  -> herald-f, because it is the best of the two models we can actually serve. Measured on the full
+#     59-question set: untuned 41/52 top-1, herald-f 38/52, E v2 36/52; refusals tied at 4/7 for all three. So moving
+#     reranking off the untuned model costs 3 top-1 questions and no configuration recovers them without a second
+#     resident 30B, which does not fit (measured: 12 GiB left, below the memguard warn line of 16).
+#     HERALD_KNOWLEDGE_MODEL is therefore NOT set: E v2 was benched as the alternative and lost.
+#   figures    -> herald-f, at exact parity with untuned (nodes 0.875, edges 0.857, 0 invented edges on both).
+#
+# The honest cost of this stack, stated so nobody has to rediscover it:
+#   - Protocol reranking is 3 top-1 questions worse than the untuned model. It passes no gate by doing so: herald-f
+#     fails the §6a reranking bars (41/52 and 43/52) and ships anyway, because the owner weighed a measured photo win
+#     against a measured 3-question ranking loss and took the photos. That is a deliberate, recorded exception to
+#     "blocking", not a gate that was quietly moved.
+#   - The sepsis flag stays weak: infection.suspected recall is 0.111 on the shipping E v2 (herald-f reaches 0.889,
+#     but herald-f does not do extraction).
+# Translation is not listed as an ability anywhere: it was never measured on this checkpoint.
 models:
   - {id: "openai/whisper-large-v3-turbo", component: stt, role: "speech-to-text"}
   - {id: "rajeev-chaurasia/herald-extractor-lora-merged-e2 (Qwen3-4B-Instruct-2507 + LoRA, run E v2)", served_as: "ems-e-v2-fp8",
      component: text_model, role: "speech-to-facts extraction (fine-tuned on this box, served in FP8)"}
   # By default the knowledge client IS the photo client (tests/test_knowledge_model.py), so this one label does photos,
-  # protocol retrieval reranking, figure transcription and translation. Photo numbers for this model are re-measured
-  # on the shipping stack rather than carried over from herald-f (owner, 2026-09-25).
-  - {id: "Qwen/Qwen3-VL-30B-A3B-Instruct-FP8 (Apache-2.0)", served_as: "qwen3vl-fp8", component: vision_model,
-     role: "photo reading (monitors, pill bottles, forms) and protocol retrieval, figures and translation"}
-  # Not served: the run F 30B, kept public as a research artifact. `component: research` is deliberate -- /api/stack
-  # computes status per component against the label actually serving it, so a research component reports a plain
-  # "not served" instead of making a shipped slot look broken, which is what listing it as text_model/vision_model
-  # did during app integration.
-  #
-  # Measured on herald-f, 3 runs each, held out:
-  #   wins   : extraction f1 0.964 (0.962-0.966) vs E v2 0.949; recall 0.956 vs 0.937; infection.suspected recall
-  #            0.889 vs 0.111; adversarial 20/25 seen and 27/40 unseen vs the 4B's 16 and 19; p95 2135 ms.
-  #   fails  : protocol reranking top1 38/52 vs 40/52 untuned (bar 41/52), top3 41/52 vs 45/52 (bar 43/52), and
-  #            refusal of unanswerable questions 4/7 vs 7/7 -- ranking degraded slightly, refusal materially.
-  #            G.F.A.S.T. f1 0.924 (0.919-0.933) against a 0.95 bar, entirely recall: gfast precision was 1.000 in
-  #            every run, and 14 of 17 misses were one key, exam.gfast.speech.
-  #   unclaimed: translation was never measured on this checkpoint, so it is not listed as an ability.
-  # The run F 4B (`herald-f4b-fp8`) is public too but is not listed here: it was the §7 text-only fallback and lost
-  # that role by failing five speech gates E v2 passes, so it claims nothing on the stack screen.
+  # protocol retrieval reranking and figure transcription. Forms: on the 10-item POLST set herald-f returned facts for
+  # 3 and an empty result for 7, with 0 wrong code_status -- abstaining on a form it cannot read is the safe failure,
+  # and the wording says so rather than promising forms.
   - {id: "rajeev-chaurasia/herald-extractor-lora-merged-f (Qwen3-VL-30B-A3B + LoRA, run F epoch 2)",
-     served_as: "herald-f", component: research,
-     role: "research artifact: run F 30B, fine-tuned on this box; wins extraction f1, failed the reranking gate"}
+     served_as: "herald-f", component: vision_model,
+     role: "photo reading (monitors and medication labels; forms only when legible, no guesses), protocol retrieval and figures"}
+  # Not served, kept public as a research artifact. `component: research` is deliberate -- /api/stack computes status
+  # per component against the label actually serving it, so a research component reports a plain "not served" instead
+  # of making a shipped slot look broken, which is what listing it under text_model/vision_model did during app
+  # integration. The untuned 30B is what herald-f replaced; it stays listed because it is the baseline every kept-
+  # ability number is measured against, and because it is the rollback if herald-f misbehaves in the vehicle.
+  - {id: "Qwen/Qwen3-VL-30B-A3B-Instruct-FP8 (Apache-2.0)", served_as: "qwen3vl-fp8", component: research,
+     role: "baseline and rollback: untuned 30B, better at reranking (41/52 vs 38/52), worse at real photos (0.606 vs 0.727)"}
+  # The run F 4B (`herald-f4b-fp8`) is public too but is not listed: it was the §7 text-only fallback and lost that
+  # role by failing five speech gates E v2 passes, so it claims nothing on the stack screen.
 services:
   # Field triage and sepsis: the criteria are NOT extracted automatically. Measured on eval/gold_v3.jsonl, 3 runs,
   # trauma.criteria recall was 0.25 for herald-f, 0.188 for E v2 and 0.062 for the run F 4B, against a 0.6 floor --

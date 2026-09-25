@@ -541,3 +541,75 @@ def test_the_blocking_gates_are_exactly_the_kept_abilities_of_6a():
     blocking = {g["id"] for g in GATES_YAML["gates"] if g.get("blocking")}
     assert blocking == {"rerank", "figure", "translation_spot_check"}
     assert all(g["group"] == "kept" for g in GATES_YAML["gates"] if g.get("blocking"))
+
+
+# ────────────── the gold a gate is scored against (the bug that bit three times) ──────────────
+# Some keys have their gold in a file of their own: exam.gfast.* in eval/gold_v*_gfast.jsonl, and 11 every-call keys
+# (meds.given, procedures.done, vitals.pain, vitals.gcs_*, ecg.*, trauma.*) in eval/gold_v*_broad.jsonl. The two
+# scorers disagree about what a missing file means, and only one of them is safe:
+#
+#   bench_extract.score()          keep() drops keys with group_of(key) is not None, so a grouped key is EXCLUDED
+#                                  from the headline f1. Supplying --group-gold adds a separate score; omitting it
+#                                  changes nothing. Safe either way.
+#   calibrate_confidence.correct() judges every extracted fact against the gold it was handed and returns False when
+#                                  the key is absent. A missing gold file therefore counts CORRECT facts as wrong
+#                                  auto-confirms, silently and in the unsafe direction.
+#
+# Measured cost of getting this wrong: the calibration gate reported E v2 at 5 wrong and herald-f at 11; with the
+# broad gold they are 1 and 3. The published E v2 baseline of 1 had been measured WITH --extra-gold, so the gate was
+# comparing two differently-scored numbers. These tests pin the invariant to the gold files that exist.
+CALIBRATION_GATES = [g for g in GATES_YAML["gates"]
+                     if "calibrate_confidence.py" in " ".join(g.get("cmd") or [])]
+
+
+def test_there_is_at_least_one_calibration_gate():
+    """Guards the tests below against silently passing if the gates are renamed."""
+    assert CALIBRATION_GATES, "no gate runs eval/calibrate_confidence.py; update these tests"
+
+
+@pytest.mark.parametrize("gate", CALIBRATION_GATES, ids=lambda g: g["id"])
+def test_every_calibration_gate_passes_the_separate_gold_files(gate):
+    """A calibration gate must hand the scorer every gold file for the split it runs on, or correct facts count wrong."""
+    cmd = " ".join(gate["cmd"])
+    split = "gold_v1" if "eval/gold_v1.jsonl" in cmd else "gold_v2"
+    for flag, suffix in (("--gfast-gold", "_gfast"), ("--extra-gold", "_broad")):
+        expected = f"eval/{split}{suffix}.jsonl"
+        assert flag in gate["cmd"], f"{gate['id']} is missing {flag}; broad/gfast facts would be scored as wrong"
+        assert expected in gate["cmd"], f"{gate['id']} passes {flag} but not {expected}"
+        assert (ROOT / expected).exists(), f"{expected} does not exist, so {gate['id']} cites a missing gold file"
+
+
+@pytest.mark.parametrize("gate", CALIBRATION_GATES, ids=lambda g: g["id"])
+def test_calibration_gates_score_one_split_only(gate):
+    """Mixing gold_v1 and gold_v2 files in one command would fit and report on the same facts."""
+    cmd = " ".join(gate["cmd"])
+    assert not ("gold_v1" in cmd and "gold_v2" in cmd), f"{gate['id']} mixes the dev and held-out splits"
+
+
+def test_the_fit_and_report_gates_use_different_splits():
+    """The threshold is fitted on dev and reported on held out; the same set for both is circular."""
+    by_split = {}
+    for g in CALIBRATION_GATES:
+        cmd = " ".join(g["cmd"])
+        by_split.setdefault("gold_v1" if "eval/gold_v1.jsonl" in cmd else "gold_v2", []).append(g["id"])
+    assert set(by_split) == {"gold_v1", "gold_v2"}, (
+        f"expected one dev gate and one held-out gate, got {by_split}")
+
+
+def test_the_reported_calibration_gate_is_the_one_with_the_threshold_check():
+    """The gate carrying the wrong_auto check must be the held-out one, not the dev sweep."""
+    checked = [g for g in CALIBRATION_GATES
+               if any(c.get("metric") == "wrong_auto" for c in g.get("checks", []))]
+    assert len(checked) == 1, f"expected exactly one gate to check wrong_auto, got {[g['id'] for g in checked]}"
+    assert "eval/gold_v2.jsonl" in " ".join(checked[0]["cmd"]), (
+        f"{checked[0]['id']} checks wrong_auto but not against the held-out split")
+
+
+def test_recall_floors_scores_its_keys_through_the_group_mechanism():
+    """trauma.criteria and infection.suspected are in the `broad` group, so headline recall is structurally 0.0."""
+    gate = next(g for g in GATES_YAML["gates"] if g["id"] == "recall_floors")
+    cmd = " ".join(gate["cmd"])
+    assert "--group-gold" in gate["cmd"], "recall_floors must score its keys through --group-gold"
+    assert all(m.startswith("groups.") for m in gate["metrics"].values()), (
+        f"recall_floors reads headline metrics {gate['metrics']}, which are 0.0 for grouped keys by design")
+    assert "eval/gold_v3.jsonl" in cmd, "gold_v2 contains neither key, so its recall can only be 0.0"

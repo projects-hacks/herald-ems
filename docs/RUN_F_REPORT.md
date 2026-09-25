@@ -1,15 +1,25 @@
 # Run F training report
 
-**Status: training complete and clean. The model does not ship.** 488/488 optimizer steps, supervisor exit code 0,
-`DONE` written, both epoch adapters verified. The gate table then ran, and `herald-f` failed the protocol-reranking
-gate, which §6a treats as blocking. **The shipping stack is the TRAINING_PLAN §7 rollback: Whisper +
-`ems-e-v2-fp8` for extraction + untuned `qwen3vl-fp8` for photos and protocol knowledge** (owner, 2026-09-25).
+**Status: training complete and clean. The run F 30B ships for vision, not for extraction.** 488/488 optimizer steps,
+supervisor exit code 0, `DONE` written, both epoch adapters verified. The shipping stack (owner, 2026-09-25):
 
-Run F is not a wasted run: it produced the best extraction model we have measured (held-out f1 0.964 vs E v2's
-0.949) and it is the only model that reads the sepsis flag at all (recall 0.889 vs 0.111). It loses on the abilities
-we are not allowed to regress, and on the stroke screen. Both adapters stay public as research artifacts with these
-numbers on the model card. §8 is the gate table, §9 the decision, §10 the limitations that apply to the shipped
-product regardless of which model serves it.
+| job | model |
+|---|---|
+| speech to text | Whisper large-v3-turbo |
+| speech to facts | **`ems-e-v2-fp8`** — run E v2, 4B |
+| photos, the monitor, figures, protocol reranking | **`herald-f`** — run F 30B, epoch 2 |
+
+The untuned `qwen3vl-fp8` leaves the stack; memory is unchanged, 41 GB replacing 43 GB. Extraction stays on E v2
+because it wins the stroke screen, speaker roles and calibration. Vision goes to `herald-f` because it wins real
+photos by a clear margin. Reranking goes to `herald-f` because it is the better of the two models we can serve, and
+that costs 3 top-1 questions against the untuned baseline — a deliberate, recorded exception to a blocking gate, not a
+bar that was quietly moved. §8 is the gate table, §9 the decision and what it costs, §10 the limitations that hold
+regardless of which model serves which job.
+
+**Four measurement bugs were found and fixed along the way, three of them the same root cause, and one of them
+changed a number we had already reported.** They are written up in §10c rather than tidied away, because the pattern
+that caught them is reusable: a gate that fails identically for every candidate, or a baseline that is suspiciously
+clean, is measuring the harness.
 
 | | |
 |---|---|
@@ -175,19 +185,29 @@ Epoch 1 was never gated, by §6b.
 Served co-resident on one GB10: `herald-f` at 41.1 GB (FP8, 0.35) and `herald-f4b-fp8` at 13.9 GB (0.12). Benchmarks
 hold no weights; they call the served label over HTTP. Three runs wherever a number decides something (HARD RULE 3).
 
-### Kept abilities — blocking (§6a). `herald-f` failed.
+### Kept abilities — blocking (§6a). `herald-f` failed on ranking.
 
-3 runs, byte-identical each run:
+3 runs, byte-identical each run, all on the **full 59-question set** (52 answerable, 7 unanswerable):
 
 | | untuned `qwen3vl-fp8` | `herald-f` | bar | |
 |---|---|---|---|---|
-| rerank top1 | 0.773 = 40/52 | 0.731 = 38/52 | 41/52 | **FAIL** |
-| rerank top3 | 0.864 = 45/52 | 0.788 = 41/52 | 43/52 | **FAIL** |
-| refuses unanswerable | 1.000 = 7/7 | 0.571 = 4/7 | 4/7 | at the bar |
+| rerank top1 | 0.788 = 41/52 | 0.731 = 38/52 | 41/52 | **FAIL, −3 questions** |
+| rerank top3 | 0.827 = 43/52 | 0.788 = 41/52 | 43/52 | **FAIL, −2 questions** |
+| refuses unanswerable | 0.571 = 4/7 | 0.571 = 4/7 | 4/7 | **tied, at the bar** |
+| retrieval ceiling | 0.827 = 43/52 | 0.827 = 43/52 | — | identical (same index) |
 | figure nodes / edges / invented | 0.875 / 0.857 / 0.0 | 0.875 / 0.857 / 0.0 | not worse | PASS |
 
-Honest wording: **ranking degraded slightly, refusal degraded materially (7/7 → 4/7).** Figure transcription is at
-exact parity. Translation was never measured on this checkpoint and is therefore never claimed.
+Honest wording: **ranking lost 3 questions on top-1 and 2 on top-3; refusal did not degrade at all.** Figure
+transcription is at exact parity. Translation was never measured on this checkpoint and is therefore never claimed.
+
+**An earlier version of this table was wrong and the correction is instructive.** It reported the untuned baseline as
+top1 40/52, top3 45/52 and refusals 7/7, and concluded "refusal degraded materially, 7/7 → 4/7". Those baseline
+numbers were the **25-question v1 subset** (17/22, 19/22, and 3 of 3 unanswerable — that subset contains only 3 of the
+7 unanswerable questions), recorded before the corpus grew to 59 questions on 2026-09-24 and then reused as the
+baseline level. So a 22-question score was being compared against `herald-f`'s 52-question score. Re-derived from the
+59-question dumps, refusal is **tied**. The gate's verdict never depended on this: its checks are constants written
+for the 59-question set (0.788, 0.827, 0.571), and `herald-f` fails two of them either way. What changed is the story
+we would have told about *how* it fails — see §10c for why this class of error kept happening.
 
 ### Speech, held out
 
@@ -206,7 +226,7 @@ exact parity. Translation was never measured on this checkpoint and is therefore
 | adversarial seen | **20/25** | — | 16/25 | 19/25 |
 | adversarial unseen | **27/40** | — | 19/40 | 24/40 |
 | p95 latency | 2135 ms | 3102 ms | 2520 ms | ≤ E v2's |
-| held-out wrong auto-confirms @0.8 | 11 | **1** | 10 | ≤ 1 |
+| held-out wrong auto-confirms @0.8 | 3 | **1** | 2 | ≤ 1 |
 
 `herald-f` wins nine of these and loses the two that decide the stroke screen and the confirm flow.
 
@@ -223,12 +243,24 @@ no real words") or normal ("Speech sounds normal to me"). Downstream, by invaria
 | RACE | **10/14** | 9/14 | 6/14 |
 
 **Calibration was fit on dev and reported on held-out**, because fitting and reporting on one set flatters any model.
-On dev `gold_v1` (286 facts, auroc 0.747) thresholds 0.8/0.9/0.99 gave 8/6/2 wrong. On held-out `gold_v2` (353 facts,
-auroc 0.784) 0.8 gave **15** wrong and 0.99 gave 0 but auto-confirmed only 14.2% of facts. **No threshold reached
-≤1 wrong while auto-confirming a meaningful share**, so `herald-f` would have had to ship with auto-confirm off
-entirely (`HERALD_AUTO_CONFIRM=1.01`). E v2 at the configured 0.8 gives **1 wrong at 52.9% coverage**, auroc 0.804
-— being re-confirmed against the current scorer on the shipping stack before it is quoted anywhere.
-Recorded in `config/confirmation.yaml` under `calibration.run_f_30b`.
+Held out at the shipping threshold of 0.8, re-derived with the full gold (see §10c, third bug):
+
+| | auto-confirmed | wrong | coverage | auroc |
+|---|---|---|---|---|
+| **E v2 (ships)** | 172 | **1** | 52.6% | 0.795 |
+| `herald-f` | 206 | 3 | 59.2% | 0.773 |
+| run F 4B | 161 | 2 | 50.9% | 0.846 |
+
+`herald-f` misses the §6 bar of ≤1 at 0.8 and reaches 1 only at 0.97, where coverage falls to 26%. E v2 meets the bar
+at the configured threshold, which is why it is the one with a usable auto-confirm. Recorded in
+`config/confirmation.yaml` under `calibration.run_f_30b` and `run_f_4b`.
+
+**These three numbers were first reported as 11, 1 and 10, and the 11 was an artefact** — see §10c. The corrected gap
+is 3 against 1, not 11 against 1, and the earlier conclusion that `herald-f` would have to ship with auto-confirm
+disabled was wrong. It does not change what ships: `herald-f` failed the blocking reranking gate and loses the stroke
+screen. `herald-f`'s **dev** sweep is not quoted anywhere, because the only dev run used the flawed scoring and cannot
+be re-derived — `calibration_fit` saved no dump then, and re-serving a 58 GB model to redo an informational sweep is
+not a good use of the remaining time.
 
 ### Photos, measured on `herald-f`
 
@@ -257,27 +289,42 @@ measurement, not from a clinical rule. Whisper warm 0.47 s, cold 4.20 s.
 
 ## 9. The ship decision
 
-**Ship: Whisper + `ems-e-v2-fp8` (extraction) + untuned `qwen3vl-fp8` (photos, protocol retrieval, figures,
-translation).** The §7 rollback. Reasoning in the order it decided the call:
+**Ship: Whisper + `ems-e-v2-fp8` for extraction + `herald-f` for photos, the monitor, figures and protocol
+reranking.** The untuned `qwen3vl-fp8` leaves the stack. Decided per job, on measured numbers:
 
-1. `herald-f` failed a **blocking** gate. Serving it for any job leaves protocol reranking on it, and there is no
-   memory for a third model to take reranking over.
-2. E v2 wins the three things a medic sees: G.F.A.S.T. complete on 14/17 stroke calls against 11–12, speaker roles
-   0.973 against 0.950, and 1 wrongly auto-confirmed fact against 11.
-3. The untuned 30B passes reranking, figures and translation, and E v2 + one 30B is a footprint already run, so
-   memory is settled by evidence rather than arithmetic.
+| job | winner | margin |
+|---|---|---|
+| speech to facts | **E v2** | G.F.A.S.T. complete 14/17 vs 11–12; roles 0.972 vs 0.950; 1 wrong auto-confirm vs 3 |
+| real photos | **`herald-f`** | f1 0.727 vs 0.606; monitors 0.713 vs 0.577; pill bottles 0.753 vs 0.667 |
+| camera-on-screen renders | **`herald-f`** | 48/48 vs 46/48 |
+| protocol reranking | **`herald-f`**, of what we can serve | 38/52 vs E v2's 36/52 — but untuned is 41/52 |
+| figures | tie | nodes 0.875, edges 0.857, 0 invented on both |
 
-**Rejected, and why.** `herald-f` + E v2 (a memory-neutral split) was proposed and rejected: reranking would still
-sit on `herald-f`. Epoch 1 was rejected by §6b — it retained abilities *worse* (replay 0.1393 vs 0.1322), so it was
+Extraction does **not** go to `herald-f` despite its higher overall f1 (0.964 vs 0.949), because f1 is not what a
+medic reads: the stroke screen, the speaker labels and the confirm flow are, and E v2 wins all three.
+
+**Reranking is a recorded exception, not a passed gate.** `herald-f` fails the §6a bars (38/52 against 41/52 top-1,
+41/52 against 43/52 top-3; refusals tied at 4/7). It ships anyway because the owner weighed a measured photo win
+against a measured 3-question ranking loss and took the photos. Before accepting it, E v2 was benched as an
+alternative reranker — reranking is text-only, so the 4B was a credible candidate — and it scored **36/52**, worse
+than `herald-f`. So `HERALD_KNOWLEDGE_MODEL` is unset and nothing recovers those 3 questions without a second resident
+30B. This is written down as an exception so that nobody later reads the gate table and concludes the bar was moved.
+
+**Rejected, and why.** Keeping the untuned 30B for vision was rejected once the real-photo gap was measured: 0.606
+against 0.727, and monitors 0.577 against 0.713, on the same 97 images. Putting extraction on `herald-f` was rejected
+on the stroke screen. Epoch 1 was rejected by §6b — it retained abilities *worse* (replay 0.1393 vs 0.1322), so it was
 the less likely of the two to pass the same gate; it was never served and never gated. The run F 4B was rejected as
 the §7 text-only fallback because it fails five speech gates E v2 passes.
 
-**Cost of the decision:** extraction f1 0.964 → 0.949, and the sepsis flag goes from 0.889 recall to 0.111. The
-second is a real product loss and is stated as a limitation below rather than hidden.
+**What the stack costs, stated plainly.** Protocol reranking is 3 top-1 questions worse than the untuned model could
+do. The sepsis flag stays weak, `infection.suspected` recall 0.111, because that win (0.889) belongs to `herald-f` and
+`herald-f` is not doing extraction. Both are limitations in §10, not footnotes.
 
-**A split stack (§7a) does not fit.** Measured: MemAvailable 40 GiB with `herald-f` + the 4B + app + Whisper
-resident; swapping the 4B out returns 13.9 → 54 GiB; serving `qwen3vl-fp8` at 0.35 takes ~42 → **12 GiB left**,
-below the memguard warn line of 16 and 4 above kill. Not safe.
+**A two-30B split stack (§7a) does not fit, which is why these are either/or.** Measured: MemAvailable 40 GiB with
+`herald-f` + the 4B + app + Whisper resident; swapping the 4B out returns 13.9 → 54 GiB; serving a second 30B at 0.35
+takes ~42 → **12 GiB left**, below the memguard warn line of 16 and 4 above kill. At 0.30 each the arithmetic gets to
+roughly 20 GiB free but needs `max-model-len` cut to 8192 on both and has never been started; it was not attempted
+this close to the deadline.
 
 ---
 
@@ -337,6 +384,33 @@ Reading headline `recall` for these keys is structurally 0.0 on **any** gold set
 **The calibration sweep reported `auroc: None`.** `eval/calibrate_confidence.py` prints a header line and then one
 row per threshold; without a `select` the runner took the *last* line, the 0.99 row, which has no auroc field. Fixed
 with `select: {mode: joint}`, the header's unique marker.
+
+**The calibration gate counted correct facts as wrong auto-confirms — the same group-gold split, third instance.**
+The gate passed `--gfast-gold` but not `--extra-gold eval/gold_v2_broad.jsonl`. Eleven keys have their gold *only* in
+that file (`meds.given`, `procedures.done`, `vitals.pain`, `vitals.gcs_eye/verbal/total`, `ecg.stemi_reading`,
+`ecg.transmitted`, `trauma.criteria`, `trauma.mechanism`, `trauma.injuries`) and four only in the gfast file. The two
+scorers disagree about what a missing gold file means, and only one of them is safe:
+
+- `bench_extract.score()` drops keys where `group_of(key) is not None`, so a grouped key is **excluded** from the
+  headline f1. Supplying `--group-gold` adds a separate score; omitting it changes nothing. Verified: held-out f1 is
+  identical with and without it.
+- `calibrate_confidence.correct()` judges every extracted fact against the gold it was handed and returns `False`
+  when the key is absent. A missing gold file therefore counts **correct** facts as wrong auto-confirms, silently,
+  and in the unsafe direction.
+
+Cost: the gate reported E v2 at 5 wrong and `herald-f` at 11; with the broad gold they are **1 and 3**. Worse, the
+published E v2 baseline of 1 *had* been measured with `--extra-gold`, so the gate had been comparing two
+differently-scored numbers, and the flag was documented in `config/confirmation.yaml` the whole time — the fix was
+written down before the bug was introduced. `config/gates.yaml` now passes it on both calibration gates, and
+`tests/test_run_gates.py` asserts that every gate invoking `calibrate_confidence.py` supplies the gfast and broad gold
+for the split it runs on, that no gate mixes the dev and held-out splits, and that `recall_floors` reads
+`groups.broad.*` rather than the headline.
+
+**The shared root cause, worth naming once.** Herald's gold is deliberately split across files so the headline stays
+comparable with older published numbers. That is a good decision with a sharp edge: a bench that does not receive
+every file for its split does not fail loudly, it reports a plausible worse number. All three bugs were this. The
+guard is not "remember the flag" but a test that reads the gate table and checks the flags against the gold files
+that exist on disk.
 
 Earlier in the same session a third harness fault voided six gate records: `run_gates.py` invoked `run_job.py` via
 its shebang, which resolved to the system `python3` instead of the environment's, so every gate died on
