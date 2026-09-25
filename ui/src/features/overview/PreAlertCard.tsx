@@ -33,10 +33,10 @@ function EdSync({ s }: { s: Snapshot }) {
       {!r.configured ? <p className="text-body text-text-muted">The ED link isn't set up on this vehicle.</p>
         : !r.authorized ? <AuthorizeForm s={s} />
         : <>
-          <div className="grid grid-cols-3 divide-x divide-border-subtle">
+          <div className="grid grid-cols-3 gap-2">
             <Figure n={sent} label="sent" tone="text-ok-fg" />
-            <Figure n={queued} label="queued" tone={queued ? "text-low-fg" : "text-text-muted"} className="pl-4" />
-            <Figure n={held} label="held here" tone={held ? "text-medium-fg" : "text-text-muted"} className="pl-4" />
+            <Figure n={queued} label="queued" tone={queued ? "text-low-fg" : "text-text-muted"} />
+            <Figure n={held} label="held here" tone={held ? "text-medium-fg" : "text-text-muted"} />
           </div>
           {r.link === "down" && <LinkDownNote />}
           <div className="flex items-center gap-2">

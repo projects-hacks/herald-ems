@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "@fontsource-variable/inter";
 import "@fontsource-variable/jetbrains-mono";
 import "./index.css";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { loadContract } from "@/lib/contract";
 import { connectLive, playFixture, type FixturePlayer } from "@/lib/ws";
 import { NowApp } from "@/screens/NowApp";
@@ -15,4 +16,4 @@ void loadContract();
 if (fixture) player = playFixture(fixture, Number(q.get("speed")) || 1, q.has("at") ? Number(q.get("at")) : null);
 else connectLive();
 
-createRoot(document.getElementById("root")!).render(<StrictMode><NowApp player={player} /></StrictMode>);
+createRoot(document.getElementById("root")!).render(<StrictMode><ErrorBoundary><NowApp player={player} /></ErrorBoundary></StrictMode>);

@@ -56,10 +56,15 @@ export function TopBar() {
         {who ? who.replace(/\s+/g, "") : "—"}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="break-words text-body font-semibold text-text-secondary">
-          {name?.status === "confirmed" ? String(name.value) : "Patient identity not confirmed"}
-          {identifier?.status === "confirmed" ? ` · ID ${String(identifier.value)}` : " · Identifier not confirmed"}
-        </p>
+        {name?.status === "confirmed" || identifier?.status === "confirmed" ? (
+          <p className="break-words text-body font-semibold text-text-secondary">
+            {[name?.status === "confirmed" ? String(name.value) : null,
+              identifier?.status === "confirmed" ? `ID ${String(identifier.value)}` : null].filter(Boolean).join(" · ")}
+          </p>
+        ) : (
+          // One quiet chip until identity is confirmed; the age/sex/complaint line below owns the space.
+          <span className="inline-flex w-fit items-center rounded-full bg-surface-1 px-2.5 py-0.5 text-meta font-medium text-text-muted">Unidentified patient</span>
+        )}
         <div className="flex min-w-0 items-center gap-2">
           <h1 className="truncate text-large-title font-bold tracking-display">
             {who && <span className="sr-only">{who}, </span>}
