@@ -13,6 +13,7 @@ import { factValue, formatValue, hhmm, sourceName } from "@/lib/format";
 import { alertKey, alertPriority, type Priority } from "@/lib/selectors";
 import { useHerald } from "@/lib/store";
 import { MismatchCard } from "@/features/capture/MismatchCard";
+import { TraumaCriteriaChecklist } from "./TraumaCriteriaChecklist";
 import type { Alert, FactView, NeedItem, Snapshot } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ActionButton, ActionNote, usePendingAction } from "@/components/ActionButton";
@@ -156,7 +157,12 @@ function FindingRow({ a, s, onSeen }: { a: Alert; s: Snapshot; onSeen?: () => vo
   const p = alertPriority(a);
   const seen = onSeen && <Button size="md" onClick={onSeen}>Mark seen</Button>;
   switch (a.type) {
-    case "trauma_alert_criteria": case "sepsis_prenotification":
+    case "trauma_alert_criteria":
+      return <Row icon={ShieldAlert} cat="attention" urgent={p === "high" && !!onSeen} badge={<PriorityBadge p={p} />} title={a.label} actions={seen}>
+        <TraumaCriteriaChecklist a={a} s={s} />
+        {a.county_rule?.map((line, i) => <p key={i} className="mt-2 text-body">{a.county && <span>{a.county}: </span>}{line}</p>)}
+      </Row>;
+    case "sepsis_prenotification":
       return <Row icon={ShieldAlert} cat="attention" urgent={p === "high" && !!onSeen} badge={<PriorityBadge p={p} />} title={a.label} actions={seen}>
         <ul className="mt-2 space-y-2 text-body">{a.criteria.map((line, i) => <li key={i}>{line}</li>)}</ul>
         {a.county_rule?.map((line, i) => <p key={i} className="mt-2 text-body">{a.county && <span>{a.county}: </span>}{line}</p>)}

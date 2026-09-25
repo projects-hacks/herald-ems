@@ -231,49 +231,81 @@
         "group": "red",
         "code": "A",
         "label": "A. Penetrating injuries to head, neck, torso, and proximal extremities",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "penetrating injury head neck torso or proximal extremity"
+        }
       },
       {
         "group": "red",
         "code": "B",
         "label": "B. Skull deformity, suspected skull fracture",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "skull deformity"
+        }
       },
       {
         "group": "red",
         "code": "C",
         "label": "C. Suspected spinal injury with new motor or sensory loss",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "spinal injury with new motor or sensory loss"
+        }
       },
       {
         "group": "red",
         "code": "D",
         "label": "D. Chest wall instability, deformity, or suspected flail chest",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "chest wall instability"
+        }
       },
       {
         "group": "red",
         "code": "E",
         "label": "E. Suspected pelvic fracture",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "pelvic fracture"
+        }
       },
       {
         "group": "red",
         "code": "F",
         "label": "F. Suspected fracture of two or more proximal long bones",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "two or more proximal long bone fractures"
+        }
       },
       {
         "group": "red",
         "code": "G",
         "label": "G. Crushed, degloved, mangled, or pulseless extremity",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "crushed degloved mangled or pulseless extremity"
+        }
       },
       {
         "group": "red",
         "code": "H",
         "label": "H. Amputation proximal to wrist or ankle",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "amputation proximal to wrist or ankle"
+        }
       },
       {
         "group": "red",
@@ -285,7 +317,11 @@
         "group": "red",
         "code": null,
         "label": "Described: bleeding requiring tourniquet or wound packing",
-        "parent": "I"
+        "parent": "I",
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "bleeding requiring tourniquet or wound packing"
+        }
       },
       {
         "group": "red",
@@ -315,7 +351,11 @@
         "group": "red",
         "code": null,
         "label": "Described: respiratory distress or need for respiratory support",
-        "parent": "L"
+        "parent": "L",
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "respiratory distress or need for respiratory support"
+        }
       },
       {
         "group": "red",
@@ -363,19 +403,31 @@
         "group": "yellow",
         "code": "O",
         "label": "O. Auto crash with partial or complete ejection",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "ejection"
+        }
       },
       {
         "group": "yellow",
         "code": "P",
         "label": "P. Auto crash with intrusion > 12 inches occupant site, > 18 inches any site, or need for extrication",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "intrusion or extrication"
+        }
       },
       {
         "group": "yellow",
         "code": "Q",
         "label": "Q. Death in passenger compartment",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "death in same passenger compartment"
+        }
       },
       {
         "group": "yellow",
@@ -387,7 +439,11 @@
         "group": "yellow",
         "code": null,
         "label": "Described: child unrestrained",
-        "parent": "R"
+        "parent": "R",
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "child unrestrained"
+        }
       },
       {
         "group": "yellow",
@@ -399,25 +455,41 @@
         "group": "yellow",
         "code": "T",
         "label": "T. Rider separated from transport vehicle with significant impact (eg. Motorcycle, ATV, horse etc.)",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "rider separated with significant impact"
+        }
       },
       {
         "group": "yellow",
         "code": "U",
         "label": "U. Rollover with unrestrained occupant",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "rollover unrestrained"
+        }
       },
       {
         "group": "yellow",
         "code": "V",
         "label": "V. Pedestrian/bicycle rider thrown, run over, or with significant impact",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "pedestrian or cyclist thrown or run over"
+        }
       },
       {
         "group": "yellow",
         "code": "W",
         "label": "W. Fall from height > 10 feet (all ages)",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "fall over 10 feet"
+        }
       },
       {
         "group": "consider",
@@ -429,13 +501,21 @@
         "group": "consider",
         "code": "X.2",
         "label": "X.2 Time-sensitive extremity injury",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "time sensitive extremity injury"
+        }
       },
       {
         "group": "consider",
         "code": "X.6",
         "label": "X.6 Low-level falls with significant head impact",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "low level fall with significant head impact"
+        }
       },
       {
         "group": "consider",
@@ -459,7 +539,11 @@
         "group": "burn",
         "code": "III.A",
         "label": "III.A Patients with burn injuries are to be identified as major burn criteria (§III.A.1-7); §III.B \"Transport all identified major burn patients to a designated burn center\"",
-        "parent": null
+        "parent": null,
+        "tap": {
+          "key": "trauma.criteria",
+          "value": "major burn"
+        }
       }
     ]
   }
