@@ -10,20 +10,22 @@ from typing import Optional
 
 from fastapi import FastAPI, WebSocket
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
-from .capture import CaptureService
-from .context import AppContext, build_context
+from .context import AppContext, build_context, wire_capture
 from .hub import Hub
 from .routes import capture as capture_routes
-from .routes import handoff, incident, protocols, relay, system
+from .routes import agentic_capture, handoff, incident, protocols, relay, system
 
 
 def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
     ctx = ctx or build_context()
     hub = Hub(ctx.full_state)
+    capture_service, frame_source = wire_capture(ctx, hub.broadcast)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        ctx.capture_agent.start(frame_source)
         if ctx.settings.warm_stt:
             asyncio.get_running_loop().run_in_executor(None, getattr(ctx.stt, "warm", lambda: None))
         task = asyncio.create_task(ctx.relay.run_forever(hub.broadcast))
@@ -41,14 +43,15 @@ def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
                             await hub.broadcast()
             sync_task = asyncio.create_task(sync_loop())
         yield
+        await ctx.capture_agent.stop()
         task.cancel()
         if sync_task:
             sync_task.cancel()
 
     app = FastAPI(title="Herald", version="0.2.0", lifespan=lifespan)
     app.state.ctx, app.state.hub = ctx, hub
-    app.state.capture = CaptureService(ctx, hub.broadcast)
-    for module in (incident, capture_routes, relay, system, protocols, handoff):
+    app.state.capture = capture_service
+    for module in (incident, capture_routes, relay, system, protocols, handoff, agentic_capture):
         app.include_router(module.router)
 
     @app.websocket("/ws")
@@ -57,6 +60,9 @@ def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
 
     # The React build at / when it exists (HERALD_UI=classic switches back); the original screen stays at /classic/.
     root = ctx.settings.root
+    @app.get("/capture.html", include_in_schema=False)
+    async def capture_page():
+        return FileResponse(root / "web" / "capture.html")
     ui_dist = root / "ui" / "dist"
     use_new_ui = ctx.settings.ui == "new" and (ui_dist / "index.html").exists()
     app.mount("/classic", StaticFiles(directory=str(root / "web"), html=True), name="classic")

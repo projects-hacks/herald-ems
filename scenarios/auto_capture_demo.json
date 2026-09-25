@@ -1,0 +1,18 @@
+{
+  "name": "Agentic capture — synthetic equipment only",
+  "notes": "Requires approved serving models, or a separately injected fake backend. Not an accuracy benchmark. Timings intentionally preserve rate limits. Never run against the shared demo incident.",
+  "steps": [
+    {"incident": "SYNTHETIC rehearsal — automatic capture", "pause": 0},
+    {"capture": {"path": "roi", "body": {"x0": 0, "y0": 0, "x1": 1, "y1": 1}}, "pause": 0},
+    {"capture": {"path": "auto", "body": {"on": true}}, "pause": 0},
+    {"frames": {"folder": "scenarios/frames/auto_capture", "files": ["00_monitor.jpg"]}, "pause": 18},
+    {"frames": {"folder": "scenarios/frames/auto_capture", "files": ["01_monitor_changed.jpg"]}, "pause": 18},
+    {"capture": {"path": "roi", "delete": true}, "pause": 0},
+    {"frames": {"folder": "scenarios/frames/auto_capture", "files": ["02_vial.jpg"]}, "pause": 2},
+    {"say": "We are drawing up 0.4 milligrams of Narcan, given IV by our crew.", "pause": 12},
+    {"frames": {"folder": "scenarios/frames/auto_capture", "files": ["03_polst.jpg"]}, "pause": 2},
+    {"say": "Her POLST is on the fridge. It says do not resuscitate.", "by": "family", "pause": 12},
+    {"capture": {"path": "now", "body": {"mode": "form"}}, "pause": 6},
+    {"capture": {"path": "auto", "body": {"on": false}}, "pause": 0}
+  ]
+}

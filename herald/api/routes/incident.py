@@ -38,5 +38,7 @@ async def fact_action(fact_id: str, action: str, c=Depends(get_ctx), h=Depends(g
         f = c.incident.set_status(fact_id, ACTIONS[action])
     except KeyError:
         raise HTTPException(404)
+    except ValueError as e:
+        raise HTTPException(409, str(e))
     await h.broadcast()
     return f.model_dump(mode="json")

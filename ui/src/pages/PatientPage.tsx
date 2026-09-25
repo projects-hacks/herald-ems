@@ -24,6 +24,7 @@ function FactRow({ f }: { f: FactView }) {
       <span className="truncate pt-px text-meta text-text-muted">{f.label}</span>
       <span className="min-w-0">
         <span className="block text-body font-semibold">{factValue(f)}</span>
+        {f.verify?.status === "match" && <span className="text-meta text-text-secondary">Label seen ✓ · ingredient only</span>}
         <span className="flex flex-wrap items-center gap-x-1.5 text-meta text-text-muted">
           <SourceIcon f={f} />{sourceName(f)} · <span className="num">{hhmm(f.ts)}</span>
           {f.previous_value !== null && f.previous_value !== undefined && <span>· was {formatValue(f.previous_value)}</span>}

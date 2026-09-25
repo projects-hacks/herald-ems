@@ -1,5 +1,6 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Herald · camera</title>
+<link rel="stylesheet" href="/classic/continuous.css">
 <style>
 body{margin:0;background:#0d1117;color:#e6edf3;font:18px/1.4 system-ui,sans-serif;padding:16px}
 h1{font-size:16px;letter-spacing:.12em;color:#8b949e;margin:0 0 14px}
@@ -9,11 +10,32 @@ input[type=file]{display:none}
 #out{margin-top:10px;font-size:15px;color:#8b949e}#out b{color:#7ee787}
 </style></head><body>
 <h1>HERALD · POINT AND SHOOT</h1>
+<section class="continuous" aria-labelledby="continuous-title">
+  <h2 id="continuous-title">Let Herald watch the equipment</h2>
+  <p>Camera off until you start. Selected stills are read locally; proposed facts need your confirmation. Aim at equipment, not faces. Start only when recording is authorized.</p>
+  <p id="capture-state" role="status">Herald sees: off</p>
+  <div class="controls"><button id="start-camera">Start continuous camera</button><button id="stop-camera" disabled>Stop camera</button>
+    <label>Show Herald mode <select id="show-mode"><option value="">Automatic choice</option><option value="monitor">Monitor</option><option value="pill_bottle">Label</option><option value="form">Form</option><option value="scene">Scene</option></select></label>
+    <button id="show-herald">Show Herald once</button></div>
+  <div id="preview-wrap"><video id="camera-preview" autoplay muted playsinline></video><div id="roi-box" hidden></div></div>
+  <p>Drag around the monitor once, or enter its bounds below. Without a monitor region, only speech-triggered and manual captures run.</p>
+  <form id="roi-form"><fieldset><legend>Monitor region (% of image)</legend>
+    <label>Left<input id="roi-x0" type="number" min="0" max="99" value="10" step="1" required></label>
+    <label>Top<input id="roi-y0" type="number" min="0" max="99" value="10" step="1" required></label>
+    <label>Right<input id="roi-x1" type="number" min="1" max="100" value="90" step="1" required></label>
+    <label>Bottom<input id="roi-y1" type="number" min="1" max="100" value="90" step="1" required></label>
+    <button type="submit">Save monitor region</button><button type="button" id="clear-roi">Clear region</button>
+  </fieldset></form>
+  <p id="capture-error" role="alert"></p>
+  <p><a href="/">Open patient screen</a> · Keep this page visible while capturing. No video is saved. Used evidence is stored only after face-blur processing; detection is not guaranteed.</p>
+</section>
+<h2>One-shot photo fallback</h2>
 <label class="btn">📟 Monitor / pulse oximeter<small>reads SpO2, pulse, BP</small><input type="file" accept="image/*" capture="environment" data-mode="monitor"></label>
 <label class="btn">💊 Pill bottle<small>reads the drug name; flags anticoagulants</small><input type="file" accept="image/*" capture="environment" data-mode="pill_bottle"></label>
 <label class="btn">📄 POLST / DNR form<small>reads the checked box; always needs your confirmation</small><input type="file" accept="image/*" capture="environment" data-mode="form"></label>
 <label class="btn">🏠 Scene<small>short factual notes for the ED</small><input type="file" accept="image/*" capture="environment" data-mode="scene"></label>
 <div id="out">Photos stay on the ambulance computer. Every reading shows up on the main screen for you to confirm.</div>
+<script type="module" src="/classic/continuous.js"></script>
 <script>
 async function shrink(file,max=1280){const img=await createImageBitmap(file);const s=Math.min(1,max/Math.max(img.width,img.height));
 const c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);
@@ -23,6 +45,6 @@ document.querySelectorAll("input[type=file]").forEach(inp=>inp.addEventListener(
   const fd=new FormData();fd.append("file",await shrink(f),"photo.jpg");fd.append("mode",inp.dataset.mode);
   const t0=performance.now();const r=await fetch("/api/photo",{method:"POST",body:fd});const d=await r.json().catch(()=>({}));
   const ms=Math.round(performance.now()-t0);
-  out.innerHTML=r.ok?(d.facts.length?d.facts.map(x=>`<b>${x.key}</b>: ${JSON.stringify(x.value)} (${Math.round(x.confidence*100)}%)`).join("<br>")+`<br><small>${ms} ms · confirm on the main screen</small>`:"Nothing readable. Try again closer.")
+  out.textContent=r.ok?(d.facts.length?d.facts.map(x=>`${x.key}: ${JSON.stringify(x.value)} (${Math.round(x.confidence*100)}%)`).join("\n")+`\n${ms} ms · confirm on the main screen`:"Nothing readable. Try again closer.")
     :("Error: "+(d.detail||r.status));inp.value="";}));
 </script></body></html>

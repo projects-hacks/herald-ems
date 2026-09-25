@@ -2221,6 +2221,43 @@ These run against fixtures (§5.8) and live (U6).
 ---
 ## 5. Stack
 
+### S9 agentic capture contract (2026-09-25)
+
+Camera capture is off by default. `HERALD_CAPTURE_SOURCE=off|browser|replay:<folder>` and `HERALD_CAPTURE_AUTO=0|1` configure initial state; `HERALD_CAPTURE_CONFIG` names reviewed content under `config/`. USB/local camera support remains optional and is not enabled. The policy, gate, intervals, storage limits and trigger keys live in `config/capture.yaml`.
+
+| Boundary | Contract |
+|---|---|
+| `WS /ws/frames` | One same-origin browser source per incident. Binary JPEG, longest side ≤1280 px and encoded size ≤1 MiB. Process/reply at most `fps_in` (default 1 Hz). Reply `{accepted, gate: {sharp, changed, bright, passed, reason, usable} | null, error?: string}`. Extra frames are dropped, never queued without a bound. Patient change requires explicit reconnect. |
+| `GET /api/capture/status` | `CaptureStatus` below. `watching` requires recent accepted input, not merely the switch being on. |
+| `POST /api/capture/auto` | `{on: boolean}`; returns status. Off invalidates pending work/results and clears frame buffers. A submitted model call cannot be preempted, but its result is discarded. Turning on an off source selects browser input. |
+| `POST /api/capture/roi` | `{x0,y0,x1,y1,target?: "monitor"}`, finite normalized coordinates with positive area. Returns status; invalid rectangle →422. ROI changes invalidate old buffered work. |
+| `DELETE /api/capture/roi` | Clears the incident's monitor ROI; monitor watch remains disabled without one. |
+| `POST /api/capture/now` | `{mode?: "monitor"|"pill_bottle"|"form"|"scene"}` →202 and status. Defaults to monitor with ROI, label otherwise. Queues best recent frame or next frame, expires after ten seconds. Bypasses quality and automatic rate limits, not single-flight or speech priority. |
+| `POST /api/capture/verify/{fact_id}` | `{action:"keep"}` or `{action:"edit",value:<complete dose record>}`. Returns fact view; 404 other incident/missing dose, 409 closed/invalid mismatch, 422 malformed request. Edits append a medic-confirmed replacement and reject the old event; Keep confirms the original explicitly. Both retain an audit trace. Generic `/facts/{id}/confirm` returns409 for unresolved mismatches. |
+
+```ts
+interface CaptureStatus {
+  auto: boolean; source: string; fps_in: number; incident_id: string;
+  sees: "off" | "watching" | "reading";
+  roi: {x0:number; y0:number; x1:number; y1:number} | null;
+  last: {ts:number; trigger:string; mode:string; reason:string; facts:string[]; photo_id:string|null} | null;
+  counts: {frames:number; gated:number; captured:number; stored:number};
+  error: string | null; pending: number;
+}
+interface Verification {
+  status: "match" | "mismatch"; label_drug: string; photo_id: string | null;
+  resolution: "kept" | "edited" | null;
+}
+```
+
+Snapshot gains `capture: CaptureStatus`. Fact views gain nullable `verify: Verification`; provenance gains optional `trigger`, `frame_id`, and `auto`. Selected-frame trace entries retain `captured_by="camera"` and add `trigger`, `reason`, `frame_id`, nullable `photo_id` and fact IDs. Stored evidence is retrieved through the existing `/api/photo/{photo_id}`; `auto_*` IDs resolve inside `photo_dir/auto`. No file exists when no usable fact/flag results or redaction fails. Old fixture snapshots omit the additive fields; the UI must tolerate this.
+
+Patient guard: `auto`, `roi` and `now` POST bodies accept optional `incident_id: string`; DELETE ROI accepts the same query parameter. The shipped UI always sends it. A stale identity returns409 without changing the new incident. Verification IDs are resolved only in the current incident. A configured replay source rejects browser sockets to prevent mixed views. Switching patients also disables capture and clears ROI. Speech-to-text and extraction counters both block capture admission; already-running vision cannot be preempted.
+
+Visual semantics: “Herald sees” off/watching/reading is technical status, not an alarm. Reading may use a reduced-motion-aware pulse. A drug-label mismatch is a steady caution/check card with spoken drug, label, evidence and explicit Keep as said/Edit actions. A match verifies ingredient only—not dose, route, patient, timing or administration. Verify-intent output never enters `meds.list`. Camera facts always start unconfirmed. The confirmation hold is applied synchronously to the crew dose before the asynchronous label check, so it cannot leave while the check waits. Match/unreadable never auto-confirm it.
+
+The capture page uses `/classic/capture.html` (also `/capture.html` with the React UI). Continuous camera requires localhost or HTTPS, explicit permission, visible preview and a stop control. It offers drag ROI and numeric-coordinate alternatives; a one-shot file input remains available. Camera close/tab hide/network failure stops the source; no automatic permission restart. Privacy is an in-memory ring buffer plus redacted used-evidence files, not continuous video storage. Face detection is fallible and requires spot checks. No field-safety or real-model acceptance claim is implied by fake tests.
+
 ### 5.1 Decision
 
 **React 19 + TypeScript + Vite + Tailwind v4 + shadcn/ui on Radix primitives [29], with Zustand for state, lucide-react for icons [33], Fontsource for self-hosted fonts [32], and hand-drawn SVG sparklines (no chart library).**

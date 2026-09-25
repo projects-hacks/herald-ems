@@ -15,6 +15,7 @@ export interface Coding { system: string; code: string }
 
 // ---------- facts ----------
 export interface Provenance {
+  trigger?: string | null; frame_id?: string | null; auto?: boolean;
   audio_id: string | null; t_start: number | null; t_end: number | null; text: string | null;
   photo_id: string | null; crop: [number, number, number, number] | null; extractor: string | null;
   hold_reason: string | null;       // why this fact waits for the medic's tap (UX_PLAN §5.9a)
@@ -26,6 +27,7 @@ export interface FactView {
   provenance: Provenance; ts: string; status: FactStatus;
   previous_value: FactValue; previous_ts: string | null;
   code?: Coding | (Coding | null)[] | null;
+  verify?: { status: "match" | "mismatch"; label_drug: string; photo_id: string | null; resolution: "kept" | "edited" | null } | null;
 }
 
 // ---------- checklists, gaps, trends ----------
@@ -84,7 +86,7 @@ export interface TraceFact {
 export interface SttInfo { seconds: number; chunks: { text: string; t: [number | null, number | null] }[]; ms?: number }
 export interface RejectedFact { key: string; value: FactValue; reason: string }
 export interface Trace {
-  heard: { text: string; speaker?: string | null; audio_id?: string | null; photo_id?: string;
+  heard: { text: string; speaker?: string | null; audio_id?: string | null; photo_id?: string | null; frame_id?: string;
            stt?: SttInfo | null; source?: "structured" };
   rules: { ms: number; facts: TraceFact[]; rejected?: RejectedFact[] };
   model: {
@@ -102,6 +104,7 @@ export interface Trace {
   };
 }
 export interface TranscriptEntry {
+  trigger?: string; reason?: string; frame_id?: string;
   id: string; ts: string; text: string; captured_by: CapturedBy; speaker: string | null;
   audio_id: string | null; photo_id?: string; fact_ids: string[];
   extract: { rules: number; llm: number | null; ms: number };
@@ -132,6 +135,7 @@ export interface ProtocolStatus {
 
 // ---------- the snapshot (api/context.py full_state()) ----------
 export interface Snapshot {
+  capture?: CaptureStatus;
   incident: { id: string; dispatch: string | null; started: string };
   summary: string;
   readiness: Readiness[];
@@ -150,6 +154,14 @@ export interface Snapshot {
   relay: RelayStatus;
   netem: "good" | "weak" | "down" | null;
   protocols?: ProtocolStatus;            // absent when protocol lookup is off
+}
+
+export interface CaptureStatus {
+  auto: boolean; source: string; fps_in: number; incident_id: string; sees: "off" | "watching" | "reading";
+  roi: { x0: number; y0: number; x1: number; y1: number } | null;
+  last: { ts: number; trigger: string; mode: string; reason: string; facts: string[]; photo_id: string | null } | null;
+  counts: { frames: number; gated: number; captured: number; stored: number };
+  error: string | null; pending: number;
 }
 export type NowMessage = { type: "state"; state: Snapshot } | { type: "pong"; t: string };
 

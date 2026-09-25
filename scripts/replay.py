@@ -5,11 +5,13 @@
   (--no-llm: words only, nothing extracted; there is no rules extractor in the product)
 """
 import argparse
+import atexit
 import json
 import time
 from datetime import datetime, timedelta
 
 import httpx
+from capture_replay import FrameReplay
 
 ap = argparse.ArgumentParser()
 ap.add_argument("scenario")
@@ -20,8 +22,12 @@ ap.add_argument("--lkw-minutes-ago", type=int, default=64)
 a = ap.parse_args()
 
 sc = json.load(open(a.scenario))
+if a.fast and any("frames" in step for step in sc["steps"]):
+    ap.error("capture replays require real frame intervals; omit --fast")
 lkw = (datetime.now() - timedelta(minutes=a.lkw_minutes_ago)).strftime("%-I:%M")
 c = httpx.Client(base_url=a.url, timeout=120)
+frames = FrameReplay(a.url)
+atexit.register(frames.close)
 
 
 def wait_model(entry_id: str, timeout: float = 30.0) -> dict:
@@ -35,9 +41,18 @@ def wait_model(entry_id: str, timeout: float = 30.0) -> dict:
 
 
 for step in sc["steps"]:
+    frames.check()
     if "incident" in step:
         c.post("/api/incident", json={"dispatch": step["incident"]}).raise_for_status()
         print(f"[incident] {step['incident']}")
+    elif "frames" in step:
+        frames.select(step["frames"])
+        print(f"[camera] {step['frames']}")
+    elif "capture" in step:
+        control = step["capture"]
+        method = "DELETE" if control.get("delete") else "POST"
+        c.request(method, f"/api/capture/{control['path']}", json=control.get("body", {})).raise_for_status()
+        print(f"[capture] {control['path']}")
     elif "say" in step:
         text = step["say"].replace("LKW_TIME", lkw)
         body = {"text": text, "captured_by": step.get("by", "medic"), "speaker": step.get("speaker"),
@@ -99,6 +114,8 @@ for step in sc["steps"]:
         print(f"[monitor] {step['monitor']}")
     if not a.fast:
         time.sleep(step.get("pause", 2))
+frames.check()
+frames.close()
 s = c.get("/api/state").json()
 r = s["readiness"][0] if s["readiness"] else None
 print("\nFINAL:", s["summary"], "|", f"{r['label']} {r['done']}/{r['total']}" if r else "",

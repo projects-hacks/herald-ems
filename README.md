@@ -15,6 +15,8 @@ Every model runs on one HP ZGX Nano (NVIDIA GB10). **No cloud AI.**
 
 ## What it does
 
+**Agentic capture (S9):** opt-in mounted-camera frames trigger selected still readings, proposed vitals, and spoken-drug/label checks; the medic confirms. [Setup, synthetic rehearsal, and pending real-model acceptance](docs/AGENTIC_CAPTURE.md).
+
 | | |
 |---|---|
 | **Speech → facts** | Whisper large-v3-turbo on the GPU (a 10 s clip transcribes in about 0.3 s). Then a **fine-tuned Qwen3-4B extractor, trained on this box**, turns the words into typed facts: vitals, medications, allergies, last known well, stroke-exam items, code status. It is served in FP8, at about 1 s per utterance. |

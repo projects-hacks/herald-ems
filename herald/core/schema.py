@@ -11,7 +11,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -87,6 +87,9 @@ class Provenance(BaseModel):
     extractor: Optional[str] = None     # "rules", "llm:<model>", "vision:<model>", "manual"
     hold_reason: Optional[str] = None   # why this fact waits for the medic's tap (shown on screen), e.g. the guard
     normalized: Optional[list[dict]] = None   # drug names: [{said, value, system, code, method, score}] per item
+    trigger: Optional[str] = None
+    frame_id: Optional[str] = None
+    auto: bool = False
 
 
 class FactIn(BaseModel):
@@ -120,9 +123,17 @@ class NormalizedValue:
         return self.method not in ("unresolved", "ambiguous")
 
 
+class Verification(BaseModel):
+    status: Literal["match", "mismatch"]
+    label_drug: str
+    photo_id: Optional[str] = None
+    resolution: Optional[Literal["kept", "edited"]] = None
+
+
 class Fact(FactIn):
     id: str
     ts: datetime
     status: Status
     previous_value: Any = None
     previous_ts: Optional[datetime] = None
+    verify: Optional[Verification] = None

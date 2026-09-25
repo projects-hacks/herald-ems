@@ -11,7 +11,7 @@ def get_ctx(request: Request) -> AppContext:
 
 
 def get_capture(request: Request) -> CaptureService:
-    return request.app.state.capture
+    return request.app.state.capture.for_incident()
 
 
 def get_hub(request: Request) -> Hub:

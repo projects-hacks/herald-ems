@@ -14,6 +14,7 @@ from typing import Awaitable, Callable, Optional
 from fastapi.concurrency import run_in_threadpool
 
 from ..core.schema import CapturedBy, FactIn, Role, join_reasons, new_id, source_role, utcnow
+from ..capture.types import IncidentEvent
 from .context import AppContext
 
 Broadcast = Callable[[], Awaitable[None]]
@@ -26,10 +27,32 @@ class ModelUnavailable(RuntimeError):
 class CaptureService:
     def __init__(self, ctx: AppContext, broadcast: Broadcast):
         self.ctx, self.broadcast = ctx, broadcast
+        self.listeners = []
+        self._incident = None
+
+    def for_incident(self):
+        scoped = CaptureService(self.ctx, self.broadcast)
+        scoped._incident = self.ctx.incident
+        scoped.listeners = self.listeners
+        return scoped
 
     @property
     def inc(self):
-        return self.ctx.incident
+        return self._incident if self._incident is not None else self.ctx.incident
+
+    def notify(self, facts, before):
+        if self.inc is not self.ctx.incident:
+            return
+        diff = self.ctx.tracer.diff(before, self._summary())
+        events = [IncidentEvent("facts_added", facts, diff, self.inc.id)]
+        if diff.get("alerts_new") and any(f.captured_by != CapturedBy.camera for f in facts):
+            events.append(IncidentEvent("alert_new", facts, diff, self.inc.id))
+        for fact in facts:
+            if fact.key == "transport.eta_min":
+                events.append(IncidentEvent("eta_changed", [fact], {"eta_min": fact.value}, self.inc.id))
+        for event in events:
+            for listener in self.listeners:
+                listener.on_change(event)
 
     def _summary(self) -> dict:
         return self.ctx.tracer.summarize(self.inc.snapshot())
@@ -37,6 +60,7 @@ class CaptureService:
     def ingest_batch(self, facts_in, rejected: Optional[list] = None) -> list:
         """Ingest what validates; anything implausible or malformed is listed in `rejected` for the trace."""
         facts = []
+        before = self._summary()
         for f in facts_in:
             try:
                 facts.append(self.inc.ingest(f, record=False))
@@ -44,6 +68,7 @@ class CaptureService:
                 if rejected is not None:
                     rejected.append({"key": f.key, "value": f.value, "reason": str(e)[:120]})
         self.inc.commit()
+        self.notify(facts, before)
         return facts
 
     # ---------- speech ----------
@@ -79,12 +104,19 @@ class CaptureService:
                                         if injected and not skip else {})},
                            "effects": {"readiness": [], "alerts_new": [], "scores": [], "gaps_closed": []}}}
         self.inc.transcripts.append(entry)
-        await self.broadcast()
         if model["status"] == "running":
-            asyncio.create_task(self._extract(entry, text, captured_by, default_role, speaker, audio_id, injected))
-        elif model["status"] == "unavailable":
+            self.ctx.speech_in_flight += 1
+            asyncio.create_task(self._extract_counted(entry, text, captured_by, default_role, speaker, audio_id, injected))
+        await self.broadcast()
+        if model["status"] == "unavailable":
             raise ModelUnavailable(model["reason"])
         return {"transcript": entry, "facts": []}
+
+    async def _extract_counted(self, *args):
+        try:
+            await self._extract(*args)
+        finally:
+            self.ctx.speech_in_flight -= 1
 
     @staticmethod
     def _hold(facts: list, phrase: str) -> None:
@@ -121,7 +153,9 @@ class CaptureService:
         await self.broadcast()
 
     # ---------- photo ----------
-    async def photo(self, raw: bytes, mode: str) -> dict:
+    async def photo(self, raw: bytes, mode: str, *, auto=False, frame=None, intent=None, roi=None, valid=None):
+        if auto:
+            return await self.ctx.frame_reader.read(frame, intent, roi, valid)
         ctx, tracer = self.ctx, self.ctx.tracer
         photo_id = new_id("p")
         ctx.settings.photo_dir.mkdir(parents=True, exist_ok=True)
@@ -168,6 +202,7 @@ class CaptureService:
         before = self._summary()
         added = [self.inc.ingest(f, record=False) for f in facts]
         self.inc.commit()
+        self.notify(added, before)
         if added:
             speaker = added[0].speaker or added[0].captured_by.value
             said = " · ".join(f"{self.ctx.vocab.label(f.key)} {f.value}" for f in added)
