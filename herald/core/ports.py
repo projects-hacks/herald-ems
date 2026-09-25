@@ -2,11 +2,23 @@
 wired together once, in herald/api/app.py."""
 from __future__ import annotations
 
-from typing import Any, Awaitable, Optional, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Awaitable, Iterator, Optional, Protocol, runtime_checkable
 
 import numpy as np
 
 from .schema import CapturedBy, FactIn, NormalizedValue, Role
+
+if TYPE_CHECKING:
+    from ..capture.types import Frame, IncidentEvent
+
+
+class FrameSource(Protocol):
+    def frames(self) -> Iterator[Frame]: ...
+    def close(self) -> None: ...
+
+
+class IncidentListener(Protocol):
+    def on_change(self, event: IncidentEvent) -> None: ...
 
 
 @runtime_checkable

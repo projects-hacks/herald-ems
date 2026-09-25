@@ -28,14 +28,14 @@ export function ActionNote({ a, className }: { a: PendingAction; className?: str
   return null;
 }
 
-export function ActionButton({ pendingKey, onClick, children, busyText, variant = "secondary", size = "lg", className }: {
+export function ActionButton({ pendingKey, onClick, children, busyText, variant = "secondary", size = "lg", className, disabled = false }: {
   pendingKey: string; onClick: () => void; children: React.ReactNode; busyText: string;
-  variant?: "primary" | "secondary" | "ghost"; size?: "sm" | "md" | "lg"; className?: string;
+  variant?: "primary" | "secondary" | "ghost"; size?: "sm" | "md" | "lg"; className?: string; disabled?: boolean;
 }) {
   const a = usePendingAction(pendingKey);
   return (
     <span className="inline-flex flex-col items-end gap-1">
-      <Button variant={variant} size={size} onClick={onClick} disabled={a.disabled} className={className}
+      <Button variant={variant} size={size} onClick={onClick} disabled={a.disabled || disabled} className={className}
         title={a.replay ? "Replay: actions are off" : undefined}>
         {a.busy ? busyText : children}
       </Button>

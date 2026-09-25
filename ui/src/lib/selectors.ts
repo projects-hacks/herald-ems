@@ -38,7 +38,7 @@ export function rankAlerts(alerts: Alert[], arrival: Record<string, number> = {}
  *  they were heard. */
 export function needsTap(s: Snapshot): FactView[] {
   const inAlert = new Set(s.alerts.flatMap((a) => ("facts" in a ? a.facts.map((f) => f.id) : [])));
-  return allFacts(s).filter((f) => f.status === "unconfirmed" && !inAlert.has(f.id))
+  return allFacts(s).filter((f) => f.status === "unconfirmed" && (!inAlert.has(f.id) || (f.verify?.status === "mismatch" && !f.verify.resolution)))
     .sort((a, b) => a.ts.localeCompare(b.ts));
 }
 

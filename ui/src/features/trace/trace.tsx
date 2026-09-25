@@ -6,6 +6,9 @@ import type { TranscriptEntry } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/kit";
 import { AudioEvidence } from "@/components/AudioEvidence";
+import { useHerald } from "@/lib/store";
+import { ActionButton } from "@/components/ActionButton";
+import { api } from "@/lib/api";
 
 export function summarize(t: TranscriptEntry): string {
   const facts = [...t.trace.rules.facts, ...(t.trace.model.facts ?? [])];
@@ -24,6 +27,8 @@ export const sourceIcon = (t?: TranscriptEntry) =>
 
 /** One captured utterance or photo, with the model step (or the monitor readings) and what changed on the screen. */
 export function TraceEntry({ t, wide = false }: { t: TranscriptEntry; wide?: boolean }) {
+  const snapshot = useHerald((s) => s.snapshot);
+  const blocked = useHerald((s) => s.source === "fixture" || s.stale || s.conn !== "open");
   const Icon = sourceIcon(t);
   const m = t.trace.model;
   const facts = [...t.trace.rules.facts, ...(m.facts ?? [])];
@@ -35,6 +40,19 @@ export function TraceEntry({ t, wide = false }: { t: TranscriptEntry; wide?: boo
           <span className="font-semibold text-text-secondary">{t.speaker ?? t.captured_by}</span><span className="num">{hhmm(t.ts)}</span>
         </p>
         <p className="mt-0.5 text-body font-medium">“{t.text}”</p>
+        {t.trigger && <div className="mt-3 rounded-xl border border-border-subtle p-3">
+          <p className="text-meta font-semibold">{t.trigger === "manual" ? "Show Herald" : "Automatic capture"} · {t.trigger}</p>
+          {t.photo_id ? <a href={`/api/photo/${t.photo_id}`} target="_blank" rel="noreferrer"><img src={`/api/photo/${t.photo_id}`} alt="Stored capture evidence; open full image" className="my-2 max-h-36 rounded-lg" /></a> : <p className="text-meta text-text-muted">No image retained.</p>}
+          <ul>{t.fact_ids.map((id) => {
+            const fact = [...Object.values(snapshot?.facts ?? {}), ...Object.values(snapshot?.events ?? {}).flat()].find((f) => f.id === id);
+            if (!fact) return null;
+            return <li key={id} className="my-2 flex flex-wrap items-center gap-3 text-body"><span>{fact.label}: {formatValue(fact.value)}</span>
+              {fact.verify?.status === "match" && <span className="text-meta">Label seen ✓ · ingredient only</span>}
+              {fact.status === "unconfirmed" && !(fact.verify?.status === "mismatch" && !fact.verify.resolution) && <ActionButton disabled={blocked} pendingKey={`confirm:${id}`} onClick={() => api.confirm(id)} busyText="Confirming…" size="md">Confirm</ActionButton>}
+              {fact.verify?.status === "mismatch" && !fact.verify.resolution && <button className="min-h-12 px-3 text-herald-accent" onClick={() => useHerald.getState().setUi({ page: "overview" })}>Review mismatch</button>}
+            </li>;
+          })}</ul>
+        </div>}
         <div className="mt-2 flex flex-wrap gap-1.5">
           {/* trace.rules only carries monitor/device readings now; speech and photos come from the model */}
           {t.trace.heard.source === "structured" && <Badge icon={Monitor}>Monitor · {t.trace.rules.facts.length}</Badge>}

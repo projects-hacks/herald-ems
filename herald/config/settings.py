@@ -41,6 +41,9 @@ class Settings(BaseModel):
     toxiproxy_url: str = "http://127.0.0.1:8474"
     # serving
     ui: str = "new"                               # "classic" serves web/ at / as well
+    capture_source: str = "off"
+    capture_auto: bool = False
+    capture_config: str = "capture.yaml"
     root: Path = ROOT                             # the repo: web/, ui/dist/
     data_dir: Optional[Path] = None               # captured audio and photos (default: <root>/data)
     # protocol lookup (P9): build the county knowledge base (embeddings on CPU, cached per document version)
@@ -50,6 +53,13 @@ class Settings(BaseModel):
     terminology: bool = True
     # cost-comparison overrides (defaults in config/telemetry.yaml)
     price_overrides: dict[str, float] = {}
+
+    @field_validator("capture_source")
+    @classmethod
+    def _capture_source(cls, value: str) -> str:
+        if value not in ("off", "browser") and not value.startswith("replay:"):
+            raise ValueError("HERALD_CAPTURE_SOURCE must be off, browser or replay:<folder>; local cameras are not enabled")
+        return value
 
     @field_validator("guard_policy")
     @classmethod
@@ -111,6 +121,9 @@ class Settings(BaseModel):
             ed_url=opt("HERALD_ED_URL"),
             toxiproxy_url=e.get("TOXIPROXY_URL", cls.model_fields["toxiproxy_url"].default),
             ui=e.get("HERALD_UI", "new"),
+            capture_source=e.get("HERALD_CAPTURE_SOURCE", "off"),
+            capture_auto=e.get("HERALD_CAPTURE_AUTO", "0") == "1",
+            capture_config=e.get("HERALD_CAPTURE_CONFIG", "capture.yaml"),
             data_dir=Path(e["HERALD_DATA_DIR"]) if e.get("HERALD_DATA_DIR") else None,
             knowledge=e.get("HERALD_KNOWLEDGE", "1") == "1",
             protocol_mirror=opt("HERALD_PROTOCOL_MIRROR"),

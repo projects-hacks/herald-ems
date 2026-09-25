@@ -49,7 +49,11 @@ async def post_audio(file: UploadFile = File(...), captured_by: CapturedBy = For
     c.settings.audio_dir.mkdir(parents=True, exist_ok=True)
     sf.write(c.settings.audio_dir / f"{audio_id}.wav", audio, sr)
     t0 = time.perf_counter()
-    result = await run_in_threadpool(c.stt.transcribe, np.asarray(audio), sr, language)
+    c.speech_in_flight += 1
+    try:
+        result = await run_in_threadpool(c.stt.transcribe, np.asarray(audio), sr, language)
+    finally:
+        c.speech_in_flight -= 1
     result["ms"] = round((time.perf_counter() - t0) * 1000)
     if not result["text"]:
         return {"transcript": None, "facts": [], "stt": result}
@@ -88,7 +92,8 @@ def _evidence(directory: Path, name: str, suffix: str, media_type: str) -> FileR
 
 @router.get("/photo/{photo_id}")
 async def get_photo(photo_id: str, c=Depends(get_ctx)):
-    return _evidence(c.settings.photo_dir, photo_id, ".jpg", "image/jpeg")
+    directory = c.settings.photo_dir / "auto" if photo_id.startswith("auto_") else c.settings.photo_dir
+    return _evidence(directory, photo_id, ".jpg", "image/jpeg")
 
 
 @router.get("/audio/{audio_id}")

@@ -9,6 +9,16 @@ Deadline **Fri 2026-09-25, 8:00 PM**. Internal target: submit by 6:00 PM. Featur
 Where decisions live: product spec and pitch → `/home/hp18/Documents/team-last-minute/.agent/ideas/herald-ems-copilot.md` (Nano only) · models → `docs/MODEL_PLAN.md` · UI → `docs/UX_PLAN.md` · hackathon rules and history → `/home/hp18/Documents/team-last-minute/.agent/context.md` (Nano only). The full document map is in `AGENTS.md`.
 Status: ✅ done · 🔄 in progress · ⏳ todo · ⛔ blocked. Update this file in the same PR as the work.
 
+## S9 agentic capture — Tushar, `feat/agentic-capture`
+
+| Scope | Status |
+|---|---|
+| Backend package, policy/gate/buffer/scheduler, RxNorm label verification, redacted used-frame storage | Implemented; fake-only regression tests |
+| API and UX_PLAN §5 contract, continuous browser camera + monitor ROI, NOW controls/trace/mismatch review | Implemented; automated UI tests; physical camera/ROI sign-off pending |
+| Synthetic timed replay and CPU-only integration rehearsal | Implemented; see [AGENTIC_CAPTURE.md](docs/AGENTIC_CAPTURE.md) |
+| Real-model acceptance, three-run timing/accuracy checks and 30-minute soak | Pending explicit Rajeev confirmation that `herald-f` is serving; no GPU/model loads authorized yet |
+| Delivery | PR to main requested Friday afternoon; S9 deadline Fri 11 PM PDT per handoff (supersedes the older board deadline for this task only) |
+
 ## Checkpoint: Thu 2026-09-24, 18:00 UTC (11:00 PDT) (verified: every line below checked against the repo and the live server)
 **Scope (team lead, 2026-09-24): a copilot for every EMS call, not a stroke tool.** Stroke stays the demo story.
 

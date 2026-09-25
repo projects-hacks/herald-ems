@@ -26,7 +26,8 @@ function FactRow({ f }: { f: FactView }) {
       <span className="min-w-0">
         <span className="block text-body font-semibold">{factValue(f)}</span>
         <AudioEvidence id={f.provenance.audio_id} />
-        {f.status === "unconfirmed" && <span className="flex flex-wrap gap-2 py-2"><ActionButton pendingKey={`confirm:${f.id}`} onClick={() => api.confirm(f.id)} busyText="Confirming…">Confirm</ActionButton><ActionButton pendingKey={`reject:${f.id}`} onClick={() => api.reject(f.id)} busyText="Rejecting…">Reject</ActionButton></span>}
+        {f.status === "unconfirmed" && !(f.verify?.status === "mismatch" && !f.verify.resolution) && <span className="flex flex-wrap gap-2 py-2"><ActionButton pendingKey={`confirm:${f.id}`} onClick={() => api.confirm(f.id)} busyText="Confirming…">Confirm</ActionButton><ActionButton pendingKey={`reject:${f.id}`} onClick={() => api.reject(f.id)} busyText="Rejecting…">Reject</ActionButton></span>}
+        {f.verify?.status === "match" && <span className="text-meta text-text-secondary">Label seen ✓ · ingredient only</span>}
         <span className="flex flex-wrap items-center gap-x-1.5 text-meta text-text-muted">
           <SourceIcon f={f} />{sourceName(f)} · <span className="num">{hhmm(f.ts)}</span>
           {f.previous_value !== null && f.previous_value !== undefined && <span>· was {formatValue(f.previous_value)}</span>}

@@ -12,6 +12,7 @@ import { api } from "@/lib/api";
 import { factValue, formatValue, hhmm, sourceName } from "@/lib/format";
 import { alertKey, alertPriority, type Priority } from "@/lib/selectors";
 import { useHerald } from "@/lib/store";
+import { MismatchCard } from "@/features/capture/MismatchCard";
 import type { Alert, FactView, NeedItem, Snapshot } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ActionButton, ActionNote, usePendingAction } from "@/components/ActionButton";
@@ -256,7 +257,8 @@ export function AttentionQueue({ className }: { className?: string }) {
             <Section title="Needs your tap" count={confirmCount} tone="accent">
               <ul className="divide-y divide-border-subtle">
                 {a.confirmAlerts.map((al) => <CodeStatusRow key={alertKey(al)} a={al as CodeStatus} />)}
-                {a.confirmFacts.map((f) => <TapRow key={f.id} f={f} />)}
+                {a.confirmFacts.map((f) => f.verify?.status === "mismatch" && !f.verify.resolution
+                  ? <MismatchCard key={f.id} fact={f} /> : <TapRow key={f.id} f={f} />)}
               </ul>
             </Section>
           )}

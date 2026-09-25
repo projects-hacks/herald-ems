@@ -18,6 +18,7 @@ import { OverviewPage } from "@/pages/OverviewPage";
 import { PatientPage } from "@/pages/PatientPage";
 import { TranscriptPage } from "@/pages/TranscriptPage";
 import { TrendsPage } from "@/pages/TrendsPage";
+import { CaptureControl } from "@/features/capture/CaptureControl";
 
 const PAGE: Record<Page, () => React.ReactElement | null> = {
   overview: OverviewPage, patient: PatientPage, trends: TrendsPage, handoff: HandoffPage, transcript: TranscriptPage,
@@ -51,6 +52,7 @@ export function NowApp({ player }: { player: FixturePlayer | null }) {
           <TopBar />
           <ConnectBand />
           <CompactStatus />
+          <CaptureControl />
           <main key={page} className="min-h-0 flex-1 overflow-y-auto max-lg:overflow-visible">
             <Current />
           </main>
