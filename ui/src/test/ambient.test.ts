@@ -58,18 +58,54 @@ describe("continuous capture", () => {
     resolve({ getTracks: () => [{ stop }] } as unknown as MediaStream); await started;
     expect(stop).toHaveBeenCalledOnce(); expect(fetch).not.toHaveBeenCalled();
   });
-  it("stops with an explicit error instead of silently building an unbounded queue", async () => {
-    vi.mocked(fetch).mockReturnValue(new Promise(() => {}));
-    await capture.start(); block(); block(); block(); block();
-    expect(states.at(-1)).toMatchObject({ listening: false, error: true });
-    expect(states.at(-1)?.message).toContain("unsent clip was discarded");
-    expect(fetch).toHaveBeenCalledOnce();
+  it("keeps listening through a long outage: the queue is bounded, and the words that gave way are reported", async () => {
+    vi.mocked(fetch).mockReturnValue(new Promise(() => {}));            // the server never answers
+    await capture.start();
+    for (let i = 0; i < 12; i++) block();
+    const last = states.at(-1)!;
+    expect(last.listening).toBe(true); expect(last.error).toBe(false);
+    expect(last.queued).toBeLessThanOrEqual(9);                        // 8 waiting + 1 in flight
+    expect(last.lost).toBeGreaterThanOrEqual(1);
+    expect(last.warning).toMatch(/not processed/);
   });
-  it("does not keep recording after a server error", async () => {
+  it("retries a clip the server failed, keeps listening, and says so if it never lands", async () => {
+    vi.useFakeTimers();
     vi.mocked(fetch).mockResolvedValue({ ok: false, status: 503 } as Response);
-    await capture.start(); block(); await settle();
-    expect(states.at(-1)).toMatchObject({ listening: false, error: true });
-    expect(stop).toHaveBeenCalledOnce();
+    await capture.start(); block();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(states.at(-1)?.warning).toMatch(/Can't reach the vehicle server/);
+    await vi.advanceTimersByTimeAsync(20000);
+    expect(fetch).toHaveBeenCalledTimes(5);                            // the first try and four retries
+    expect(states.at(-1)).toMatchObject({ listening: true, error: false, lost: 1 });
+    expect(states.at(-1)?.warning).toMatch(/1 clip not processed/);
+    expect(stop).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+  it("clears the warning when the server comes back", async () => {
+    vi.useFakeTimers();
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 503 } as Response).mockResolvedValue({ ok: true, json: async () => ({}) } as Response);
+    await capture.start(); block();
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(states.at(-1)?.warning ?? null).toBeNull();
+    vi.useRealTimers();
+  });
+  it("reopens the microphone when the device drops out, instead of stopping", async () => {
+    vi.useFakeTimers();
+    const track: { stop: () => void; onended: (() => void) | null } = { stop: vi.fn(), onended: null };
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockResolvedValue({ getTracks: () => [track], getAudioTracks: () => [track] } as unknown as MediaStream);
+    await capture.start();
+    track.onended?.();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(2);
+    expect(states.at(-1)).toMatchObject({ listening: true, error: false });
+    vi.useRealTimers();
+  });
+  it("does not retry a clip the call no longer accepts", async () => {
+    vi.mocked(fetch).mockResolvedValue({ ok: false, status: 409 } as Response);
+    await capture.start(); block(); await settle(); await settle();
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(states.at(-1)?.listening).toBe(true);
   });
   it("discards unsent audio on dispose, without starting another upload", async () => {
     await capture.start(); said(); capture.dispose();

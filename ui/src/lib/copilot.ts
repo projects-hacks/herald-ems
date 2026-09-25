@@ -159,7 +159,9 @@ export function presence(o: {
   listening: boolean; micError: string | null; monitorWatching: boolean; cameraError: string | null;
 }): Presence {
   if (o.replay) return { tone: "replay", text: "Demo replay · recorded scenario" };
-  if (o.offline) return { tone: "down", text: o.hasSnapshot ? "Offline — vehicle server disconnected, showing last state" : "Connecting to the vehicle…" };
+  if (o.offline) return { tone: "down", text: !o.hasSnapshot ? "Connecting to the vehicle…"
+    : o.listening ? "Vehicle server not answering — still listening; speech is held and sent when it returns"
+    : "Offline — vehicle server disconnected, showing last state" };
   if (o.health?.llm_available === false) return { tone: "down", text: "Speech is not becoming facts right now — words are kept; enter key facts by hand" };
   if (o.micError) return { tone: "down", text: /https|localhost|secure/i.test(o.micError) ? "Microphone blocked by the browser — open Herald via localhost" : `Microphone stopped — ${o.micError}` };
   if (o.cameraError) return { tone: "down", text: `Camera stopped — ${o.cameraError}` };
