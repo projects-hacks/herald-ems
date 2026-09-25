@@ -1759,7 +1759,7 @@ Any failure → ship rules + Omni, and present the fine-tune as a slide with wha
 5. Record results below and in `eval/results.jsonl`.
 
 ### FINAL held-out results on `gold_v2` (100 utterances), 3 runs each (2026-09-23, night) — the deck uses these
-`gold_v2` was written and labeled by two annotators who never saw the extractors, earlier gold sets, or training data (agreement F1 0.976 before adjudication). Scorer v2; predictions in `eval/dumps/gold_v2/`.
+`gold_v2` was written and labeled by two annotators who never saw the extractors, earlier gold sets, or training data (agreement F1 0.979 before adjudication, re-run against `eval/gold_v2_labeler_a.jsonl`/`_b.jsonl` with `eval/agreement.py`). Scorer v2; predictions in `eval/dumps/gold_v2/`.
 
 | Extractor | F1 per run | Mean | Spread | Precision | Recall | Role acc | Free-text presence | p50 / p95 ms |
 |---|---|---|---|---|---|---|---|---|

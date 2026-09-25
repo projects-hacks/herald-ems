@@ -3,7 +3,7 @@
 **The patient's story arrives before the doors open.**
 
 Herald is an offline AI copilot for the back of the ambulance. While the paramedic works, it:
-- listens in the background and selects useful frames from a camera aimed at the equipment;
+- the camera watches the patient monitor and flags changes; every camera reading is unconfirmed until the medic confirms it, and nothing reaches the ED unconfirmed;
 - keeps a live, evidence-backed picture of the patient: what's known, what changed, what's still missing, which clock is running, and whether a stroke or heart-attack pre-alert is ready;
 - looks up the county's own protocols, with citations;
 - sends the emergency department the smallest critical update the connection can carry.
@@ -23,7 +23,7 @@ Every model runs on one HP ZGX Nano (NVIDIA GB10). **No cloud AI.**
 |---|---|
 | **Speech → facts** | Whisper large-v3-turbo on the GPU (a 10 s clip transcribes in about 0.3 s). Then a **fine-tuned Qwen3-4B extractor, trained on this box**, turns the words into typed facts: vitals, medications, allergies, last known well, stroke-exam items, code status. It is served in FP8, at about 1 s per utterance. |
 | **Who said it, and how sure** | Every fact records who it came from ("his wife says…" → family) and links back to the audio or photo. A fact confirms itself only when the paramedic said it and the model was sure of it (its own token probability, with the bar calibrated on a labeled dev set). Facts from other speakers, photos, codes such as DNR, and anything the model was less sure of start **unconfirmed**; one tap confirms. |
-| **Photos** | The local vision model (Qwen3-VL-30B-A3B, open source, chosen over Nemotron-3-Nano-Omni in a level bake-off) reads monitors, pill bottles, glucometers, and POLST forms, with physical-plausibility checks. |
+| **Photos** | The local vision model (Qwen3-VL-30B-A3B, open source, chosen over Nemotron-3-Nano-Omni in a level bake-off) reads monitors, pill bottles, and glucometers, with physical-plausibility checks. Every reading starts unconfirmed until the medic taps to confirm it (invariant 4); nothing reaches the ED unconfirmed. It can also read forms such as the California POLST, but Herald does **not** claim reliable `code_status` (DNR/full code) reading from any model yet — that field always waits for a tap and is never auto-confirmed regardless of confidence (`config/vocabulary.yaml` `require_tap`). |
 | **Gap-first screen** | The pre-alert checklist (the county's own) starts at 0 of 6, and the gaps close as the medic talks. |
 | **Published scores** | NEWS2, RACE, **G.F.A.S.T.** (Santa Clara County's stroke screen), and the 2021 national field-triage criteria. Plain code computes them from confirmed facts only, showing every input, what's missing, and the source. |
 | **County protocols** | Santa Clara County EMS Protocol 700-A13 (Stroke) drives the checklist and quotes the routing rule. On a positive G.F.A.S.T. screen: *"4 of 4: Comprehensive Stroke Center; closest Primary Stroke Center if transport to the closest Comprehensive Stroke Center is over 45 minutes (700-A13 §3.2, §3.2.1)"*. The county switches live. |
@@ -35,7 +35,9 @@ Every model runs on one HP ZGX Nano (NVIDIA GB10). **No cloud AI.**
 
 ## Measured results (held-out, 3 runs each)
 
-The extraction gold set (gold v2) is 100 utterances and 320 facts, written and labeled by two annotators who never saw the extractors or the training data. They agreed at F1 0.976 before adjudication.
+The extraction gold set (gold v2) is 100 utterances and 320 facts, written and labeled by two annotators who never saw the extractors or the training data. They agreed at F1 0.979 before adjudication.
+
+**These are facts-from-a-transcript numbers**, measured by running gold *text* through the extractor (`eval/bench_extract.py`), not by speaking the utterances and measuring end to end through the microphone and Whisper. Herald does not yet have a saved end-to-end (audio-in) benchmark; one would appear as a `field_bench` row in `eval/results.jsonl` when it exists.
 
 | Extractor | F1 | Precision | Recall | Who-said-it accuracy | G.F.A.S.T. F1 | Latency p50 / p95 |
 |---|---|---|---|---|---|---|
@@ -46,17 +48,17 @@ The extraction gold set (gold v2) is 100 utterances and 320 facts, written and l
 | **fine-tuned Qwen3-4B, run E v2, FP8 (live)** | **0.950** | **0.96** | **0.94** | **0.97** | **0.96** | 1.1–1.5 / 2.4–3.1 s |
 
 - **Adversarial speech:** 40 unseen attacks (instruction injection, role spoofing, advice stuffing, garbage input). The fine-tuned extractor passes 24/40 (run C: 25/40); no other extractor tested passes more. Facts said together with a command to the system are held for the medic's tap, with the reason shown.
-- **Confidence:** a fact confirms itself only at the model's own probability ≥ 0.8. On held-out data that is 173 of 327 medic facts (53%), 1 of them wrong (a role, not a value). The rest wait for one tap.
+- **Confidence:** a fact confirms itself only at the model's own probability ≥ 0.8, and only when it came from the medic's own mic (facts from other speakers never auto-confirm). Of the 282 medic-attributed facts in the held-out set, 161 (57%) auto-confirm, 1 of them wrong (a role, not a value); the rest wait for one tap. (327 facts total in that set across every speaker; 173 of all 327 auto-confirm, but the other-speaker share of that is never eligible to begin with, so the medic-only figure is the one that means "how often does the medic's own speech confirm itself.")
 - **Drug names → RxNorm:** brands, retired brands, misspellings and combinations are coded to RxNorm on the box (class allergies such as "sulfa" to ICD-10-CM). Held-out gold v2, live model, same predictions with and without coding: drug-name precision 0.933 → 0.956, recall 0.850 → 0.871; 200 facts fixed and 0 lost across 42 saved runs. A name matched only by spelling or sound waits for a tap (MODEL_PLAN §0j).
-- **Every call type:** medications given, procedures, pain, GCS, EtCO2, trauma mechanism/injuries/criteria, suspected infection and 12-lead findings: F1 0.84 on a held-out every-call set (100 utterances, two blind annotators).
+- **Every call type:** medications given, procedures, pain, GCS, EtCO2, trauma mechanism/injuries, suspected infection and 12-lead findings: F1 0.84 on a held-out every-call set (100 utterances, two blind annotators). `trauma.criteria` recall specifically is weak (roughly 0.2) on every extractor tested; Herald does not claim automatic field-triage or sepsis-criteria extraction from speech — the 2021 field-triage score and county criteria (Policy 605, 700-A04) are computed only from criteria the medic has confirmed, never inferred.
 - **Local only:** every model runs on the box and loads from local folders; a running server makes no outbound connections (checked). The only network use is the county protocol sync and the ED relay, when a link exists.
 - **Protocol lookup** (the county's 32 current documents: stroke, sepsis, trauma, shock, chest pain, overdose, falls, hemorrhage control, pediatrics, destinations, radio reports and center standards):
   - all 1,746 numbered sections recovered, none spurious, against an answer key built with CPU tools only;
   - Table B's 168 cells read exactly;
   - retrieval alone (keyword + embeddings on the CPU) ranks the right passage first for 26/52 questions and in the top 3 for 37/52;
-  - with the local model reranking, the right passage first for 14/22 and in the top 3 for 19/22, and 2/3 out-of-scope questions refused (measured on the first 22 + 3 questions, before 27 documents were added; to be re-measured on all 59).
+  - with the local model reranking (`qwen3vl-fp8`, untuned, the model Herald actually serves for this), the right passage first for 41/52 and in the top 3 for 43/52, and 4/7 out-of-scope questions refused — measured on the complete 59-question set (superseding an earlier partial measurement on the first 22 + 3 questions).
 - **Honest limits:**
-  - The gold sets are synthetic, so accuracy on real speech is expected to be lower. A field evaluation with real speakers is in progress.
+  - All training and gold-set data — speech, labels, and rendered photos — is synthetic and AI-assisted: generated and labeled by the team's own tooling, not collected from real incidents. Gold sets are labeled independently by two annotators per set, with measured agreement, then adjudicated, but **no data has been reviewed by a clinician**. Accuracy on real speech is expected to be lower than these numbers; a field evaluation with real speakers is in progress.
   - The county documents are archived copies, pending verification against the in-force manual.
 
 The details, including what was genuine, what was noise, and what was a flaw in our own test, are in [`docs/MODEL_PLAN.md`](docs/MODEL_PLAN.md).
