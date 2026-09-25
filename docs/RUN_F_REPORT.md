@@ -489,7 +489,42 @@ run against a camera.
 
 `soak.py` reports `passed: false`, and it is right to, because its `model_errors_zero` check failed. **The one error
 was the `/api/state` 500 in §11d**, at elapsed 195 s, inside the protocol-index build window — an app fault, not a
-model fault. Every other criterion passed. The soak has **not** been re-run against the fix.
+model fault. Every other criterion passed.
+
+### 11c-2. Second soak, on the fixed code
+
+Re-run after the §11d fix, `runs/soak/ship_soak2.jsonl`:
+
+| | soak 1 (pre-fix) | soak 2 (post-fix) |
+|---|---|---|
+| duration | 1803.8 s | 1801.8 s |
+| iterations / model calls | 163 / 1467 | 151 / 1359 |
+| **model errors** | **1** | **0** |
+| iteration errors / relay failures | 0 / 0 | 0 / 0 |
+| scenario steps skipped | 0 | 0 |
+| latency p95, first 5 min → last 5 min | 2596 → 2794 ms (+7.6%) | 3339 → 2628 ms (**−21.3%**, it sped up) |
+| `no usable frame before request expired` | 0 | 0 |
+| verdict | `passed: false` on `model_errors_zero` | `passed: false` on `final_memory_growth_within_1_gib` |
+
+**The `/api/state` fix is confirmed: zero model errors across 1359 calls.** That is what this run was for.
+
+**The remaining failure is the harness, and the evidence is unambiguous.** `soak.py` computes
+`final_growth = used[-1] - used[0]` — two instantaneous samples. On this box `MemAvailable` includes reclaimable page
+cache, and CUDA allocations lower it without being charged to a cgroup (AGENTS.md), so the trace is a sawtooth:
+soak 2 runs 31.9 → 23.9 → 31.0 → 31.5 → 22.9 → 31.0 → 29.7 GiB, dipping and fully recovering, standard deviation
+2.95 GiB. Fitting a line to all 61 samples gives the opposite of a leak:
+
+| | slope of FREE memory | first-half median | second-half median |
+|---|---|---|---|
+| soak 1 | **+3.87 GiB/hour** | 30.85 GiB | 32.09 GiB |
+| soak 2 | **+2.75 GiB/hour** | 29.62 GiB | 30.01 GiB |
+
+Free memory **rose** in both runs. A 2.30 GiB "final growth" on a trace with a 2.95 GiB standard deviation is
+sampling phase, not trend. **The bar has deliberately not been changed**: `soak.py` belongs to integration, and
+relaxing a pass criterion at the deadline is indistinguishable from moving a goalpost. The recommendation, for whoever
+owns it, is to compare the median of the last N samples against the median of the first N, or report the fitted slope,
+instead of differencing two endpoints. Recorded here so the `passed: false` is not mistaken for a memory leak, and not
+quietly dismissed either.
 
 Two honest limits on this soak. It drives `/api/photo` only twice in 30 minutes, so it is a strong test of the speech
 path, memory and thermals and a **weak** test of continuous monitor-watch: "0 invented monitor values" over two reads
