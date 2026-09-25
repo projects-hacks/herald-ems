@@ -1,0 +1,125 @@
+Herald
+Copyright 2026 the Herald team (HP Edge AI SJSU Hackathon)
+
+This product includes software developed by the Herald team and is licensed
+under the Apache License, Version 2.0 (see LICENSE).
+
+This file lists the third-party models, data, fonts, and public documents
+Herald uses, with their license or terms and, where relevant, the disclaimer
+those terms require. It is provided for information, not as a substitute
+for reading each item's own license at its source.
+
+================================================================================
+Base models (fine-tuned on this box; see MODEL_CARD.md for what changed)
+================================================================================
+
+- Qwen/Qwen3-VL-30B-A3B-Instruct (and its FP8 release,
+  Qwen/Qwen3-VL-30B-A3B-Instruct-FP8) -- Apache License, Version 2.0.
+  https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Instruct
+  Base for the "herald-f" fine-tuned extractor/vision adapter (LoRA merged
+  in) and for the untuned "qwen3vl-fp8" model Herald serves for photo
+  reading, protocol figures, reranking and translation.
+
+- Qwen/Qwen3-4B-Instruct-2507 -- Apache License, Version 2.0.
+  https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507
+  Base for the "herald-f4b-fp8" text-only fine-tuned extractor (fallback
+  when the 30B stack is not used) and for earlier fine-tuning runs
+  (ems-e-v2-fp8 and predecessors).
+
+- openai/whisper-large-v3-turbo -- MIT License.
+  https://huggingface.co/openai/whisper-large-v3-turbo
+  Speech-to-text. Used unmodified.
+
+- BAAI/bge-base-en-v1.5 -- MIT License.
+  https://huggingface.co/BAAI/bge-base-en-v1.5
+  Sentence embeddings for protocol passage retrieval. Used unmodified.
+
+Herald's own LoRA adapters, trained on top of the Qwen3 base models above,
+are Herald team work and are licensed Apache-2.0 along with the rest of this
+repository; see MODEL_CARD.md for training data, method and known limits.
+Qwen3 model weights are not redistributed in this git repository; they are
+downloaded from Hugging Face at setup time (see README.md).
+
+================================================================================
+Fonts (bundled in ui/, via npm)
+================================================================================
+
+- Inter (@fontsource-variable/inter) -- SIL Open Font License, Version 1.1.
+  https://github.com/rsms/inter
+
+- JetBrains Mono (@fontsource-variable/jetbrains-mono) -- Apache License,
+  Version 2.0. https://github.com/JetBrains/JetBrainsMono
+
+================================================================================
+RxNorm and RxNav (drug-name coding, herald/terminology/)
+================================================================================
+
+Herald codes medication and allergen names using RxNorm, produced by the
+U.S. National Library of Medicine (NLM), National Institutes of Health,
+Department of Health and Human Services. Herald uses only the RxNorm
+Current Prescribable Content subset, which is public domain and requires
+no UMLS Metathesaurus License. The pinned release, its source URL and its
+sha256 checksum are recorded in config/terminology.yaml
+(scripts/build_rxnorm_index.py rebuilds the local index from it; the index
+itself is not committed to this repository).
+
+Brand names outside the prescribable subset (active-but-not-prescribable
+and retired brand names) are supplemented from NLM's public RxNav REST API
+(https://rxnav.nlm.nih.gov/REST), subject to the RxNav Terms of Service:
+https://lhncbc.nlm.nih.gov/RxNav/TermsofService.html
+
+NLM disclaimer: RxNorm and RxNav are provided by NLM "as is," and NLM makes
+no warranties, express or implied, including no warranty of merchantability
+or fitness for a particular purpose, regarding RxNorm, RxNav, or any
+derivative work such as Herald's local drug-coding index. Herald is not
+endorsed by, and is not a product of, the National Library of Medicine or
+the National Institutes of Health.
+
+Herald never distributes a full copy of RxNorm; it distributes only the
+small index scripts/build_rxnorm_index.py builds from the public release,
+and that index is not committed to this repository (each clone rebuilds
+its own, per README.md).
+
+================================================================================
+Santa Clara County EMS Agency protocol documents (data/protocols/santa_clara/)
+================================================================================
+
+The PDFs under data/protocols/santa_clara/archive/ are unmodified copies of
+public records published by the Santa Clara County Emergency Medical
+Services Agency (protocols, policies and administrative orders governing
+prehospital care in Santa Clara County, California), retrieved via public
+web archives (web.archive.org) as noted in config/counties/santa_clara.json.
+They are reproduced here exactly as published, under their original file
+names, for reference by Herald's protocol-lookup feature; Herald does not
+claim authorship of their content and always cites the document, section
+and effective date it quotes from. These are government records; verify
+any protocol text against the county's own in-force manual before clinical
+use (config/counties/santa_clara.json's review note).
+
+================================================================================
+California POLST form (data/forms/, scripts/vision_train/)
+================================================================================
+
+The POLST (Physician Orders for Life-Sustaining Treatment) form referenced
+by Herald's vision prompts and training renderer is the California POLST
+form, EMSA #111 B, effective 4/1/2017 (English) and its 2016 Spanish
+translation, published by the California POLST program
+(https://capolst.org) in coordination with the California Emergency
+Medical Services Authority. The form is designed for free reproduction and
+distribution for its intended clinical and educational use; Herald
+reproduces it unmodified for vision-model training and reads it only to
+report which resuscitation box is checked (see MODEL_CARD.md and
+"Claims" in README.md for exactly what Herald does and does not claim
+about reading it). The California POLST form and program are not affiliated
+with, and do not endorse, Herald.
+
+================================================================================
+Published clinical scores (data, not software; cited for provenance)
+================================================================================
+
+NEWS2 (Royal College of Physicians), RACE, G.F.A.S.T. (Santa Clara County
+EMS Protocol 700-A13) and the 2021 National Guideline for the Field Triage
+of Injured Patients are reproduced as published score definitions and
+thresholds in config/scores/*.yaml, with their sources cited in README.md
+under "Evidence behind the scores." Herald computes these scores in plain
+code from confirmed facts; it does not modify the published definitions.
