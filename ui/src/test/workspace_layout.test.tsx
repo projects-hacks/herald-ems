@@ -79,6 +79,7 @@ describe("component-focused ambulance view", () => {
   });
   it("expands only the selected reading and exposes confirmed history", () => {
     render(<CabinApp />);
+    fireEvent.click(screen.getByRole("button", { name: "Vitals & trends" }));
     const readings = within(screen.getByRole("region", { name: "Latest documented readings" }));
     const expand = readings.getAllByRole("button", { name: /^Expand / })[0];
     fireEvent.click(expand);

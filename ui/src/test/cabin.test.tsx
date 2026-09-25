@@ -21,7 +21,7 @@ describe("ambulance workspace", () => {
     expect(screen.getByRole("button", { name: "Start listening" })).toBeTruthy();
     expect(screen.getByText("Microphone off")).toBeTruthy();
     expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
-    expect(screen.getByRole("region", { name: "Latest documented readings" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "How this patient is moving" })).toBeTruthy();
     expect(screen.getByRole("region", { name: "Camera capture" })).toBeTruthy();
     expect(screen.getByRole("status", { name: "Vehicle and ED status" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Patients" })).toBeTruthy();
@@ -54,6 +54,7 @@ describe("ambulance workspace", () => {
       id: "pending", key: "vitals.hr", label: "Heart rate", value: 177, unit: "bpm", status: "unconfirmed", ts: new Date().toISOString(),
     } as Snapshot["facts"][string] } } });
     render(<CabinApp />);
+    fireEvent.click(screen.getByRole("button", { name: "Vitals & trends" }));
     const readings = within(screen.getByRole("region", { name: "Latest documented readings" }));
     expect(readings.queryByText("177")).toBeNull();
     expect(readings.getByText(/Needs verification/)).toBeTruthy();
