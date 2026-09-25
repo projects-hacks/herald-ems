@@ -8,7 +8,7 @@ import random
 import numpy as np
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
-ORDER = ("occlusion", "glare", "perspective", "rotation", "blur", "motion_blur", "low_light", "jpeg")
+ORDER = ("occlusion", "moire", "glare", "perspective", "rotation", "blur", "motion_blur", "low_light", "jpeg")
 
 
 def occlusion(img: Image.Image, p: dict, fields: dict, rng: random.Random) -> Image.Image:
@@ -42,6 +42,22 @@ def occlusion(img: Image.Image, p: dict, fields: dict, rng: random.Random) -> Im
     out = img.convert("RGBA")
     out.alpha_composite(over)
     return out.convert("RGB")
+
+
+def moire(img: Image.Image, p: dict, fields: dict, rng: random.Random) -> Image.Image:
+    """A screen photographed by a camera: interference bands between the display's pixel grid and the sensor
+    (a sinusoid of `period` px at `angle` degrees, depth `strength`) and a faint RGB pixel grid."""
+    w, h = img.size
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    a = np.deg2rad(p.get("angle", 12))
+    band = 0.5 * (1 + np.sin(2 * np.pi * (xx * np.cos(a) + yy * np.sin(a)) / p.get("period", 9)))
+    shade = 1 - p.get("strength", 0.2) * band
+    grid = np.ones((h, w, 3), dtype=np.float32)
+    for c in range(3):
+        grid[:, c::3, c] *= 1.06
+    grid[1::3, :, :] *= 0.94
+    arr = np.asarray(img, dtype=np.float32) * shade[..., None] * grid
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
 
 
 def glare(img: Image.Image, p: dict, fields: dict, rng: random.Random) -> Image.Image:
@@ -111,7 +127,7 @@ def jpeg(img: Image.Image, p: dict, fields: dict, rng: random.Random) -> Image.I
     return Image.open(io.BytesIO(buf.getvalue())).convert("RGB")
 
 
-FUNCS = {f.__name__: f for f in (occlusion, glare, perspective, rotation, blur, motion_blur, low_light, jpeg)}
+FUNCS = {f.__name__: f for f in (occlusion, moire, glare, perspective, rotation, blur, motion_blur, low_light, jpeg)}
 
 
 def apply(img: Image.Image, steps: list[dict], fields: dict, rng: random.Random) -> Image.Image:

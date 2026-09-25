@@ -87,7 +87,7 @@ function FactMeta({ f, confidence = true }: { f: FactView; confidence?: boolean 
 function ConfirmActions({ fact }: { fact: FactView }) {
   return (
     <>
-      <ActionButton pendingKey={`confirm:${fact.id}`} onClick={() => api.confirm(fact.id)} busyText="Saving…" variant="primary">Confirm</ActionButton>
+      <ActionButton pendingKey={`confirm:${fact.id}`} onClick={() => api.confirm(fact.id)} busyText="Saving…" variant="primary" className="min-h-16">Confirm</ActionButton>
       <CorrectFactDialog fact={fact} />
       <ActionButton pendingKey={`reject:${fact.id}`} onClick={() => api.reject(fact.id)} busyText="Saving…">Reject</ActionButton>
     </>
@@ -144,7 +144,7 @@ function ContradictionRow({ a, s }: { a: Contradiction; s: Snapshot }) {
         ? <span>The receiving system has the earlier value “{factValue(older)}”. The newer value stays on the vehicle until you choose.</span>
         : <span>Neither value leaves the vehicle until you choose.</span>}>
       {older && newer && (
-        <div className="mt-2.5 grid grid-cols-2 gap-2.5 max-sm:grid-cols-1">
+        <div className="mt-2.5 grid grid-cols-2 gap-3 max-sm:grid-cols-1">
           {a.facts.map((f) => <Choice key={f.id} f={f} a={a} sentToEd={sentToEd} />)}
         </div>
       )}
@@ -259,6 +259,11 @@ export function AttentionQueue({ className }: { className?: string }) {
           {a.urgent.length > 0 && (
             <Section title="Clinical change" count={a.urgent.length}>
               <ul>{a.urgent.map((al) => <FindingRow key={alertKey(al)} a={al} s={s} onSeen={() => markSeen(alertKey(al))} />)}</ul>
+            </Section>
+          )}
+          {a.positiveScreens.length > 0 && (
+            <Section title="Positive stroke screens" count={a.positiveScreens.length}>
+              <ul>{a.positiveScreens.map((al) => <FindingRow key={alertKey(al)} a={al} s={s} onSeen={() => markSeen(alertKey(al))} />)}</ul>
             </Section>
           )}
           {a.choose.length > 0 && (

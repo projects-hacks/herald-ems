@@ -90,6 +90,7 @@ class Provenance(BaseModel):
     normalized: Optional[list[dict]] = None   # drug names: [{said, value, system, code, method, score}] per item
     trigger: Optional[str] = None
     frame_id: Optional[str] = None
+    observed_at: Optional[datetime] = None  # server receipt time of a selected camera frame; distinct from fact ingestion
     auto: bool = False
 
 

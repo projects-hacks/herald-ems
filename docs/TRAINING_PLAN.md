@@ -90,7 +90,13 @@ Found by: the run E v2 error analysis, the adversarial bench, today's live hando
 - New keys from §8 decision 1, with enough examples each (≥ 60 positives, plus negatives).
 - Labels written in a separate pass from generation (labeling guide + vocabulary only), then adjudicated; agreement rate reported.
 - The drug-spelling relabel list applied at build time.
-- A Whisper-style noise layer: homophones, split or merged drug names, dropped words, numbers as words or digits. Rates come from Whisper's measured behavior, not made up.
+- A Whisper noise layer made of real Whisper output (done, MODEL_PLAN §0k "Measured ASR noise"):
+  - 1,500 train lines, stratified over all 54 keys, were spoken by 8 Piper TTS voices (4 female, 4 male, rate jitter).
+  - Each was mixed with synthetic cabin noise: clean, or SNR 15, 8 or 3 dB. The noise is engine rumble, brown and pink noise, with a siren or monitor beeps on some clips.
+  - Each was transcribed by the production Whisper path (`WhisperSTT`, turbo, priming prompt).
+  - A transcript is kept only if the production grounding rules still support every label and every said number survives. Misheard drug names are kept.
+  - Kept transcripts are added to train only (`--asr data/annotated/asr_f.jsonl`), with the clean labels as targets. Dev stays clean text.
+  - Measured on TTS speech, not human speech: WER 13.2 %, number error 9.5 %, drug-name error about 43–45 %. The noise did not measurably change these: 92 % of its energy is below 300 Hz.
 - Decontaminated against every gold set (v1/v2/v3/ctx/broad), the adversarial bench and the scenario scripts.
 - The same prompt and input lines as run E v2 (the `ems-e` format under a `herald-f` profile): "the prompt stays".
 
@@ -124,6 +130,23 @@ The same 30B also reranks protocol passages, transcribes flowcharts and will tra
 - **Quote spans per fact (B3).** It adds output tokens to every call, so latency goes up. Numbers are already grounded in what was said. Decision 3 below.
 - **Audio input, Spanish extraction.** Whisper transcribes; the interpreter (S3) translates to English before extraction.
 - **Retraining Whisper, bge or pyannote.** There is no in-domain labeled data and no time to measure it properly.
+
+## 4.6 Measured on the real 30B, and what it bought (2026-09-25)
+
+The run was planned against an assumed 180 padded tokens/s, scaled from a single-layer benchmark. The memory ladder
+(MODEL_PLAN §0l) measured the real figure on the full model: **401 padded tokens/s**, 2.2× faster than assumed. The
+ladder also fixed the reason the 30B could not be loaded at all — `from_pretrained` transiently needs about twice the
+checkpoint on this box, so the weights are now streamed shard by shard (§0l).
+
+**Owner decision, 2026-09-25: spend the spare time on vision.** `config/training.yaml` `herald-f`
+`mix.image_rows_per_epoch` 600 → **1200**, so ~2,400 of the 3,460 synthetic photos are seen over the two epochs
+instead of 1,200. Nothing else in the mix changed. Photo reading is the job with the least training signal
+(§3 "Vision errors": all test photos are synthetic, rotation is the weakest degradation, 2 of 57 photos got an
+invented fact), so more photo rows is the highest-value use of the extra hours.
+
+Cost: 413 → **488** optimizer steps, 4.27 M → **5.43 M** padded tokens, projected **~3.0 h → ~3.8 h** at the measured
+speed. The deadline is Fri 11 PM PDT (06:00 UTC Sat), so a ~3.8 h run started before 05:00 UTC still leaves the whole
+of Friday for the gates, the soak and the deck.
 
 ## 5. Schedule (UTC; PDT = UTC − 7)
 
@@ -160,11 +183,61 @@ Every deciding number is run 3 times. Comparisons use the paired bootstrap again
 - p95 ≤ the untuned model.
 
 **Kept abilities:**
-- rerank 22-question bench ≥ 17/22 first and ≥ 19/22 top-3; the 59-question bench no worse than untuned (run on both before training);
-- 700-A13 figure transcription no worse;
+- protocol reranking on all 59 questions no worse than the untuned model's baseline (measured Thu 19:30 UTC, 3 runs, identical each time; `eval/dumps/vision/baseline_untuned/`):
+  - right passage first 41/52 (0.788);
+  - top 3 43/52 (0.827, equal to the retrieval ceiling);
+  - first given retrieved 0.953;
+  - refusals 4/7;
+  - p50 447 ms;
+- 700-A13 figure transcription no worse than the baseline (nodes 0.875, edges 0.857, no added words; 3 runs identical);
 - translation spot check (10 lines) readable and faithful.
 
 **Demo:** `scenarios/stroke_demo.json` 6/6; `scenarios/shift_demo.json` passes end to end; 30-min soak passes.
+
+### 6a. Kept abilities are a hard gate, per epoch (owner, 2026-09-25 07:00 UTC)
+
+Added after the epoch-1 dev losses showed the replay slice drifting while speech and photos improved: text 0.1883 → 0.1287 → 0.1195 → **0.0899** and image 0.2822 → 0.2510 → 0.2681 → **0.2292** (the 122 blip was noise on an ~80-item set), against replay 0.0894 → 0.0920 → 0.0961 → **0.1393**. The first three replay steps were +0.003 and +0.004; the fourth was **+0.0432**, and every pass moved the same way. Replay dev is only 40 rows, so the direction is stronger evidence than the size, and it is a proxy. **The gates below are the actual test.**
+
+**Each epoch adapter must pass all of these on its own. An epoch that fails them cannot ship, whatever its speech and photo numbers are.**
+- protocol reranking, all 59 questions: right passage first **≥ 41/52** (0.788), top 3 **≥ 43/52** (0.827), refusals **≥ 4/7** (0.571);
+- 700-A13 figure transcription: nodes **≥ 0.875**, edges **≥ 0.857**, **no added words**;
+- 10-line EN↔ES translation spot check: faithful.
+
+**Which adapter ships:**
+1. Epoch 2 if it passes kept abilities and wins on speech and photos.
+2. ~~Epoch 1 if epoch 2 fails kept abilities and epoch 1 passes them.~~ **Superseded by the measured result (owner, 2026-09-25 10:0x UTC) — see 6b.**
+3. If epoch 2 fails kept abilities, go to the **4B run F + untuned `qwen3vl-fp8`** fallback (§7) or the **split stack** (§7a). Not to epoch 1.
+
+### 6b. Epoch 1 is not a fallback: epoch 2 dominates it (owner, 2026-09-25)
+
+Rule 2 above was written before either epoch had been measured, on the assumption that the later adapter might trade kept abilities for speech. **It did not.** The final dev losses:
+
+| step | text | image | replay | |
+|---:|---:|---:|---:|---|
+| 244 | 0.0899 | 0.2292 | 0.1393 | epoch 1 |
+| **488** | **0.0819** | **0.2042** | **0.1322** | **epoch 2** |
+
+Epoch 2 is better on **all three** splits: text −8.9%, image −10.9%, replay −5.1%. There is no axis on which epoch 1 wins, so there is no scenario in which we would ship epoch 1 over epoch 2. Consequences:
+
+- **Epoch 2 is merged, served and gated first.** Epoch 1 is not served and not gated.
+- **If epoch 2 passes kept abilities, epoch 1 is never tested.** It cannot win.
+- **If epoch 2 fails kept abilities, go to the fallback, not to epoch 1.** Epoch 1 retained those abilities *worse* (replay 0.1393 against 0.1322), so it is the *less* likely of the two to pass the same gate. Test it only if the fallback also disappoints and there is time left.
+- The epoch-1 adapter and its merged checkpoint stay on disk and on the private repo. Keeping them costs nothing; testing them costs an hour and a model swap.
+
+**Read the replay number as a direction, not a magnitude.** The replay dev set is **40 rows**, and the step-50 baseline it is compared against is close to base weights (50 of 488 steps, LoRA barely trained), so "+48% above baseline" measures how far the adapter has moved from an almost-untuned starting point on a small sample. It says drift happened and roughly where it is heading. It does not quantify how much ability was lost. **The kept-ability gates in 6a decide that**, on the real tasks, and they are what the ship decision rests on.
+
+**Decide from `runs/herald-f-lora/log.jsonl`, not from `herald_epoch.json`.** The epoch adapter is written in `on_step_end`, which fires *before* that step's dev pass reaches `state.log_history`, so `herald_epoch.json` carries the **previous** pass's losses: epoch-1's file records step 122, not step 244. To be fixed after the run (a trainer edit, not a mid-run change).
+
+### 7a. Split stack (only if both epochs fail kept abilities but win speech and photos)
+
+Serve the fine-tuned model for what it is good at and the untuned base for what it lost:
+- `herald-f` for extraction **and** photos (`HERALD_LLM_MODEL`, `HERALD_VISION_MODEL`);
+- untuned `qwen3vl-fp8` for reranking, figure transcription and translation, through a **new `HERALD_KNOWLEDGE_MODEL`** setting (`herald/config/settings.py`, wired in the composition root; `herald/knowledge` currently reaches for the vision model);
+- both at `--gpu-memory-fraction ~0.30`.
+
+This costs a second resident 30B, so it is a memory decision, not just a config one: **measure free memory with the app and Whisper already up before choosing it** (`docs/MEMORY_SAFETY.md`, demo memory budget). If it does not fit alongside the demo, prefer rule 2 (ship epoch 1) or the §7 rollback.
+
+The operator procedure — the fit check, starting both models, verifying `/api/stack`'s `jobs` block, and rolling back — is **`docs/RUNBOOK.md` §7**. It is untested until the box is free.
 
 ## 7. Rollback
 If the gates fail, reload `qwen3vl-fp8` + `ems-e-v2-fp8`. This is today's verified stack, and it takes ~20 minutes. The downside is limited to the photo downtime. Neither of those models is deleted or changed.
@@ -184,3 +257,21 @@ If *only* photos fail and speech passes (or the reverse), serve `herald-f` for t
 2. **One model: `herald-f`** for speech + photos; E v2 stays as the fallback.
 3. **Quote spans: no.**
 4. **Real photos: the team takes 20–30 by ~22:00 UTC (3 PM PDT)** into `data/photos/real/`, with a line each saying what the screen or label shows. They are test only.
+
+## 9. Fixes at run time after the run (no retraining; each is measured on the gold sets before and after, 3 runs)
+Found while the run F data was finished (Thu 22:55–23:10 UTC).
+
+1. **Grounding is too strict for some correct facts.** 340 of 18,300 training labels (1.9%) are correct but are rejected by `config/grounding.yaml`'s cue words and number checks, so the app drops them at run time today, run E v2 included:
+
+   | Key | Rejected labels | Example that isn't accepted |
+   |---|---|---|
+   | `vitals.consciousness` | 71 | "A and O ×4" |
+   | `stroke.onset_witnessed` | 47 | "saw her words go slurry at four" |
+   | G.F.A.S.T. and RACE items | about 160 | "everything else zero" |
+   | `vitals.gcs_motor` | 8 | "e3 v5 m6" |
+   | vitals | 7 | split digits, "bp 1 42 over 88" |
+
+   The fix is config in the safety validator (not extraction rules), measured on gold v1/v2/v3/es. The Spanish `code_status` pattern also misses "no quiere que lo revivan", the guide's own §5f.11 example (b39_087). The Spanish agent counted 64 English lines that would newly match "A and O".
+2. **Grounding drops the whole record when one field isn't said.** A dose record with an unsaid dose loses the drug too. Consider stripping the unsupported field and keeping the rest. This is a safety-relevant change; decide with the owner and measure it.
+3. **Whisper's English priming prompt leaks into Spanish.** "alergias" was heard as "Eliquis", a drug named in `config/prompts/stt_prompt.txt`, so a blood thinner could be proposed that nobody said. Use a language-neutral prompt, or none, when Whisper detects Spanish (config), and re-run the 30-clip Spanish check. One clean clip also fell into a repetition loop ("lo vi" ×20); the repetition guard should cover Spanish.
+4. The **S3 interpreter backend** (translate, with Spanish speech output once `espeak-ng` is installed), using `config/prompts/translate.yaml`, the same prompt the replay slice kept.

@@ -117,7 +117,9 @@ class Telemetry:
         }
 
     # ---------- snapshot ----------
-    def snapshot(self, model: Optional[str] = None) -> dict:
+    def snapshot(self, model: Optional[str] = None, jobs: Optional[dict] = None) -> dict:
+        """`jobs` names the model doing each job (extraction, photos, knowledge). It is reported only when a split
+        stack is configured (TRAINING_PLAN §7a), so the single-model response is unchanged."""
         now = time.time()
         with self.lock:
             recent = [w for t, w in self.power if now - t <= 60]
@@ -147,6 +149,7 @@ class Telemetry:
             },
             "cloud_ai_calls": 0,
             "model_server": self.model_server(model),
+            **({"jobs": jobs} if jobs else {}),
             "assumptions": {**r, "sources": self.rate_sources, "energy_scope": self.energy_scope},
         }
 

@@ -144,7 +144,7 @@ class Projector:
             if len(h) >= 2:
                 series = [f.value for f in h]
                 changed.append({"key": key, "label": self.vocab.label(key), "series": series,
-                                "times": [f.ts.isoformat() for f in h], "delta": series[-1] - series[0],
+                                "times": [(f.provenance.observed_at or f.ts).isoformat() for f in h], "delta": series[-1] - series[0],
                                 "direction": "up" if series[-1] > series[-2] else
                                              ("down" if series[-1] < series[-2] else "flat"),
                                 "significant": self.trends.significant(key, series[-2], series[-1])})

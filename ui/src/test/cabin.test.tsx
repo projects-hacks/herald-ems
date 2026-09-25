@@ -62,7 +62,7 @@ describe("ambulance workspace", () => {
     useHerald.setState({ source: "fixture" }); render(<CabinApp />);
     expect((screen.getByRole("button", { name: "Start listening" }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Camera" }));
-    expect((screen.getByRole("button", { name: "Open camera" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Start monitor watch" }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.queryByRole("button", { name: "Close details" })).toBeNull();
   });
   it("camera permission completing after panel close cannot leave a live stream", async () => {
@@ -81,6 +81,7 @@ describe("ambulance workspace", () => {
     const stop = vi.fn();
     render(<CabinApp />);
     fireEvent.click(screen.getByRole("button", { name: "Camera" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Take a photo" }), { button: 0, ctrlKey: false });
     fireEvent.click(screen.getByRole("button", { name: "Open camera" }));
     fireEvent.mouseDown(screen.getByRole("tab", { name: "Connected camera" }), { button: 0, ctrlKey: false });
     await act(async () => { resolve({ getTracks: () => [{ stop }] } as unknown as MediaStream); await request; });

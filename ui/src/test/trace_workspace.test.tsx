@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { TraceEntry } from "@/features/trace/trace";
 import { TranscriptPage } from "@/pages/TranscriptPage";
 import { useHerald } from "@/lib/store";
@@ -79,4 +79,17 @@ it("bulk-confirms only eligible facts from the same capture", () => {
   expect(fetch).toHaveBeenCalledWith("/api/facts/confirm", expect.objectContaining({
     body: JSON.stringify({ ids: ["eligible-1", "eligible-2"] }),
   }));
+});
+
+it("holds new captures behind an explicit jump while updating the evidence being read", () => {
+  render(<TranscriptPage />);
+  const fresh = { ...entry, id: "new-capture", text: "A new observation" };
+  act(() => useHerald.setState({ snapshot: { ...snapshot, transcripts: [entry, fresh] } }));
+  expect(screen.queryByText("“A new observation”")).toBeNull();
+  const jump = screen.getByRole("button", { name: "1 new capture · show latest" });
+  const scroll = vi.fn(); Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: scroll });
+  fireEvent.click(jump);
+  expect(screen.getByText("“A new observation”")).toBeTruthy(); expect(scroll).toHaveBeenCalledOnce();
+  act(() => useHerald.setState({ snapshot: { ...snapshot, incident: { ...snapshot.incident, id: "another-patient" }, transcripts: [] } }));
+  expect(screen.queryByText("“A new observation”")).toBeNull();
 });

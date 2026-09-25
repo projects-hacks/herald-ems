@@ -6,7 +6,7 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { label, useContract } from "@/lib/contract";
 import { clockTime, factValue } from "@/lib/format";
-import { activeSync, erRows, reconciled, type ErRow } from "@/lib/selectors";
+import { activeSync, clinicianReceipt, erRows, reconciled, type ErRow } from "@/lib/selectors";
 import type { Snapshot } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ActionButton } from "@/components/ActionButton";
@@ -69,7 +69,7 @@ export function LinkDownNote() {
 
 export function ReconciledLine({ s }: { s: Snapshot }) {
   if (!reconciled(s)) return null;
-  return <p className="flex items-center gap-1.5 text-meta font-semibold text-ok-fg"><CircleCheck size={16} aria-hidden />Confirmed updates delivered · clinician receipt unknown</p>;
+  return <p className="flex items-center gap-1.5 text-meta font-semibold text-ok-fg"><CircleCheck size={16} aria-hidden />Confirmed updates delivered · {clinicianReceipt(s)}</p>;
 }
 
 export function SyncTable({ s, rows }: { s: Snapshot; rows: ErRow[] }) {

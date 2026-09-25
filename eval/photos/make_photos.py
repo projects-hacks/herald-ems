@@ -74,6 +74,8 @@ def gold_line(spec: dict, cfg: dict, fields: dict) -> dict:
             "device": spec["device"], "notes": spec.get("notes", "")}
     if aliases:
         line["aliases"] = aliases
+    if spec.get("set"):                              # a named group of items the bench also reports on its own
+        line["set"] = spec["set"]
     if spec.get("strength") and spec["device"] in ("pill_label", "otc_bottle"):
         line["strength"] = spec["strength"]
     hidden = hidden_keys(spec, fields) & set(spec.get("values", {}))

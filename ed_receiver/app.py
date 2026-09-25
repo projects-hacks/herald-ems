@@ -93,14 +93,19 @@ async def ingest(req: Request):
         return {"ack": p["q"], "duplicate": True}
     for k, v in p.get("f", {}).items():
         if inc["fields"].get(k, {}).get("v") != v:
+            if k == "stroke.lkw":
+                inc.pop("lkw_at", None)
             inc["history"].setdefault(k, []).append({"v": v, "t": now()})
         inc["fields"][k] = {"v": v, "seq": p["q"], "t": now()}
     for key in p.get("rm", []):
+        if key == "stroke.lkw":
+            inc.pop("lkw_at", None)
         previous = inc["fields"].pop(key, None)
         inc["audit"].append({"at": now(), "action": "withdrawn", "key": key, "seq": p["q"],
                              "previous": previous["v"] if previous else None})
-    if p.get("tl"):
+    if "tl" in p:
         inc["timeline"] = p["tl"]
+        inc["lkw_at"] = p.get("lkw_at")
     inc["applied"].append(p["q"])
     inc["bytes"] += len(raw)
     inc["queued_on_rig"] = p.get("x", 0)

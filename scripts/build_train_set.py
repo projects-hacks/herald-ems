@@ -29,6 +29,8 @@ from herald.config import load_yaml  # noqa: E402
 from herald.core.vocabulary import default_vocabulary  # noqa: E402
 from herald.extraction.grounding import default_grounding  # noqa: E402
 from herald.extraction.profiles import default_profiles  # noqa: E402
+from scripts.train_data import (Decontaminator, DrugRelabel, asr_rows, chat_messages, expand, merge_overlay,  # noqa: E402,F401
+                               word_runs)
 
 VOCAB = default_vocabulary()
 KEYS = VOCAB.keys
@@ -103,11 +105,6 @@ class SpokenOrder:
         return out
 
 
-def word_runs(text: str, n: int = 8) -> set:
-    w = re.findall(r"[a-z0-9']+", text.lower())
-    return {tuple(w[i:i + n]) for i in range(len(w) - n + 1)}
-
-
 def model_input(profile_prefix: str | None, text: str, by: str, speaker, dispatch=None) -> str:
     profiles = default_profiles()
     profile = profiles.for_label(profile_prefix) if profile_prefix else None
@@ -179,11 +176,18 @@ def main():
     ap.add_argument("--out", default=str(ROOT / "data" / "train_b"))
     ap.add_argument("--seed", type=int, default=11)
     ap.add_argument("--order", choices=["as_labeled", "spoken"], default="as_labeled")
-    ap.add_argument("--decontaminate", default="", help="comma-separated gold files: drop any row sharing an "
-                    "8-word run with them (the held-out sets must stay unseen)")
+    ap.add_argument("--decontaminate", default="", help="comma-separated held-out files or glob patterns (gold "
+                    "sets, adversarial benches, scenario scripts): drop any row sharing an 8-word run with them, or "
+                    "whose words equal a held-out text (the held-out sets must stay unseen)")
     ap.add_argument("--profile", default=None, help="served-label prefix whose input format to build (e.g. ems-d)")
     ap.add_argument("--overlays", default="gfast", help="label overlays to merge: <name>_labels_*.jsonl (gfast,broad)")
+    ap.add_argument("--relabel", default=None, help="reviewed drug-name relabel list (data/annotated/drug_relabel_*.yaml)")
+    ap.add_argument("--chat", action="store_true", help="also write each example as neutral chat messages "
+                    "(system, user, assistant) in a `messages` field, the system prompt being --profile's")
     ap.add_argument("--dispatch", action="store_true", help="give every line a dispatch (run E, config/training.yaml)")
+    ap.add_argument("--asr", default=None, help="measured Whisper transcripts (data/annotated/asr_f.jsonl, "
+                    "scripts/asr_layer.py): each kept transcript of a train line is added to train with the line's "
+                    "labels, dispatch and speaker (never to dev); decontaminated like every other row")
     ap.add_argument("--composed-exclude", action="store_true",
                     help="leave out composed rows matching config/training.yaml composed_exclude")
     a = ap.parse_args()
@@ -191,30 +195,35 @@ def main():
 
     # Label overlays add keys labeled after a batch was written (G.F.A.S.T., LABELING_GUIDE §4d; the every-call keys,
     # §4e): <name>_labels_*.jsonl lines are {"id": ..., "<name>": [[key, value, role, source], ...]}.
-    overlay: dict[str, list] = {}
+    # Overlays merge one after another, so a later one (run F's before_arrival) can extend a record an earlier one
+    # added (scripts/train_data.merge_overlay).
+    overlays: dict[str, dict[str, list]] = {}
     for name in filter(None, a.overlays.split(",")):
         for f in sorted(Path(a.annotated).glob(f"{name}_labels_*.jsonl")):
             for line in open(f):
                 d = json.loads(line)
-                overlay.setdefault(d["id"], []).extend(d.get(name, []))
+                overlays.setdefault(name, {}).setdefault(d["id"], []).extend(d.get(name, []))
+    overlay = {i for o in overlays.values() for i in o}
+    relabel = DrugRelabel.load(a.relabel)
     ann, dropped = [], Counter()
     for f in sorted(Path(a.annotated).glob("batch_*.jsonl")):
         for line in open(f):
             try:
                 r = json.loads(line)
-                have = {(x[0], json.dumps(x[1], sort_keys=True)) for x in r["facts"]}
-                r["facts"] = r["facts"] + [x for x in overlay.get(r["id"], [])
-                                           if (x[0], json.dumps(x[1], sort_keys=True)) not in have]
+                for o in overlays.values():
+                    r["facts"] = merge_overlay(r["facts"], o.get(r["id"], []))
+                r["facts"] = [relabel.fact(x) for x in r["facts"]]
                 ann.append(annotated_row(r))
             except Exception as e:
                 dropped[f"{f.name}: {type(e).__name__}"] += 1
     texts = set()
     ann = [r for r in ann if not (r["text"] in texts or texts.add(r["text"]))]
-    gold_grams = set().union(*(word_runs(json.loads(l)["text"]) for f in filter(None, a.decontaminate.split(","))
-                               for l in open(f)))
+    held_out = expand(a.decontaminate)
+    decon = Decontaminator.from_files(held_out)
     n_before = len(ann)
-    ann = [r for r in ann if not (word_runs(r["text"]) & gold_grams)]
-    dropped["overlaps a gold set (8-word run)"] += n_before - len(ann)
+    removed = [r["id"] for r in ann if decon.overlaps(r["text"])]
+    ann = [r for r in ann if not decon.overlaps(r["text"])]
+    dropped["overlaps a held-out set (8-word run or same words)"] += n_before - len(ann)
     rng.shuffle(ann)
     n_dev = int(len(ann) * a.dev_frac)
     dev, train = ann[:n_dev], ann[n_dev:]
@@ -222,14 +231,14 @@ def main():
     if a.composed:
         comp = [json.loads(l) for l in open(a.composed_file)]
         rng.shuffle(comp)
-        comp = [r for r in comp if not (word_runs(r["text"]) & gold_grams)]
+        comp = [r for r in comp if not decon.overlaps(r["text"])]
         if a.composed_exclude:
             rx = re.compile(load_yaml("training.yaml")["composed_exclude"], re.I)
             n_before = len(comp)
             comp = [r for r in comp if not rx.search(r["text"])]
             dropped["composed: mentions drugs or procedures"] += n_before - len(comp)
         train += [{"id": f"c{i}", "text": r["text"], "by": r.get("by", "medic"), "speaker": r.get("speaker"),
-                   "source": "composed", "rows": json.loads(r["completion"])["f"]}
+                   "source": "composed", "rows": [relabel.fact(f) for f in json.loads(r["completion"])["f"]]}
                   for i, r in enumerate(comp[:a.composed])]
     rng.shuffle(train)
 
@@ -237,6 +246,9 @@ def main():
     order = SpokenOrder(cfg) if a.order == "spoken" else None
     assign = DispatchAssigner(cfg["dispatch"], (order or SpokenOrder(cfg)).cues, random.Random(a.seed + 1)) \
         if a.dispatch else None
+    if a.chat and not a.profile:
+        sys.exit("--chat needs --profile (the system prompt is the profile's)")
+    system = default_profiles().for_label(a.profile).prompt if a.chat else None
     for r in train + dev:
         rows = order.sort(r["text"], r.pop("rows")) if order else r.pop("rows")
         r["completion"] = json.dumps({"f": rows}, separators=(",", ":"), ensure_ascii=False)
@@ -244,6 +256,19 @@ def main():
         if assign is not None and r.get("dispatch") is None:
             r["dispatch"] = assign(r["text"], rows)
         r["text"] = model_input(a.profile, r["text"], r["by"], r["speaker"], r.get("dispatch"))
+        if system is not None:
+            r["messages"] = chat_messages(system, r["text"], r["completion"])
+
+    asr_counts: Counter = Counter()
+    if a.asr:       # added after every other row is final, so the other rows and their order are unchanged
+        from scripts.asr_layer import labels_lost
+        g = default_grounding()
+        added, asr_counts = asr_rows((json.loads(l) for l in open(a.asr)), train, decon,
+                                     lambda text, by, speaker, d: model_input(a.profile, text, by, speaker, d), system,
+                                     lambda f, said, heard: labels_lost(f, said, heard, g))
+        place = random.Random(a.seed + 2)
+        for r in added:
+            train.insert(place.randint(0, len(train)), r)
 
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -252,10 +277,14 @@ def main():
     keys = Counter(f[0] for r in train for f in json.loads(r["completion"])["f"])
     print(json.dumps({"annotated": len(ann), "overlay_items": len(overlay), "train": len(train), "dev (annotated only)": len(dev),
                       "composed": sum(r["source"] == "composed" for r in train),
+                      **({"asr": sum(r["source"] == "asr" for r in train), "asr_counts": dict(asr_counts)}
+                         if a.asr else {}),
                       "order": a.order, "profile": a.profile, "overlays": a.overlays,
                       **({"dispatch_assigned": dict(assign.counts)} if assign else {}),
                       **({"facts_located": f"{order.located}/{order.total}", "targets_reordered": order.reordered}
                          if order else {}),
+                      "held_out_files": len(held_out), "decontaminated_ids": removed,
+                      "relabeled": dict(relabel.applied),
                       "dropped": dict(dropped), "keys_covered": f"{len(keys)}/{len(KEYS)}",
                       "missing_keys": sorted(set(KEYS) - set(keys))}, indent=1))
 

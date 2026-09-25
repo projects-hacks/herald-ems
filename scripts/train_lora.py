@@ -13,35 +13,14 @@ Settings follow docs/MODEL_PLAN.md §4 (sdpa attention, no packing, no torch.com
 import argparse
 import json
 import os
+import sys
 import time
 from pathlib import Path
 
-import sys
-
 import torch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from herald.extraction.profiles import default_profiles  # noqa: E402
-
-
-def system_prompt(profile_prefix: str) -> str:
-    """The prompt the served extractor will use for this label (config/extraction.yaml): train and serve alike."""
-    profile = default_profiles().for_label(profile_prefix)
-    if profile is None:
-        raise SystemExit(f"no fine-tuned profile matches {profile_prefix!r} in config/extraction.yaml")
-    return profile.prompt
-
-
-def reclaim_unified_memory(gib: float) -> None:
-    """On the GB10, CPU and GPU share memory and the kernel's page cache counts as used until something allocates.
-    Allocating (then freeing) `gib` makes the kernel drop clean cache, so the loader sees the real headroom."""
-    before, _ = torch.cuda.mem_get_info()
-    x = torch.empty(int(gib * 2**30), dtype=torch.uint8, device="cuda")
-    x.fill_(0)
-    del x
-    torch.cuda.empty_cache()
-    after, _ = torch.cuda.mem_get_info()
-    print(json.dumps({"reclaimed_gib": round((after - before) / 2**30, 1), "free_gib": round(after / 2**30, 1)}))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from lora_common import reclaim_unified_memory, system_prompt  # noqa: E402,F401  (shared with train_vlm_lora.py)
 
 
 def rows(path, system: str, limit=None):

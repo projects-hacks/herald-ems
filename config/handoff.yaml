@@ -151,6 +151,7 @@ shared:
     keys: [vitals.sbp, vitals.hr, vitals.rr, vitals.spo2, vitals.gcs_total, vitals.pain, vitals.etco2,
            vitals.glucose, vitals.temp]
     template: "{label} {series}"
+    point_template: "{value} at {time}"
   # 501 §III.A.5: drugs given and procedures completed, every confirmed event in the order it was recorded. What was
   # given before this crew arrived (`before_arrival`, NEMSIS eMedications.02 / eProcedures.02 "prior to this unit's
   # EMS care") is its own section, never mixed into the crew's treatment.

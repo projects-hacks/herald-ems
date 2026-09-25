@@ -16,9 +16,9 @@ import { Badge, CAT_FG, ProgressBar, Value, type Cat, type Tone } from "@/compon
 import { Sparkline } from "@/components/Sparkline";
 import { ScoreSheet, type ScoreDetail } from "@/features/scores/ScoreSheet";
 
-function Tile({ icon: Icon, cat, label, value, unit, clock, quiet, badge, footer, onOpen, aria }: {
+function Tile({ icon: Icon, cat, label, value, unit, clock, quiet, badge, footer, onOpen, aria, wide = false }: {
   icon: LucideIcon; cat: Cat; label: string; value: string; unit?: string; clock?: boolean; quiet?: boolean;
-  badge?: React.ReactNode; footer?: React.ReactNode; onOpen?: () => void; aria?: string;
+  badge?: React.ReactNode; footer?: React.ReactNode; onOpen?: () => void; aria?: string; wide?: boolean;
 }) {
   const body = (
     <>
@@ -26,15 +26,16 @@ function Tile({ icon: Icon, cat, label, value, unit, clock, quiet, badge, footer
         <Icon size={15} strokeWidth={2.5} aria-hidden className="shrink-0" /><span className="truncate">{label}</span>
         {onOpen && <ChevronRight size={15} aria-hidden className="ml-auto shrink-0 text-text-disabled" />}
       </span>
-      <span className="flex min-w-0 items-center gap-2">
-        {quiet ? <span className="truncate text-value font-semibold text-text-muted">{value}</span>
+      <span className="flex min-w-0 flex-wrap items-center gap-2">
+        {clock ? <span className="flex min-w-0 flex-col gap-1"><span className="font-mono text-clock whitespace-nowrap">{value}</span>{unit && <span className="text-meta text-text-secondary">{unit}</span>}</span>
+          : quiet ? <span className="text-value font-semibold text-text-muted">{value}</span>
           : <Value value={value} unit={unit} size={clock ? "clock" : "kpi"} muted={value === "—"} />}
         {badge && <span className="ml-auto shrink-0">{badge}</span>}
       </span>
-      <span className="flex min-h-5 min-w-0 items-center gap-2 truncate text-meta text-text-muted">{footer}</span>
+      <span className="flex min-h-5 min-w-0 items-start gap-2 text-meta text-text-muted">{footer}</span>
     </>
   );
-  const cls = "card flex min-w-0 flex-col justify-between gap-1 px-4 py-3 text-left";
+  const cls = cn("card flex min-w-0 flex-col gap-3 px-4 py-3 text-left", wide && "col-span-full");
   return onOpen
     ? <button type="button" onClick={onOpen} aria-label={aria} className={cn(cls, "transition-[filter] duration-[var(--dur-short3)] hover:brightness-[1.08] active:brightness-95")}>{body}</button>
     : <div className={cls} role="group" aria-label={aria}>{body}</div>;
@@ -109,11 +110,11 @@ function scaleTile(id: string, sc: StrokeScale, primary: boolean, county: string
   const max = Object.values(sc.parts).reduce((a, p) => a + (p.max ?? 0), 0) || undefined;
   const tone: Tone = !sc.complete ? "neutral" : sc.positive ? "medium" : "ok";
   return (
-    <Tile key={id} icon={Brain} cat="neuro" label={sc.name} value={sc.complete ? String(sc.score) : "—"} unit={sc.complete && max ? `/ ${max}` : undefined}
+    <Tile key={id} icon={Brain} cat="neuro" label={sc.name} value={sc.complete ? String(sc.score) : "—"} unit={sc.complete && max ? `/ ${max}` : undefined} wide={!!routing}
       badge={<Badge tone={tone}>{sc.complete ? (sc.positive ? "positive" : "negative") : "incomplete"}</Badge>}
       footer={<>
         {sc.complete && max ? <ProgressBar frac={sc.score / max} cat="neuro" className="w-14 shrink-0" /> : <span>needs {sc.missing.length} more</span>}
-        {routing ? <span className="truncate" title={routing}>{routing}</span>
+        {routing ? <span className="break-words">{routing}</span>
           : primary && <span className="truncate" title={`${county}'s primary stroke scale`}>primary</span>}
       </>}
       aria={`${sc.name} ${sc.complete ? `${sc.score}${max ? ` of ${max}` : ""}, screen ${sc.positive ? "positive" : "negative"}` : "incomplete"}${routing ? `. ${routing}` : primary ? `, ${county}'s primary scale` : ""}. Show details.`}
@@ -128,7 +129,7 @@ export function StatTiles({ overview = false }: { overview?: boolean } = {}) {
   const [detail, setDetail] = useState<ScoreDetail | null>(null);
   if (!s) return null;
   return (
-    <div className="grid shrink-0 grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3" aria-label="Clocks and scores">
+    <div className="grid shrink-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3" aria-label="Clocks and scores">
       <ClockTiles s={s} />
       <ScoreTiles s={s} open={setDetail} primaryOnly={overview} />
       <ScoreSheet d={detail} onClose={() => setDetail(null)} />

@@ -1,5 +1,11 @@
 # TASKS.md: Herald task board
 
+## Copilot workflow revamp — 2026-09-25
+
+- Completed continuous camera in the medic workspace, confirmed journey/ED timestamp flow, attention hierarchy, transcript anchoring, and supplied UI-review cleanup. See [component decisions and item-by-item closeout](docs/COPILOT_WORKFLOW.md).
+- Removed unused UI packages/components and consolidated workspace CSS. Backend regression: 884 passing; UI: 128 passing; TypeScript/build passing.
+- Physical camera, real speech/vision latency, receiving-clinician usability and target-hardware soak remain acceptance work. No shared model service or training job changed by this work.
+
 ## Component-focused workspace refinement — Tushar, 2026-09-25
 
 - ✅ Grouped Capture & evidence / Receiving team cards with explicit drag or button ordering, Save/Cancel/Reset and layout-only persistence.

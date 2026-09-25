@@ -7,7 +7,7 @@ from functools import lru_cache
 from typing import Any
 
 from ..config import load_yaml
-from .numbers import SpokenNumbers
+from .numbers import SpokenNumberLanguages, SpokenNumbers
 
 
 class Grounding:
@@ -16,8 +16,15 @@ class Grounding:
         self.filler_exempt = {k: {x.lower() for x in v} for k, v in (rules.get("filler_allowed_for") or {}).items()}
         self.numbers_said_keys = set(rules.get("numbers_must_be_said", []))
         self.zero_allowed = set(rules.get("zero_allowed", []))
-        self.spoken = SpokenNumbers.from_config(rules["spoken_numbers"])
+        self.spoken = self._spoken(rules["spoken_numbers"])
         self.requires = {k: re.compile(v, re.I) for k, v in rules["key_requires_words"].items()}
+
+    @staticmethod
+    def _spoken(c: dict):
+        """The languages' number words (config/numbers.yaml), or one inline table (older configs and tests)."""
+        if "languages" in c:
+            return SpokenNumberLanguages.from_config(load_yaml(c.get("file", "numbers.yaml")), c["languages"])
+        return SpokenNumbers.from_config(c)
 
     @classmethod
     def from_config(cls, rel: str = "grounding.yaml") -> "Grounding":

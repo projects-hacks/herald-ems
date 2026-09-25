@@ -1,0 +1,109 @@
+{
+ "model": "qwen3vl-fp8",
+ "runs": 3,
+ "tasks": [
+  "rerank",
+  "flowchart"
+ ],
+ "inputs": {
+  "vision_prompt": "a28eb3b1a708",
+  "figure_prompt": "4af37616fd6b",
+  "rerank_prompt": "34334535cbf0",
+  "terminology": "de44c72d1e21",
+  "drug_classes": "9c63ed99fd7a",
+  "photo_gold": "bf96d331af1d",
+  "flowchart_key": "adbe56e8debd",
+  "qa_gold": "2afda2348082",
+  "rxnorm_index": "9ed36b1fe400"
+ },
+ "spread": {
+  "rerank": {
+   "top1": {
+    "mean": 0.788,
+    "min": 0.788,
+    "max": 0.788,
+    "runs": 3
+   },
+   "top3": {
+    "mean": 0.827,
+    "min": 0.827,
+    "max": 0.827,
+    "runs": 3
+   },
+   "shown_top1": {
+    "mean": 0.788,
+    "min": 0.788,
+    "max": 0.788,
+    "runs": 3
+   },
+   "refusal_on_unanswerable": {
+    "mean": 0.571,
+    "min": 0.571,
+    "max": 0.571,
+    "runs": 3
+   },
+   "answerable_said_true": {
+    "mean": 0.962,
+    "min": 0.962,
+    "max": 0.962,
+    "runs": 3
+   },
+   "json_invalid": {
+    "mean": 0,
+    "min": 0,
+    "max": 0,
+    "runs": 3
+   },
+   "latency_ms_p50": {
+    "mean": 376,
+    "min": 340,
+    "max": 447,
+    "runs": 3
+   },
+   "latency_ms_p95": {
+    "mean": 578.333,
+    "min": 457,
+    "max": 719,
+    "runs": 3
+   }
+  },
+  "flowchart": {
+   "node_recall": {
+    "mean": 0.875,
+    "min": 0.875,
+    "max": 0.875,
+    "runs": 3
+   },
+   "edge_recall": {
+    "mean": 0.857,
+    "min": 0.857,
+    "max": 0.857,
+    "runs": 3
+   },
+   "edge_recall_with_source": {
+    "mean": 0.857,
+    "min": 0.857,
+    "max": 0.857,
+    "runs": 3
+   },
+   "unsupported_steps": {
+    "mean": 0,
+    "min": 0,
+    "max": 0,
+    "runs": 3
+   },
+   "added_word_rate": {
+    "mean": 0.0,
+    "min": 0.0,
+    "max": 0.0,
+    "runs": 3
+   },
+   "latency_ms": {
+    "mean": 3010.667,
+    "min": 2770,
+    "max": 3489,
+    "runs": 3
+   }
+  }
+ }
+}

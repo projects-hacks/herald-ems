@@ -73,7 +73,9 @@ class ConfirmedView:
         return {"fact_id": f.id, "key": f.key, "role": f.role.value, "speaker": f.speaker,
                 "captured_by": f.captured_by.value, "time": self.clock(f.ts), "ts": f.ts.isoformat(),
                 "audio_id": f.provenance.audio_id, "photo_id": f.provenance.photo_id,
-                "extractor": f.provenance.extractor}
+                "extractor": f.provenance.extractor,
+                "observed_at": f.provenance.observed_at.isoformat() if f.provenance.observed_at else None,
+                "frame_id": f.provenance.frame_id}
 
     # ---------- wording ----------
     def clock(self, ts: datetime) -> str:

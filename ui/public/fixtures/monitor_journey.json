@@ -1,0 +1,17 @@
+{
+  "description": "Synthetic equipment values for camera-to-state integration checks; not a clinical scenario or physiological model.",
+  "step_seconds": 20,
+  "readings": [
+    {"key": "vitals.hr", "label": "Heart rate", "unit": "bpm"},
+    {"key": "vitals.sbp", "label": "Systolic BP", "unit": "mmHg"},
+    {"key": "vitals.spo2", "label": "SpO2", "unit": "%"},
+    {"key": "vitals.rr", "label": "Respiratory rate", "unit": "breaths/min"}
+  ],
+  "steps": [
+    {"vitals.hr": 88, "vitals.sbp": 132, "vitals.spo2": 98, "vitals.rr": 16},
+    {"vitals.hr": 104, "vitals.sbp": 112, "vitals.spo2": 95, "vitals.rr": 22},
+    {"vitals.hr": 122, "vitals.sbp": 88, "vitals.spo2": 91, "vitals.rr": 28},
+    {"vitals.hr": 108, "vitals.sbp": 108, "vitals.spo2": 95, "vitals.rr": 22},
+    {"vitals.hr": 92, "vitals.sbp": 124, "vitals.spo2": 97, "vitals.rr": 18}
+  ]
+}

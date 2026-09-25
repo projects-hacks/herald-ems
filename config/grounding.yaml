@@ -22,19 +22,17 @@ numbers_must_be_said:
 # (derived from the findings described), patient.age ("in her seventies" is kept as the model reads it)
 # A zero is otherwise treated as invented for vitals; these can truly be 0 ("pain zero out of ten", EtCO2 in arrest).
 zero_allowed: [vitals.pain, vitals.etco2]
+# Number words are language data (config/numbers.yaml). A number counts as said when it is said in digits or in the
+# words of any language listed here: patients and family at the scene often speak Spanish ("presión de ciento
+# ochenta" -> 180), and a correct Spanish fact must not be dropped as unsaid (MODEL_PLAN §0k, Spanish speech).
 spoken_numbers:
-  units: {zero: 0, oh: 0, o: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9}
-  teens: {ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
-          eighteen: 18, nineteen: 19}
-  tens: {twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90}
-  hundred: [hundred]
-  thousand: [thousand]
-  point: [point]
-  joiners: [and]
-  one: [a, an]                     # "a hundred and ten"
+  file: numbers.yaml
+  languages: [en, es]
 # Grounding validator for model-extracted facts: a fact must be supported by words that were said.
 # (Live test 2026-09-23: from 'sudden left-sided weakness' the model invented four RACE item scores.)
-# key_requires_words: case-insensitive regex that must match the utterance for that key.
+# key_requires_words: case-insensitive regex that must match the utterance for that key. The Spanish alternatives
+# (after the English ones) keep a correct fact from Spanish speech (LABELING_GUIDE §5f): "orden de no resucitar" is a
+# code status said, "la vi cuando se cayó" a witnessed onset, "le duele como un ocho de diez" a pain score.
 filler_values:
 - ''
 - '?'
@@ -55,21 +53,21 @@ spoken_number_words: '\b(zero|oh|one|two|three|four|five|six|seven|eight|nine|te
 vitals_digits_exempt:
 - vitals.temp
 key_requires_words:
-  vitals.consciousness: alert|confus|disorient|voice|verbal|pain|unrespons|a ?& ?o|oriented
-  code_status: dnr|polst|resusc|full code|dni
-  exam.race.facial: face|facial|droop|smile|palsy|asymmetr
-  exam.race.arm: \barm
-  exam.race.leg: \bleg
-  exam.race.gaze: gaze|eyes?\b|look(ing|s)? (to|toward)|deviat
-  exam.race.aphasia_agnosia: speak|speech|aphasi|agnosi|recogni|neglect|words
-  exam.gfast.gaze: gaze|eyes?\b|look(ing|s)? (to|toward)|deviat
-  exam.gfast.facial: face|facial|droop|smile|palsy|asymmetr
-  exam.gfast.arm_leg: \barm|\bleg|weak|drift
-  exam.gfast.speech: speak|speech|slur|aphasi|words|talk
-  stroke.onset_witnessed: witness|saw (it|her|him)|in front of|found|woke|collapsed|watched
-  vitals.gcs_motor: gcs|motor|obey|command|localiz|withdraw|flex|extens
-  vitals.gcs_eye: gcs|glasgow|\be ?\d|eye
+  vitals.consciousness: alert|confus|disorient|voice|verbal|pain|unrespons|a ?& ?o|oriented|confund|orientad|\bvoz\b|\bdolor\b|no respond|inconscien|despiert|reconoc|\bgrit|cuando le habl|abr\w* los ojos|\ba y o\b
+  code_status: dnr|polst|resusc|full code|dni|resucit|reanim|\bno (me |lo |la |le )?(revivan|reviva|intuben)\b
+  exam.race.facial: face|facial|droop|smile|palsy|asymmetr|\bcara\b|\bboca\b|sonr[ií]|asimetr|chuec|torci
+  exam.race.arm: \barm|\bbrazo
+  exam.race.leg: \bleg|\bpierna
+  exam.race.gaze: gaze|eyes?\b|look(ing|s)? (to|toward)|deviat|\bojos?\b|mirada|desv[ií]
+  exam.race.aphasia_agnosia: speak|speech|aphasi|agnosi|recogni|neglect|words|habla|palabras|reconoc|entiende
+  exam.gfast.gaze: gaze|eyes?\b|look(ing|s)? (to|toward)|deviat|\bojos?\b|mirada|desv[ií]
+  exam.gfast.facial: face|facial|droop|smile|palsy|asymmetr|\bcara\b|\bboca\b|sonr[ií]|asimetr|chuec|torci
+  exam.gfast.arm_leg: \barm|\bleg|weak|drift|\bbrazo|\bpierna|d[eé]bil|fuerza
+  exam.gfast.speech: speak|speech|slur|aphasi|words|talk|habla|palabras|arrastra|lengua
+  stroke.onset_witnessed: witness|saw (it|her|him)|in front of|found|woke|collapsed|watched|\bvi\b|\bvio\b|\bvimos\b|enfrente|delante de|encontr|despert|amaneci|llegu[eé]
+  vitals.gcs_motor: gcs|motor|obey|command|localiz|withdraw|flex|extens|glasgow|obedece|[oó]rdenes|retira
+  vitals.gcs_eye: gcs|glasgow|\be ?\d|eye|\bojos?\b|ocular
   vitals.gcs_verbal: gcs|glasgow|\bv ?\d|verbal
   vitals.gcs_total: gcs|glasgow|coma scale
-  vitals.pain: pain|hurt|out of (10|ten)|/10|scale|rat(ing|es?) it
+  vitals.pain: pain|hurt|out of (10|ten)|/10|scale|rat(ing|es?) it|\bdolor|\bduel|de (10|diez)\b|\bescala\b|calific
   vitals.etco2: etco2|et co2|end.?tidal|capno|co2

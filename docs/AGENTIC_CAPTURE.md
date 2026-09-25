@@ -22,16 +22,18 @@ npm run build
 
 The replay integration test exercises monitor changes, unconfirmed readings, a mismatching vial without adding home medications, manual capture while auto is off, and used-frame retention. Separate tests exercise the fake speech extractor, gates, rate/speech priority, matching/ambiguous codes, explicit edits, stale patient controls, and redaction failures.
 
-Verified checkpoint, 2026-09-25: full Python suite **422 passed, 1 skipped**; UI **31 passed**; TypeScript/production build and existing light/dark contrast checks passed. These are functional regression results, not inference-performance measurements. Browser visual inspection could not run because the browser binary download timed out; it remains part of the hands-on sign-off.
+Latest workflow checkpoint, 2026-09-25: full Python suite **884 passed**; UI **128 passed**; TypeScript/production build passed. Isolated Chromium checked 30 screens across desktop/tablet/phone and both themes with no page errors, horizontal overflow, visible workspace buttons below 48 px or visible text below 13 px. Synthetic browser media verified capture across care-page navigation and track release on Stop. These are functional regression results, not inference-performance measurements or physical-camera acceptance.
 
 ## Camera workflow (approved application instance only)
 
-1. Open NOW and choose **Open camera & set region**. The camera page is `/capture.html`. Capture never starts on page load.
-2. Start continuous capture and allow the rear camera. Drag a rectangle around the monitor, or enter percentages in the keyboard-accessible region form. Monitor watch is off until a region is set.
-3. The page sends at most one JPEG per second, at most 1280 px long side. Only selected stills reach vision. The default automatic budget is one read per ten seconds, with a single request in flight and speech admission priority.
+1. Open the medic workspace and choose **Camera → Monitor watch**. Capture never starts on page load. The standalone `/capture.html` remains available.
+2. Choose **Start monitor watch** and allow the camera. Aim at equipment and adjust its region with the percentage controls; the workspace initially uses the full frame. Apply changes explicitly. Return to another care page without stopping the feed. The standalone page also supports dragging a region.
+3. The page sends at most one JPEG per second, at most 1280 px long side, with one unacknowledged frame. Only selected stills reach vision. The global automatic ceiling is one admission per ten seconds; monitor watch also has a 15-second minimum interval. One inference runs at a time, with speech admission priority.
 4. NOW shows **Herald sees: off / watching / reading**, the automatic switch, the mode picker and **Show Herald**. Watching requires recent frames, not just an enabled switch. Trace cards expose the reason, proposed facts, and retained evidence.
 5. Label mismatch cards offer **Keep as said** or **Edit**. Neither automatically changes a spoken drug. Editing preserves the other dose fields and retains the rejected original in history.
 6. Stop capture, change patient, hide the camera tab or close its connection to stop the camera path. New patients require an explicit restart and a new region. An in-flight model call cannot be cancelled inside its worker, but obsolete results cannot attach facts or store images.
+
+For the second-laptop setup, open `/monitor.html` on the equipment-display laptop and choose **Start changes** or **Next readings**. It displays clearly synthetic values from `/fixtures/monitor_journey.json`, writes no patient facts and needs no backend. Point the observing camera at it; extraction, review, trends and relay must occur through the normal pipeline. Current synthetic browser tests substitute a camera stream and server admission, so they do not establish real vision accuracy.
 
 Continuous camera requires a secure browser context:
 
@@ -61,4 +63,4 @@ Watch the monitor update, then inspect the Narcan/ondansetron mismatch. The form
 
 ## Acceptance still required
 
-Rajeev: ROI interaction sign-off and permission to use the serving model. Then run S9's three repetitions: monitor latency ≤20 s, rate bound, unchanged suppression, 5/5 mismatches and matches, speech p95 within 10%, retained-image face-blur spot check, and the guarded 30-minute soak. Report each run and its spread. Physical rear-camera permission, portrait/landscape ROI alignment and browser motion/layout inspection are still pending; automated DOM/build checks do not substitute for them.
+Rajeev: ROI interaction sign-off and permission to use the serving model. Then run S9's three repetitions: monitor latency ≤20 s, rate bound, unchanged suppression, 5/5 mismatches and matches, speech p95 within 10%, retained-image face-blur spot check, and the guarded 30-minute soak. Report each run and its spread. Physical rear-camera permission, portrait/landscape ROI alignment and target-hardware usability remain pending. Desktop Chromium layout checks are complete; they do not substitute for those hands-on checks.

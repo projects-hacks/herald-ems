@@ -67,7 +67,7 @@ export function needsTap(s: Snapshot): FactView[] {
  *  urgent (HIGH, until seen) · choose (sources disagree: data held on the vehicle, P10) · confirm (code status, then
  *  facts that need a tap) · review (informational findings, until seen). Seen alerts move to "acknowledged". */
 export interface Attention {
-  urgent: Alert[]; choose: Alert[]; confirmAlerts: Alert[]; confirmFacts: FactView[]; review: Alert[]; acknowledged: Alert[];
+  urgent: Alert[]; positiveScreens: Alert[]; choose: Alert[]; confirmAlerts: Alert[]; confirmFacts: FactView[]; review: Alert[]; acknowledged: Alert[];
   count: number;
 }
 export function attention(s: Snapshot, seen: Record<string, true>, arrival: Record<string, number> = {}, holdMark: number | null = null): Attention {
@@ -76,15 +76,17 @@ export function attention(s: Snapshot, seen: Record<string, true>, arrival: Reco
   const ranked = rankAlerts(shown, arrival);
   const isSeen = (a: Alert) => dismissable(a) && !!seen[alertKey(a)];
   const open = ranked.filter((a) => !isSeen(a));
+  const positiveScreen = (a: Alert) => a.type === "gfast_positive" || a.type === "race_positive";
   const out = {
     urgent: open.filter((a) => dismissable(a) && alertPriority(a) === "high"),
+    positiveScreens: open.filter(positiveScreen),
     choose: open.filter((a) => a.type === "contradiction"),
     confirmAlerts: open.filter((a) => a.type === "confirm_required"),
     confirmFacts: needsTap(s),
-    review: open.filter((a) => dismissable(a) && alertPriority(a) !== "high"),
+    review: open.filter((a) => dismissable(a) && alertPriority(a) !== "high" && !positiveScreen(a)),
     acknowledged: ranked.filter(isSeen),
   };
-  return { ...out, count: out.urgent.length + out.choose.length + out.confirmAlerts.length + out.confirmFacts.length + out.review.length };
+  return { ...out, count: out.urgent.length + out.positiveScreens.length + out.choose.length + out.confirmAlerts.length + out.confirmFacts.length + out.review.length };
 }
 /** The tone of the attention count: HIGH if anything urgent, CHECK if anything else, calm when empty. */
 export function attentionTone(a: Attention): Priority | null {
@@ -135,6 +137,11 @@ export function erRows(s: Snapshot, c: Contract | null): ErRow[] {
 }
 export function queuedCount(s: Snapshot): number {
   return Object.values(activeSync(s)).filter((v) => v === "queued").length;
+}
+export function clinicianReceipt(s: Snapshot): string {
+  const ack = s.relay.clinician_acknowledgements?.[s.active_patient ?? s.incident.id]?.at(-1);
+  if (!ack) return "clinician receipt unknown";
+  return ack.status === "received" ? "ED clinician recorded receipt" : "ED clinician recorded cath-lab activation";
 }
 /** The "reconciled" line shows only when everything confirmed has been acknowledged over a good link (§3.1.9). */
 export function reconciled(s: Snapshot): boolean {

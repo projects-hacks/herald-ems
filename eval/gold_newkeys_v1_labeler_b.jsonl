@@ -1,0 +1,84 @@
+{"id": "nk_001", "facts": [["triage.category", "immediate", "medic"]]}
+{"id": "nk_002", "facts": [["triage.category", "delayed", "medic"], ["trauma.injuries", ["forearm fracture"], "medic"]]}
+{"id": "nk_003", "facts": [["triage.category", "minimal", "medic"]]}
+{"id": "nk_004", "facts": [["triage.category", "expectant", "medic"]]}
+{"id": "nk_005", "facts": [["triage.category", "dead", "medic"]]}
+{"id": "nk_006", "facts": [["triage.category", "minimal", "medic"]]}
+{"id": "nk_007", "facts": [["triage.category", "immediate", "medic"]]}
+{"id": "nk_008", "facts": [["triage.category", "immediate", "medic"]]}
+{"id": "nk_009", "facts": [["triage.category", "immediate", "bystander", "incident command"]]}
+{"id": "nk_010", "facts": [["triage.category", "expectant", "medic"]]}
+{"id": "nk_011", "facts": [["triage.category", "immediate", "medic"]]}
+{"id": "nk_012", "facts": [["patient.age", 40, "medic"], ["patient.sex", "M", "medic"]]}
+{"id": "nk_013", "facts": [["trauma.injuries", ["ankle swelling"], "medic"]]}
+{"id": "nk_014", "facts": [["complaint.chief", "productive cough", "medic"], ["symptom.onset", "since tuesday", "medic"]]}
+{"id": "nk_015", "facts": [["complaint.chief", "jaundice", "medic"], ["symptom.onset", "a week ago", "medic"]]}
+{"id": "nk_016", "facts": [["vitals.pain", 2, "medic"]]}
+{"id": "nk_017", "facts": []}
+{"id": "nk_018", "facts": [["airway.status", "patent", "medic"]]}
+{"id": "nk_019", "facts": [["airway.status", "patent with adjunct", "medic"], ["procedures.done", {"procedure": "airway adjunct", "detail": "npa right nare"}, "medic"]]}
+{"id": "nk_020", "facts": [["airway.status", "supraglottic airway", "medic"], ["procedures.done", {"procedure": "supraglottic airway", "detail": "i-gel size 4"}, "medic"]]}
+{"id": "nk_021", "facts": [["airway.status", "endotracheal tube", "medic"], ["procedures.done", {"procedure": "intubation", "detail": "ett at 23 at the teeth"}, "medic"]]}
+{"id": "nk_022", "facts": [["airway.status", "bag-valve-mask ventilation", "medic"], ["procedures.done", {"procedure": "bvm ventilation"}, "medic"]]}
+{"id": "nk_023", "facts": [["airway.status", "compromised", "medic"], ["procedures.done", {"procedure": "suction"}, "medic"]]}
+{"id": "nk_024", "facts": [["airway.status", "compromised", "medic"]]}
+{"id": "nk_025", "facts": [["airway.status", "compromised", "medic"]]}
+{"id": "nk_026", "facts": [["airway.status", "bag-valve-mask ventilation", "medic"], ["procedures.done", {"procedure": "airway adjunct", "detail": "opa"}, "medic"], ["procedures.done", {"procedure": "bvm ventilation"}, "medic"]]}
+{"id": "nk_027", "facts": [["airway.status", "supraglottic airway", "medic"], ["procedures.done", {"procedure": "bvm ventilation"}, "medic"], ["procedures.done", {"procedure": "supraglottic airway", "detail": "king"}, "medic"]]}
+{"id": "nk_028", "facts": [["airway.status", "patent", "medic"]]}
+{"id": "nk_029", "facts": []}
+{"id": "nk_030", "facts": []}
+{"id": "nk_031", "facts": []}
+{"id": "nk_032", "facts": []}
+{"id": "nk_033", "facts": [["impression.primary", "hypoglycemia", "medic"], ["vitals.glucose", 38, "medic"]]}
+{"id": "nk_034", "facts": [["impression.primary", "cva", "medic"]]}
+{"id": "nk_035", "facts": [["impression.primary", "anaphylaxis", "medic"]]}
+{"id": "nk_036", "facts": [["impression.primary", "opioid overdose", "medic"], ["vitals.rr", 6, "medic"]]}
+{"id": "nk_037", "facts": [["impression.primary", "sepsis from a uti", "medic"], ["infection.suspected", "urinary", "medic"]]}
+{"id": "nk_038", "facts": [["impression.primary", "sepsis", "medic"]]}
+{"id": "nk_039", "facts": [["impression.primary", "ectopic", "medic"], ["patient.age", 22, "medic"]]}
+{"id": "nk_040", "facts": [["impression.primary", "meningitis", "medic"]]}
+{"id": "nk_041", "facts": [["impression.primary", "urosepsis", "medic"], ["infection.suspected", "urinary", "medic"]]}
+{"id": "nk_042", "facts": [["impression.primary", "hip fracture", "medic"], ["trauma.injuries", ["shortened externally rotated right leg"], "medic"]]}
+{"id": "nk_043", "facts": []}
+{"id": "nk_044", "facts": [["transport.destination", "Valley", "medic"]]}
+{"id": "nk_045", "facts": [["patient.age", 62, "medic"], ["patient.sex", "M", "medic"], ["complaint.chief", "chest pain", "medic"]]}
+{"id": "nk_046", "facts": []}
+{"id": "nk_047", "facts": []}
+{"id": "nk_048", "facts": []}
+{"id": "nk_049", "facts": [["trauma.injury_time", "1430", "medic"], ["symptom.onset", "1430", "medic"], ["trauma.mechanism", "single vehicle into a pole", "medic"], ["complaint.chief", "mvc", "medic"]]}
+{"id": "nk_050", "facts": [["trauma.injury_time", "2 hours ago", "medic"], ["symptom.onset", "2 hours ago", "medic"], ["trauma.mechanism", "fall from a ladder", "medic"], ["complaint.chief", "fall", "medic"]]}
+{"id": "nk_051", "facts": [["trauma.injury_time", "11 pm", "medic"], ["symptom.onset", "11 pm", "medic"]]}
+{"id": "nk_052", "facts": [["trauma.injury_time", "6 am", "family", "wife"], ["symptom.onset", "6 am", "family", "wife"], ["trauma.mechanism", "slipped in the shower", "family", "wife"], ["complaint.chief", "fall", "family", "wife"]]}
+{"id": "nk_053", "facts": [["trauma.injury_time", "0215", "medic"], ["symptom.onset", "0215", "medic"], ["trauma.mechanism", "rollover, ejected", "medic"], ["complaint.chief", "mvc", "medic"], ["trauma.criteria", ["ejection"], "medic"]]}
+{"id": "nk_054", "facts": [["trauma.injury_time", "20 minutes ago", "medic"], ["symptom.onset", "20 minutes ago", "medic"], ["trauma.mechanism", "press came down on his hand", "medic"], ["complaint.chief", "hand injury", "medic"]]}
+{"id": "nk_055", "facts": [["trauma.mechanism", "stabbed once to the left flank", "medic"], ["complaint.chief", "stabbing", "medic"], ["trauma.injuries", ["stab wound left flank"], "medic"], ["trauma.criteria", ["penetrating injury head neck torso or proximal extremity"], "medic"]]}
+{"id": "nk_056", "facts": []}
+{"id": "nk_057", "facts": []}
+{"id": "nk_058", "facts": [["complaint.chief", "vomiting", "medic"], ["symptom.onset", "3 hours ago", "medic"]]}
+{"id": "nk_059", "facts": []}
+{"id": "nk_060", "facts": [["ecg.stemi_reading", true, "medic"], ["ecg.territory", ["inferior"], "medic"]]}
+{"id": "nk_061", "facts": [["ecg.stemi_reading", true, "medic"], ["ecg.territory", ["anterior", "septal"], "medic"]]}
+{"id": "nk_062", "facts": [["ecg.territory", ["inferior", "lateral"], "medic"]]}
+{"id": "nk_063", "facts": [["ecg.stemi_reading", true, "medic"], ["ecg.territory", ["anterior", "lateral"], "medic"], ["ecg.transmitted", true, "medic"], ["transport.destination", "Valley", "medic"], ["ecg.twelve_lead_time", "1408", "medic"]]}
+{"id": "nk_064", "facts": [["ecg.territory", ["right ventricular"], "medic"]]}
+{"id": "nk_065", "facts": [["ecg.territory", ["posterior"], "medic"]]}
+{"id": "nk_066", "facts": [["ecg.territory", ["inferior"], "medic"], ["ecg.stemi_reading", false, "medic"]]}
+{"id": "nk_067", "facts": []}
+{"id": "nk_068", "facts": []}
+{"id": "nk_069", "facts": []}
+{"id": "nk_070", "facts": [["ecg.territory", ["anterior"], "medic"]]}
+{"id": "nk_071", "facts": [["ecg.stemi_reading", true, "medic"], ["ecg.territory", ["inferior"], "medic"]]}
+{"id": "nk_072", "facts": [["meds.given", {"drug": "naloxone", "dose": 2, "by": "fire", "before_arrival": true}, "medic"]]}
+{"id": "nk_073", "facts": [["procedures.done", {"procedure": "cpr", "by": "bystander", "before_arrival": true}, "medic"], ["procedures.done", {"procedure": "cpr", "by": "crew"}, "medic"]]}
+{"id": "nk_074", "facts": [["meds.given", {"drug": "epinephrine", "by": "bystander", "before_arrival": true}, "bystander", "friend"]]}
+{"id": "nk_075", "facts": [["meds.given", {"drug": "nitroglycerin", "count": 3, "route": "SL", "by": "patient", "before_arrival": true}, "medic"], ["meds.list", ["nitroglycerin"], "medic"]]}
+{"id": "nk_076", "facts": [["meds.given", {"drug": "naloxone", "by": "police", "before_arrival": true}, "medic"]]}
+{"id": "nk_077", "facts": [["meds.given", {"drug": "diazepam", "by": "family", "before_arrival": true}, "medic"]]}
+{"id": "nk_078", "facts": [["meds.given", {"drug": "glucose", "by": "facility", "before_arrival": true}, "medic"]]}
+{"id": "nk_079", "facts": [["meds.given", {"drug": "acetaminophen", "time": "noon", "by": "family"}, "medic"]]}
+{"id": "nk_080", "facts": [["meds.given", {"drug": "acetaminophen / oxycodone", "time": "2200", "by": "facility"}, "family", "facility nurse"]]}
+{"id": "nk_081", "facts": [["meds.list", ["rivaroxaban"], "family", "daughter"], ["meds.anticoagulant", "rivaroxaban", "family", "daughter"]]}
+{"id": "nk_082", "facts": [["procedures.done", {"procedure": "cpr", "by": "bystander"}, "medic"]]}
+{"id": "nk_083", "facts": []}
+{"id": "nk_084", "facts": []}

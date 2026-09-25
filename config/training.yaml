@@ -41,3 +41,130 @@ dispatch:
 # Template-composed rows that mention drugs or procedures were written before meds.given / procedures.done existed
 # and carry no labels for them; they are left out rather than taught as "nothing to extract".
 composed_exclude: '\b(gave|given|administer|pushed|narcan|naloxone|zofran|ondansetron|d10|d50|epi|albuterol|duoneb|fentanyl|morphine|iv|io|cpr|shock|splint|collar|tourniquet|cpap)\b'
+
+# Run F (docs/MODEL_PLAN.md §0l, docs/TRAINING_PLAN.md §4): ONE Qwen3-VL-30B-A3B model for speech -> facts, photo ->
+# facts, and (replay slice) the base model's own protocol reranking, figure transcription and translation.
+# Read by scripts/train_vlm_lora.py, scripts/build_replay_set.py and scripts/merge_vlm_lora.py. Nothing here runs in
+# the product. Every number below is justified in MODEL_PLAN §0l.
+herald-f:
+  base: Qwen/Qwen3-VL-30B-A3B-Instruct         # BF16; the live qwen3vl-fp8 is the publisher's FP8 of the same model
+  label: herald-f                              # served label; its text prompt is the config/extraction.yaml profile
+  merged_repo_suffix: -merged-f                # pushed to <HF_REPO_ID>-merged-f (private)
+  out: runs/herald-f-lora
+  data:                                        # each dir holds train.jsonl and dev.jsonl
+    text: data/train_f                         # speech rows (chat: system/user/assistant)
+    image: data/vision_train                   # photo rows (image, mode, system, user, target)
+    replay: data/replay_f                      # self-distillation rows (scripts/build_replay_set.py)
+  mix:
+    epochs: 2                                  # adapters at the end of epoch 1 and epoch 2 are both kept and evaluated
+    text_rows_per_epoch: all                   # every speech row, every epoch
+    image_rows_per_epoch: 1200                 # photos per epoch, without replacement (new photos in epoch 2); the
+                                               # main time knob: ~1,100 tokens each (MODEL_PLAN §0l time budget).
+                                               # Raised 600 -> 1200 (owner, 2026-09-25) once the ladder measured the
+                                               # real speed at 401 padded tokens/s instead of the assumed 180: the run
+                                               # fits the window with hours to spare, so the spare time buys vision
+                                               # coverage. ~2,400 of the 3,460 photos are now seen over the 2 epochs.
+    replay_share: 0.075                        # replay rows as a share of each epoch (TRAINING_PLAN §4.4: 5-10%)
+    seed: 13
+  replay:
+    teacher_label: qwen3vl-fp8                 # the served FP8 of the same base; 1 request at a time
+    tasks:                                     # rows to generate per task (the mix samples replay_share from them)
+      rerank: 320
+      figure: 60
+      translate: 240
+    rerank_unanswerable_share: 0.2             # candidates retrieved for a different question
+    translate_es_to_en_share: 0.5              # back-translation of the model's own Spanish
+    figure_pages_per_doc: 2
+    decontaminate: [eval/protocols/qa_gold.jsonl]   # benchmark questions stay test-only (8-word runs, same question)
+    exclude_pages: [[700-A13, 3]]                   # the flowchart the figure bench scores (eval/protocols)
+    dev_share: 0.1
+  lora:
+    r: 16
+    alpha: 32
+    dropout: 0.0                               # PEFT's expert LoRA (target_parameters) requires 0
+    target_modules: '.*language_model.*\.(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj)$'
+    target_parameters: [mlp.experts.gate_up_proj, mlp.experts.down_proj]   # every expert; the router stays frozen
+  optim:
+    lr: 2.0e-4
+    scheduler: cosine
+    warmup_ratio: 0.05
+    weight_decay: 0.0
+    max_grad_norm: 1.0
+  batching:                                    # micro-batches filled up to a token budget, rows of similar length
+    max_tokens: 8192                           # padded tokens per micro-batch
+    max_rows: 24
+    accum: 2                                   # micro-batches per optimizer step
+  max_length: 4096                             # longer rows are dropped and counted, never truncated
+  image:                                       # the same bound is written into the merged model's preprocessor_config
+    max_pixels: 2359296                        # 1536 x 1536: a 150-dpi protocol page (1275 x 1650) is not shrunk
+    min_pixels: 65536
+  checkpoint_steps: 20                         # at most ~10 min lost: 11.1k padded tokens/step at the measured
+                                               # ~373 tok/s = ~29.8 s/step (MODEL_PLAN §0l "Crash safety").
+                                               # Raised 10 -> 20 (owner, 2026-09-25): the cadence was sized for the
+                                               # assumed 180 tok/s, where 10 steps was already ~10.5 min. At the
+                                               # measured speed a save every 10 steps spent ~21 s of overhead on
+                                               # every tenth step to protect only ~5 min of work.
+  keep_checkpoints: 4                          # periodic, complete ones only; epoch-1 / epoch-2 adapters are never rotated
+  adapter_backup_dir: runs/herald-f-adapters-backup   # second copy of epoch-1 / epoch-2, made as each is saved
+  supervisor:                                  # scripts/train_supervised.py (+ systemd --user herald-train.service)
+    job_name: train-f
+    priority: critical                         # run_job.py / memguard: killed last, long SIGTERM grace
+    need_gib: 90                               # host + GPU budget (MODEL_PLAN §0l memory plan: ~78 GiB peak + save spike)
+    gpu_max_gib: 90                            # torch CUDA cap set by run_job.py
+    wait_s: 1800                               # wait this long for memory / the GPU lock before a refused start
+    train_args: [--reclaim-gib, '0']         # 0, not 60 (owner, 2026-09-25). The streaming loader (MODEL_PLAN §0l)
+                                             # made the pre-load reclaim pointless, and the 60 GiB allocation inflated
+                                             # torch's reserved pool: the live run sat at ~86 GiB reserved against
+                                             # ~74.5 GiB allocated and MemAvailable dipped to 18.89 GiB, below the
+                                             # ladder's 20 GiB bar. Every ladder rung ran with 0 and floored at 30+.
+    max_failures: 6                            # crashes (not refused starts) before giving up
+    backoff_s: 60                              # 60, 120, 240, 480, 900, 900 s between crash retries
+    backoff_cap_s: 900
+    tempfail_wait_s: 120                       # after a refused start (exit 75)
+    log: runs/herald-f-train.log
+  eval_steps: 122                               # one dev pass over all three splits is 219 s measured at step 50
+                                                # (text 102.5 + image 74.8 + replay 41.9), not the ~3 min assumed.
+                                                # 50 -> 122 (owner, 2026-09-25): 122 divides 488, so the passes land
+                                                # on 122 / 244 / 366 / 488 and BOTH epoch ends are still measured --
+                                                # step 488 had no dev pass at all under 50, since 488 is not a
+                                                # multiple of 50. Four passes instead of nine.
+  dev_rows: {text: 150, image: 60, replay: 40}
+  min_free_gib: 80                             # refuse to load the 30B with less free memory (after --reclaim-gib)
+  reference_tokens_per_s: 373                  # MEASURED on the live 30B run (owner, 2026-09-25), replacing the
+                                               # assumed 180: steps 30-72 took 1553 s wall, less one 219 s dev pass
+                                               # and 4 saves at ~21 s, = 29.8 s over 11,125 padded tokens/step.
+                                               # Pure compute only; saves and dev passes are counted separately.
+                                               # Was: for the dry-run's time projection until the 30B smoke measures it
+                                               # (true-width 30B-A3B layer benchmark with expert LoRA, §0l)
+
+# Measured ASR layer for run F (MODEL_PLAN §0k "Measured ASR noise"; scripts/asr_layer.py, scripts/asr_tts.py,
+# scripts/cabin_noise.py). Training lines are spoken by Piper TTS voices, mixed with synthetic ambulance-cabin noise,
+# and transcribed by the production Whisper path; the transcript becomes a training input with the clean labels.
+asr_noise:
+  sample_rows: 1500
+  min_rows_per_key: 30            # stratified: every key gets at least this many source lines (or all it has)
+  seed: 23
+  voices:                         # rhasspy/piper-voices, US English, 4 female + 4 male
+  - en_US-lessac-medium
+  - en_US-amy-medium
+  - en_US-kristin-medium
+  - en_US-hfc_female-medium
+  - en_US-ryan-medium
+  - en_US-joe-medium
+  - en_US-john-medium
+  - en_US-hfc_male-medium
+  length_scale: [0.85, 1.2]       # speaking-rate jitter (Piper length_scale: < 1 faster, > 1 slower)
+  conditions:                     # name: SNR in dB over speech-active samples (null = no noise); equal shares
+    clean: null
+    snr15: 15
+    snr8: 8
+    snr3: 3
+  lead_seconds: [0.2, 0.8]        # cabin noise before and after the speech
+  engine_hz: [25, 45]             # firing frequency of the engine rumble
+  siren_share: 0.3                # share of noisy clips with a siren wail in the background
+  beep_share: 0.4                 # share of noisy clips with monitor beeps
+  max_wer: 0.5                    # a transcript this far from what was said is unintelligible, not a training input
+  max_length_ratio: 1.6           # transcript words / said words above this is a hallucination
+  # Words the TTS voice put there, not the speaker: espeak reads the route "IV" as the Roman numeral ("roman four").
+  # A transcript with one that the line did not say teaches a TTS quirk, not a Whisper error: dropped.
+  tts_artifacts: '\broman\b'

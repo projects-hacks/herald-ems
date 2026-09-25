@@ -103,7 +103,7 @@ When `by` is `"other"` and nothing else is said about the source, the role is th
   - `vitals.on_oxygen`: `false` for "room air"; `true` for "on oxygen / nasal cannula / non-rebreather / N liters".
   - `vitals.consciousness`: one letter: `A` alert (incl. "alert and oriented", "A&O"); `C` new confusion ("confused", "disoriented"); `V` responds to voice; `P` responds to pain; `U` unresponsive.
   - `vitals.gcs_motor`: 1–6, only when the motor score is stated.
-- **Drug names (all drug keys) are RxNorm ingredient names, lowercase** (team lead, 2026-09-24; the app codes every drug name to RxNorm, `herald/terminology/`, MODEL_PLAN §0j). Brands and misspellings become the ingredient ("Eliquis" → "apixaban"; Depakote → "valproate", RxNorm's ingredient for divalproex). A combination is RxNorm's multi-ingredient name: the ingredients in alphabetical order joined by " / " (DuoNeb or "ipratropium-albuterol" → "albuterol / ipratropium"; Percocet → "acetaminophen / oxycodone"). A name RxNorm doesn't have, or one it can't pin to one ingredient ("insulin", "dextrose"), is labeled as said. A product said with its number keeps every ingredient, never the plain brand's: "Tylenol 3" → "acetaminophen / codeine", Humalog Mix 75/25 → "insulin lispro / insulin lispro protamine" (the number is part of the product, not a dose). To check a name, look it up in RxNav (https://mor.nlm.nih.gov/RxNav/) or ask the index: `RxNormNormalizer.load(...).normalize(key, name)`.
+- **Drug names (all drug keys) are RxNorm ingredient names, lowercase** (team lead, 2026-09-24; the app codes every drug name to RxNorm, `herald/terminology/`, MODEL_PLAN §0j). Brands and misspellings become the ingredient ("Eliquis" → "apixaban"; Depakote → "valproate", RxNorm's ingredient for divalproex). A combination is RxNorm's multi-ingredient name: the ingredients in alphabetical order joined by " / " (DuoNeb or "ipratropium-albuterol" → "albuterol / ipratropium"; Percocet → "acetaminophen / oxycodone"). A name RxNorm doesn't have, or one it can't pin to one ingredient ("insulin", "dextrose"), is labeled as said. A product said with its number keeps every ingredient, never the plain brand's: "Tylenol 3" → "acetaminophen / codeine", Humalog Mix 75/25 → "insulin lispro / insulin lispro protamine, human" (the number is part of the product, not a dose; RxNorm's name carries ", human", §5c.2). To check a name, look it up in RxNav (https://mor.nlm.nih.gov/RxNav/) or ask the index: `RxNormNormalizer.load(...).normalize(key, name)`.
 - **`meds.list`**: list of lowercase **generic** names mentioned as taken ("Eliquis" → "apixaban"). Include non-anticoagulants ("metformin").
 - **`meds.anticoagulant`**: the generic name (warfarin, apixaban, rivaroxaban, dabigatran, edoxaban, enoxaparin, heparin), or `"none"` **only when explicitly denied** ("no blood thinners", "denies anticoagulants").
 - **`allergies`**: list of lowercase allergens; `[]` for "no known allergies / NKDA / no allergies / denies allergies".
@@ -235,8 +235,321 @@ Annotators flagged these as unclear; these are the labels used from batch 10 on.
 - **"Found by her landlord" / "last seen normal by her daughter":** the source is the person named; a bare "found down" is the medic's.
 - **Bare RACE scores** ("face two, arm one") give no `stroke.deficits` (no phrase was said). "GFAST positive" without the count gives no item labels.
 
+## 5c. Rules settled for run F (2026-09-24; gaps found while writing batches 21 on, MODEL_PLAN §0k)
+Numbered so labelers and adjudicators can cite them ("§5c.3").
+
+1. **Said is not done: orders, requests, plans, advice, offers, refusals and holds give no `meds.given` or
+   `procedures.done`.** "Give her 325 aspirin" (anyone saying it, a bystander included), "base says push 4 of Zofran",
+   "we'll start fentanyl", "I told him to take his aspirin", "offered her Tylenol", "she refused the aspirin",
+   "declined the IV", "held the nitro, pressure's too soft" → no record. The dose is a fact only once someone says it
+   was given or is going in now ("aspirin's been chewed", "pushing it now", "fentanyl 50 in"). A refused drug is not a
+   home medication either (no `meds.list`). The patient's own doses before the call stay `meds.list` (§4e).
+2. **Drug labels are the names the RxNorm coder writes back for an exact match** (§4 drug names; the coder is
+   `RxNormNormalizer.normalize(key, name)`): a label must code to itself with method `exact`, or be a name RxNorm
+   doesn't have (kept as said, e.g. "insulin", "dextrose", "peanuts"). RxNorm writes some ingredients with a
+   qualifier, and the qualifier is part of the name: Humalog Mix 75/25 (and "Humalog 75/25") → "insulin lispro /
+   insulin lispro protamine, human" (written without ", human" it codes to one insulin); NovoLog → "insulin aspart,
+   human"; NovoLog Mix 70/30 → "insulin aspart protamine, human / insulin aspart, human"; Humulin or Novolin 70/30 →
+   "insulin isophane / insulin, regular, human"; isosorbide mononitrate (Imdur) → "isosorbide". Racemic epinephrine
+   → "racepinephrine". Numbered products keep every ingredient whatever the number: "Tylenol 3", "Tylenol number 4",
+   "Tylenol with codeine" → "acetaminophen / codeine"; "Percocet 5/325" → "acetaminophen / oxycodone"; "Norco 10/325",
+   Vicodin, "hydrocodone APAP" → "acetaminophen / hydrocodone". Ingredients go in alphabetical order ("hydrochlorothiazide /
+   losartan" for Hyzaar or "losartan HCTZ"). Two separate drugs said together ("Plavix and aspirin") are two items,
+   never a combination.
+3. **12-lead keys.**
+   - `ecg.stemi_reading` true when the 12-lead's reading, or the medic's read of it, says STEMI or acute MI ("monitor's
+     calling a STEMI", "it's an inferior STEMI", "meets STEMI criteria", "acute MI suspected"). False for a negative
+     read of the whole tracing: "no STEMI", "not a STEMI", "doesn't meet criteria", "no acute changes", "no ST changes",
+     "no ST elevation", "unremarkable", "nondiagnostic", "normal 12-lead". None for ST elevation or depression
+     described without the reading ("ST elevation in 2, 3 and aVF"), a rhythm alone ("sinus tach", "a-fib"), or
+     "STEMI alert" / "cath lab activated" as the call's label without a reading.
+   - `ecg.transmitted` true when the 12-lead is said sent ("transmitted to the cath lab", "sent it to Regional", "you
+     should have it on your screen"); false when said not sent ("couldn't transmit", "didn't go through"). A plan
+     ("I'll send it") gives none.
+   - `ecg.attached` true when the 12-lead is said attached, on the chart/ePCR/pre-alert, "on" the patient, done with
+     no time given, or sent (a sent 12-lead was acquired and attached). "Done at T", "at T shows…" gives only
+     `ecg.twelve_lead_time` (§5b). A rhythm read off the monitor, not the 12-lead, gives no ECG key.
+4. **`infection.suspected` values** (the suspected source, lowercase): "urinary" (UTI, urosepsis, cloudy or foul
+   catheter urine), "respiratory" (pneumonia, productive cough with fever called a chest infection), "skin" (cellulitis,
+   infected wound, abscess, pressure ulcer, infected surgical site), "abdominal" (appendicitis, belly source,
+   cholecystitis, peritonitis), "neurologic" (meningitis), "device" (infected port, PICC, dialysis catheter; a urinary
+   catheter is "urinary"), "unknown" ("looks septic, no clear source", "sepsis alert, source unknown"). Only when the
+   crew or a caregiver states the suspicion (a hedge from the crew such as "probably" or "looks like" is the suspicion
+   itself, as in §4e). A fever, a SIRS count, or a dispatch of "possible sepsis" alone gives none. A patient with a
+   known diagnosis under treatment ("on antibiotics for pneumonia") → the source ("respiratory").
+5. **`trauma.criteria`: which words give which value** (injured patients only: a mechanism or injury is stated in the
+   utterance or the dispatch is an injury; "respiratory distress" on an asthma call is not a trauma criterion):
+   - "fall over 10 feet": a height over 10 feet, or two or more stories of drop ("third-floor window", "off the roof of a
+     two-story house"). Exactly 10 feet, a "second-floor balcony" with no height, "a ladder", or a hedged height give
+     none.
+   - "low level fall with significant head impact": a fall from standing or a low height with a stated head strike
+     ("tripped and hit her head on the counter"). "Denies hitting her head" or a head strike not stated gives none.
+   - "pedestrian or cyclist thrown or run over": a pedestrian or bicyclist thrown, run over, dragged, or struck with
+     significant impact: said as significant/high speed, or at a stated speed of 20 mph or more (the 2011 national
+     guideline's "significant (> 20 mph) impact", which the 2021 wording replaced with "significant impact").
+   - "rider separated with significant impact": thrown or separated from a motorcycle, ATV, scooter, dirt bike or horse
+     ("thrown over the handlebars", "bucked off"). Laying the bike down and staying with it gives none.
+   - "ejection" (partial or complete, from a car); "rollover unrestrained" (rollover and no restraint, both said);
+     "child unrestrained" (a child passenger not restrained or in an unsecured car seat); "death in same passenger
+     compartment" (someone dead in the same vehicle, not another vehicle).
+   - "intrusion or extrication": intrusion said as major/significant, or over 12 inches at the patient's seat (18
+     anywhere), or extrication needed ("had to cut her out", "prolonged extrication", "entrapped"). "Minor intrusion"
+     gives none.
+   - "penetrating injury head neck torso or proximal extremity": a GSW, stab or impalement to the head, neck, chest,
+     abdomen, back, pelvis, or an arm or leg above the elbow or knee. A stab to the forearm or a nail through the foot
+     gives none.
+   - "skull deformity" (deformity, step-off, depressed or suspected skull fracture); "chest wall instability"
+     (flail, paradoxical movement, chest wall deformity); "pelvic fracture" (unstable or suspected); "two or more
+     proximal long bone fractures" (two or more of femur and humerus, e.g. "bilateral femur deformities");
+     "crushed degloved mangled or pulseless extremity"; "amputation proximal to wrist or ankle" (fingers or toes give
+     none); "spinal injury with new motor or sensory loss" (a suspected spinal injury and new weakness, numbness or
+     tingling); "bleeding requiring tourniquet or wound packing" (a tourniquet or packing applied or needed to stop
+     the bleeding).
+   - "time sensitive extremity injury": an open fracture, or a fracture or dislocation with lost or weak pulses or
+     sensation below it. A pulseless extremity is "crushed degloved mangled or pulseless extremity" instead.
+   - "respiratory distress or need for respiratory support": an injured patient in respiratory distress or being
+     ventilated (BVM, airway, CPAP).
+   - "major burn" (Policy 605 §III.A.1-6): partial-thickness burns over 10% of the body, burns to the face, hands,
+     feet, genitalia, perineum or a major joint, any full-thickness burn, an electrical (incl. lightning) or chemical
+     burn, or an inhalation injury (singed nasal hair, soot in the airway, hoarse voice after a fire).
+   - One description may give several values ("rolled, unbelted, thrown from the car" → "rollover unrestrained" and
+     "ejection").
+
+## 5d. Keys and fields added for run F (owner-approved 2026-09-24; `config/vocabulary.yaml`)
+Numbered like §5c. Each key follows §2 (only what was said) and §3 (who said it).
+
+1. **`trauma.injury_time`** (time, as `stroke.lkw`): when the injury happened, as spoken ("crashed around 1430" →
+   "1430"; "fell about two hours ago" → "2 hours ago"; "went down at eleven last night" → "11 pm"). The same words
+   also give `symptom.onset`, as they always have (the complaint began with the injury; older labels do this). A
+   discovery time ("found at 0600") is neither; a hedge gives none; a medical onset with no injury gives only
+   `symptom.onset`.
+2. **`ecg.territory`** (list from the enum): the territory of the injury pattern when a territory word is said by
+   the medic or read off the monitor: "inferior STEMI" → ["inferior"] (and `ecg.stemi_reading` true, §5c.3);
+   "anteroseptal" → ["anterior", "septal"]; "inferolateral" → ["inferior", "lateral"]; "anterolateral" →
+   ["anterior", "lateral"]; "RV infarct", "right-sided elevation in V4R" → ["right ventricular"]; "posterior MI" →
+   ["posterior"]. "Inferior ST elevation" with no STEMI reading gives the territory only. Leads alone ("elevation in
+   2, 3 and aVF") give no territory (reading leads is interpretation), and reciprocal changes give none ("reciprocal
+   depression laterally"). A negative ("no inferior changes") gives none.
+3. **`airway.status`** (one enum value; the current status the medic states):
+   - "patent": "airway's patent / clear / intact", "maintaining her own airway", "no airway issues";
+   - "patent with adjunct": an OPA or NPA in place ("NPA in the right nare, airway's good");
+   - "supraglottic airway": i-gel, King, LMA in place; "endotracheal tube": intubated, tubed, "ETT at 23 at the teeth";
+   - "bag-valve-mask ventilation": being bagged with a BVM and nothing more advanced in place;
+   - "compromised": "airway's compromised", snoring or gurgling respirations, blood or vomit in the airway, "can't
+     protect his airway", stridor said as an airway problem.
+   A device placed is also a `procedures.done` event (§4e). Words about the airway that state no status give none
+   ("check the airway", "airway bag", "grab the airway kit", "we'll put an i-gel in", "airway?" as a question). A
+   later status replaces an earlier one only within one utterance ("bagging, now i-gel's in" → "supraglottic
+   airway"; §5 corrections: the current state wins).
+4. **`impression.primary`** (str, short, lowercase, as said): the crew's working impression, stated as the medic's
+   own assessment: "my impression is hypoglycemia" → "hypoglycemia"; "looks like a CVA to me" → "cva"; "treating it as
+   anaphylaxis"; "primary impression opioid overdose"; "field impression, sepsis from a UTI" → "sepsis from a uti";
+   "I think she's septic" → "sepsis". Role `medic` only: a family member's or bystander's guess ("my wife thinks it's
+   a stroke") is not the crew's impression. It does not replace other keys: "probably urosepsis" → impression
+   "urosepsis" and `infection.suspected` "urinary"; "looks like a stroke" gives no stroke keys (§4c) and no
+   `complaint.chief`. Not an impression: the dispatch, a chief complaint ("c/o chest pain"), "stroke alert" or "STEMI
+   alert" as a call label, the other sense of the word ("the seatbelt left an impression"), and hedges ("could be
+   anything, maybe a bleed, maybe not").
+5. **`triage.category`** (one enum value; SALT, mass-casualty): the category given to the patient being described:
+   "immediate" (red), "delayed" (yellow), "minimal" (green, walking wounded), "expectant" (gray/grey), "dead"
+   (black, deceased). Colors map to the SALT category ("tagged him red" → "immediate"; "she's a green" → "minimal";
+   "black tag" → "dead"). A retag is a correction: the last category said wins. Counts across patients ("two reds and
+   five greens on scene") and a category for someone else ("the driver's a black tag" said about another patient
+   while describing this one) give none for this patient; a line about one patient gives that patient's category.
+   Triage words outside mass-casualty tagging give none ("red and swollen", "green sputum", "yellow skin",
+   "immediate relief", "the triage nurse", "code red").
+6. **`before_arrival`** (bool field on `meds.given` and `procedures.done`; NEMSIS eMedications.02 "prior to EMS
+   care"): true when the words say the dose or procedure happened before this crew arrived ("fire gave 2 of Narcan
+   before we got there", "PTA", "prior to our arrival", "bystander CPR in progress on arrival", "I gave him my
+   Narcan before you got here", "had already given"). Set only when true; the crew's own interventions leave it out.
+   A dose given by fire, police or a bystander with no timing said leaves it out.
+   - **A dose the patient took for this problem before the crew arrived is a record given before arrival**, with
+     `by` "patient": "took two of his own nitros before we got there" → `meds.given` {"drug": "nitroglycerin",
+     "count": 2, "by": "patient", "before_arrival": true}. It is also still a home medication (`meds.list`
+     ["nitroglycerin"]), as before (§4b, §4e). Routine daily doses ("took her Eliquis this morning", "had her
+     morning pills") are `meds.list` only.
+   - Plans, advice and refusals (§5c.1) give no record, so no `before_arrival`.
+7. **Units and shared times on dose records** (settled conventions restated; nothing changed):
+   - A unit is filled only when said or spoken as a unit word ("mg", "migs", "milligrams" → mg; "mics", "micrograms"
+     → mcg; "grams" → g; "units"; "mils", "cc" → mL). "324 of aspirin", "aspirin 324 PO" → dose 324, no unit: a
+     standard unit is not filled in when it wasn't said (§4e: only the fields said are filled).
+   - A time said once after a list of doses goes on the nearest dose only (§4e): "we gave 324 of aspirin chewed and
+     fentanyl 50 mics IV at 1422" → the time on fentanyl only. A time said before the list applies to the first
+     only. A time said for each dose ("aspirin at 1410, fentanyl at 1422") goes on each.
+8. **Procedure names** (`procedures.done` `procedure`) are always lowercase and use the names in §4e: "iv access",
+   "io access", "bvm ventilation", "supraglottic airway", "intubation", "cpr", "defibrillation", "cardioversion",
+   "pacing", "cpap", "splint", "spinal motion restriction", "tourniquet", "wound packing", "needle decompression",
+   plus "airway adjunct" (OPA/NPA; the device in `detail`), "suction", "pelvic binder", "chest seal", "bleeding
+   control" (direct pressure, pressure dressing), "cooling", "childbirth" (field delivery). Synonyms become the name:
+   "got a line", "an 18 in the AC" → "iv access"; "i-gel", "King", "LMA" → "supraglottic airway" (device in
+   `detail`); "tubed him" → "intubation"; "bagging" → "bvm ventilation"; "shocked" → "defibrillation"; "C-collar",
+   "backboard", "SMR" → "spinal motion restriction"; "traction splint" → "splint" (detail "traction").
+
+## 5e. Rulings from the run F adjudication (2026-09-24)
+Cases the writers and blind labelers of batches 21–31 flagged as unclear, settled so every batch uses one reading.
+
+1. **Overdoses are not doses given.** Pills the patient took as the overdose ("took thirty of her Percocet") give no
+   `meds.given` record: the ingestion is the problem, not a treatment. The drug is `meds.list` only when said to be
+   the patient's own ("her own Percocet"); someone else's pills give no `meds.list`. The overdose itself is
+   `complaint.chief`. Illicit drugs (heroin, meth, cocaine) are never `meds.list`.
+2. **`before_arrival` needs arrival words** (§5d.6), with one exception: the patient's own dose taken for this problem
+   is always before arrival. A dose by family, facility staff, fire or a bystander with only a clock or past time
+   ("mom gave him Tylenol at noon", "the nurse gave a Percocet at 2200") leaves it out; so does "bystander CPR" with
+   no timing. Arrival words cover every dose or procedure in the same sentence from the same speaker ("I gave him a
+   nitro before you got here and made him chew an aspirin" → both); "CPR in progress on arrival" and "we took over
+   compressions" count as arrival words.
+3. **12-lead details.** A reading alone ("monitor's calling an inferior STEMI") gives `ecg.stemi_reading` (and
+   territory) but not `ecg.attached`. A failed send gives `ecg.transmitted` false only. Two tracings in one
+   utterance ("first one nondiagnostic, repeat shows a STEMI") give one fact each, like rechecked vitals (§4b).
+   "V4R elevation" and "RV infarct" give "right ventricular" (§5d.2 names them); other leads alone give no territory.
+4. **Drug names the coder writes back in another form.** Pradaxa is labeled "dabigatran" (the name every earlier
+   label and gold set uses; RxNorm has both "dabigatran" and "dabigatran etexilate", MODEL_PLAN §0j). Adderall is
+   labeled "amphetamine / dextroamphetamine" (the coder's name). "LR" / lactated Ringer's is "lactated ringer's"
+   (not in RxNorm, kept as said).
+5. **Volumes and rates.** A volume is labeled as said, because a dose must be a number that was said (§5,
+   `config/grounding.yaml`): "one liter of LR" → dose 1, unit "L"; "500 cc" → 500 mL. With no number said
+   ("a liter of saline", "second liter hanging"), the record has the drug and who gave it, no dose or unit.
+   (Changed Thu 2026-09-24 before run F: litres used to be converted to 1000 mL, which the production grounding
+   drops as a number never said, so the model would have learned output the app always discards; 8 lines relabeled.) A running infusion's rate ("nitro drip at twenty mics a minute") is
+   not a dose: the record has the drug and who runs it, no dose.
+6. **Procedure names** (§5d.8) are a starting list, not a closed one: other interventions are short lowercase names
+   as NEMSIS would call them ("back blows", "active rewarming", "physical restraint", "irrigation"). A device said to
+   be in place is also a procedure (§5d.3).
+7. **Crew concern is an impression.** "I'm worried about an ectopic", "concern for meningitis", "suspect X" →
+   `impression.primary` (and the infection source where it applies, §5c.4), like "probably" or "looks like". A
+   differential ("could be X, could be Y", "X versus Y") gives none.
+8. **Age under one year** is `patient.age` 0 ("nine months old", "six weeks old"); "eighteen months" → 1.
+9. **"Alert but confused"** → `vitals.consciousness` "C" (new confusion is reported over alert).
+10. **A dose reported by the medic without attribution words** ("his mom gave the EpiPen at 1340") is role `medic`
+    with `by` "family"; with them ("mom says she gave…") it is role `family` (§3).
+11. **"Tombstones" or ST elevation in named leads** without a reading give no `ecg.stemi_reading`; "the inferior
+    leads" names a territory (§5d.2).
+12. **Riders.** A solo crash on a pedal bicycle ("went over the handlebars on the trail") gives no criterion; an
+    e-bike or stand-up scooter rider thrown gives "rider separated with significant impact"; "run over" gives the
+    pedestrian/cyclist criterion at any speed; exactly 12 inches of intrusion gives none (over 12).
+13. **Airway with an adjunct and bagging** ("OPA in, bagging at ten") is "bag-valve-mask ventilation": the support
+    being given wins over the adjunct. A responder on the mic (fire, incident command) giving a triage category or
+    an airway status is role `bystander` (§3) and the fact is still labeled.
+14. **A rate said with a rhythm** ("sinus tach at 124", "a-fib at 110", "paced at 70") is `vitals.hr`, as every
+    earlier batch labels it. "A 12-lead shows X" is a reading (point 3), not "done": no `ecg.attached`.
+15. **Inhaler puffs and tablets.** "Four puffs of albuterol" → `count` 4 (a puff is not a unit); "chewed four baby
+    aspirin" → one dose with no count and no dose (the number is tablets, not an amount in a unit); "two Benadryl,
+    twenty-five each" → dose 25, `count` 2.
+16. **Restraint or seat position alone is not a mechanism** ("front passenger, restrained", "in his booster"):
+    no `trauma.mechanism` unless the event is said (a crash, a rollover). It still counts toward "rollover
+    unrestrained" or "child unrestrained" when the event is said too.
+17. **Route is filled only from a route word**: "IV", "IM", "IN", "PO", "SL", "neb", "PR", "IO", "SQ", or a verb
+    that names one ("chewed", "swallowed" → PO; "under the tongue" → SL; "in the thigh" with an auto-injector → IM;
+    "up the nose" → IN). A brand or dosage form ("DuoNeb", "Zofran ODT", "Narcan spray") does not fill it.
+18. **Routine home care is not a procedure event**, like usual daily pills (§4e): a parent's regular trach suctioning
+    or a scheduled dressing change gives no `procedures.done`; care given for this problem ("I suctioned him when he
+    started gurgling") does.
+19. **The sign phrases listed under §5c.4 are themselves the suspicion** when the crew or a caregiver says them of the
+    patient ("foley's cloudy and foul" → "urinary"; "pus at the port site" → "device"). A symptom alone ("burning
+    when she pees", "coughing") is not.
+20. **A symptom said only as improving or resolved** ("the nausea's better now") gives no `complaint.chief`.
+
+21. **Suspected spinal injury from the words.** New numbness, tingling or weakness after an injury, together with neck
+    or back pain or a mechanism that loads the spine (diving into shallow water, landing on the head, a head-first
+    tackle, a crash), gives "spinal injury with new motor or sensory loss" even when "suspected" isn't said; the
+    role is whoever reported the deficit. Numbness alone after a hand or limb injury does not.
+22. **Fever with no number** is `complaint.chief` "fever" (there is no `vitals.temp` to hold it, §4c).
+23. **Units the list doesn't name** are kept as said when spoken as a unit ("one inch" of nitro paste → dose 1, unit
+    "inch"). An approximate age ("fifty-ish", "in her forties") gives no `patient.age`.
+24. **An ingestion time on an overdose** ("took them at 1900") is `symptom.onset`, like an injury time.
+25. **A rescue drug the patient carries but didn't use** (an EpiPen in her purse) gives no `meds.list`; one said to
+    be theirs and used or prescribed ("her EpiPen, she used it") does.
+26. **A sending physician or nurse on a transfer** ("sending doc says the CT showed a subdural") is relayed by the
+    medic: role `medic`.
+27. **Active bleeding with no wound named** ("bleeding from somewhere on the scalp", "blood in the mouth") is not a
+    `trauma.injuries` item; a named wound is. Petechiae or discoloration without a wound are signs, not injuries.
+28. **An event named only as the reference of a hedged time** ("sometime after the fight") is not a stated
+    mechanism or complaint.
+
+29. **`count` is only for more than one dose** ("narcan x2", "three nitros"): a single dose ("one Narcan", "narcan
+    x1") has no `count`, as in every earlier batch.
+
+## 5f. Spanish speech (Mexican Spanish at the scene; 2026-09-24, MODEL_PLAN §0k "Spanish (Mexican) speech")
+Patients, family and bystanders in Santa Clara County often speak Spanish (mostly Mexican Spanish), and medics
+code-switch ("le dimos 324 de aspirina", "está diaphoretic"). The utterance text is the Whisper transcript in the
+language that was spoken; it stays the fact's evidence. The labels do not change language. Numbered like §5c.
+
+1. **Same facts, English values.** A Spanish utterance gets exactly the facts its English equivalent would get under
+   §2–§5e: the same keys, roles, sources, enums, numbers, booleans and record fields. Every string value is English:
+   ACVPU letters, "F"/"M", enum values, units ("mg", "mL"), routes ("IV", "PO"), `by` categories, procedure names,
+   time words ("5 pm", "1 hour ago", "since 5"). Nothing is labeled in Spanish.
+2. **Drug names are the RxNorm ingredient in English** (§4, §5c.2), whatever language or country the name comes from:
+   a Spanish generic ("metformina", "insulina", "aspirina", "paracetamol") becomes the English ingredient ("metformin",
+   "insulin", "aspirin", "acetaminophen"); a Mexican brand ("Tempra" → "acetaminophen") is a brand like any other. A
+   name the labeler cannot pin to one ingredient is kept as said, like an English one; a drug class without a name
+   ("pastillas para la presión", "algo para el corazón", "pastillas para la sangre") is not `meds.list` (§4c).
+   An international name that differs from the US one is the US RxNorm name ("salbutamol" → "albuterol",
+   "glibenclamida" → "glyburide", "paracetamol" → "acetaminophen"): "unresolved" in the coder is not a licence to keep
+   a Spanish spelling. Allergens and foods are English and lowercase ("penicilina" → "penicillin", "camarón" →
+   "shrimp").
+3. **Free-text keys are a faithful short English rendering** of what was said, not a translation of every word and
+   not an interpretation: `complaint.chief`, `trauma.mechanism`, `impression.primary`, `scene.notes`,
+   `stroke.deficits`, `trauma.injuries`, `procedures.done` `detail`. "Se cayó de la escalera" → "fell from a ladder";
+   "le falta el aire" → "shortness of breath". `transport.destination` keeps the hospital's name ("el Valley" →
+   "Valley Medical" only if said so; otherwise as said, e.g. "Valley").
+4. **Colloquial terms mean what they mean in everyday Mexican Spanish.** Knowing that meaning is the model's job, the
+   same way it knows "sugar" is glucose; the guide gives no word list. The label is still only what was said (§2):
+   - a named condition in the patient's history ("tiene el azúcar", "tiene la presión alta", "es diabético") gives
+     no fact, exactly as "he's diabetic" gives none; a number said for it does ("el azúcar le salió en cuatrocientos"
+     → `vitals.glucose` 400);
+   - a problem happening now, named by the caller ("le dio un derrame", "se desmayó", "le falta el aire",
+     "está convulsionando") is `complaint.chief`, in English, as the caller's words say it ("stroke", "passed out",
+     "short of breath", "seizing"). It is the caller's complaint, never the crew's `impression.primary` (§5d.4),
+     and it gives no `stroke.*` keys unless stroke-like symptoms are described (§4c);
+   - an ambiguous word is labeled only when the words around it fix the meaning ("le dio un ataque, se puso a
+     temblar" → seizure); a bare "le dio un ataque" with nothing to fix it gives no complaint.
+5. **Numbers said as Spanish words become digits** (§5): "ciento ochenta sobre cien" → 180/100; "noventa y dos" →
+   92; "dos disparos de Narcan" → `count` 2; "treinta y siete y medio" → 37.5. "Siete meses de embarazo" gives no
+   `patient.pregnancy_weeks` (months are not weeks, as in English; the grounding check would drop a converted number).
+6. **Times** follow §4c/§5b with English words: "desde las cinco" → "since 5"; "hace como una hora" → "1 hour ago"
+   (the approximator "como" is dropped); "a las tres de la tarde" → "3 pm"; "anoche a las diez" → "10 pm"; "esta
+   mañana a las siete" → "7 am"; "a las catorce treinta" → "14:30". Hedges ("creo que", "no sé", "a lo mejor",
+   "como que") give no fact, as "I think" or "maybe" do.
+7. **Negations and denials** follow §5: "no toma nada" gives no fact (no drug was named; no anticoagulant "none"
+   either); "no toma nada para adelgazar la sangre" / "no toma anticoagulantes" → `meds.anticoagulant` "none"; "no
+   es alérgico a nada" → `allergies` []; "no le duele el pecho" gives no complaint.
+8. **Sex descriptors:** "señora", "mujer", "muchacha", "niña" → "F"; "señor", "hombre", "muchacho", "niño" → "M",
+   when said as a descriptor of the patient (as "lady", §4). A pronoun or grammatical gender alone ("ella", "está
+   cansada") is not a statement of sex.
+9. **Roles and speakers** (§3): "mi mamá", "mi esposo", "mi hija" on the mic → `family`; "el vecino", "un señor que
+   pasaba" → `bystander`; the patient speaking ("me duele aquí") → `patient`. The `speaker` field and the fact's
+   source are English relation words ("daughter", "husband", "neighbor"), because the speaker line the model sees
+   is built by the app, not transcribed.
+10. **Code-switching medics** are labeled like any medic line: "le dimos 324 de aspirina" → `meds.given` {"drug":
+    "aspirin", "dose": 324, "by": "crew"} (no unit said, §5d.7); "está diaphoretic" gives no key (a sign with no
+    key); "le pusimos una IV en el brazo izquierdo" → `procedures.done` "iv access", detail "left arm".
+11. **Code status** follows §4 and §5b: "tiene una orden de no resucitar" / "no quiere que la revivan, tiene el
+    papel" → "DNR"; "que hagan todo lo posible" is a wish, not a code status (no fact). A remembered wish ("no
+    quería que la conectaran a máquinas") and a hedged denial ("no tiene papel de no resucitar, no que yo sepa") give
+    none either; a POLST said to ask for resuscitation ("dice que sí la revivan") is "full code" (§5b).
+
+Rulings from the adjudication of batches 32–39 (2026-09-24; the writers' GAP notes and the blind second pass,
+MODEL_PLAN §0k "Spanish (Mexican) speech"). They apply to English speech too; each matches an earlier English label.
+
+12. **A drug the patient ran out of is still their medication** ("toma Keppra pero se le acabó hace una semana",
+    "no se ha puesto la insulina porque se le acabó" → `meds.list`): missed doses are the story. A drug a doctor
+    stopped or replaced ("ya no toma el Coumadin", "se lo cambiaron por el Keppra") is not (§5b).
+13. **A low or high reading named with its number is only the reading**: "se le bajó el azúcar … salió en cuarenta y
+    dos" → `vitals.glucose` 42 and no `complaint.chief` (§4c: a structured key holds it; English b06_042). Without a
+    number, a problem happening now is the complaint ("se le bajó el azúcar" → "low blood sugar", §5f.4).
+14. **"La señora" / "el señor" said of the patient is a descriptor**, like "the lady" in English (§4): "la señora es
+    alérgica a la penicilina" → `patient.sex` "F". A relation word ("mi mamá", "mi papá", "mi abuelito") is not.
+15. **Witnessed onset needs seeing words** (§4c): "yo la vi cuando empezó", "estaba hablando conmigo y de repente…"
+    → true; "yo estaba con él en la cocina" alone states presence, not seeing (no fact); "llegué y ya estaba así",
+    "cuando salí ya estaba en el piso" are found → false; "oí el golpe" alone is neither.
+16. **Missed dialysis is the presenting problem** when said as such ("se dializa lunes, miércoles y viernes y hoy no
+    fue", "missed his Tuesday run") → `complaint.chief` "missed dialysis" (English b28_122). Being a dialysis
+    patient alone is history (no fact).
+17. **A volume is labeled as said**, as in English (§5e.5): "un litro de suero" → dose 1, unit "L" ("un" is a said one).
+    "Suero" (IV fluid) is "iv fluids" unless the kind is named ("solución salina" → "sodium chloride").
+
 ## 6. Phenomena tags (use all that apply)
-`clean`, `shorthand` (yom, sats, A&O, D-stick…), `spoken_numbers`, `correction`, `negation`, `attribution` (someone else's statement), `other_speaker` (`by: "other"`), `multi_event` (many facts in one utterance), `no_facts`, `uncertain` (hedged statements that must yield no fact), `brand_names`, `fahrenheit`, `disfluency` (uh, um, restarts), `asr_noise` (the kind of errors speech-to-text makes: missing punctuation, homophones, lowercase).
+`clean`, `shorthand` (yom, sats, A&O, D-stick…), `spoken_numbers`, `correction`, `negation`, `attribution` (someone else's statement), `other_speaker` (`by: "other"`), `multi_event` (many facts in one utterance), `no_facts`, `uncertain` (hedged statements that must yield no fact), `brand_names`, `fahrenheit`, `disfluency` (uh, um, restarts), `asr_noise` (the kind of errors speech-to-text makes: missing punctuation, homophones, lowercase), `spanish` (spoken in Spanish, §5f), `code_switch` (Spanish and English mixed in one utterance, §5f).
 
 ## 7. Scoring (how `eval/bench_extract.py` uses labels)
 - Headline F1 is over **structured keys** as exact `(key, normalized value)` pairs.

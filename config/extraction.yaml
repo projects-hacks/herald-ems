@@ -6,6 +6,11 @@
 #   speaker: the line saying who is talking (one mic; the talk button or diarization tells us), or none
 #   dispatch: the line with the call's dispatch / working impression (what the crew was sent on), or none
 finetuned:
+  - label_prefix: herald-f                                # run F (MODEL_PLAN §0k): Qwen3-VL-30B-A3B, same input as run E
+    prompt: prompts/extract_finetuned_e.md                # "the prompt stays": run E v2's prompt and first lines
+    dispatch: "[dispatch: {dispatch}]"
+    dispatch_unknown: "[dispatch: unknown]"
+    speaker: {medic: "[paramedic speaking]", other: "[{speaker} speaking]", other_unknown: "[someone else speaking]"}
   - label_prefix: ems-e                                   # run E (MODEL_PLAN §0i): dispatch context + speaker
     prompt: prompts/extract_finetuned_e.md
     dispatch: "[dispatch: {dispatch}]"

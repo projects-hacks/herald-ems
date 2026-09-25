@@ -97,6 +97,14 @@ Everything runs locally.
 
 **Read:** `herald/models/stt.py` (`WhisperSTT`), `herald/models/llm_client.py`, `herald/api/capture.py` (`CaptureService.text`), `herald/core/schema.py` (`Provenance`), `docs/UX_PLAN.md` §3.1.11 and §4.
 
+> **Use `ctx.knowledge_model` for translation, not `ctx.vision_model` or `ctx.text_model`** (added 2026-09-25).
+> It is a `TextModel` on the app context and is always set, so there is nothing to guard against. By default it *is*
+> the photo-reading client, so today it behaves exactly as `ctx.vision_model` would. But if run F's fine-tune wins
+> speech and photos while losing the base model's kept abilities, `HERALD_KNOWLEDGE_MODEL` moves translation,
+> protocol reranking and figure transcription onto the untuned base model (`docs/TRAINING_PLAN.md` §7a; the operator
+> procedure is `docs/RUNBOOK.md` §7). Reaching for `ctx.text_model` or `ctx.vision_model` instead would silently keep
+> translation on the fine-tune and lose that protection. `tests/test_knowledge_model.py` pins the wiring.
+
 **Design:**
 
 | Piece | Where | Details |

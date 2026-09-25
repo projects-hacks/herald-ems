@@ -18,6 +18,12 @@ from .sections import Section, SectionSplitter
 from .tables import read_check_table, read_column_table
 
 
+# How a protocol figure is sent to the vision model (also used for run F's replay rows: scripts/build_replay_set.py).
+FIGURE_SYSTEM = "You transcribe protocol figures. Output strict JSON only."
+FIGURE_MAX_TOKENS = 500
+FIGURE_DPI = 150
+
+
 def document_for_page(county: dict, file_name: str, page: int) -> Optional[str]:
     """The county document that holds this page of this file. One PDF can hold several documents, each with its own
     page range (AO 2025-005 holds Policy 602 on pages 12-21 and Policy 605 on pages 25-27); None for pages that no
@@ -154,10 +160,12 @@ class KnowledgeBase:
             if steps is None and self.vision is not None:
                 try:            # a figure that can't be read leaves the rest of the knowledge base working
                     import base64
-                    png = render_page(path, fig["page"], cache.parent / f"{doc['id']}_{sha}_p{fig['page']}.png", dpi=150)
-                    data = self.vision.chat_json("You transcribe protocol figures. Output strict JSON only.",
+                    png = render_page(path, fig["page"], cache.parent / f"{doc['id']}_{sha}_p{fig['page']}.png",
+                                      dpi=FIGURE_DPI)
+                    data = self.vision.chat_json(FIGURE_SYSTEM,
                                                  load_text(fig.get("prompt", "prompts/figure_transcribe.md")),
-                                                 image_b64=base64.b64encode(png.read_bytes()).decode(), max_tokens=500)
+                                                 image_b64=base64.b64encode(png.read_bytes()).decode(),
+                                                 max_tokens=FIGURE_MAX_TOKENS)
                     steps = [str(x) for x in data.get("steps", [])][:30]
                     cache.write_text(json.dumps({"steps": steps, "page": fig["page"]}, indent=1))
                 except Exception as e:

@@ -10,7 +10,9 @@ reasoning off, as LocalLLMClient always sends).
 Tasks:
   photos     eval/photos/gold.jsonl through VisionReader (herald/models/vision.py): per-fact P/R/F1 (lenient =
              printed aliases accepted, strict = LABELING_GUIDE canonical, in-prompt scope), exact-image accuracy,
-             per mode, per degradation, per key, no-fact images with a false fact, JSON-invalid, latency p50/p95.
+             per image set (gold `set`: "core" = the original 45, "screens" = watches, phone apps, other
+             screens), per mode, per degradation, per key, no-fact images with a false fact, JSON-invalid,
+             latency p50/p95.
   flowchart  the 700-A13 stroke flowchart through the product's figure transcription (uncached), scored
              against eval/protocols/flowchart_700a13_key.json (nodes, edges, unsupported steps, added words).
   rerank     eval/protocols/qa_gold.jsonl through KnowledgeBase.answer with LLMReranker: top-1 / top-3 on the
@@ -36,7 +38,7 @@ from herald.config import Settings  # noqa: E402
 from herald.models import LocalLLMClient  # noqa: E402
 
 from eval.visionbench import flowchart, photos, rerank  # noqa: E402
-from eval.visionbench.common import RecordingModel, fingerprint, photo_reader, write_jsonl  # noqa: E402
+from eval.visionbench.common import RecordingModel, fingerprint, photo_reader, sha, write_jsonl  # noqa: E402
 
 TASKS = ("photos", "flowchart", "rerank")
 # run-level numbers whose spread over runs is reported (per task)
@@ -46,6 +48,7 @@ SPREAD = {"photos": ("f1", "precision", "recall", "strict_f1", "in_prompt_scope_
                         "added_word_rate", "latency_ms"),
           "rerank": ("top1", "top3", "shown_top1", "refusal_on_unanswerable", "answerable_said_true",
                      "json_invalid", "latency_ms_p50", "latency_ms_p95")}
+SET_SPREAD = ("f1", "precision", "recall", "strict_f1", "exact_image_acc", "false_fact_images")   # per image set
 COMPACT_DROP = {"per_key", "missed_nodes", "missed_edges"}      # kept in the dumps, left out of results.jsonl
 
 
@@ -56,6 +59,12 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--tasks", default="photos,flowchart,rerank")
     ap.add_argument("--out", default="eval/results.jsonl", help="summary lines are appended here")
     ap.add_argument("--dump-dir", default="eval/dumps/vision")
+    ap.add_argument("--gold", default=None,
+                    help="photo gold other than eval/photos/gold.jsonl (data/photos/real/labels.jsonl, "
+                         "eval/forms_polst/gold.jsonl, data/photos/web/labels.jsonl): same fields, `facts` may be "
+                         "a {key: value} object, and an empty one means the answer is nothing")
+    ap.add_argument("--photo-dir", default=None,
+                    help="where the images named in --gold live (default: the gold file's own folder)")
     ap.add_argument("--photos", default=None, help="only these photo ids or files (comma-separated)")
     ap.add_argument("--questions", default=None, help="only these qa ids (comma-separated), e.g. qa01,qa23")
     ap.add_argument("--limit", type=int, default=None, help="only the first N photos / questions")
@@ -70,24 +79,32 @@ def parse_args() -> argparse.Namespace:
     return a
 
 
-def warm_up(client: LocalLLMClient, rows: list[dict], n: int) -> None:
+def warm_up(client: LocalLLMClient, rows: list[dict], n: int, photo_dir: Path) -> None:
     """Unscored calls so that the first scored call doesn't carry cold-start cost."""
     reader = photo_reader(client)
     for line in rows[:n]:
         try:
-            reader.read((photos.GOLD.parent / line["file"]).read_bytes(), line["mode"])
+            reader.read((photo_dir / line["file"]).read_bytes(), line["mode"])
         except Exception as e:
             print(f"warm-up call failed: {type(e).__name__}: {str(e)[:120]}", file=sys.stderr)
 
 
 def result_line(a, task: str, run: int, summary: dict, extra: dict) -> dict:
     compact = {k: v for k, v in summary.items() if k not in COMPACT_DROP}
+    inputs = fingerprint()
+    if a.gold:                       # a custom gold replaces eval/photos/gold.jsonl in the level-comparison hash
+        inputs["photo_gold"] = sha(Path(a.gold))
+        inputs["photo_gold_file"] = a.gold
     return {"bench": f"vision:{task}", "model": a.model, "run": run, **compact, **extra,
-            "inputs": fingerprint(), "note": a.note, "ts": time.strftime("%Y-%m-%d %H:%M:%S")}
+            "inputs": inputs, "note": a.note, "ts": time.strftime("%Y-%m-%d %H:%M:%S")}
+
+
+def _stats(xs: list) -> dict:
+    return {"mean": round(statistics.mean(xs), 3), "min": min(xs), "max": max(xs), "runs": len(xs)}
 
 
 def spread(lines: list[dict]) -> dict:
-    """mean / min / max over runs of each tracked number, per task."""
+    """mean / min / max over runs of each tracked number, per task (and, for photos, per image set)."""
     out = {}
     for task in {ln["bench"].split(":")[1] for ln in lines}:
         rows = [ln for ln in lines if ln["bench"] == f"vision:{task}"]
@@ -95,7 +112,12 @@ def spread(lines: list[dict]) -> dict:
         for k in SPREAD[task]:
             xs = [r[k] for r in rows if isinstance(r.get(k), (int, float))]
             if xs:
-                out[task][k] = {"mean": round(statistics.mean(xs), 3), "min": min(xs), "max": max(xs), "runs": len(xs)}
+                out[task][k] = _stats(xs)
+        for name in sorted({n for r in rows for n in r.get("per_set") or {}}):
+            out[task][f"set:{name}"] = {k: _stats(xs) for k in SET_SPREAD
+                                        if (xs := [r["per_set"][name][k] for r in rows
+                                                   if isinstance((r.get("per_set") or {}).get(name, {}).get(k),
+                                                                 (int, float))])}
     return out
 
 
@@ -106,12 +128,15 @@ def main() -> None:
     if not client.available():
         sys.exit(f"'{a.model}' is not served at {s.llm_url} (served: {client.served()})")
     split = lambda v: {x.strip() for x in v.split(",") if x.strip()} if v else None
-    photo_rows = photos.load_gold(only=split(a.photos), limit=a.limit) if "photos" in a.tasks else []
+    gold_path = Path(a.gold) if a.gold else photos.GOLD
+    photo_dir = Path(a.photo_dir) if a.photo_dir else gold_path.parent
+    photo_rows = (photos.load_gold(gold_path, only=split(a.photos), limit=a.limit)
+                  if "photos" in a.tasks else [])
     questions = rerank.load_questions(only=split(a.questions), limit=a.limit) if "rerank" in a.tasks else []
     kb = rerank.build_kb(s) if questions else None
     cand_sha = rerank.candidates_fingerprint(kb, questions) if kb else None
     if a.warmup and photo_rows:
-        warm_up(client, photo_rows, a.warmup)
+        warm_up(client, photo_rows, a.warmup, photo_dir)
     dump_dir = Path(a.dump_dir) / a.model
     lines = []
     for run in range(1, a.runs + 1):
@@ -119,9 +144,10 @@ def main() -> None:
             model = RecordingModel(client)
             extra: dict = {}
             if task == "photos":
-                summary, items = photos.run(model, photo_rows)
+                summary, items = photos.run(model, photo_rows, photo_dir)
                 rows = photos.dump_rows(items)
-                extra = {"n_photos": len(photo_rows), "subset": a.photos or (f"first {a.limit}" if a.limit else None)}
+                extra = {"n_photos": len(photo_rows), "subset": a.photos or (f"first {a.limit}" if a.limit else None),
+                         "gold": a.gold or str(photos.GOLD.relative_to(Path(__file__).resolve().parent.parent))}
             elif task == "flowchart":
                 summary, rows = flowchart.run(model, s)
             else:

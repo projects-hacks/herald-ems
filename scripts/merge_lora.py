@@ -11,10 +11,13 @@ Re-run the eval on the merged model before using it (MODEL_PLAN §4).
 """
 import argparse
 import json
-import os
+import sys
 from pathlib import Path
 
 import torch
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from lora_common import push_private  # noqa: E402
 
 
 def main():
@@ -33,12 +36,7 @@ def main():
     AutoTokenizer.from_pretrained(a.adapter).save_pretrained(a.out)
     print(f"merged {a.adapter} into {base_id} -> {a.out}")
     if a.push:
-        from huggingface_hub import HfApi
-        api = HfApi(token=os.environ["HF_TOKEN"])
-        api.create_repo(a.push, private=True, exist_ok=True)
-        api.upload_folder(folder_path=a.out, repo_id=a.push,
-                          commit_message=f"Merged {Path(a.adapter).name} into {base_id}")
-        print(f"pushed to {a.push} (private)")
+        push_private(Path(a.out), a.push, f"Merged {Path(a.adapter).name} into {base_id}")
 
 
 if __name__ == "__main__":

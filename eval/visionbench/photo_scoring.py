@@ -24,6 +24,7 @@ from eval.visionbench.common import prf
 DERIVED_KEYS = {"meds.list": ("meds.anticoagulant",)}
 
 Atom = tuple[str, object]
+DEFAULT_SET = "core"          # gold lines without a `set` (the original 45 images)
 
 
 def _norm_item(key: str, v) -> object:
@@ -109,11 +110,20 @@ def _group(items: list[dict]) -> dict:
     return out
 
 
+def _set_group(items: list[dict]) -> dict:
+    """A named set of images (gold `set`): the headline numbers plus images with a made-up fact."""
+    no_fact = [i for i in items if i["score"]["no_fact_image"]]
+    return {**_group(items), "strict_f1": _sum(items, "strict")["f1"], "no_fact_images": len(no_fact),
+            "false_fact_images": sum(i["score"]["false_fact"] for i in no_fact)}
+
+
 def aggregate(items: list[dict]) -> dict:
     """Run-level metrics from per-image records (each has 'line', 'score', 'error', 'json_invalid')."""
     by_mode, by_deg, by_key = defaultdict(list), defaultdict(list), defaultdict(lambda: [0, 0, 0])
+    by_set = defaultdict(list)
     for it in items:
         by_mode[it["line"]["mode"]].append(it)
+        by_set[it["line"].get("set", DEFAULT_SET)].append(it)
         for d in it["line"]["degradations"] or ["clean"]:
             by_deg[d].append(it)
         for k, _ in it["score"]["lenient"]["extra"]:
@@ -136,6 +146,7 @@ def aggregate(items: list[dict]) -> dict:
         "strength_acc": round(sum(strength) / len(strength), 3) if strength else None,
         "json_invalid": sum(bool(i["json_invalid"]) for i in items),
         "errors": sum(bool(i["error"]) and not i["json_invalid"] for i in items),
+        "per_set": {name: _set_group(v) for name, v in sorted(by_set.items())},
         "per_mode": {m: _group(v) for m, v in sorted(by_mode.items())},
         "per_degradation": {d: _group(v) for d, v in sorted(by_deg.items())},
         "per_key": {k: prf(*v) for k, v in sorted(by_key.items())},

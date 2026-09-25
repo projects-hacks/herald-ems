@@ -1,0 +1,25 @@
+# Run F training supervisor (MODEL_PLAN §0l "Crash safety"). Installed by scripts/install_train_service.sh into
+# ~/.config/systemd/user/ (linger is on for hp18, so it starts after a reboot without a login). The supervisor
+# resumes from the newest complete checkpoint; exit 0 = the run finished (DONE), so the unit stays stopped.
+[Unit]
+Description=Herald run F LoRA training (supervised, resumes after crashes and reboots)
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Documents/team-last-minute/herald-ems
+ExecStart=%h/miniforge3/envs/zgx/bin/python %h/Documents/team-last-minute/herald-ems/scripts/train_supervised.py
+Restart=on-failure
+RestartSec=120
+# exit 3 = the plan changed (data or config differs from the run on disk): restarting can't fix it
+RestartPreventExitStatus=3
+KillSignal=SIGTERM
+TimeoutStopSec=300
+Environment=PYTHONUNBUFFERED=1
+# expandable_segments lets the caching allocator grow and return segments instead of holding a fragmented pool.
+# Added 2026-09-25 with --reclaim-gib 0: the run had ~86 GiB reserved against ~74.5 GiB allocated, and MemAvailable
+# dipped to 18.89 GiB against a 20 GiB bar.
+Environment=PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+[Install]
+WantedBy=default.target

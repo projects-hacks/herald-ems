@@ -35,9 +35,10 @@ describe("the attention queue (one list for alerts and taps)", () => {
     const a = attention(last, {});
     expect(a.choose.map((x) => x.type)).toEqual(["contradiction"]);
     expect(a.confirmFacts.length).toBeGreaterThan(0);
-    expect(a.review.map((x) => x.type).sort()).toEqual(["gfast_positive", "news2_rise", "race_positive"]);
+    expect(a.positiveScreens.map((x) => x.type).sort()).toEqual(["gfast_positive", "race_positive"]);
+    expect(a.review.map((x) => x.type)).toEqual(["news2_rise"]);
     expect(a.urgent).toEqual([]);
-    expect(a.count).toBe(a.choose.length + a.confirmAlerts.length + a.confirmFacts.length + a.review.length);
+    expect(a.count).toBe(a.positiveScreens.length + a.choose.length + a.confirmAlerts.length + a.confirmFacts.length + a.review.length);
   });
   it("HIGH is urgent until seen; seen findings move to acknowledged; a disagreement can't be seen away", () => {
     const contra = last.alerts.find((x) => x.type === "contradiction")!;
@@ -56,7 +57,7 @@ describe("the attention queue (one list for alerts and taps)", () => {
     const s = { ...last, alerts: [contra, race] };
     expect(attention(s, {}, arrival, 1).review).toEqual([]);          // RACE arrived after the press
     expect(attention(s, {}, arrival, 1).choose).toEqual([contra]);
-    expect(attention(s, {}, arrival, null).review).toEqual([race]);   // released
+    expect(attention(s, {}, arrival, null).positiveScreens).toEqual([race]);   // released
   });
   it("a code-status confirmation waits for a tap and is never dismissable", () => {
     const f = Object.values(last.facts)[0];

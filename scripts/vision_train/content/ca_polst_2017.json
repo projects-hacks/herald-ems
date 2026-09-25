@@ -1,0 +1,243 @@
+{
+ "source": "https://capolst.org/wp-content/uploads/2020/10/POLST_2017_wCover.pdf (page 2, EMSA #111 B, effective 4/1/2017)",
+ "scale": 2.5,
+ "page_pt": [
+  612,
+  792
+ ],
+ "boxes": [
+  {
+   "label": "Attempt Resuscitation/CPR",
+   "box": [
+    73.5,
+    163.0,
+    83.7,
+    173.3
+   ]
+  },
+  {
+   "label": "Do Not Attempt Resuscitation/DNR",
+   "box": [
+    73.5,
+    181.0,
+    83.7,
+    191.3
+   ]
+  },
+  {
+   "label": "Full Treatment",
+   "box": [
+    73.5,
+    218.7,
+    83.7,
+    229.0
+   ]
+  },
+  {
+   "label": "Trial Period of Full Treatment.",
+   "box": [
+    169.5,
+    259.7,
+    179.7,
+    270.0
+   ]
+  },
+  {
+   "label": "Selective Treatment",
+   "box": [
+    73.5,
+    277.3,
+    83.7,
+    287.6
+   ]
+  },
+  {
+   "label": "Request transfer to hospital only if c",
+   "box": [
+    169.5,
+    326.8,
+    179.7,
+    337.1
+   ]
+  },
+  {
+   "label": "Comfort-Focused Treatment",
+   "box": [
+    73.5,
+    344.4,
+    83.7,
+    354.7
+   ]
+  },
+  {
+   "label": "Long-term artificial nutrition, includ",
+   "box": [
+    73.9,
+    453.4,
+    81.1,
+    460.7
+   ]
+  },
+  {
+   "label": "Trial period of artificial nutrition,",
+   "box": [
+    73.9,
+    467.9,
+    81.1,
+    475.2
+   ]
+  },
+  {
+   "label": "No artificial means of nutrition, incl",
+   "box": [
+    73.9,
+    482.4,
+    81.1,
+    489.7
+   ]
+  },
+  {
+   "label": "Patient",
+   "box": [
+    181.1,
+    519.4,
+    187.6,
+    526.0
+   ]
+  },
+  {
+   "label": "Legally Recognized Decisionmaker",
+   "box": [
+    343.6,
+    519.6,
+    350.1,
+    526.2
+   ]
+  },
+  {
+   "label": "Advance Directive dated _______, avail",
+   "box": [
+    73.9,
+    535.2,
+    81.1,
+    542.5
+   ]
+  },
+  {
+   "label": "Advance Directive not available",
+   "box": [
+    73.9,
+    548.2,
+    81.1,
+    555.5
+   ]
+  },
+  {
+   "label": "No Advance Directive",
+   "box": [
+    73.9,
+    561.0,
+    81.1,
+    568.3
+   ]
+  }
+ ],
+ "fields": {
+  "last": [
+   336.7,
+   62.7,
+   411.8,
+   69.2
+  ],
+  "first": [
+   336.7,
+   85.8,
+   412.2,
+   92.4
+  ],
+  "middle": [
+   336.7,
+   108.9,
+   421.2,
+   115.4
+  ],
+  "prepared": [
+   462.0,
+   62.7,
+   545.1,
+   71.0
+  ],
+  "dob": [
+   462.1,
+   85.7,
+   543.6,
+   92.4
+  ],
+  "mrn": [
+   461.9,
+   108.9,
+   533.1,
+   115.4
+  ],
+  "addl_b": [
+   72.6,
+   400.7,
+   158.3,
+   408.1
+  ],
+  "phys_name": [
+   73.1,
+   598.4,
+   189.8,
+   607.0
+  ],
+  "phys_phone": [
+   307.6,
+   598.4,
+   412.7,
+   607.0
+  ],
+  "phys_lic": [
+   429.2,
+   598.4,
+   571.4,
+   607.0
+  ],
+  "phys_sig": [
+   73.1,
+   621.4,
+   221.1,
+   630.1
+  ],
+  "print_name": [
+   73.1,
+   676.7,
+   119.2,
+   683.3
+  ],
+  "relationship": [
+   411.2,
+   676.7,
+   461.8,
+   685.0
+  ],
+  "ad_dated": [
+   85.7,
+   536.1,
+   182.7,
+   542.6
+  ],
+  "hc_agent": [
+   342.7,
+   535.3,
+   539.4,
+   543.9
+  ],
+  "mailing": [
+   73.0,
+   722.6,
+   221.2,
+   731.2
+  ]
+ }
+}

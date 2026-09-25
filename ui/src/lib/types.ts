@@ -16,6 +16,7 @@ export interface Coding { system: string; code: string }
 // ---------- facts ----------
 export interface Provenance {
   trigger?: string | null; frame_id?: string | null; auto?: boolean;
+  observed_at?: string | null;
   audio_id: string | null; t_start: number | null; t_end: number | null; text: string | null;
   photo_id: string | null; crop: [number, number, number, number] | null; extractor: string | null;
   hold_reason: string | null;       // why this fact waits for the medic's tap (UX_PLAN §5.9a)
