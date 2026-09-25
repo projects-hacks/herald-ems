@@ -42,6 +42,7 @@ class Incident:
             raise IncidentEnded("this incident has ended; start a new incident before capturing more data")
 
     def register_media(self, kind: str, media_id: str) -> None:
+        """Attach generated evidence to this call while holding the same lock used to end it."""
         with self.lock:
             self.ensure_open()
             self.media_ids[kind].add(media_id)
@@ -74,9 +75,10 @@ class Incident:
                     previous = f.status
                     f.status = status
                     if previous != status:
-                        self.audit_log.append({"at": utcnow().isoformat(), "action": "fact_status_changed",
-                                               "actor": actor, "fact_id": f.id, "key": f.key,
-                                               "from": previous.value, "to": status.value})
+                        self.audit_log.append({
+                            "at": utcnow().isoformat(), "action": "fact_status_changed", "actor": actor,
+                            "fact_id": f.id, "key": f.key, "from": previous.value, "to": status.value,
+                        })
                     self.commit()
                     return f
         raise KeyError(fact_id)

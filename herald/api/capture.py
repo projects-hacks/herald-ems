@@ -13,9 +13,9 @@ from typing import Awaitable, Callable, Optional
 
 from fastapi.concurrency import run_in_threadpool
 
+from ..capture.types import IncidentEvent
 from ..core.incident import IncidentEnded
 from ..core.schema import CapturedBy, FactIn, Provenance, Role, join_reasons, new_id, source_role, utcnow
-from ..capture.types import IncidentEvent
 from .context import AppContext
 
 Broadcast = Callable[[], Awaitable[None]]
@@ -42,10 +42,6 @@ class CaptureService:
     def inc(self):
         return self._incident if self._incident is not None else self.ctx.incident
 
-    async def _saved_broadcast(self) -> None:
-        self.ctx.persist()
-        await self.broadcast()
-
     def notify(self, facts, before):
         if self.inc is not self.ctx.incident:
             return
@@ -59,6 +55,10 @@ class CaptureService:
         for event in events:
             for listener in self.listeners:
                 listener.on_change(event)
+
+    async def _saved_broadcast(self) -> None:
+        self.ctx.persist()
+        await self.broadcast()
 
     def _summary(self) -> dict:
         return self.ctx.tracer.summarize(self.inc.snapshot())
@@ -91,6 +91,7 @@ class CaptureService:
         extracted (ModelUnavailable). Each fact confirms itself only if the confirmation policy allows it
         (the paramedic's own mic, confidence at or above the calibrated bar); everything else needs a tap."""
         ctx = self.ctx
+        self.inc.ensure_open()
         default_role = source_role(captured_by, speaker, role)
         injected = ctx.guard.match(text)
         skip = bool(injected) and ctx.settings.guard_policy == "skip_model"
@@ -131,9 +132,9 @@ class CaptureService:
             self.ctx.speech_in_flight -= 1
 
     async def retry_text(self, entry_id: str) -> dict:
-        """Retry preserved words after a temporary local-model outage without duplicating evidence."""
+        """Retry words preserved while the extraction model was unavailable, without creating a duplicate entry."""
         self.inc.ensure_open()
-        entry = next((row for row in self.inc.transcripts if row["id"] == entry_id), None)
+        entry = next((entry for entry in self.inc.transcripts if entry["id"] == entry_id), None)
         if entry is None:
             raise KeyError(entry_id)
         if entry["trace"]["model"]["status"] != "unavailable":
@@ -144,13 +145,15 @@ class CaptureService:
         speaker, text = entry.get("speaker"), entry["text"]
         default_role = source_role(captured_by, speaker)
         entry["trace"]["model"] = {"status": "running", "name": self.ctx.text_model.model_name(), "retry": True}
-        self.ctx.speech_in_flight += 1
         await self._saved_broadcast()
-        asyncio.create_task(self._extract_counted(entry, text, captured_by, default_role, speaker, entry.get("audio_id"), None))
+        self.ctx.speech_in_flight += 1
+        asyncio.create_task(self._extract_counted(entry, text, captured_by, default_role, speaker,
+                                                  entry.get("audio_id"), None))
         return entry
 
     async def stt_failure(self, audio_id: str, captured_by: CapturedBy, speaker: Optional[str], error: str,
                           ms: int) -> dict:
+        """Keep an evidence-backed trace when speech-to-text fails before words are available."""
         self.inc.ensure_open()
         before = self._summary()
         stt = {"seconds": None, "chunks": [], "ms": ms, "error": error[:200]}
@@ -194,6 +197,10 @@ class CaptureService:
                                        "facts": [tracer.fact_view(f) for f in added], "rejected": rejected,
                                        "auto_confirm_threshold": ctx.policy.auto_confirm}
             entry["trace"]["effects"] = tracer.diff(before, self._summary())
+        except IncidentEnded:
+            # The call changed while local extraction was running. Discard the late result;
+            # it must not mutate the ended patient or be persisted into the new call.
+            return
         except Exception as e:
             entry["trace"]["model"] = {"status": "error", "name": name, "error": str(e)[:200],
                                        "ms": round((time.perf_counter() - t0) * 1000)}
@@ -218,25 +225,31 @@ class CaptureService:
                  "extract": {"rules": 0, "llm": 0, "ms": 0}}
         try:
             facts_in = await run_in_threadpool(ctx.vision.read, raw, mode, photo_id)
+        except IncidentEnded:
+            raise
         except Exception as e:
             # The photo is kept and the failure recorded, so the NOW screen shows it (UX_PLAN §4.3 g).
             entry["trace"] = {"heard": heard, "rules": {"ms": 0, "facts": []},
                               "model": {"status": "error", "name": ctx.vision_model.model_name(), "error": str(e)[:200],
                                         "ms": round((time.perf_counter() - t0) * 1000)},
                               "effects": tracer.diff(before, before)}
-            self.inc.transcripts.append(entry)
+            with self.inc.lock:
+                self.inc.ensure_open()
+                self.inc.transcripts.append(entry)
             await self._saved_broadcast()
             raise
         ms = round((time.perf_counter() - t0) * 1000)
-        rejected: list = []
-        facts = self.ingest_batch(facts_in, rejected)
-        entry["fact_ids"] = [f.id for f in facts]
-        entry["extract"] = {"rules": 0, "llm": len(facts), "ms": ms}
-        entry["trace"] = {"heard": heard, "rules": {"ms": 0, "facts": []},
-                          "model": {"status": "done", "name": ctx.vision_model.model_name(), "ms": ms,
-                                    "facts": [tracer.fact_view(f) for f in facts], "rejected": rejected},
-                          "effects": tracer.diff(before, self._summary())}
-        self.inc.transcripts.append(entry)
+        with self.inc.lock:
+            self.inc.ensure_open()
+            rejected: list = []
+            facts = self.ingest_batch(facts_in, rejected)
+            entry["fact_ids"] = [f.id for f in facts]
+            entry["extract"] = {"rules": 0, "llm": len(facts), "ms": ms}
+            entry["trace"] = {"heard": heard, "rules": {"ms": 0, "facts": []},
+                              "model": {"status": "done", "name": ctx.vision_model.model_name(), "ms": ms,
+                                        "facts": [tracer.fact_view(f) for f in facts], "rejected": rejected},
+                              "effects": tracer.diff(before, self._summary())}
+            self.inc.transcripts.append(entry)
         await self._saved_broadcast()
         return {"photo_id": photo_id, "facts": [f.model_dump(mode="json") for f in facts]}
 
@@ -255,16 +268,21 @@ class CaptureService:
                       "model": {"status": "off", "reason": "explicit medic correction; nothing to extract"},
                       "guard": {"instruction_shaped": None},
                       "effects": tracer.diff(before, tracer.summarize(inc.snapshot()))}})
-        await self._saved_broadcast()
+        await self.broadcast()
         return corrected.model_dump(mode="json")
 
     async def structured(self, facts: list[FactIn]) -> list[dict]:
         """All-or-nothing: one invalid fact rejects the batch (ValueError). One trace entry per call. Drug names are
         coded here like the extractors' (a device or form may send them)."""
         self.inc.ensure_open()
+        # This HTTP endpoint is a device feed, not an authenticated medic-entry endpoint.
+        # Never let a client turn an arbitrary submitted value into a confirmed medic fact.
+        # A device value is useful to show immediately, but requires an explicit medic tap
+        # before it may affect scores, alerts, or the relay.
         facts = [FactIn(key=f.key, value=f.value, unit=f.unit, role=Role.device,
                         speaker="monitor", captured_by=CapturedBy.device, confidence=0.0,
-                        provenance=Provenance(extractor="manual", hold_reason="device reading: confirm before relay"))
+                        provenance=Provenance(extractor="manual",
+                                              hold_reason="device reading: confirm before relay"))
                  for f in facts]
         tracer = self.ctx.tracer
         if self.ctx.coder:

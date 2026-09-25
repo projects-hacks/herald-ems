@@ -21,11 +21,6 @@ CLIENTS: set[WebSocket] = set()
 LINK = {"last_contact_at": None}   # any request from the ambulance (packet or idle probe)
 
 
-class Acknowledgement(BaseModel):
-    status: str
-    note: str | None = None
-
-
 @app.get("/api/meta")
 async def metadata():
     from herald.config import load_yaml
@@ -45,6 +40,11 @@ async def handoff(patient_id: str, format: str | None = None):
         return received_report(patient_id, INCIDENTS[patient_id], format)
     except KeyError:
         raise HTTPException(400, "Unknown handoff format")
+
+
+class Acknowledgement(BaseModel):
+    status: str
+    note: str | None = None
 
 
 def now() -> str:

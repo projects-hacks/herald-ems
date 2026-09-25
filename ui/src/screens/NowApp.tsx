@@ -3,7 +3,7 @@
 // above it and the floating last-capture bar below it. The summary is the at-a-glance page; the others hold detail.
 import { useEffect } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ConnectBand, NewIncidentDialog, PresenterBar, RestoredCallBanner, StaleOverlay, Toast } from "@/components/GlobalStates";
+import { ConnectBand, EndIncidentDialog, NewIncidentDialog, PresenterBar, RestoredCallBanner, StaleOverlay, Toast } from "@/components/GlobalStates";
 import { useHotkeys } from "@/hooks/useHotkeys";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { Sidebar } from "@/layout/Sidebar";
@@ -43,13 +43,13 @@ export function NowApp({ player }: { player: FixturePlayer | null }) {
   const page = useHerald((s) => s.ui.page);
   const presentation = useHerald((s) => s.ui.presentationMode);
   const medic = useHerald((s) => s.ui.mode === "medic");
-  const active = useHerald((s) => s.snapshot !== null && s.source === "live");
+  const active = useHerald((s) => s.snapshot !== null && s.snapshot.incident.ended_at === null && s.source === "live");
   useWakeLock(active);
   const Current = PAGE[page];
   return (
     <TooltipProvider delayDuration={300}>
       <a href={medic && !presentation ? "#cabin-attention" : "#needs-attention"} className="sr-only focus:not-sr-only focus:absolute focus:z-[70] focus:rounded-lg focus:bg-surface-3 focus:p-3">Skip to Needs attention</a>
-      {presentation ? <PresentationApp player={player} /> : medic ? <CabinApp /> : <div className="flex h-dvh bg-bg max-lg:h-auto max-lg:min-h-dvh max-lg:flex-col">
+      {presentation ? <PresentationApp player={player} /> : medic ? <CabinApp player={player} /> : <div className="flex h-dvh bg-bg max-lg:h-auto max-lg:min-h-dvh max-lg:flex-col">
         <Sidebar player={player} />
         <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden max-lg:overflow-visible">
           <TopBar />
@@ -65,6 +65,7 @@ export function NowApp({ player }: { player: FixturePlayer | null }) {
         </div>
       </div>}
       <PresenterBar />
+      <EndIncidentDialog />
       <NewIncidentDialog />
       <Toast />
     </TooltipProvider>

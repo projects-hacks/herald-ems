@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -66,6 +67,7 @@ class AppContext:
     persistence: Optional[IncidentStore] = None
     extra: dict = field(default_factory=dict)
     capture_agent: object = None
+    evidence_dir: Optional[Path] = None      # where agentic capture keeps redacted stills (deleted with the call)
     frame_reader: object = None
     speech_in_flight: int = 0
 
@@ -80,24 +82,28 @@ class AppContext:
             return Incident(dispatch, vocabulary=self.vocab, policy=self.policy, projector=self.projector)
 
         self.roster = PatientRoster(factory)
-        patient = self.roster.add("Patient 1")
         self.restored = False
+        patient = self.roster.add("Patient 1")
         if self.capture_agent is not None:
             self.capture_agent.patient_changed()
         return patient
 
     def end_incident(self) -> dict:
-        cleanups = {inc.id: dispose_incident_media(inc, audio_dir=self.settings.audio_dir,
-                                                    photo_dir=self.settings.photo_dir)
-                    for inc in self.roster.incidents()}
-        result = {"at": max(row["at"] for row in cleanups.values()),
-                  "deleted": {kind: sorted(media_id for row in cleanups.values() for media_id in row["deleted"][kind])
-                              for kind in ("audio", "photo")},
-                  "missing": {kind: sorted(media_id for row in cleanups.values() for media_id in row["missing"][kind])
-                              for kind in ("audio", "photo")},
-                  "invalid": {kind: sorted(media_id for row in cleanups.values() for media_id in row["invalid"][kind])
-                              for kind in ("audio", "photo")},
-                  "patients": cleanups}
+        cleanups = {
+            inc.id: dispose_incident_media(inc, audio_dir=self.settings.audio_dir,
+                                           photo_dir=self.settings.photo_dir, evidence_dir=self.evidence_dir)
+            for inc in self.roster.incidents()
+        }
+        result = {
+            "at": max(row["at"] for row in cleanups.values()),
+            "deleted": {kind: sorted(media_id for row in cleanups.values() for media_id in row["deleted"][kind])
+                        for kind in ("audio", "photo")},
+            "missing": {kind: sorted(media_id for row in cleanups.values() for media_id in row["missing"][kind])
+                        for kind in ("audio", "photo")},
+            "invalid": {kind: sorted(media_id for row in cleanups.values() for media_id in row["invalid"][kind])
+                        for kind in ("audio", "photo")},
+            "patients": cleanups,
+        }
         if self.persistence:
             self.persistence.discard()
         return result
@@ -110,15 +116,16 @@ class AppContext:
             with inc.lock:
                 patients.append({"id": inc.id, "label": inc.patient_label, "dispatch": inc.dispatch,
                                  "started": inc.started.isoformat(),
-                                 "facts": [fact.model_dump(mode="json") for fact in inc.facts],
+                                 "facts": [f.model_dump(mode="json") for f in inc.facts],
                                  "transcripts": inc.transcripts, "audit": inc.audit_log,
                                  "news2": inc.news2_history,
-                                 "media_ids": {kind: sorted(ids) for kind, ids in inc.media_ids.items()}})
+                                 "media_ids": {k: sorted(v) for k, v in inc.media_ids.items()}})
         self.persistence.save({"v": 1, "active": self.incident.id, "patients": patients,
                                "relay": {"authorized": self.relay.authorized, "acked": self.relay.acked,
                                          "ed_url": self.relay.ed_url}})
 
     def restore(self) -> bool:
+        """Restore only an encrypted, unfinished call; corrupted state starts clean."""
         payload = self.persistence.load() if self.persistence else None
         if not payload or payload.get("v") != 1 or not payload.get("patients"):
             return False
@@ -140,6 +147,7 @@ class AppContext:
         return True
 
     def pre_alert_scope(self) -> str:
+        """Describe the current checklist truthfully; authorization never relies on caller-provided wording."""
         labels = [row["label"] for row in self.incident.snapshot()["readiness"]]
         return f"{' + '.join(labels)} pre-alert set" if labels else "patient update set"
 
@@ -227,6 +235,7 @@ def wire_capture(ctx: AppContext, broadcast):
     service = CaptureService(ctx, broadcast)
     blur = FaceBlur(config["privacy"])
     store = EvidenceStore(ctx.settings.photo_dir, config["privacy"], blur)
+    ctx.evidence_dir = store.directory
     ctx.frame_reader = FrameReader(config, lambda: ctx.incident, ctx.vision, store,
                                    DrugCheck(ctx.coder, config["verify"]), ctx.tracer,
                                    ctx.vision_model.model_name, broadcast)

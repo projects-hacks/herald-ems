@@ -1,5 +1,5 @@
 // Clocks are HH:MM:SS everywhere (Pulsara's convention, UX_PLAN §3.0); numbers never tween.
-import type { FactRecord, FactValue, FactView } from "./types";
+import type { FactRecord, FactValue, FactView, Snapshot } from "./types";
 
 const pad = (n: number) => String(Math.floor(n)).padStart(2, "0");
 
@@ -46,6 +46,12 @@ export function sourceName(f: Pick<FactView, "speaker" | "role">): string {
 }
 export function shortId(id: string): string {
   return `…${id.slice(-4)}`;
+}
+
+/** A crew label is context, never a substitute for confirmed patient identity. */
+export function patientLabel(s: Snapshot | null | undefined): string {
+  if (!s) return "Waiting for patient";
+  return s.patients?.find((patient) => patient.id === (s.active_patient ?? s.incident.id))?.label || "Current patient";
 }
 
 /** A clock's value now: the server's `seconds` at snapshot time, advanced by the time since that snapshot arrived.

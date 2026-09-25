@@ -22,9 +22,11 @@ describe("ambulance workspace", () => {
     expect(screen.getByText("Microphone off")).toBeTruthy();
     expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
     expect(screen.getByRole("region", { name: "Latest documented readings" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "Agentic camera capture" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Camera capture" })).toBeTruthy();
     expect(screen.getByRole("status", { name: "Vehicle and ED status" })).toBeTruthy();
-    expect(screen.getByText("Mass-casualty · add patient")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Patients" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Patients" }));
+    expect(screen.getByText("Patients · manage")).toBeTruthy();
   });
   it("opens the county protocol search from the header", () => {
     render(<CabinApp />);
@@ -38,13 +40,13 @@ describe("ambulance workspace", () => {
     expect(screen.getByLabelText("Spoken or typed note")).toBeTruthy();
     expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
   });
-  it("opens camera details without activating the camera and keeps capture controls visible", () => {
+  it("opens the camera workspace without activating a device", () => {
     render(<CabinApp />);
     fireEvent.click(screen.getByRole("button", { name: "Camera" }));
     expect(screen.getByRole("heading", { name: "Capture visual evidence" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Start listening" })).toBeTruthy();
     expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Close details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to overview" }));
     expect(screen.queryByRole("heading", { name: "Capture visual evidence" })).toBeNull();
   });
   it("never promotes an unverified reading into the glanceable value", () => {
@@ -59,7 +61,9 @@ describe("ambulance workspace", () => {
   it("disables capture in a replay", () => {
     useHerald.setState({ source: "fixture" }); render(<CabinApp />);
     expect((screen.getByRole("button", { name: "Start listening" }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole("button", { name: "Camera" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Camera" }));
+    expect((screen.getByRole("button", { name: "Open camera" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole("button", { name: "Close details" })).toBeNull();
   });
   it("camera permission completing after panel close cannot leave a live stream", async () => {
     let resolve!: (stream: MediaStream) => void;
@@ -69,6 +73,28 @@ describe("ambulance workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open camera" })); view.unmount();
     await act(async () => { resolve({ getTracks: () => [{ stop }] } as unknown as MediaStream); await promise; });
     expect(stop).toHaveBeenCalledOnce();
+  });
+  it("stops a pending permission request when switching capture methods", async () => {
+    let resolve!: (stream: MediaStream) => void;
+    const request = new Promise<MediaStream>((done) => { resolve = done; });
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockReturnValue(request);
+    const stop = vi.fn();
+    render(<CabinApp />);
+    fireEvent.click(screen.getByRole("button", { name: "Camera" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open camera" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Connected camera" }), { button: 0, ctrlKey: false });
+    await act(async () => { resolve({ getTracks: () => [{ stop }] } as unknown as MediaStream); await request; });
+    expect(stop).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: "Capture photo" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Enable auto capture" })).toBeTruthy();
+  });
+  it.each(["Vitals & trends", "Patient record", "ED handoff", "Patients", "Review queue"])("explains unavailable patient data on %s", (name) => {
+    useHerald.setState({ snapshot: null, conn: "closed" });
+    render(<CabinApp />);
+    fireEvent.click(screen.getByRole("button", { name }));
+    expect(screen.getByText(/Patient data is not available yet/)).toBeTruthy();
+    expect(screen.queryByText("No open review items")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Close details" })).toBeNull();
   });
   it("offers a file picker alternative to dropping a photo", () => {
     render(<CameraCapture />);

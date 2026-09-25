@@ -33,10 +33,10 @@ class TranscriptIn(BaseModel):
 async def post_transcript(body: TranscriptIn, cap=Depends(get_capture)):
     try:
         return await cap.text(body.text, body.captured_by, body.role, body.speaker, None, body.use_llm)
-    except ModelUnavailable as e:
-        raise HTTPException(503, str(e))
     except IncidentEnded as e:
         raise HTTPException(409, str(e)) from None
+    except ModelUnavailable as e:
+        raise HTTPException(503, str(e))
 
 
 @router.post("/audio")
@@ -45,6 +45,10 @@ async def post_audio(file: UploadFile = File(...), captured_by: CapturedBy = For
                      incident_id: Optional[str] = Form(None),
                      ambient: bool = Form(False),
                      use_llm: bool = Form(True), c=Depends(get_ctx), cap=Depends(get_capture)):
+    try:
+        c.incident.ensure_open()
+    except IncidentEnded as e:
+        raise HTTPException(409, str(e)) from None
     if incident_id is not None and incident_id != cap.inc.id:
         raise HTTPException(409, "Patient changed; this recording was not added to the current incident")
     cap.ambient = ambient
@@ -56,21 +60,24 @@ async def post_audio(file: UploadFile = File(...), captured_by: CapturedBy = For
     except Exception as e:
         raise HTTPException(400, f"send 16-bit PCM WAV audio ({e})")
     audio_id = new_id("a")
-    try:
-        with cap.inc.lock:
-            cap.inc.ensure_open()
-            c.settings.audio_dir.mkdir(parents=True, exist_ok=True)
-            sf.write(c.settings.audio_dir / f"{audio_id}.wav", audio, sr)
-            cap.inc.register_media("audio", audio_id)
-    except IncidentEnded as e:
-        raise HTTPException(409, str(e)) from None
+    with c.incident.lock:
+        try:
+            c.incident.ensure_open()
+        except IncidentEnded as e:
+            raise HTTPException(409, str(e)) from None
+        c.settings.audio_dir.mkdir(parents=True, exist_ok=True)
+        sf.write(c.settings.audio_dir / f"{audio_id}.wav", audio, sr)
+        c.incident.register_media("audio", audio_id)
     t0 = time.perf_counter()
     c.speech_in_flight += 1
     try:
         result = await run_in_threadpool(c.stt.transcribe, np.asarray(audio), sr, language)
     except Exception as e:
         ms = round((time.perf_counter() - t0) * 1000)
-        await cap.stt_failure(audio_id, captured_by, speaker, str(e), ms)
+        try:
+            await cap.stt_failure(audio_id, captured_by, speaker, str(e), ms)   # recorded on the bound patient
+        except IncidentEnded as ended:
+            raise HTTPException(409, str(ended)) from None
         raise HTTPException(503, "speech-to-text failed; recording kept for retry") from None
     finally:
         c.speech_in_flight -= 1
@@ -78,25 +85,31 @@ async def post_audio(file: UploadFile = File(...), captured_by: CapturedBy = For
         raise HTTPException(409, "Patient changed during transcription; review the previous recording separately")
     result["ms"] = round((time.perf_counter() - t0) * 1000)
     if not result["text"]:
+        try:
+            c.incident.ensure_open()
+        except IncidentEnded as e:
+            raise HTTPException(409, str(e)) from None
         return {"transcript": None, "facts": [], "stt": result}
     try:
         return await cap.text(result["text"], captured_by, Role.unknown if ambient else None, speaker, audio_id, use_llm,
                               {"seconds": result["seconds"], "ms": result["ms"], "chunks": result["chunks"]})
-    except ModelUnavailable as e:
-        raise HTTPException(503, str(e))
     except IncidentEnded as e:
         raise HTTPException(409, str(e)) from None
+    except ModelUnavailable as e:
+        raise HTTPException(503, str(e))
 
 
 @router.post("/transcripts/{entry_id}/retry")
 async def retry_transcript(entry_id: str, cap=Depends(get_capture)):
     try:
         return {"transcript": await cap.retry_text(entry_id)}
+    except IncidentEnded as e:
+        raise HTTPException(409, str(e)) from None
     except KeyError:
         raise HTTPException(404) from None
     except ModelUnavailable as e:
         raise HTTPException(503, str(e)) from None
-    except (IncidentEnded, ValueError) as e:
+    except ValueError as e:
         raise HTTPException(409, str(e)) from None
 
 

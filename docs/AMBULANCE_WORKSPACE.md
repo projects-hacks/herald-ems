@@ -14,7 +14,7 @@ The [FDA human-factors guidance](https://www.fda.gov/medical-devices/human-facto
 
 | Always visible or immediately reachable | One tap away | Background, never mistaken for completion |
 |---|---|---|
-| Patient identity and incident reference | Patient history, original sources, corrections | Local transcription and extraction |
+| Patient identity, crew label and call start | Patient history, original sources, corrections | Local transcription and extraction |
 | Latest documented vitals, units and recorded times | Trends, score inputs, missing inputs and citations | Proposed facts awaiting verification |
 | Highest-priority open finding and review count | Full review queue and competing evidence | Photo interpretation after an explicit submission |
 | Microphone on/off, pause, capture failures | Captured transcript and processing trace | Confirmed-fact relay after authorization |
@@ -26,11 +26,11 @@ The implemented default is an ambulance workspace with no administrative sidebar
 
 ## Touch, drag, zoom and information buttons
 
-- Primary controls target at least 56 CSS pixels; the phase switch uses 48-pixel-high controls. These are prototype choices, not a claim of glove usability.
+- Capture primary actions target at least 64 CSS pixels; secondary controls and the phase switch use at least 48-pixel-high controls. These are prototype choices, not a claim of glove usability.
 - No drag-to-confirm, swipe-to-dismiss, drag-to-send, or automatic rearrangement of patient data. Accidental movement must not change a clinical fact.
 - Photo drag-and-drop is available as a convenience with the same file chooser as a non-drag alternative. [WCAG dragging guidance](https://www.w3.org/WAI/WCAG22/Understanding/dragging-movements.html) requires a single-pointer alternative when dragging is not essential.
-- A future layout editor may allow pinning/reordering before the call, with Move up/down buttons and an explicit lock. This is not implemented; fixed positions are the current choice.
-- Large view enlarges readings. Settings offers 100/125/150% text. Browser zoom/pinch is not disabled. Photo preview has explicit zoom-in/out controls from 1× to 3× and scrolling to inspect the full image. Zoom changes presentation, never the source image or extracted value. [WCAG resize guidance](https://www.w3.org/WAI/WCAG22/Understanding/resize-text.html) informs the intended 200% browser-zoom acceptance check; it has not yet been visually validated here.
+- Arrange cards explicitly unlocks the two supporting modules, Capture & evidence and Receiving team. Pointer handles support mouse/touch dragging; Move earlier/later buttons provide keyboard and single-tap alternatives. Save locks and persists only card order; Cancel discards changes; Reset previews the default. Patient context, warnings, reading group and recording controls cannot be dragged. No automatic reordering or drag-to-confirm/send is permitted. Configure before care, not during a critical action.
+- Expand a single reading to show its larger value and recent confirmed readings with timestamps/source labels. Opening transcript, visual evidence or handoff reveals that component's detail, not a magnified page. Global Large view is removed. Settings offers 100/125/150% text; browser zoom/pinch remains available. Photo preview retains 1×–3× zoom without changing the source image or extracted value. The [WCAG resize guidance](https://www.w3.org/WAI/WCAG22/Understanding/resize-text.html) informs the intended 200% acceptance check.
 - Use explanatory controls for score inputs/sources, recording behavior, and delivery semantics. A critical warning, unknown value, unverified source, or disconnected state must not be hidden behind an information icon or hover tooltip. Visible labels are preferable to a row of unexplained icons.
 
 ## Voice: start once, care continuously
@@ -57,9 +57,9 @@ Implemented flow:
 
 `Camera off → open viewfinder → choose source type → freeze → inspect/zoom → Read this image → proposed facts → compare with evidence → confirm`
 
-The source types are monitor, medication label, form and scene. Preview is live but inference runs only on the submitted still. The camera turns off when details close, the tab hides, or the connection fails. A submitted photo can continue processing while another panel is open; its progress/result is available from the visual-evidence card. New-patient changes cannot redirect that result to the next patient.
+The source types are monitor, medication label, form and scene. This device's preview is live but inference runs only on the submitted still. This device's camera turns off when details close, the tab hides, or the connection fails. A submitted photo can continue processing while another panel is open; its progress/result is available from the visual-evidence card. New-patient changes cannot redirect that result to the next patient. The separate connected-camera workflow is described in `AGENTIC_CAPTURE.md`; it can continue when this local viewfinder is closed, and its state and Stop auto capture control remain in the dock.
 
-Medication packaging does not prove administration, and a monitor photograph is not a live feed. Retain original evidence; never silently replace a device reading with OCR. A future continuous-camera mode needs explicit region selection, glare/blur/occlusion checks, patient association, duplicate/change detection, capture timestamps and rate limits. It must not silently infer medication administration, identity, a diagnosis, or scene facts that are not visible. Those capabilities are not implemented.
+Medication packaging does not prove administration, and a monitor photograph is not a live feed. Retain original evidence; never silently replace a device reading with OCR. S9 adds explicit region selection and bounded automatic still capture with patient association and capture gates; its real-model and physical-camera acceptance remain pending. No camera pathway may silently infer administration, identity, diagnosis, or scene facts that are not visible.
 
 ## What runs quietly, what interrupts
 
@@ -69,7 +69,13 @@ The system must distinguish microphone active, clip processing, extraction finis
 
 ## Validation and remaining product gates
 
-Automated checks cover permission races, repeated clips, bounded backlog, stop/error handling, stale capture IDs, delayed cross-patient extraction, camera cleanup, unverified-value suppression, replay write protection, and WAV encoding. These establish software behavior under test doubles, not microphone quality, physical reach, clinical safety, or model accuracy.
+Automated checks cover permission races, repeated clips, bounded backlog, stop/error handling, stale capture IDs, delayed cross-patient extraction, camera cleanup, unverified-value suppression, replay write protection, and WAV encoding. Layout checks additionally cover stored-order validation, explicit editing, save/cancel/reset, pointer cancellation/drop, individual expansion, focus restoration, disconnected camera wording and hidden backend IDs. These establish software behavior under test doubles, not microphone quality, physical reach, clinical safety, or model accuracy.
+
+### Component review follow-up
+
+The default view separates patient context and documented readings from supporting capture/handoff work. Backend incident fragments are removed from patient-facing headers; crew labels and start times preserve orientation. Actual patient identifiers remain clinical data in Patient and handoff details. Technical extraction metadata moves into Processing details while errors, unverified facts and evidence remain visible. Camera state distinguishes the connected automatic source from this device's viewfinder; a direct Stop auto capture stays available whenever automatic capture is enabled. Disconnection qualifies camera state as last known. Stopping is a server request and cannot be claimed successful while disconnected.
+
+Two independent source-level reviews rated the initial layout 5/10 and the revised structure 7–7.5/10. These are subjective design critiques, not measured usability scores; their feedback drove focus restoration, direct automatic-capture stopping, stale-state wording and larger provenance text. Validation details for this iteration are in `WORKSPACE_POLISH.md`.
 
 Verification in this clone: 117 backend tests and 44 frontend tests pass; the production build and light/dark theme-token contrast checks pass. Port 8101 serves the rebuilt bundle and AudioWorklet asset. Browser screenshots could not run because the browser distribution download timed out. Hardware speech/camera rehearsal remains required.
 

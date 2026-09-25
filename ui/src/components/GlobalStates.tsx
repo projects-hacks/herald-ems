@@ -72,7 +72,7 @@ export function NewIncidentDialog() {
     <Dialog open={open} onOpenChange={(o) => setUi({ confirmNewIncident: o })}>
       <DialogContent>
         <DialogTitle>Start a new incident?</DialogTitle>
-        <DialogDescription>This replaces the entire active patient roster and resets the ED relay. To add someone to this incident, use Add patient instead.</DialogDescription>
+        <DialogDescription>This ends the current call, permanently deletes its audio and photos, replaces the entire active patient roster, and resets the ED relay. To add someone to this incident, use Add patient instead.</DialogDescription>
         <button type="button" className="min-h-12 text-left text-body text-herald-accent" onClick={() => setUi({ confirmNewIncident: false, page: "handoff" })}>Review or download the handoff first</button>
         <label className="text-body">Dispatch / call type<input list="dispatch-types" value={dispatch} onChange={(e) => setDispatch(e.target.value)} placeholder="Unspecified — or type dispatch" className="mt-2 block min-h-12 w-full rounded-lg border border-border-control bg-surface-2 px-3" /></label>
         <datalist id="dispatch-types">{Object.entries(contract?.checklists ?? {}).filter(([, c]) => c.label).map(([id, c]) => <option key={id} value={id}>{c.label}</option>)}</datalist>
@@ -81,6 +81,24 @@ export function NewIncidentDialog() {
           <button type="button" onClick={() => setUi({ confirmNewIncident: false })} className="min-h-12 rounded-[var(--radius-control)] border border-border-subtle bg-surface-2 px-4 text-button font-semibold">Cancel</button>
           <button type="button" disabled={busy || capturing || blocked} onClick={async () => { setBusy(true); if (await api.newIncident(dispatch.trim() || null)) setUi({ confirmNewIncident: false, incidentPhase: "scene", page: "overview" }); else setError("Could not start a new incident. Your current call remains on screen."); setBusy(false); }}
             className="min-h-16 rounded-[var(--radius-control)] bg-accent-fill px-4 text-button font-semibold text-on-accent-fill">Start new incident</button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function EndIncidentDialog() {
+  const open = useHerald((s) => s.ui.confirmEndIncident);
+  const setUi = useHerald((s) => s.setUi);
+  return (
+    <Dialog open={open} onOpenChange={(o) => setUi({ confirmEndIncident: o })}>
+      <DialogContent>
+        <DialogTitle>End this call?</DialogTitle>
+        <DialogDescription>This permanently deletes this call&apos;s audio and photos. Patient facts remain on screen for review until you start a new incident.</DialogDescription>
+        <DialogFooter>
+          <button type="button" onClick={() => setUi({ confirmEndIncident: false })} className="min-h-11 rounded-[var(--radius-control)] border border-border-subtle bg-surface-2 px-4 text-button font-semibold">Cancel</button>
+          <button type="button" onClick={async () => { if (await api.endIncident()) setUi({ confirmEndIncident: false }); }}
+            className="min-h-11 rounded-[var(--radius-control)] bg-accent-fill px-4 text-button font-semibold text-on-accent-fill">End call and delete media</button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -101,6 +119,7 @@ export function PresenterBar() {
       <button type="button" className={btn} onClick={() => setUi({ theme: ui.theme === "dark" ? "light" : "dark" })}>Theme: {ui.theme}</button>
       <button type="button" className={btn} onClick={() => setUi({ typeScale: ui.typeScale === 1 ? 1.25 : ui.typeScale === 1.25 ? 1.5 : 1 })}>Text size {ui.typeScale}×</button>
       <button type="button" className={btn} aria-pressed={ui.reducedMotion} onClick={() => setUi({ reducedMotion: !ui.reducedMotion })}>Reduce motion: {ui.reducedMotion ? "on" : "off"}</button>
+      <button type="button" className={btn} onClick={() => setUi({ confirmEndIncident: true })}>End call</button>
       <button type="button" className={btn} onClick={() => setUi({ confirmNewIncident: true })}>New incident</button>
       <button type="button" className={`${btn} ml-auto`} onClick={() => setUi({ presenterOpen: false })}>Close (`)</button>
     </div>

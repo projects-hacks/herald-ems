@@ -22,6 +22,7 @@ async function loadReport(id, version, format = '') {
 }
 async function acknowledge(id, status) {
   const note = window.prompt(status === 'cath_lab_activated' ? 'Optional cath-lab note' : 'Optional receipt note');
+  if (note === null) return;
   try {
     const r = await fetch(`/incidents/${encodeURIComponent(id)}/acknowledgements`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status, note: note || null }),

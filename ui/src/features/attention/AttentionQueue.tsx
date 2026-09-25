@@ -91,13 +91,6 @@ function ConfirmActions({ fact }: { fact: FactView }) {
   );
 }
 
-function ConfirmEligible({ facts }: { facts: FactView[] }) {
-  const ids = facts.filter((fact) => fact.status === "unconfirmed" && !fact.provenance.hold_reason &&
-    !(fact.verify?.status === "mismatch" && !fact.verify.resolution)).map((fact) => fact.id);
-  if (ids.length < 2) return null;
-  return <Button size="sm" variant="ghost" onClick={() => api.confirmMany(ids)}>Confirm eligible ({ids.length})</Button>;
-}
-
 function TapRow({ f }: { f: FactView }) {
   return (
     <Row cat={catOf(f.key)} title={f.label} value={factValue(f)}
@@ -171,15 +164,11 @@ function FindingRow({ a, s, onSeen }: { a: Alert; s: Snapshot; onSeen?: () => vo
         title={<>NEWS2 rose <span className="num">{a.from} → {a.to}</span> · {a.band} band</>} meta={parts.length ? <span>{parts.join(" · ")}</span> : undefined} actions={seen} />;
     }
     case "news2_high":
-      return <Row icon={Gauge} cat="heart" urgent={p === "high" && !!onSeen} flash={p === "high" && !!onSeen}
-        badge={<PriorityBadge p="high" />} title={<>NEWS2 <span className="num">{a.score}</span>: high-risk band</>}
-        meta={<span>First high reading; review the confirmed inputs and notify the receiving team as appropriate.</span>} actions={seen} />;
+      return <Row icon={Gauge} cat="heart" urgent={!!onSeen} flash={!!onSeen} badge={<PriorityBadge p="high" />}
+        title={<>NEWS2 <span className="num">{a.score}</span> · high band</>} actions={seen} />;
     case "stemi_alert":
-      return <Row icon={ShieldAlert} cat="heart" urgent={p === "high" && !!onSeen} flash={p === "high" && !!onSeen}
-        badge={<PriorityBadge p="high" />} title={a.label} actions={seen}>
-        <ul className="mt-2 space-y-2 text-body">{a.criteria.map((line, i) => <li key={i}>{line}</li>)}</ul>
-        {a.county_rule?.map((line, i) => <p key={i} className="mt-2 text-body">{a.county && <span>{a.county}: </span>}{line}</p>)}
-      </Row>;
+      return <Row icon={ShieldAlert} cat="attention" urgent={!!onSeen} flash={!!onSeen} badge={<PriorityBadge p="high" />}
+        title={<>STEMI Alert criteria met</>} meta={<span>{a.criteria.join(" · ")}</span>} actions={seen} />;
     case "race_positive":
       return <Row icon={Brain} cat="neuro" badge={<PriorityBadge p={p} />} title={<>RACE <span className="num">{a.score}</span> of 9: large-vessel screen positive</>}
         meta={<span>Threshold ≥ 5. Parts and published accuracy are on the RACE tile.</span>} actions={seen} />;
@@ -275,8 +264,7 @@ export function AttentionQueue({ className }: { className?: string }) {
             </Section>
           )}
           {confirmCount > 0 && (
-            <Section title="Verify what Herald captured" count={confirmCount}
-              actions={<ConfirmEligible facts={a.confirmFacts} />}>
+            <Section title="Verify what Herald captured" count={confirmCount}>
               <ul>
                 {a.confirmAlerts.map((al) => <CodeStatusRow key={alertKey(al)} a={al as CodeStatus} />)}
                 {a.confirmFacts.map((f) => f.verify?.status === "mismatch" && !f.verify.resolution

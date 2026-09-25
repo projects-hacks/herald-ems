@@ -87,6 +87,7 @@ class Relay:
         self.full_synced_facts.clear()
         self.inflight = None
         self.last_ack_at = None
+        self.clinician_acknowledgements.clear()
 
     # ---------- what the ED should know ----------
     def _incidents(self) -> list:
@@ -221,7 +222,9 @@ class Relay:
                 import httpx
                 async with httpx.AsyncClient(timeout=2.0) as c:
                     (await c.get(f"{self.ed_url.rstrip('/')}/ping")).raise_for_status()
-                    state = (await c.get(f"{self.ed_url.rstrip('/')}/state")).json()
+                    state_response = await c.get(f"{self.ed_url.rstrip('/')}/state")
+                    state_response.raise_for_status()
+                    state = state_response.json()
                     self.clinician_acknowledgements = {
                         patient_id: row.get("acknowledgements", [])
                         for patient_id, row in state.get("incidents", {}).items()

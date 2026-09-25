@@ -6,8 +6,8 @@ from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from ...core.schema import Status
 from ...core.incident import IncidentEnded
+from ...core.schema import Status
 from . import get_capture
 from . import get_ctx, get_hub
 
@@ -83,7 +83,9 @@ async def fact_action(fact_id: str, action: str, c=Depends(get_ctx), h=Depends(g
 async def confirm_facts(body: BulkConfirm, c=Depends(get_ctx), h=Depends(get_hub)):
     """Confirm selected independent readings in one medic action.
 
-    Held facts and unresolved contradictions stay individual decisions.
+    Held values and unresolved contradictions deliberately remain individual decisions.
+    Unknown IDs are reported, rather than silently ignored, so a stale UI cannot imply
+    that a value reached the ED when it did not.
     """
     try:
         c.incident.ensure_open()
