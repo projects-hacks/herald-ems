@@ -55,9 +55,9 @@ function Row({ icon, cat, title, badge, value, was, meta, actions, urgent, flash
 }
 
 function PriorityBadge({ p }: { p: Priority }) {
-  return p === "high" ? <Badge tone="high" variant="solid" icon={OctagonAlert} className="rounded-[6px] px-1.5 text-[0.6875rem] tracking-wide">HIGH</Badge>
-    : p === "medium" ? <Badge tone="medium" className="rounded-[6px] px-1.5 text-[0.6875rem] tracking-wide">CHECK</Badge>
-    : <Badge tone="low" className="rounded-[6px] px-1.5 text-[0.6875rem] tracking-wide">INFO</Badge>;
+  return p === "high" ? <Badge tone="high" variant="solid" icon={OctagonAlert} className="rounded-[6px] px-1.5 tracking-wide">HIGH</Badge>
+    : p === "medium" ? <Badge tone="medium" className="rounded-[6px] px-1.5 tracking-wide">CHECK</Badge>
+    : <Badge tone="low" className="rounded-[6px] px-1.5 tracking-wide">INFO</Badge>;
 }
 
 function sourceIconOf(f: FactView): LucideIcon {

@@ -53,14 +53,12 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   const lastTrigger = useRef<HTMLElement | null>(null);
   const urgentLive = useRef<HTMLSpanElement>(null);
   const announced = useRef<Set<string>>(new Set());
-  useEffect(() => {   // announce each urgent alert once, when it arrives (the queue card announces its own region)
-    for (const al of a?.urgent ?? []) {
-      const k = alertKey(al);
-      if (announced.current.has(k)) continue;
-      announced.current.add(k);
-      if (urgentLive.current) urgentLive.current.textContent = alertTitle(al);
-    }
-  }, [a]);
+  useEffect(() => { announced.current.clear(); if (urgentLive.current) urgentLive.current.textContent = ""; }, [s?.incident.id]);   // a new incident starts a fresh announcement slate
+  useEffect(() => {   // announce each urgent alert once, when it arrives; the review panel's own assertive region already announces there
+    const fresh = (a?.urgent ?? []).filter((al) => !announced.current.has(alertKey(al)));
+    for (const al of fresh) announced.current.add(alertKey(al));
+    if (fresh.length && panel !== "review" && urgentLive.current) urgentLive.current.textContent = fresh.map(alertTitle).join(" · ");
+  }, [a, panel, s?.incident.id]);
   const open = (value: Panel) => { if (!panel) lastTrigger.current = document.activeElement as HTMLElement; setPanel(value); if (!value) requestAnimationFrame(() => document.getElementById("workspace-main")?.focus()); };
   const close = () => { setPanel(null); requestAnimationFrame(() => (lastTrigger.current?.isConnected ? lastTrigger.current : document.getElementById("cabin-attention"))?.focus()); };
   useEffect(() => { if (panel) { page.current?.focus({ preventScroll: true }); page.current?.scrollIntoView?.({ block: "start" }); } }, [panel]);
@@ -168,7 +166,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
           {s?.capture?.error && <p role="alert">Camera capture needs attention: {s.capture.error}</p>}</div></div>
       <div className="cabin-actions">
         {s?.capture?.auto && <CaptureControl stopOnly />}
-        {/* AmbientCapture.start() is a no-op while clips upload, so the button stays disabled but says why. */}
+        {/* Start stays available while queued clips upload; it is disabled only when capture is blocked or alerts are held. */}
         <button className={`cabin-button ${recording ? "recording" : "primary"}`} disabled={ambient.blocked || (!recording && ui.heldAlerts)} onClick={() => recording ? ambient.pause() : void ambient.start()}>
           {recording ? <Pause size={23} /> : <Mic size={23} />}{recording ? "Pause listening" : "Start listening"}</button>
         {panel !== "camera" && <button className="cabin-button" onClick={() => open("camera")}><Camera size={23} />Camera</button>}

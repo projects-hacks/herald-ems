@@ -52,7 +52,7 @@ const FIGURE_TINT: Record<string, string> = {
 /** A figure as a tinted tile: a big rounded number over a gray label, on the tone's tint (sent / queued / held). */
 export function Figure({ n, label: l, tone, big = false, className }: { n: number | string; label: string; tone: string; big?: boolean; className?: string }) {
   return (
-    <div className={cn("flex min-w-0 flex-col items-center rounded-[16px] p-2.5 text-center", FIGURE_TINT[tone] ?? "bg-surface-1", className)}>
+    <div className={cn("flex min-w-0 flex-col items-center rounded-[16px] p-2.5 text-center", FIGURE_TINT[tone] ?? "bg-surface-2", className)}>
       <span className={cn("rounded-num", big ? "text-kpi" : "text-value leading-7", tone)}>{n}</span>
       <span className="truncate text-meta text-text-muted">{l}</span>
     </div>

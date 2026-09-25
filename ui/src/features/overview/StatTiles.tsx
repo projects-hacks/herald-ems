@@ -6,6 +6,7 @@
 import { Brain, ChevronRight, CircleDashed, Clock, Gauge, HeartPulse, MapPin, Navigation, Siren, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { useNow } from "@/hooks/useNow";
+import { elapsedAgo } from "@/lib/clock";
 import { clockSeconds, hhmmss } from "@/lib/format";
 import { showFieldTriage, strokeScales } from "@/lib/selectors";
 import { useHerald } from "@/lib/store";
@@ -50,8 +51,7 @@ function ClockTiles({ s }: { s: Snapshot }) {
   if (lkw) {
     const tap = lkwFact?.status === "unconfirmed";
     const at0 = lkw.label.replace(/^LKW\s*/, "");
-    const secs = clockSeconds(lkw, at, now);
-    const ago = `${secs >= 3600 ? `${Math.floor(secs / 3600)} h ` : ""}${Math.floor((secs % 3600) / 60)} m ago`;
+    const ago = elapsedAgo(clockSeconds(lkw, at, now));
     tiles.push(<Tile key="lkw" icon={Clock} cat="time" label="Last Known Well" value={at0} unit={`· ${ago}`} clock aria={`Last known well ${at0}, ${ago}${tap ? ", needs your tap" : ""}`}
       footer={tap ? <Badge tone="medium">needs your tap</Badge> : <>when the patient was last normal</>} />);
   } else if (s.readiness.some((r) => r.id === "stroke")) {
