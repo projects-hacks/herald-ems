@@ -1,4 +1,4 @@
-import { esc, formatValue, newestPatient, isNewField, fieldKeys, observedElapsed } from './view.mjs';
+import { esc, formatValue, newestPatient, isNewField, fieldKeys, observedElapsed, hhmm } from './view.mjs';
 import { renderJourney } from './journey.mjs';
 const $ = (id) => document.getElementById(id);
 let selected = null, manualSelection = false, lastView = null, labels = {}, display = null, reportVersion = '', reportAbort = null;
@@ -56,7 +56,7 @@ function render(view) {
     return `<div class="row ${recent.has(key) ? 'new' : ''}"><span>${esc(label(key))}</span><b${elapsed !== null ? ` data-clock="${esc(String(field.v))}" data-since="${esc(incident.lkw_at)}"` : ''}>${value}</b></div>`;
   };
   const acknowledgements = incident.acknowledgements || [];
-  $('root').innerHTML = `<div class="grid"><section class="card"><h2>${esc(incident.label || selected)} · received facts</h2>${fieldKeys(incident).map(row).join('') || '<p>No fields received yet</p>'}</section><section class="card"><h2>Link and packets</h2><p>${incident.applied.length} packets · ${incident.duplicates} duplicates ignored</p><p>${incident.queued_on_rig} queued on the vehicle · ${incident.bytes} bytes received</p><p><button id="ack-received">Mark received</button> <button id="ack-cath">Cath lab activated</button></p>${acknowledgements.length ? `<p>Clinician acknowledgement: ${esc(acknowledgements.at(-1).status.replaceAll('_', ' '))}</p>` : '<p>No clinician acknowledgement recorded.</p>'}<details><summary>Packet history</summary>${[...incident.packets].reverse().map((p) => `<p class="packet">${esc(incident.label || selected)} · #${p.seq} · ${esc(p.tier)} · ${p.bytes} B<br>${esc(p.keys.map(label).join(' · '))}</p>`).join('')}</details></section></div>${incident.timeline.length ? `<details class="card"><summary>Received event history</summary>${incident.timeline.map((t) => `<p>${esc(new Date(t.t).toLocaleTimeString())} · ${esc(label(t.k))}: ${esc(formatValue(t.v))}</p>`).join('')}</details>` : ''}`;
+  $('root').innerHTML = `<div class="grid"><section class="card"><h2>${esc(incident.label || selected)} · received facts</h2>${fieldKeys(incident).map(row).join('') || '<p>No fields received yet</p>'}</section><section class="card"><h2>Link and packets</h2><p>${incident.applied.length} packets · ${incident.duplicates} duplicates ignored</p><p>${incident.queued_on_rig} queued on the vehicle · ${incident.bytes} bytes received</p><p><button id="ack-received">Mark received</button> <button id="ack-cath">Cath lab activated</button></p>${acknowledgements.length ? `<p>Clinician acknowledgement: ${esc(acknowledgements.at(-1).status.replaceAll('_', ' '))}</p>` : '<p>No clinician acknowledgement recorded.</p>'}<details><summary>Packet history</summary>${[...incident.packets].reverse().map((p) => `<p class="packet">${esc(incident.label || selected)} · #${p.seq} · ${esc(p.tier)} · ${p.bytes} B<br>${esc(p.keys.map(label).join(' · '))}</p>`).join('')}</details></section></div>${incident.timeline.length ? `<details class="card"><summary>Received event history</summary>${incident.timeline.map((t) => `<p>${esc(hhmm(t.t))} · ${esc(label(t.k))}: ${esc(formatValue(t.v))}</p>`).join('')}</details>` : ''}`;
   $('ack-received').onclick = () => acknowledge(selected, 'received');
   $('root').insertAdjacentHTML('beforeend', renderJourney(incident, labels));
   $('ack-cath').onclick = () => acknowledge(selected, 'cath_lab_activated');
@@ -70,7 +70,7 @@ function render(view) {
 }
 function contact() {
   const at = lastView?.last_contact_at;
-  $('contact').textContent = at ? `Last vehicle contact: ${new Date(at).toLocaleTimeString()} · ${Math.max(0, Math.floor((Date.now() - new Date(at).getTime()) / 1000))} s ago` : 'Last vehicle contact: unknown';
+  $('contact').textContent = at ? `Last vehicle contact: ${hhmm(at)} · ${Math.max(0, Math.floor((Date.now() - new Date(at).getTime()) / 1000))} s ago` : 'Last vehicle contact: unknown';
 }
 function connect() {
   const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
