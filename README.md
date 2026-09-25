@@ -85,6 +85,7 @@ manual observations ─┘           trends · clocks · NEWS2 · RACE · G.F.A.
 | `herald/knowledge/` | Protocol lookup: sections, tables, figures, hybrid search, sync with review flags |
 | `herald/terminology/` | Drug and allergen names → RxNorm (brands, retired brands, misspellings, combinations), class allergies → ICD-10-CM; the code on each fact; anything not matched exactly waits for a tap |
 | `herald/relay/` | Weak-link relay to the emergency department |
+| `herald/egress/` | The one ALLOW / QUEUE / DENY decision point every outbound call passes through (`config/egress.yaml`) |
 | `herald/telemetry/` | Tokens, GPU power, energy, cost vs a cloud equivalent |
 | `herald/api/` | FastAPI app, WebSocket hub, composition root |
 | `eval/` | Gold sets, benchmarks, adversarial sets, protocol answer keys, saved predictions; the hand-written rules extractor survives only here, as a baseline |
@@ -103,6 +104,11 @@ Open `http://localhost:8100`. Browsers only allow the microphone on `localhost` 
 
 For continuous observation, choose **Start listening** and **Camera → Start monitor watch**, granting each device explicitly. Adjust the monitor region and return to the overview; camera capture continues across care pages. Hiding the browser tab, changing patient or losing the connection stops the camera. For a second-laptop equipment simulation, open `/monitor.html`, start its synthetic journey and point the observing camera at that display. It sends no facts directly to Herald. Real inference must use an approved serving instance; see the capture setup above.
 
+- **LAN access (a tablet in the back of the ambulance):** `scripts/run_dev.sh` and the Docker image bind
+  `127.0.0.1` by default -- only this box can reach Herald. Reaching it from another device needs both
+  `HERALD_BIND_HOST=0.0.0.0` and `HERALD_DEVICE_TOKEN=<a shared secret>` (every mutating `/api/*` request must
+  send it back as `X-Herald-Token`; open the tablet's page once as `.../?token=<the same secret>` and the UI
+  remembers it). Skip the token and any other device on that Wi-Fi can read and write patient state.
 - **Relay demo:** `scripts/link.sh start 127.0.0.1:8200`, then run `ed_receiver` on port 8200 and set `HERALD_ED_URL=http://127.0.0.1:9000`. Shift+G/W/D switch the emulated link.
 - **Protocol-update demo** (two real versions of 700-S04): `scripts/demo_protocol_update.sh setup` and `HERALD_PROTOCOL_MIRROR=http://127.0.0.1:8300`.
 - **Tests:** `python -m pytest -q`.
@@ -120,6 +126,36 @@ or the ciphertext fails authentication, Herald refuses to start rather than sile
 
 Audio and photos remain local evidence files; they are deleted at call end but are not encrypted by this recovery
 snapshot mechanism. Set `HERALD_PERSISTENCE=0` only for disposable tests or fixtures.
+
+## When Herald escalates to the cloud, and when it refuses
+
+There is no code path in Herald that can construct a request to a cloud AI provider. `LocalLLMClient`
+(`herald/models/llm_client.py`) refuses to be built with anything but a `127.0.0.1` / `localhost` / `::1` URL
+(`herald/config/settings.py` validates `HERALD_LLM_URL` the same way at startup), so extraction, photo reading,
+and protocol reranking physically cannot address a cloud endpoint. The extraction and vision models are the
+*only* language models Herald runs.
+
+What can still leave the box is data: relay packets to the emergency department, and a protocol-document sync
+against a mirror URL (`HERALD_PROTOCOL_MIRROR`). Every one of those, plus every local model call, is decided by
+one policy point before it happens: `EgressPolicy.decide()` (`herald/egress/policy.py`, config `config/egress.yaml`).
+
+- **ALLOW, never counted as a cloud escalation** — the destination is a local model endpoint on this box.
+- **ALLOW** — the destination is on `config/egress.yaml`'s `ed_allow_list`, or is this deployment's own
+  `HERALD_ED_URL` / `HERALD_PROTOCOL_MIRROR` (naming a host in the environment allow-lists it automatically).
+- **QUEUE** — an allow-listed destination, but the relay's own measured link state is currently `down`; retried,
+  nothing is sent or lost.
+- **DENY, counted as a refused cloud call** — anything else. This is the default for every host Herald hasn't
+  been explicitly told to trust.
+
+Every decision is logged (bounded to the most recent 200, `config/egress.yaml` `decision_log_size`) and counted;
+`GET /api/egress` returns the counts and the most recent 50 log entries. The
+`cloud_ai_calls` counter shown on `GET /api/health`, `GET /api/stack`, `GET /api/telemetry`, and every incident
+snapshot's `counters` is `0` because DENY happens before the request, not because the number is hardcoded —
+`GET /api/egress`'s `cloud_calls_refused` counts how many times that refusal actually fired (a misconfigured
+`HERALD_ED_URL`, a protocol mirror not on the allow-list, or a stray host during testing).
+
+`POST /api/relay/config` runs the same check before it ever stores an ED URL: a non-local, non-allow-listed
+host is rejected with `403` and never reaches `Relay.set_ed_url`.
 
 ## Evidence behind the scores (sources checked September 2026)
 
