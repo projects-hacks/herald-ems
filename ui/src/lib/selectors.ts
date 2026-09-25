@@ -8,6 +8,7 @@ const RANK: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
 
 export function alertPriority(a: Alert): Priority {
   if (a.type === "news2_rise") return a.band === "high" ? "high" : a.band === "medium" || a.band === "low-medium" ? "medium" : "low";
+  if (a.type === "news2_high" || a.type === "stemi_alert") return "high";
   return "medium";   // contradiction, confirm_required, race_positive, gfast_positive, significant_change
 }
 /** Stable identity for "Seen": type + key + value (§2.3). */
@@ -16,7 +17,9 @@ export function alertKey(a: Alert): string {
     case "contradiction": case "confirm_required": return `${a.type}:${a.key}:${a.confirm_fact_id}`;
     case "significant_change": return `${a.type}:${a.key}:${a.series.join(",")}`;
     case "news2_rise": return `${a.type}:${a.from}->${a.to}`;
+    case "news2_high": return `${a.type}:${a.score}`;
     case "race_positive": case "gfast_positive": return `${a.type}:${a.score}`;
+    case "stemi_alert": return `${a.type}:${a.score}`;
   }
 }
 /** Contradictions and code-status confirmations can't be marked seen; they leave only when resolved. */

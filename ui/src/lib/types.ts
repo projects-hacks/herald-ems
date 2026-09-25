@@ -67,8 +67,11 @@ export type Alert =
   | { type: "confirm_required"; key: string; label: string; confirm_fact_id: string; facts: FactView[] }
   | { type: "significant_change"; key: string; label: string; series: number[] }
   | { type: "news2_rise"; label: string; from: number; to: number; band: News2Band }
+  | { type: "news2_high"; label: string; score: number; band: "high" }
   | { type: "race_positive"; label: string; score: number }
-  | { type: "gfast_positive"; label: string; score: number; county_rule: string; county: string };
+  | { type: "gfast_positive"; label: string; score: number; county_rule: string; county: string }
+  | { type: "stemi_alert"; score: "stemi_700a08"; label: string; level: "trigger"; criteria: string[];
+      county_rule?: string[]; county?: string };
 export type AlertType = Alert["type"];
 
 // ---------- clocks ----------

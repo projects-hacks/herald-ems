@@ -72,6 +72,21 @@ class Relay:
     def authorize(self, destination: str, scope: str = "stroke pre-alert set") -> None:
         self.authorized = {"destination": destination, "scope": scope, "at": utcnow().isoformat()}
 
+    def set_ed_url(self, ed_url: Optional[str]) -> None:
+        """Point at a new receiver without carrying that receiver's acknowledgements over.
+
+        Authorization remains a medic action, but an acknowledgement is only meaningful for
+        the receiver that sent it.  Clearing this state makes the next tick resend the
+        current critical values to the newly configured ED.
+        """
+        if self.ed_url == ed_url:
+            return
+        self.ed_url = ed_url
+        self.acked.clear()
+        self.full_synced_facts.clear()
+        self.inflight = None
+        self.last_ack_at = None
+
     # ---------- what the ED should know ----------
     def _incidents(self) -> list:
         source = self.get_incident()
@@ -97,8 +112,10 @@ class Relay:
             if sid in self.scales and f"score.{sid}" in self.tiers and (text := self.scales[sid].relay_text(r)):
                 out[f"score.{sid}"] = text
         if snap["readiness"]:
-            a = snap["readiness"][0]
-            out["alert.readiness"] = f'{a["label"]} {a["done"]}/{a["total"]}{" ready" if a["ready"] else ""}'
+            out["alert.readiness"] = "; ".join(
+                f'{a["label"]} {a["done"]}/{a["total"]}{" ready" if a["ready"] else ""}'
+                for a in snap["readiness"]
+            )
         return out
 
     def pending(self) -> list[tuple[int, int, str, str, Any, Any]]:

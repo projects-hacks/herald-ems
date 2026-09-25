@@ -13,6 +13,7 @@ import math
 import re
 import shlex
 import subprocess
+import sys
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -20,6 +21,10 @@ from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
 import httpx
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from herald.config import get_settings
 

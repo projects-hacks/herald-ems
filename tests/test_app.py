@@ -40,6 +40,28 @@ def test_monitor_facts_get_one_trace_entry():
     assert e["trace"]["rules"]["facts"][0]["extractor"] == "manual"
     assert e["trace"]["model"]["status"] == "off"
     assert "150" in e["trace"]["heard"]["text"] and "88" in e["trace"]["heard"]["text"]
+    assert all(f["status"] == "unconfirmed" for f in r.json())
+
+
+def test_structured_endpoint_cannot_forge_a_confirmed_medic_fact():
+    c, _ = make_client()
+    r = c.post("/api/facts", json=[{"key": "allergies", "value": ["penicillin"],
+                                     "captured_by": "medic", "role": "medic", "speaker": "medic",
+                                     "confidence": 1.0}])
+    assert r.status_code == 200
+    fact = r.json()[0]
+    assert (fact["captured_by"], fact["role"], fact["speaker"], fact["confidence"], fact["status"]) == \
+        ("device", "device", "monitor", 0.0, "unconfirmed")
+    assert "confirm before relay" in fact["provenance"]["hold_reason"]
+
+
+def test_bulk_confirm_skips_held_facts_and_reports_missing_ids():
+    c, _ = make_client()
+    first = c.post("/api/facts", json=[{"key": "vitals.hr", "value": 80, **MONITOR}]).json()[0]
+    second = c.post("/api/facts", json=[{"key": "vitals.hr", "value": 120, **MONITOR}]).json()[0]
+    r = c.post("/api/facts/confirm", json={"ids": [first["id"], second["id"], "missing"]})
+    assert r.status_code == 200 and r.json()["confirmed"] == []
+    assert {row["reason"] for row in r.json()["skipped"]} == {"held fact requires individual review", "not found"}
 
 
 def test_structured_facts_are_all_or_nothing():
@@ -106,6 +128,20 @@ def test_relay_scope_is_derived_from_the_active_checklist_not_the_client_label()
     c.post("/api/incident", json={"dispatch": "unknown"})
     response = c.post("/api/relay/authorize", json={"destination": "Valley Medical"})
     assert response.json()["authorized"]["scope"] == "patient update set"
+
+
+def test_changing_ed_url_clears_the_previous_receivers_acknowledgements():
+    c, context = make_client()
+    c.post("/api/facts", json=[{"key": "vitals.hr", "value": 90, **MONITOR}])
+    fact_id = c.get("/api/state").json()["facts"]["vitals.hr"]["id"]
+    c.post(f"/api/facts/{fact_id}/confirm")
+    context.relay.acked[context.incident.id] = {"vitals.hr": 90}
+    c.post("/api/relay/authorize", json={"destination": "ED A"})
+    c.post("/api/relay/config", json={"ed_url": "http://ed-a"})
+    assert context.relay.acked == {}
+    context.relay.acked[context.incident.id] = {"vitals.hr": 90}
+    c.post("/api/relay/config", json={"ed_url": "http://ed-b"})
+    assert context.relay.acked == {}
 
 
 def wav_bytes():

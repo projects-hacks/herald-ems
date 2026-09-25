@@ -31,7 +31,7 @@ async def relay_authorize(body: Authorize, c=Depends(get_ctx), h=Depends(get_hub
 
 @router.post("/relay/config")
 async def relay_config(body: RelayConfig, c=Depends(get_ctx), h=Depends(get_hub)):
-    c.relay.ed_url = body.ed_url
+    c.relay.set_ed_url(body.ed_url)
     await h.broadcast()
     return c.relay.status()
 

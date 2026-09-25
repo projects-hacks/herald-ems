@@ -162,6 +162,9 @@ class Projector:
                 alerts.append({"type": "significant_change", "key": c["key"], "label": c["label"],
                                "series": c["series"]})
         hist = [x for x in inc.news2_history if x["complete"]]
+        if hist and hist[-1]["band"] == "high" and not any(x["band"] == "high" for x in hist[:-1]):
+            alerts.append({"type": "news2_high", "label": "NEWS2", "score": hist[-1]["score"],
+                           "band": "high"})
         if len(hist) >= 2:
             a, b = hist[-2], hist[-1]
             if b["score"] - a["score"] >= 2 or (b["band"] in ("medium", "high") and b["band"] != a["band"]):

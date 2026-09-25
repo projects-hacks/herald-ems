@@ -61,6 +61,15 @@ def test_news2_rise_alert():
     assert rise["to"] >= 5 and rise["band"] == "medium"
 
 
+def test_first_complete_high_news2_raises_high_alert():
+    inc = Incident()
+    for key, value in [("patient.age", 48), ("vitals.rr", 30), ("vitals.spo2", 86), ("vitals.on_oxygen", True),
+                       ("vitals.sbp", 84), ("vitals.hr", 140), ("vitals.consciousness", "V"), ("vitals.temp", 39.5)]:
+        inc.ingest(FactIn(key=key, value=value, captured_by=CapturedBy.medic, role=Role.medic, confidence=0.99))
+    high = next(a for a in inc.snapshot()["alerts"] if a["type"] == "news2_high")
+    assert high == {"type": "news2_high", "label": "NEWS2", "score": 19, "band": "high"}
+
+
 def test_spoken_corrections_take_the_corrected_value():
     cases = {
         "Pulse was 88, correction, 98.": {"vitals.hr": 98},

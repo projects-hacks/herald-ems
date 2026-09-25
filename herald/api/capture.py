@@ -14,7 +14,7 @@ from typing import Awaitable, Callable, Optional
 from fastapi.concurrency import run_in_threadpool
 
 from ..core.incident import IncidentEnded
-from ..core.schema import CapturedBy, FactIn, Role, join_reasons, new_id, source_role, utcnow
+from ..core.schema import CapturedBy, FactIn, Provenance, Role, join_reasons, new_id, source_role, utcnow
 from .context import AppContext
 
 Broadcast = Callable[[], Awaitable[None]]
@@ -207,6 +207,15 @@ class CaptureService:
         """All-or-nothing: one invalid fact rejects the batch (ValueError). One trace entry per call. Drug names are
         coded here like the extractors' (a device or form may send them)."""
         self.inc.ensure_open()
+        # This HTTP endpoint is a device feed, not an authenticated medic-entry endpoint.
+        # Never let a client turn an arbitrary submitted value into a confirmed medic fact.
+        # A device value is useful to show immediately, but requires an explicit medic tap
+        # before it may affect scores, alerts, or the relay.
+        facts = [FactIn(key=f.key, value=f.value, unit=f.unit, role=Role.device,
+                        speaker="monitor", captured_by=CapturedBy.device, confidence=0.0,
+                        provenance=Provenance(extractor="manual",
+                                              hold_reason="device reading: confirm before relay"))
+                 for f in facts]
         tracer = self.ctx.tracer
         if self.ctx.coder:
             facts = self.ctx.coder.code(facts)
