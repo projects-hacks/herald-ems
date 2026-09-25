@@ -30,12 +30,15 @@ type CodeStatus = Extract<Alert, { type: "confirm_required" }>;
 
 // ---------- one row: an iOS list row, with the separator inset past the tile ----------
 
-function Row({ icon, cat, title, badge, value, was, meta, actions, urgent, flash, children }: {
+/** tone paints the card's edge: high (danger), check (a decision waiting), live (Herald's own reading, one tap),
+ *  info (a finding to note). Colour is never the only signal: every row also has its icon and words. */
+function Row({ icon, cat, title, badge, value, was, meta, actions, urgent, flash, tone, children }: {
   icon?: LucideIcon; cat: Cat; title: React.ReactNode; badge?: React.ReactNode; value?: React.ReactNode; was?: string;
-  meta?: React.ReactNode; actions?: React.ReactNode; urgent?: boolean; flash?: boolean; children?: React.ReactNode;
+  meta?: React.ReactNode; actions?: React.ReactNode; urgent?: boolean; flash?: boolean; tone?: "high" | "check" | "live" | "info";
+  children?: React.ReactNode;
 }) {
   return (
-    <li className={cn("group/row flex gap-3.5 pl-5", urgent && "bg-high-tint")}>
+    <li data-tone={tone ?? (urgent ? "high" : "check")} className={cn("group/row flex gap-3.5 pl-5", urgent && "bg-high-tint")}>
       <IconTile icon={icon ?? CAT_ICON[cat]} cat={cat} size={34} className="mt-3.5" iconClassName={flash ? "flash-high" : undefined} />
       <div className="flex min-w-0 flex-1 flex-wrap items-start gap-x-3 gap-y-2 border-t border-border-subtle py-3.5 pr-5 group-first/row:border-t-0">
         <div className="min-w-0 flex-1 basis-64">
@@ -98,7 +101,7 @@ function ConfirmActions({ fact }: { fact: FactView }) {
  *  readings and anything held stay as their own rows below with the reason. */
 function ReadingRow({ c }: { c: ReadingCard }) {
   return (
-    <Row icon={Monitor} cat="heart" title={`Monitor reading · ${hhmm(c.ts)}`} value={c.text}
+    <Row tone="live" icon={Monitor} cat="heart" title={`Monitor reading · ${hhmm(c.ts)}`} value={c.text}
       meta={c.individual.length ? <span>{c.individual.map((i) => i.label).join(", ")} {c.individual.length === 1 ? "needs" : "need"} a separate check</span> : undefined}
       actions={<ActionButton pendingKey={`reading:${c.frameId}`} onClick={() => api.confirmReading(c.frameId)} busyText="Saving…" variant="primary" className="min-h-16">Confirm reading</ActionButton>} />
   );
@@ -230,7 +233,8 @@ function StillToCapture({ s }: { s: Snapshot }) {
         {gaps.length > 0 && <div className="flex flex-col gap-1.5"><p className="text-meta text-text-muted">{s.readiness[0]?.label ?? "Pre-alert"} checklist</p><Chips items={gaps} /></div>}
         {unknown.length > 0 && <div className="flex flex-col gap-1.5"><p className="text-meta text-text-muted">Not asked yet</p><Chips items={unknown} /></div>}
         {news2.length > 0 && (
-          <p className="text-body text-text-secondary"><span className="font-semibold text-text-primary">NEWS2 still needs </span>{news2.map((m) => m.label.replace(NEWS2_SUFFIX, "")).join(" · ")}</p>
+          <p className="text-body text-text-secondary"><span className="font-semibold text-text-primary">NEWS2 needs {news2.length} more {news2.length === 1 ? "value" : "values"}</span>
+            {news2.length <= 3 ? ` · ${news2.map((m) => m.label.replace(NEWS2_SUFFIX, "")).join(" · ")}` : ""}</p>
         )}
       </div>
     </Section>

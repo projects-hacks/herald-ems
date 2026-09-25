@@ -183,6 +183,14 @@ export interface ProtocolAnswer {
   results: ProtocolPassage[];
 }
 
+/** herald/knowledge/cues.py: the county's own passage for a recognised situation, verbatim with its citation. */
+export interface ProtocolCue {
+  id: string; title: string; query: string;
+  state: "searching" | "found" | "not_covered";
+  passages: { doc: string; title: string | null; section: string; heading: string | null; page: number | null;
+    effective: string | null; text: string; shortened: boolean; text_layer_uncertain: boolean }[];
+}
+
 // ---------- the snapshot (api/context.py full_state()) ----------
 export interface Snapshot {
   capture?: CaptureStatus;
@@ -213,6 +221,7 @@ export interface Snapshot {
   relay: RelayStatus;
   netem: "good" | "weak" | "down" | null;
   protocols?: ProtocolStatus;            // absent when protocol lookup is off
+  protocol_cues?: ProtocolCue[];         // the county passage for each situation Herald recognises (config/protocol_cues.yaml)
 }
 
 /** One camera frame's still-unconfirmed readings (herald/core/corroboration.py, docs/API_CONTRACT.md). */

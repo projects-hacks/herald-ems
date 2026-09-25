@@ -1,99 +1,97 @@
 /* Herald clinical workspace tokens. Teal indicates interaction; priority colors retain their clinical meanings.
    Category colors identify content, never a patient state. Both themes are checked by scripts/contrast.mjs. */
 
+/* Night cab (default). The palette comes from ambulance livery: a graphite ground, high-visibility lime for what is
+   live and the one primary action, amber for decisions waiting on the medic, Star-of-Life blue for information and the
+   ED, and red kept for danger alone so it never loses its meaning. */
 :root,
 [data-theme="dark"] {
-  /* surfaces: iOS dark grouped */
-  --bg: #0B171A;                 /* grouped background: the page behind the cards */
-  --canvas: #0B171A;
-  --surface-1: #102328;          /* cards, the sidebar */
-  --surface-2: #193139;          /* rows, tiles, gray buttons, sheets and popovers inside or above a card */
-  --surface-3: #233C44;          /* hover and pressed fills */
-  --border-subtle: #2B424A;      /* hairline separators (decoration only) */
-  --border-control: #81969C;     /* input outlines, dashed "missing" (>= 3:1 on cards and rows) */
-  --text-primary: #F2F7F8;
-  --text-secondary: #C5D5D9;
-  --text-muted: #A3B5BB;         /* iOS secondary label */
-  --text-disabled: #636366;
+  --bg: #07090C;
+  --canvas: #07090C;
+  --surface-1: #0E1319;          /* cards, the sidebar */
+  --surface-2: #151C24;          /* rows, tiles, secondary buttons */
+  --surface-3: #1E2833;          /* hover and pressed fills */
+  --border-subtle: #232F3C;
+  --border-control: #7F8E9D;     /* >= 3:1 on cards and rows */
+  --text-primary: #F1F5F8;
+  --text-secondary: #C6D0D9;
+  --text-muted: #9AA8B5;
+  --text-disabled: #5D6873;
 
-  /* interaction: blue */
-  --accent: #68DDCB;             /* links, focus ring, the plain-button text */
-  --on-accent: #000000;
-  --accent-fill: #087F73;        /* filled buttons and the selected sidebar row: white text >= 4.5:1 */
-  --on-accent-fill: #FFFFFF;
-  --accent-tint: #123A37;        /* tinted buttons and selected backgrounds */
-  --capture: #BF5AF2;            /* push-to-talk "listening" only */
-  --on-capture: #000000;
-  --scrim: rgb(0 0 0 / .72);
+  --accent: #C8F53B;             /* livery lime: links, focus, the live state */
+  --on-accent: #0B1200;
+  --accent-fill: #C8F53B;        /* the one primary action: dark ink on lime */
+  --on-accent-fill: #0B1200;
+  --accent-tint: #1C2709;
+  --capture: #C8F53B;            /* listening */
+  --on-capture: #0B1200;
+  --scrim: rgb(2 4 6 / .78);
 
-  /* status sets: fg (text/icon), fill + on-fill (solid badges), tint (soft badge / the one urgent row) */
-  --high-fg: #FF453A;   --high-fill: #D70015;   --high-on-fill: #FFFFFF;   --high-tint: #3B1512;
-  --medium-fg: #FF9F0A; --medium-fill: #FF9F0A; --medium-on-fill: #000000; --medium-tint: #3A2A0C;
+  --high-fg: #FF5A4E;   --high-fill: #E0261C;   --high-on-fill: #FFFFFF;   --high-tint: #3A1310;
+  --medium-fg: #FFB020; --medium-fill: #FFB020; --medium-on-fill: #140C00; --medium-tint: #33250A;
   --medium-fill-border: transparent;
-  --low-fg: #64D2FF;    --low-fill: #64D2FF;    --low-on-fill: #001B26;    --low-tint: #0C2A38;
-  --ok-fg: #30D158;     --ok-fill: #1E7B34;     --ok-on-fill: #FFFFFF;     --ok-tint: #0F2E18;
+  --low-fg: #6FAEFF;    --low-fill: #6FAEFF;    --low-on-fill: #041329;    --low-tint: #0E1E36;
+  --ok-fg: #4ADE9B;     --ok-fill: #17744A;     --ok-on-fill: #FFFFFF;     --ok-tint: #0D2A1E;
 
-  /* categories (identity, like Health's Heart / Activity / Sleep): -fg for titles and glyphs, the bare name for
-     the rounded icon tile behind a white glyph */
-  --cat-attention-fg: #FF9F0A; --cat-attention: #FF9F0A;   /* Needs attention */
-  --cat-time-fg: #8A88FF;      --cat-time: #5E5CE6;        /* clocks: LKW, ETA, vitals due */
-  --cat-heart-fg: #FF5A78;     --cat-heart: #FF375F;       /* vitals, NEWS2 */
-  --cat-neuro-fg: #CA78F5;     --cat-neuro: #BF5AF2;       /* stroke scales, exam */
-  --cat-ed-fg: #68DDCB;        --cat-ed: #087F73;          /* ED handoff, transport */
-  --cat-check-fg: #72DFAC;     --cat-check: #16805B;       /* the pre-alert checklist */
-  --cat-meds-fg: #63E6E2;      --cat-meds: #00C7BE;        /* medications, allergies */
-  --cat-patient-fg: #A3B5BB;   --cat-patient: #8E8E93;     /* the patient */
-  --cat-speech-fg: #64D2FF;    --cat-speech: #32ADE6;      /* transcript */
+  --cat-attention-fg: #FFB020; --cat-attention: #D98A00;
+  --cat-time-fg: #9DB4FF;      --cat-time: #3D5BD9;
+  --cat-heart-fg: #FF7A8A;     --cat-heart: #D6334B;
+  --cat-neuro-fg: #D59BFF;     --cat-neuro: #8A46C9;
+  --cat-ed-fg: #6FAEFF;        --cat-ed: #2B6AD8;
+  --cat-check-fg: #C8F53B;     --cat-check: #5E7F0C;
+  --cat-meds-fg: #5FE3D7;      --cat-meds: #0E8F85;
+  --cat-patient-fg: #9AA8B5;   --cat-patient: #56616C;
+  --cat-speech-fg: #7FC4FF;    --cat-speech: #2A7FC7;
 
-  --shadow-1: 0 2px 4px rgb(0 0 0 / .06);
-  --shadow-2: 0 4px 16px rgb(0 0 0 / .08);
-  --shadow-3: 0 20px 60px rgb(0 0 0 / .6);
+  --shadow-1: 0 1px 0 rgb(255 255 255 / .03) inset, 0 2px 6px rgb(0 0 0 / .35);
+  --shadow-2: 0 1px 0 rgb(255 255 255 / .04) inset, 0 10px 30px rgb(0 0 0 / .45);
+  --shadow-3: 0 24px 70px rgb(0 0 0 / .7);
   color-scheme: dark;
 }
 
+/* Daylight: sun on the tablet. Cool concrete ground, near-black ink, the same lime as a filled action with dark ink,
+   and darker partners for any coloured text on white. */
 [data-theme="light"] {
-  /* surfaces: iOS light grouped */
-  --bg: #F5F8F9;
-  --canvas: #F5F8F9;
+  --bg: #E6EBEF;
+  --canvas: #E6EBEF;
   --surface-1: #FFFFFF;
-  --surface-2: #EDF3F4;
-  --surface-3: #E3ECEE;
-  --border-subtle: #DFE8EB;
-  --border-control: #73888E;
-  --text-primary: #172F38;
-  --text-secondary: #405B65;
-  --text-muted: #566E77;
-  --text-disabled: #AEAEB2;
+  --surface-2: #F0F3F6;
+  --surface-3: #E1E7EC;
+  --border-subtle: #D2DAE1;
+  --border-control: #5C6C79;
+  --text-primary: #0A1016;
+  --text-secondary: #2F3D49;
+  --text-muted: #4B5A67;
+  --text-disabled: #A7B1BA;
 
-  --accent: #08766B;
+  --accent: #3F6400;
   --on-accent: #FFFFFF;
-  --accent-fill: #08766B;
+  --accent-fill: #3F6400;        /* in sun, lime on white has no edge: the fill darkens to olive, ink turns white */
   --on-accent-fill: #FFFFFF;
-  --accent-tint: #E5F4F0;
-  --capture: #8944AB;
+  --accent-tint: #EEF8D4;
+  --capture: #3F6400;
   --on-capture: #FFFFFF;
-  --scrim: rgb(242 242 247 / .8);
+  --scrim: rgb(230 235 239 / .82);
 
-  --high-fg: #D70015;   --high-fill: #D70015;   --high-on-fill: #FFFFFF;   --high-tint: #FFE9E8;
-  --medium-fg: #B25000; --medium-fill: #FF9500; --medium-on-fill: #000000; --medium-tint: #FFF3E0;
-  /* system orange on white is too light for an edge: light medium badges carry a darker 1 px border */
-  --medium-fill-border: #B25000;
-  --low-fg: #0071A4;    --low-fill: #0071A4;    --low-on-fill: #FFFFFF;    --low-tint: #E5F4FB;
-  --ok-fg: #1E7B34;     --ok-fill: #1E7B34;     --ok-on-fill: #FFFFFF;     --ok-tint: #E6F6EA;
+  --high-fg: #C2140B;   --high-fill: #D0180E;   --high-on-fill: #FFFFFF;   --high-tint: #FFE7E4;
+  --medium-fg: #9A5B00; --medium-fill: #FFB020; --medium-on-fill: #140C00; --medium-tint: #FFF1D6;
+  --medium-fill-border: #9A5B00;
+  --low-fg: #1756B8;    --low-fill: #1756B8;    --low-on-fill: #FFFFFF;    --low-tint: #E3EEFF;
+  --ok-fg: #13703F;     --ok-fill: #13703F;     --ok-on-fill: #FFFFFF;     --ok-tint: #E2F5EA;
 
-  --cat-attention-fg: #B25000; --cat-attention: #FF9500;
-  --cat-time-fg: #5B559C;      --cat-time: #5856D6;
-  --cat-heart-fg: #D30F45;     --cat-heart: #FF2D55;
-  --cat-neuro-fg: #76529C;     --cat-neuro: #AF52DE;
-  --cat-ed-fg: #08766B;        --cat-ed: #08766B;
-  --cat-check-fg: #08766B;     --cat-check: #08766B;
-  --cat-meds-fg: #00766E;      --cat-meds: #00C7BE;
-  --cat-patient-fg: #566E77;   --cat-patient: #8E8E93;
-  --cat-speech-fg: #0071A4;    --cat-speech: #32ADE6;
+  --cat-attention-fg: #9A5B00; --cat-attention: #D98A00;
+  --cat-time-fg: #3346A8;      --cat-time: #3D5BD9;
+  --cat-heart-fg: #B3203A;     --cat-heart: #D6334B;
+  --cat-neuro-fg: #6D35A6;     --cat-neuro: #8A46C9;
+  --cat-ed-fg: #1756B8;        --cat-ed: #2B6AD8;
+  --cat-check-fg: #3F6400;     --cat-check: #5E7F0C;
+  --cat-meds-fg: #0A6F67;      --cat-meds: #0E8F85;
+  --cat-patient-fg: #4B5A67;   --cat-patient: #56616C;
+  --cat-speech-fg: #1B63A6;    --cat-speech: #2A7FC7;
 
-  --shadow-1: 0 2px 5px rgb(23 47 56 / .025);
-  --shadow-2: 0 4px 20px rgb(23 47 56 / .04);
-  --shadow-3: 0 20px 60px rgb(0 0 0 / .18);
+  --shadow-1: 0 1px 2px rgb(10 16 22 / .06);
+  --shadow-2: 0 8px 24px rgb(10 16 22 / .08);
+  --shadow-3: 0 24px 60px rgb(10 16 22 / .2);
   color-scheme: light;
 }
 
@@ -103,8 +101,8 @@
 
   /* radius: iOS continuous-corner look approximated with plain radii */
   --radius-chip: 8px;
-  --radius-control: 12px;
-  --radius-card: 18px;
+  --radius-control: 10px;
+  --radius-card: 14px;
   --radius-sheet: 22px;
   --radius-tile: 9px;            /* the rounded-square icon tile */
 

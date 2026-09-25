@@ -112,7 +112,10 @@ export function presence(o: {
 /** "68 M · Stroke alert · ETA 12 min → Regional CSC", from confirmed facts only; unknown parts are left out. */
 export function patientLine(s: Snapshot): string {
   const f = (k: string) => (s.facts[k]?.status === "confirmed" ? s.facts[k] : undefined);
-  const parts = [s.summary || s.incident.dispatch || "New patient"];
+  // the summary names the complaint once it is heard; until then the dispatch says why the crew is here
+  const summary = s.summary || "";
+  const parts = [summary && summary.includes(" · ") ? summary
+    : [summary, s.incident.dispatch].filter(Boolean).join(" · ") || "New patient"];
   const eta = f("transport.eta_min"), dest = f("transport.destination");
   if (eta || dest) parts.push([eta && `ETA ${formatValue(eta.value)} min`, dest && `→ ${factValue(dest)}`].filter(Boolean).join(" "));
   return parts.join(" · ");

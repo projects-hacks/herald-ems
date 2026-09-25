@@ -1,7 +1,8 @@
 // The copilot screen's own regions (docs/COPILOT_SCREENS.md §1): the presence pill, what Herald did, how the
 // patient moved, and what the ED has. Everything here is a clinical outcome or an action; system status appears
 // only when something has stopped working.
-import { ArrowDownRight, ArrowUpRight, Ear, FileText, Monitor, Send, ShieldCheck, TriangleAlert } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BookOpenCheck, Ear, FileText, Monitor, Pause, Play, RotateCcw, Send, ShieldCheck, SkipForward, TriangleAlert } from "lucide-react";
+import type { FixturePlayer } from "@/lib/ws";
 import { api } from "@/lib/api";
 import { activity, edHas, type ActivityKind, type Presence } from "@/lib/copilot";
 import { useContract } from "@/lib/contract";
@@ -69,4 +70,37 @@ export function EdCard({ onHandoff }: { onHandoff: () => void }) {
     {ed.waiting > 0 && <p className="ed-meta">{ed.waiting} captured {ed.waiting === 1 ? "fact waits" : "facts wait"} for your confirmation before sending</p>}
     <button className="cabin-button" onClick={onHandoff}><FileText size={19} />Handoff report</button>
   </section>;
+}
+
+/** The county's own words for the situation Herald recognised: quoted, cited, dated. Herald adds nothing. */
+export function ProtocolCues({ onOpen }: { onOpen: () => void }) {
+  const cues = useHerald((st) => st.snapshot?.protocol_cues);   // select the stored array: a fresh [] would re-render forever
+  if (!cues?.length) return null;
+  return <section className="copilot-protocol" aria-labelledby="protocol-h">
+    <h2 id="protocol-h"><BookOpenCheck size={16} aria-hidden />County protocol</h2>
+    {cues.map((c) => <article key={c.id} className="protocol-cue" data-state={c.state}>
+      <h3>{c.title}</h3>
+      {c.state === "searching" && <p className="protocol-status" role="status">Finding the county passage…</p>}
+      {c.state === "not_covered" && <p className="protocol-status">The county documents on this vehicle do not cover this.</p>}
+      {c.passages.map((p) => <figure key={`${p.doc}-${p.section}`}>
+        <blockquote>{p.text}</blockquote>
+        <figcaption><strong>{p.doc === p.title || !p.title ? `Policy ${p.doc}` : `${p.doc} · ${p.title}`} §{p.section}</strong>
+          {p.page ? <span> · p. {p.page}</span> : null}{p.effective ? <span> · effective {p.effective}</span> : null}
+          {p.shortened && <span> · shortened</span>}{p.text_layer_uncertain && <span> · text layer uncertain, check the page</span>}</figcaption>
+      </figure>)}
+    </article>)}
+    <button className="activity-all" onClick={onOpen}>All protocols</button>
+  </section>;
+}
+
+/** A recorded scenario's transport controls, only in replay. */
+export function ReplayBar({ player }: { player: FixturePlayer }) {
+  const fixture = useHerald((st) => st.fixture);
+  if (!fixture) return null;
+  return <div className="copilot-replay" role="group" aria-label="Recorded scenario">
+    <span>Scenario <b>{fixture.index}/{fixture.total}</b></span>
+    <button onClick={() => fixture.playing ? player.pause() : player.play()} aria-label={fixture.playing ? "Pause replay" : "Play replay"}>{fixture.playing ? <Pause size={18} /> : <Play size={18} />}</button>
+    <button onClick={() => player.step()} aria-label="Next recorded message"><SkipForward size={18} /></button>
+    <button onClick={() => player.restart()} aria-label="Restart replay"><RotateCcw size={18} /></button>
+  </div>;
 }

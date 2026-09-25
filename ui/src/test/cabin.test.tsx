@@ -54,7 +54,8 @@ describe("ambulance workspace", () => {
       id: "pending", key: "vitals.hr", label: "Heart rate", value: 177, unit: "bpm", status: "unconfirmed", ts: new Date().toISOString(), provenance: {},
     } as Snapshot["facts"][string] } } });
     render(<CabinApp />);
-    fireEvent.click(screen.getByRole("button", { name: "Trends & scores" }));
+    fireEvent.click(screen.getByRole("button", { name: "Record" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Trends & scores" }));
     const readings = within(screen.getByRole("region", { name: "Latest documented readings" }));
     expect(readings.queryByText("177")).toBeNull();
     expect(readings.getByText(/Needs verification/)).toBeTruthy();
@@ -90,7 +91,7 @@ describe("ambulance workspace", () => {
     expect(screen.queryByRole("button", { name: "Capture photo" })).toBeNull();
     expect(screen.getByRole("button", { name: "Enable auto capture" })).toBeTruthy();
   });
-  it.each(["Trends & scores", "Patient record", "ED handoff"])("explains unavailable patient data on %s", (name) => {
+  it.each(["Record"])("explains unavailable patient data on %s", (name) => {
     useHerald.setState({ snapshot: null, conn: "closed" });
     render(<CabinApp />);
     fireEvent.click(screen.getByRole("button", { name }));
