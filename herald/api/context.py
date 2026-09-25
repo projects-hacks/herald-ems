@@ -207,6 +207,9 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
     counties = CountyRegistry(s.county)
     checklists = ChecklistEngine.from_config(counties)
     trends = TrendRules.from_config()
+    from ..config import load_yaml as _load_yaml
+    from ..core.vital_severity import VitalRanges
+    vital_ranges = VitalRanges.from_config(_load_yaml)
     corroboration = CorroborationRules.from_config()
     problems = corroboration.problems(vocab)
     if problems:
@@ -216,7 +219,8 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
     fhir_problems = fhir.problems()
     if fhir_problems:
         raise ValueError("config/fhir_codes.yaml: " + "; ".join(fhir_problems))
-    projector = Projector(vocab, scales, checklists, counties, trends, ZoneInfo(s.timezone), s.reassess_min, batch)
+    projector = Projector(vocab, scales, checklists, counties, trends, ZoneInfo(s.timezone), s.reassess_min, batch,
+                          vital_ranges)
     tel = telemetry or Telemetry(s.metrics_url, s.price_overrides)
     egress = default_policy(s)
     model = text_model or LocalLLMClient(s.llm_url, s.llm_model, usage=tel, egress=egress)

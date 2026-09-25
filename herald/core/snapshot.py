@@ -19,6 +19,7 @@ from .clock import parse_clock
 from .corroboration import BatchConfirmation, CorroborationRules
 from .schema import Fact, Status, utcnow
 from .trends import TrendRules
+from .vital_severity import VitalRanges
 from .vocabulary import Vocabulary, default_vocabulary, norm_value
 
 SCORE_HISTORY = "news2"          # the score whose history drives the "rose" alert
@@ -27,10 +28,13 @@ SCORE_HISTORY = "news2"          # the score whose history drives the "rose" ale
 class Projector:
     def __init__(self, vocabulary: Vocabulary, scales: ScaleRegistry, checklists: ChecklistEngine,
                  counties: CountyRegistry, trends: TrendRules, tz: ZoneInfo, reassess_min: Optional[int] = None,
-                 batch: Optional[BatchConfirmation] = None):
+                 batch: Optional[BatchConfirmation] = None, vital_ranges: Optional[VitalRanges] = None):
         self.vocab, self.scales, self.checklists = vocabulary, scales, checklists
         self.counties, self.trends, self.tz, self.reassess_override = counties, trends, tz, reassess_min
         self.batch = batch or BatchConfirmation(vocabulary, CorroborationRules.from_config())
+        # Absolute clinical severity per vital value (config/vital_ranges.yaml). Empty ranges = no severity ever, so
+        # an older config or a test that omits it degrades to the previous "no colour" behaviour rather than failing.
+        self.vital_ranges = vital_ranges or VitalRanges({})
 
     # ---------- score history (called on commit) ----------
     def record_scores(self, inc) -> None:
@@ -44,6 +48,13 @@ class Projector:
         d = f.model_dump(mode="json")
         d["label"] = self.vocab.label(f.key)
         d["unit"] = f.unit or self.vocab.meta(f.key).get("unit")
+        # Absolute clinical severity of this value, so the screen can colour an abnormal-but-steady reading, not only
+        # a changing one (config/vital_ranges.yaml). None for everything that has no coloured band (non-vitals,
+        # diastolic BP, mid-range values); the field is only added when there is a severity to show, so the snapshot
+        # shape for non-vitals is unchanged.
+        severity = self.vital_ranges.severity(f.key, f.value)
+        if severity:
+            d["severity"] = severity
         return d
 
     # ---------- the picture ----------
@@ -159,10 +170,17 @@ class Projector:
                 series = [f.value for f in h]
                 waiting = [f for f in h if f.status != Status.confirmed]
                 direction = "up" if series[-1] > series[-2] else ("down" if series[-1] < series[-2] else "flat")
+                latest_severity = self.vital_ranges.severity(key, series[-1])
                 row = {"key": key, "label": self.vocab.label(key), "series": series,
                        "times": [(f.provenance.observed_at or f.ts).isoformat() for f in h], "delta": series[-1] - series[0],
                        "direction": direction,
                        "significant": self.trends.significant(key, series[-2], series[-1]),
+                       # Absolute severity of the latest reading, so the trend tile colours a value that is dangerous
+                       # even when it has not moved enough to be `significant` (config/vital_ranges.yaml).
+                       **({"severity": latest_severity} if latest_severity else {}),
+                       # The smallest change worth noticing (config/trends.yaml), so a sparkline can keep a minimum
+                       # visible span and a sub-threshold wobble does not look like a cliff. Display hint only.
+                       **({"floor": self.trends.floor(key)} if self.trends.floor(key) is not None else {}),
                        # Labelled for the screen: which of these readings still need the medic's tap.
                        "unconfirmed": bool(waiting), "unconfirmed_fact_ids": [f.id for f in waiting]}
                 if waiting:
@@ -246,10 +264,12 @@ class Projector:
 
 
 def build_projector(settings, counties: CountyRegistry) -> Projector:
+    from ..config import load_yaml
     vocab = default_vocabulary()
     return Projector(vocab, default_scales(), ChecklistEngine.from_config(counties), counties,
                      TrendRules.from_config(), ZoneInfo(settings.timezone), settings.reassess_min,
-                     BatchConfirmation(vocab, CorroborationRules.from_config()))
+                     BatchConfirmation(vocab, CorroborationRules.from_config()),
+                     VitalRanges.from_config(load_yaml))
 
 
 @lru_cache(maxsize=1)

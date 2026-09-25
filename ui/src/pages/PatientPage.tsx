@@ -1,7 +1,7 @@
 // Patient, laid out like Health's Browse categories: one card per group, titled in
 // its category color, with every current fact as a list row (label, value, who said it and when, status); rejected
 // facts can be restored.
-import { Camera, CircleCheck, CircleQuestionMark, CircleX, Keyboard, Mic, Monitor, UserRound } from "lucide-react";
+import { CircleCheck, CircleQuestionMark, CircleX, UserRound } from "lucide-react";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { GROUP_CAT } from "@/lib/categories";
@@ -14,12 +14,7 @@ import { cn } from "@/lib/utils";
 import { ActionButton } from "@/components/ActionButton";
 import { CorrectFactDialog } from "@/components/CorrectFactDialog";
 import { MismatchCard } from "@/features/capture/MismatchCard";
-import { CAT_ICON, Card, CardHeader, Count, EmptyState, PageHeader } from "@/components/kit";
-
-function SourceIcon({ f }: { f: FactView }) {
-  const Icon = f.captured_by === "camera" ? Camera : f.captured_by === "device" ? Monitor : f.provenance.audio_id ? Mic : Keyboard;
-  return <Icon size={13} aria-label={f.captured_by === "camera" ? "photo" : f.captured_by === "device" ? "monitor" : f.provenance.audio_id ? "voice" : "typed"} />;
-}
+import { CAT_ICON, Card, CardHeader, Count, EmptyState, PageHeader, SourceIcon } from "@/components/kit";
 
 function FactRow({ f }: { f: FactView }) {
   if (f.verify?.status === "mismatch" && !f.verify.resolution) return <MismatchCard fact={f} />;
@@ -34,7 +29,7 @@ function FactRow({ f }: { f: FactView }) {
         {f.status === "unconfirmed" && !(f.verify?.status === "mismatch" && !f.verify.resolution) && <span className="flex flex-wrap gap-2 py-2"><ActionButton pendingKey={`confirm:${f.id}`} onClick={() => api.confirm(f.id)} busyText="Confirming…">Confirm</ActionButton><ActionButton pendingKey={`reject:${f.id}`} onClick={() => api.reject(f.id)} busyText="Rejecting…">Reject</ActionButton></span>}
         {f.verify?.status === "match" && <span className="text-meta text-text-secondary">Label seen ✓ · ingredient only</span>}
         <span className="flex flex-wrap items-center gap-x-1.5 text-meta text-text-muted">
-          <SourceIcon f={f} />{sourceName(f)} · <span className="num">{hhmm(f.ts)}</span>
+          <SourceIcon capturedBy={f.captured_by} hasAudio={!!f.provenance.audio_id} />{sourceName(f)} · <span className="num">{hhmm(f.ts)}</span>
           {f.previous_value !== null && f.previous_value !== undefined && <span>· was {formatValue(f.previous_value)}</span>}
           {f.status !== "rejected" && <CorrectFactDialog fact={f} compact />}
         </span>
