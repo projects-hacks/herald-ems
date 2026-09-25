@@ -28,7 +28,7 @@ from ..knowledge import KnowledgeService
 from ..knowledge.rerank import LLMReranker
 from ..models import LocalLLMClient, VisionReader, WhisperSTT
 from ..relay import LinkEmulator, Relay, RelayTiers, default_tiers
-from ..reporting import LINE_KINDS, HandoffBuilder, HandoffConfig, default_handoff_config
+from ..reporting import LINE_KINDS, FhirExport, HandoffBuilder, HandoffConfig, default_handoff_config
 from ..scoring import ScaleRegistry, default_scales
 from ..telemetry import Telemetry
 from ..terminology import MedicationCoder, build_coder
@@ -65,6 +65,7 @@ class AppContext:
     coder: Optional[MedicationCoder] = None      # drug names -> RxNorm; None when the index isn't built
     relay: Optional[Relay] = None
     knowledge: Optional[KnowledgeService] = None
+    fhir: Optional[FhirExport] = None
     roster: Optional[PatientRoster] = None
     netem_mode: Optional[str] = None
     persistence: Optional[IncidentStore] = None
@@ -199,6 +200,10 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
     if problems:
         raise ValueError("config/corroboration.yaml: " + "; ".join(problems))
     batch = BatchConfirmation(vocab, corroboration)
+    fhir = FhirExport.from_config(vocab, scales)
+    fhir_problems = fhir.problems()
+    if fhir_problems:
+        raise ValueError("config/fhir_codes.yaml: " + "; ".join(fhir_problems))
     projector = Projector(vocab, scales, checklists, counties, trends, ZoneInfo(s.timezone), s.reassess_min, batch)
     tel = telemetry or Telemetry(s.metrics_url, s.price_overrides)
     model = text_model or LocalLLMClient(s.llm_url, s.llm_model, usage=tel)
@@ -221,7 +226,7 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
         tracer=TraceRecorder(vocab, tiers),
         contract=UIContract(vocab, tiers, trends, checklists, counties, scales),
         link=LinkEmulator(s.toxiproxy_url), coder=coder,
-        handoff=build_handoff(default_handoff_config(), vocab, scales, checklists, s),
+        handoff=build_handoff(default_handoff_config(), vocab, scales, checklists, s), fhir=fhir,
         persistence=IncidentStore(s.state_dir, s.state_key_path) if s.persistence else None)
     ctx.new_incident(s.dispatch)
     ctx.relay = Relay(lambda: ctx.roster.incidents(), s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir)

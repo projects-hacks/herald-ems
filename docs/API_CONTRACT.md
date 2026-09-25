@@ -461,4 +461,22 @@ export interface HandoffSummary {                // snapshot.handoff
 - **Refresh.** Re-fetch when `snapshot.handoff` changes. The summary counts are cheap enough to badge the tab, e.g. "3 not yet known".
 - **Wording.** Don't reword lines in the UI: they are the county's words and the config's templates.
 
+## FHIR R4 export contract (backend, X2, 2026-09-25)
+
+`GET /api/handoff/fhir` returns the current incident's confirmed record as a FHIR R4 `Bundle` (`type: "collection"`), for a records request or a receiving system that wants structured data instead of the read-aloud report. Same confirmed-only guarantee as `/api/handoff` and the relay (AGENTS.md invariant 4): a fact waiting for the medic's tap never appears, whatever resource type it would otherwise become. Engine: `herald/reporting/fhir.py` (`FhirExport`); coding content: `config/fhir_codes.yaml` (LOINC for vitals/age, a local `http://herald.local/fhir/scores` system for Herald's own computed scores — text-only, since they aren't LOINC panels). No SNOMED CT or other UMLS-licensed vocabulary is used; drug/allergy `Coding` is only ever the RxNorm/ICD-10-CM codes `herald/terminology/` already resolved onto the fact (`config/terminology.yaml` systems), passed through unchanged — this export invents no coding of its own.
+
+| Resource | From | Notes |
+|---|---|---|
+| `Patient` (one, id `patient-<incident id>`) | `patient.name`, `patient.identifier`, `patient.sex` | `gender` mapped to the FHIR value set; no `birthDate` (only a spoken age is known) |
+| `Observation` (vital-signs) | every confirmed reading of `vitals.*` in `config/fhir_codes.yaml` `vitals` | one Observation **per confirmed reading**, not just the latest — the trend, like the NOW screen's movement view |
+| `Observation` (social-history) | `patient.age` | LOINC 30525-0 "Age"; one per confirmed reading |
+| `Observation` (survey) | `snapshot()["scores"]`, i.e. computed from confirmed facts only | one per score once it's `complete` (`relay_text` non-null, the same gate the relay uses); `valueString` is that same line |
+| `MedicationAdministration` | `meds.given` (each confirmed dose event) | `medicationCodeableConcept.coding` present only when the fact already carries an RxNorm `Coding` |
+| `AllergyIntolerance` | the latest confirmed `allergies` list, one resource per item | coding present only when the fact already carries one (RxNorm or the NEMSIS drug-class ICD-10-CM code) |
+| `Condition` | `impression.primary` (`verificationStatus: unconfirmed`, noted as the crew's stated impression, not a diagnosis) and each confirmed `trauma.injuries` item (`verificationStatus: provisional`) | text-only `code`; Herald never diagnoses (AGENTS.md invariant 3) |
+
+**Known limitation, flagged for a clinical/coding review pass, not silently shipped as verified:** the LOINC codes in `config/fhir_codes.yaml` are the standard, commonly used codes for these panels, assembled from memory for this change and not re-checked against a live LOINC lookup in this session. Give them one review before this export is relied on outside a demo.
+
+**Test:** `tests/test_fhir_export.py` — full bundle shape across every resource type, unconfirmed facts (camera-sourced, low-confidence, and a rejected fact) proven absent, existing RxNorm/ICD-10-CM coding passed through unchanged, and the live endpoint.
+
 **What the report can't represent yet.** The five gaps listed in the first version (time of injury, before arrival, airway status, primary impression, 12-lead territory) were closed by the keys approved on 2026-09-24 (table above). They reach the report only once the extraction model emits them; until then they show as "not yet known" where required.

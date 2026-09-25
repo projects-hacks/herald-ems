@@ -4,7 +4,8 @@ Deterministic projections of confirmed facts and computed scores through templat
 model writes report text, and nothing in a report is a recommendation.
 """
 from .config import HandoffConfig, default_handoff_config
+from .fhir import FhirExport
 from .handoff import HandoffBuilder
 from .lines import LINE_KINDS, Line
 
-__all__ = ["HandoffBuilder", "HandoffConfig", "LINE_KINDS", "Line", "default_handoff_config"]
+__all__ = ["FhirExport", "HandoffBuilder", "HandoffConfig", "LINE_KINDS", "Line", "default_handoff_config"]
