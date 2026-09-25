@@ -1,8 +1,12 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProtocolSearch } from "@/features/protocols/ProtocolSearch";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Sidebar } from "@/layout/Sidebar";
 import { useHerald } from "@/lib/store";
 import type { ProtocolAnswer, ProtocolPassage } from "@/lib/types";
+
+vi.mock("@/lib/contract", () => ({ useContract: () => ({ keys: {}, relayTiers: {}, changeRules: {} }) }));
 
 const passage = (over: Partial<ProtocolPassage> = {}): ProtocolPassage => ({
   doc: "700-A13", title: "Stroke", section: "3.2", heading: "3.2 Destination", page: 2,
@@ -68,5 +72,15 @@ describe("ProtocolSearch", () => {
     render(<ProtocolSearch open query="stroke" onClose={() => {}} />);
     expect(screen.getByText("Replay: protocol search needs the live server.")).toBeTruthy();
     expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("Sidebar protocols entry", () => {
+  afterEach(cleanup);
+  it("opens the county protocol search", () => {
+    useHerald.setState({ source: "live", snapshot: null });
+    render(<TooltipProvider><Sidebar player={null} /></TooltipProvider>);
+    fireEvent.click(screen.getByRole("button", { name: /Protocols/ }));
+    expect(screen.getByRole("dialog", { name: "County protocols" })).toBeTruthy();
   });
 });

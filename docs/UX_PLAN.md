@@ -2952,7 +2952,7 @@ GET /api/telemetry  →  200
 - `POST /api/protocols/sync` → `{checked, updated[], errors[], at}`. `POST /api/protocols/{doc}/reviewed` clears the review flag after a person checks the county config.
 - The snapshot's `protocols` block is the same shape as `GET /api/protocols` without the audit detail. Show "Protocol updated: review county settings" while `review_required` is non-empty.
 - **Search panel (UI, 2026-09-25):** `ui/src/features/protocols/ProtocolSearch.tsx`, `<ProtocolSearch open query? onClose />`, a right-side sheet with types `ProtocolAnswer` / `ProtocolPassage` in `lib/types.ts`.
-  - The host screen places it (Tushar). A `query` opens it already searched, e.g. from the RACE / G.F.A.S.T. "County destination policy ▸" link (§3.1.7).
+  - Opened from the sidebar's "Protocols" row (explain view) and the "Protocols" button in the ambulance workspace header (medic view). A `query` opens it already searched, e.g. from the RACE / G.F.A.S.T. "County destination policy ▸" link (§3.1.7).
   - Each passage: heading, the citation line above, parent headings, then `text` verbatim; the first passage is open, the rest collapsed.
   - States: "Searching the county documents…", then "Still waiting for the server…" after 2 s; 404 → "Protocol lookup is off on this vehicle."; 503 while building → "The county documents are still loading. Try again in a moment."; any other failure → "The Herald server didn't answer. Try again."; replay → off.
   - `answerable: false` still lists the closest passages, under "The county documents don't cover this. Closest passages:".
