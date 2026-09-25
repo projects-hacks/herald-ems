@@ -23,7 +23,7 @@ export class AmbientCapture {
   private update(patch: Partial<AmbientStatus>) { this.state = { ...this.state, ...patch }; if (!this.disposed) this.changed(this.state); }
 
   async start() {
-    if (this.disposed || this.state.starting || this.state.listening || this.uploading || this.queue.length) return;
+    if (this.disposed || this.state.starting || this.state.listening) return;
     const token = ++this.generation;
     this.update({ starting: true, error: false, message: "Allow microphone access…" });
     try {

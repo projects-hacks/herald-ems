@@ -3,11 +3,26 @@ import {
   SkipForward, Sparkles, Stethoscope, Wifi, WifiOff,
 } from "lucide-react";
 import { useAttention } from "@/hooks/useAttention";
+import { useNow } from "@/hooks/useNow";
 import { factValue, formatValue, hhmm } from "@/lib/format";
 import { useHerald } from "@/lib/store";
 import type { FactView, Snapshot } from "@/lib/types";
 import type { FixturePlayer } from "@/lib/ws";
 import { cn } from "@/lib/utils";
+
+/** "13:04" -> "13:04 · 1 h 12 m ago" against the shared 1 Hz clock (yesterday's 13:04 when it is still ahead of
+ *  now); a value that is not a plain HH:MM clock time is shown unchanged. */
+function clockWithElapsed(value: string, nowMs: number): string {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return value;
+  const then = new Date(nowMs);
+  then.setHours(Number(m[1]), Number(m[2]), 0, 0);
+  let ms = nowMs - then.getTime();
+  if (ms < 0) ms += 24 * 60 * 60 * 1000;
+  const minutes = Math.floor(ms / 60000);
+  const elapsed = minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} m` : `${minutes} m`;
+  return `${value} · ${elapsed} ago`;
+}
 
 function PlainFact({ label, fact, value }: { label: string; fact?: FactView; value?: string }) {
   return (
@@ -72,6 +87,8 @@ export function PresentationApp({ player }: { player: FixturePlayer | null }) {
   const held = s ? Object.values(s.facts).filter((f) => f.status === "unconfirmed").length : 0;
   const attentionCount = a?.count ?? 0;
   const facts = s?.facts ?? {};
+  const now = useNow();
+  const lkw = facts["stroke.lkw"];
   const stages: ("done" | "active" | "waiting")[] = [
     latest ? "done" : "active",
     s && s.counters.facts > 0 ? "done" : latest ? "active" : "waiting",
@@ -129,7 +146,7 @@ export function PresentationApp({ player }: { player: FixturePlayer | null }) {
               <div className="px-5 py-4 sm:border-r sm:border-border-subtle">
                 <div className="mb-2 flex items-center gap-2"><BrainCircuit size={17} className="text-herald-accent" /><h3 className="text-title font-semibold">Patient picture</h3></div>
                 <PlainFact label="Patient" fact={facts["patient.age"]} value={s?.summary || undefined} />
-                <PlainFact label="Last seen normal" fact={facts["stroke.lkw"]} />
+                <PlainFact label="Last seen normal" fact={lkw} value={typeof lkw?.value === "string" ? clockWithElapsed(lkw.value, now) : undefined} />
                 <PlainFact label="Blood thinner" fact={facts["meds.anticoagulant"]} />
               </div>
               <div className="px-5 py-4">

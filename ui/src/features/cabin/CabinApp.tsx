@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, Camera, ChevronRight, CircleCheck, CircleDashed, Clock3, FileText, Info, Keyboard, MapPin, Mic, MicOff, Moon, Pause, Settings2, Sun, TriangleAlert, UserRound, Users, WifiOff } from "lucide-react";
+import { BookOpen, Camera, ChevronRight, CircleCheck, CircleDashed, Clock3, FileText, Info, Keyboard, MapPin, Mic, MicOff, Moon, OctagonAlert, Pause, Settings2, Sun, TriangleAlert, UserRound, Users, WifiOff } from "lucide-react";
 import { ManualEntry } from "@/components/ManualEntry";
 import { PatientRoster } from "@/components/PatientRoster";
 import { CompactStatus } from "@/components/CompactStatus";
 import { CaptureControl } from "@/features/capture/CaptureControl";
 import { CaptureBar } from "@/features/capture/CaptureBar";
 import { ProtocolSearch } from "@/features/protocols/ProtocolSearch";
-import { allFacts, queuedCount } from "@/lib/selectors";
+import { alertKey, alertTitle, allFacts, queuedCount } from "@/lib/selectors";
 import { ConnectBand, RestoredCallBanner, StaleOverlay } from "@/components/GlobalStates";
 import { AttentionQueue } from "@/features/attention/AttentionQueue";
 import { StatTiles } from "@/features/overview/StatTiles";
@@ -39,6 +39,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   const s = useHerald((st) => st.snapshot);
   const ui = useHerald((st) => st.ui);
   const source = useHerald((st) => st.source);
+  const health = useHerald((st) => st.health);
   const stale = useHerald((st) => st.stale || st.conn !== "open");
   const at = useHerald((st) => st.lastStateAt);
   const setUi = useHerald((st) => st.setUi);
@@ -50,6 +51,16 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   const [photo, setPhoto] = useState<CameraStatus>({ active: false, busy: false, message: "", failed: false });
   const page = useRef<HTMLElement>(null);
   const lastTrigger = useRef<HTMLElement | null>(null);
+  const urgentLive = useRef<HTMLSpanElement>(null);
+  const announced = useRef<Set<string>>(new Set());
+  useEffect(() => {   // announce each urgent alert once, when it arrives (the queue card announces its own region)
+    for (const al of a?.urgent ?? []) {
+      const k = alertKey(al);
+      if (announced.current.has(k)) continue;
+      announced.current.add(k);
+      if (urgentLive.current) urgentLive.current.textContent = alertTitle(al);
+    }
+  }, [a]);
   const open = (value: Panel) => { if (!panel) lastTrigger.current = document.activeElement as HTMLElement; setPanel(value); if (!value) requestAnimationFrame(() => document.getElementById("workspace-main")?.focus()); };
   const close = () => { setPanel(null); requestAnimationFrame(() => (lastTrigger.current?.isConnected ? lastTrigger.current : document.getElementById("cabin-attention"))?.focus()); };
   useEffect(() => { if (panel) { page.current?.focus({ preventScroll: true }); page.current?.scrollIntoView?.({ block: "start" }); } }, [panel]);
@@ -63,8 +74,11 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   const proposed = s ? allFacts(s).filter((f) => f.status === "unconfirmed").length : 0;
   const processing = s?.transcripts.filter((t) => t.trace.model.status === "running").length ?? 0;
   const errors = s?.transcripts.filter((t) => t.trace.model.status === "error").length ?? 0;
-  const headline = a?.urgent[0]?.label ?? a?.choose[0]?.label ?? a?.confirmAlerts[0]?.label ?? a?.review[0]?.label;
+  const firstAlert = a ? a.urgent[0] ?? a.choose[0] ?? a.confirmAlerts[0] ?? a.review[0] : undefined;
+  const headline = firstAlert ? alertTitle(firstAlert) : undefined;
   const isReplay = source === "fixture";
+  // The extraction model being down means new speech silently stops becoming facts: the banner escalates to HIGH.
+  const modelDown = !isReplay && health?.llm_available === false;
   const cameraState = s?.capture?.sees ?? "status unavailable";
   return <div className={`cabin workspace-shell ${panel ? "workspace-task" : ""} ${panel === "camera" ? "workspace-camera" : ""} ${ui.typeScale > 1 ? "cabin-large-text" : ""}`}><WorkspaceNav panel={panel} onOpen={open} count={a?.count ?? 0} player={player} /><div className="workspace-body">
     <header className="cabin-header">
@@ -98,13 +112,14 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
           <p><MapPin size={14} />{destination?.status === "confirmed" ? String(destination.value) : "Destination not confirmed"}</p></div>
       </section>
       <PatientSafetySummary onReview={() => open("patient")} />
-      <button id="cabin-attention" className={`cabin-attention ${a?.urgent.length ? "urgent" : ""} ${a?.count ? "has-items" : ""}`} disabled={!s} onClick={() => open("review")}>
-        {!s ? <CircleDashed size={22} aria-hidden /> : a?.count ? <TriangleAlert size={22} aria-hidden /> : <CircleCheck size={22} aria-hidden />}
-        <span><strong>{!s ? "Waiting for patient data" : headline ?? (proposed ? `${proposed} captured facts need verification` : "No open review items")}</strong>
-          <small>{!s ? "Review will be available when the vehicle connects" : a?.urgent.length ? `${a.urgent.length} high-priority finding(s) · open review` : headline ? "Open review for evidence and details" : "Missing information is not a normal finding"}</small></span>
+      <button id="cabin-attention" className={`cabin-attention ${modelDown || a?.urgent.length ? "urgent" : ""} ${modelDown || a?.count ? "has-items" : ""}`} disabled={!s} onClick={() => open("review")}>
+        {!s ? <CircleDashed size={22} aria-hidden /> : modelDown || a?.urgent.length ? <OctagonAlert size={22} aria-hidden className="flash-high" /> : a?.count ? <TriangleAlert size={22} aria-hidden /> : <CircleCheck size={22} aria-hidden />}
+        <span><strong>{!s ? "Waiting for patient data" : modelDown ? "Extraction model not running — new speech will not become facts" : headline ?? (proposed ? `${proposed} captured facts need verification` : "No open review items")}</strong>
+          <small>{!s ? "Review will be available when the vehicle connects" : modelDown ? headline ?? "Captured words are kept · enter facts by hand until the model returns" : a?.urgent.length ? `${a.urgent.length} high-priority finding(s) · open review` : headline ? "Open review for evidence and details" : "Missing information is not a normal finding"}</small></span>
         <span className="cabin-count">{s ? a?.count ?? 0 : "—"}<small>to review</small></span><ChevronRight size={23} aria-hidden />
       </button>
-      <span className="sr-only" role="alert">{a?.urgent.map((alert) => alert.label).join(". ")}</span>
+      <span ref={urgentLive} className="sr-only" role="alert" />
+      <div hidden={!!panel}><StatTiles overview /></div>
       <div hidden={!!panel}><VitalReadings key={s?.active_patient ?? s?.incident.id} onReview={() => open("review")} onTrends={() => open("trends")} /></div>
       <section hidden={!panel} ref={page} tabIndex={-1} className="workspace-page" aria-label={panel ? TITLES[panel] : undefined}>
         {!s && panel && ["review", "patient", "patients", "trends", "handoff"].includes(panel) ? <div className="workspace-page-surface workspace-page-unavailable" role="status">
@@ -153,7 +168,8 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
           {s?.capture?.error && <p role="alert">Camera capture needs attention: {s.capture.error}</p>}</div></div>
       <div className="cabin-actions">
         {s?.capture?.auto && <CaptureControl stopOnly />}
-        <button className={`cabin-button ${recording ? "recording" : "primary"}`} disabled={ambient.blocked || (!recording && (ambient.status.queued > 0 || ui.heldAlerts))} onClick={() => recording ? ambient.pause() : void ambient.start()}>
+        {/* AmbientCapture.start() is a no-op while clips upload, so the button stays disabled but says why. */}
+        <button className={`cabin-button ${recording ? "recording" : "primary"}`} disabled={ambient.blocked || (!recording && ui.heldAlerts)} onClick={() => recording ? ambient.pause() : void ambient.start()}>
           {recording ? <Pause size={23} /> : <Mic size={23} />}{recording ? "Pause listening" : "Start listening"}</button>
         {panel !== "camera" && <button className="cabin-button" onClick={() => open("camera")}><Camera size={23} />Camera</button>}
         <ManualEntry key={s?.incident.id} />

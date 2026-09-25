@@ -43,7 +43,7 @@ export function CaptureBar({ allowVoice = true }: { allowVoice?: boolean }) {
   }
   return <section aria-label="Capture speech and readings" className="shrink-0 border-t border-border-subtle bg-surface-1 px-5 py-3">
     <div className="flex flex-wrap items-center gap-3">
-      {(["medic", "other"] as const).map((source) => <Button key={source} variant={source === "medic" ? "primary" : "secondary"} disabled={disabled || busy || !allowVoice}
+      {(["medic", "other"] as const).map((source) => <Button key={source} className="min-h-16 min-w-[220px]" variant={source === "medic" ? "primary" : "secondary"} disabled={disabled || busy || !allowVoice}
         onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); void recorder.start(source, speaker); }} onPointerUp={() => void recorder.stop()} onPointerCancel={() => void recorder.stop(false)}
         onKeyDown={(e) => { if (!e.repeat && [" ", "Enter"].includes(e.key)) { e.preventDefault(); void recorder.start(source, speaker); } }}
         onKeyUp={(e) => { if ([" ", "Enter"].includes(e.key)) { e.preventDefault(); void recorder.stop(); } }}>
