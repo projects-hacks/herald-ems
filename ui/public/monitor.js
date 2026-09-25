@@ -19,14 +19,18 @@ try {
     const minute = startMinute + sampleIndex * minutesPerTick;
     return { minute, ...Object.fromEntries(scenario.readings.map(({ key }) => [key, valueAt(key, minute)])) };
   });
+  function timeLabel(minute) {
+    const whole = Math.floor(minute), seconds = Math.round((minute - whole) * 60);
+    return `+${whole}:${String(seconds).padStart(2, "0")}`;
+  }
   scenarioName.textContent = scenario.scenario_label || "Synthetic training scenario";
   const fields = scenario.readings.map(({ key, label, unit }) => {
-    const card = document.createElement("article"), title = document.createElement("h1"), value = document.createElement("strong"), units = document.createElement("small"), chart = document.createElementNS("http://www.w3.org/2000/svg", "svg"), trend = document.createElement("p");
+    const card = document.createElement("article"), title = document.createElement("h1"), value = document.createElement("strong"), units = document.createElement("small"), chart = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    card.dataset.key = key;
     title.textContent = label; units.textContent = unit;
     chart.classList.add("trend-chart"); chart.setAttribute("viewBox", "0 0 300 88"); chart.setAttribute("role", "img");
-    trend.classList.add("trend-label");
-    card.append(title, value, units, chart, trend); readings.append(card);
-    return { key, value, chart, trend, values: samples.map((sample) => sample[key]), label, unit };
+    card.append(title, value, units, chart); readings.append(card);
+    return { key, value, chart, values: samples.map((sample) => sample[key]), label, unit };
   });
   function drawTrend(field) {
     const { values, chart } = field, shown = values.slice(0, index + 1);
@@ -42,12 +46,11 @@ try {
     minLabel.setAttribute("x", "0"); minLabel.setAttribute("y", String(top + height)); minLabel.textContent = String(Math.round(low));
     maxLabel.setAttribute("x", "0"); maxLabel.setAttribute("y", String(top + 7)); maxLabel.textContent = String(Math.round(high));
     chart.append(grid, line, dot, minLabel, maxLabel);
-    chart.setAttribute("aria-label", `${field.label} trend through synthetic minute ${samples[index].minute}: ${shown.join(", ")} ${field.unit}`);
-    field.trend.textContent = `Trend: +${samples[0].minute} → +${samples[index].minute} min`;
+    chart.setAttribute("aria-label", `${field.label} trend through synthetic transport time ${timeLabel(samples[index].minute)}: ${shown.join(", ")} ${field.unit}`);
   }
   function render() {
     fields.forEach((field) => { field.value.textContent = samples[index][field.key]; drawTrend(field); });
-    phase.textContent = `Synthetic transport +${samples[index].minute} min · sample ${index + 1} of ${samples.length} · ${timer ? "updates every second" : "paused"}`;
+    phase.textContent = `Synthetic transport ${timeLabel(samples[index].minute)} · sample ${index + 1} of ${samples.length} · ${timer ? "updates every second" : "paused"}`;
     play.textContent = timer ? "Pause changes" : "Start changes";
   }
   function pause() { clearInterval(timer); timer = null; }

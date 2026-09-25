@@ -1,7 +1,7 @@
 {
   "description": "Synthetic post-ROSC transport display for camera-to-state integration checks. These values are visual test data, not a physiological model, treatment guide, or patient record.",
   "scenario_label": "Synthetic post-ROSC deterioration during stroke transport",
-  "display": {"tick_ms": 1000, "simulated_minutes_per_tick": 0.5},
+  "display": {"tick_ms": 1000, "simulated_minutes_per_tick": 0.1666666667},
   "simulated_minutes": {"start": 10, "end": 30},
   "readings": [
     {"key": "vitals.hr", "label": "Heart rate", "unit": "bpm"},
