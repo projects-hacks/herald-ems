@@ -395,6 +395,7 @@ These are in nobody's lane. To claim one, put your GitHub handle in "Claimed by"
 | ID | Task | Owner | Status |
 |---|---|---|---|
 | I1 | GitHub repo live, collaborators added ✅; **make it public before submission** | Rajeev | 🔄 |
+| E2 | Relay benchmark through Toxiproxy: first critical acknowledgement, critical bytes vs full sync, recovery/reconciliation, duplicates and losses | Vineet | ✅ 3 real HTTP runs at 1 KB/s + 800 ms: first critical ACK 1,424–1,435 ms; 409 B vs 3,120 B full sync; reconcile 1,434–1,446 ms; 0 duplicates / 0 lost. `eval/bench_relay.py`, `docs/RELAY_BENCHMARK.md`, `eval/results.jsonl` |
 | I2 | `setup.sh` / Docker Compose that rebuilds everything from a clean clone (the node is wiped after the event) | Collaborator 1 (S2) | ⏳ (B10)
 | I3 | README: evidence, architecture diagram, metrics table, how local/hybrid inference works | integration | 🔄 |
 | D1 | Interactive deck: problem → solution → architecture → benchmarks → impact | pitch | ⏳ |
