@@ -38,6 +38,7 @@ Every decision in this project was researched and written down. Before proposing
 | [`docs/LABELING_GUIDE.md`](docs/LABELING_GUIDE.md) | How every gold utterance is labeled: roles, keys, normalization, corrections, negations, and the rules settled during adjudication (§4b). | Before writing or labeling any gold item. | data |
 | [`docs/MEMORY_SAFETY.md`](docs/MEMORY_SAFETY.md) | Why the box froze on 2026-09-24 and the layers that stop it: `scripts/run_job.py` (the one launcher for model-loading jobs), the memory guard service (`scripts/memguard.py`, `config/memguard.yaml`), demo mode, the demo memory budget, the live-test numbers, and the root-only hardening for Rajeev. | Before starting any training, merge, benchmark, Whisper/TTS job or vLLM service; before the demo. | infra (backend) |
 | [`scenarios/`](scenarios/) + [`scripts/replay.py`](scripts/replay.py) | The stroke demo as a replayable script (rehearsal, video, regression). | Rehearsing, recording, or checking the demo still works after a change. | pitch |
+| [`docs/RUNBOOK.md`](docs/RUNBOOK.md) + [`scripts/soak.py`](scripts/soak.py) | Pre-demo warm-up, service/link checks, rehearsal, and the 30-minute stability soak. | Before rehearsal, recording, judging, or diagnosing demo drift. | integration |
 
 ### On the team Nano only (internal; NEVER commit, never copy into the repo)
 These live outside the repo because they contain pitch strategy, judge Q&A preparation, and ideation history. Everyone SSHes into the same machine, so the absolute paths work for every teammate and every agent.

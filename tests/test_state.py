@@ -45,6 +45,7 @@ def test_contradiction_from_other_speaker_needs_confirm():
 
 def test_scores_use_confirmed_facts_only():
     inc = Incident()
+    inc.ingest(FactIn(key="patient.age", value=40, captured_by=CapturedBy.medic, confidence=0.99))
     inc.ingest(FactIn(key="vitals.spo2", value=88, captured_by=CapturedBy.camera, confidence=0.99))
     assert "vitals.spo2" not in inc.values(confirmed_only=True)
     assert "SpO2 (scale 1)" in inc.snapshot()["scores"]["news2"]["missing"]
@@ -52,11 +53,21 @@ def test_scores_use_confirmed_facts_only():
 
 def test_news2_rise_alert():
     inc = Incident(dispatch="stroke")
+    feed(inc, "68-year-old female.")
     feed(inc, "BP 182 over 104, pulse 92, SpO2 95 on room air, respirations 18, temp 37.1, alert.")
     feed(inc, "Pulse 104, breathing 22, sat 94, temp 38.4.")
     snap = inc.snapshot()
     rise = next(a for a in snap["alerts"] if a["type"] == "news2_rise")
     assert rise["to"] >= 5 and rise["band"] == "medium"
+
+
+def test_first_complete_high_news2_raises_high_alert():
+    inc = Incident()
+    for key, value in [("patient.age", 48), ("vitals.rr", 30), ("vitals.spo2", 86), ("vitals.on_oxygen", True),
+                       ("vitals.sbp", 84), ("vitals.hr", 140), ("vitals.consciousness", "V"), ("vitals.temp", 39.5)]:
+        inc.ingest(FactIn(key=key, value=value, captured_by=CapturedBy.medic, role=Role.medic, confidence=0.99))
+    high = next(a for a in inc.snapshot()["alerts"] if a["type"] == "news2_high")
+    assert high == {"type": "news2_high", "label": "NEWS2", "score": 19, "band": "high"}
 
 
 def test_spoken_corrections_take_the_corrected_value():

@@ -28,12 +28,13 @@ function ratio(a, b) {
 const TEXT = 4.5, NONTEXT = 3;
 const pairs = [
   ["text-primary", "surface-1", TEXT], ["text-secondary", "surface-1", TEXT], ["text-muted", "surface-1", TEXT],
-  ["text-primary", "surface-2", TEXT], ["text-muted", "surface-2", TEXT], ["text-primary", "surface-3", TEXT], ["text-muted", "surface-3", TEXT],
+  ["text-primary", "surface-2", TEXT], ["text-muted", "surface-2", TEXT], ["text-primary", "surface-3", TEXT], ["text-secondary", "surface-3", TEXT],
   ["text-primary", "bg", TEXT], ["text-secondary", "bg", TEXT], ["text-primary", "canvas", TEXT],
   ["text-secondary", "canvas", TEXT], ["text-muted", "canvas", TEXT], ["accent", "canvas", TEXT], ["accent", "surface-1", TEXT], ["accent", "surface-2", TEXT], ["on-accent", "accent", TEXT],
   ["on-accent-fill", "accent-fill", TEXT], ["accent", "accent-tint", TEXT], ["text-primary", "accent-tint", TEXT],
   ["accent-fill", "surface-1", NONTEXT], ["border-control", "surface-2", NONTEXT], ["text-muted", "bg", TEXT], ["text-secondary", "surface-2", TEXT],
   ["capture", "surface-1", TEXT], ["border-control", "surface-1", NONTEXT],
+  ["on-capture", "capture", TEXT],
   ["high-fg", "surface-1", TEXT], ["high-on-fill", "high-fill", TEXT], ["high-fg", "high-tint", TEXT],
   ["text-primary", "high-tint", TEXT], ["high-fill", "surface-1", NONTEXT],
   ["medium-fg", "surface-1", TEXT], ["medium-on-fill", "medium-fill", TEXT], ["medium-fg", "medium-tint", TEXT],
@@ -42,6 +43,11 @@ const pairs = [
   ["text-primary", "low-tint", TEXT],
   ["ok-fg", "surface-1", TEXT], ["ok-on-fill", "ok-fill", TEXT], ["ok-fg", "ok-tint", TEXT],
   ["text-primary", "ok-tint", TEXT], ["ok-fill", "surface-1", NONTEXT],
+  ["on-accent-fill", "accent-fill", TEXT], ["text-secondary", "accent-tint", TEXT],
+  // category titles and glyphs on cards and rows (the icon tiles behind white glyphs are decoration: labels carry the meaning)
+  ...["attention", "time", "heart", "neuro", "ed", "check", "meds", "patient", "speech"].flatMap((c) => [
+    [`cat-${c}-fg`, "surface-1", TEXT], [`cat-${c}-fg`, "surface-2", TEXT],
+  ]),
 ];
 // Light medium fill on white is 1.78:1 by design; its 1 px border carries the edge (§2.2).
 const extra = { light: [["medium-fill-border", "surface-1", NONTEXT]] };

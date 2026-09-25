@@ -7,16 +7,21 @@ export type Priority = "high" | "medium" | "low";
 const RANK: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
 
 export function alertPriority(a: Alert): Priority {
+  if (a.type === "trauma_alert_criteria") return a.level === "red" ? "high" : "medium";
   if (a.type === "news2_rise") return a.band === "high" ? "high" : a.band === "medium" || a.band === "low-medium" ? "medium" : "low";
+  if (a.type === "news2_high" || a.type === "stemi_alert") return "high";
   return "medium";   // contradiction, confirm_required, race_positive, gfast_positive, significant_change
 }
 /** Stable identity for "Seen": type + key + value (§2.3). */
 export function alertKey(a: Alert): string {
   switch (a.type) {
+    case "trauma_alert_criteria": case "sepsis_prenotification": return `${a.type}:${a.level}:${a.criteria.join("|")}`;
     case "contradiction": case "confirm_required": return `${a.type}:${a.key}:${a.confirm_fact_id}`;
     case "significant_change": return `${a.type}:${a.key}:${a.series.join(",")}`;
     case "news2_rise": return `${a.type}:${a.from}->${a.to}`;
+    case "news2_high": return `${a.type}:${a.score}`;
     case "race_positive": case "gfast_positive": return `${a.type}:${a.score}`;
+    case "stemi_alert": return `${a.type}:${a.score}`;
   }
 }
 /** Contradictions and code-status confirmations can't be marked seen; they leave only when resolved. */
@@ -36,7 +41,7 @@ export function rankAlerts(alerts: Alert[], arrival: Record<string, number> = {}
  *  they were heard. */
 export function needsTap(s: Snapshot): FactView[] {
   const inAlert = new Set(s.alerts.flatMap((a) => ("facts" in a ? a.facts.map((f) => f.id) : [])));
-  return Object.values(s.facts).filter((f) => f.status === "unconfirmed" && !inAlert.has(f.id))
+  return allFacts(s).filter((f) => f.status === "unconfirmed" && (!inAlert.has(f.id) || (f.verify?.status === "mismatch" && !f.verify.resolution)))
     .sort((a, b) => a.ts.localeCompare(b.ts));
 }
 
@@ -81,6 +86,13 @@ export function showFieldTriage(s: Snapshot): boolean {
 
 // ---------- ER status (§3.1.9) ----------
 export type ErRowState = "sent" | "queued" | "held";
+export function allFacts(s: Snapshot): FactView[] {
+  return [...new Map([...Object.values(s.facts), ...Object.values(s.events ?? {}).flat()].map((f) => [f.id, f])).values()];
+}
+export function activeSync(s: Snapshot) {
+  return s.relay.authorized ? s.relay.patients?.[s.active_patient ?? s.incident.id]?.sync ?? s.relay.sync : {};
+}
+export function patientPacket(s: Snapshot, patient?: string) { return !patient || patient === (s.active_patient ?? s.incident.id); }
 export interface ErRow { key: string; state: ErRowState; seq: number | null; why: string; held: "tap" | "disagree" | null }
 
 /** ED-set keys in relay-tier order, each sent / queued / held. Keys with nothing to send are omitted. */
@@ -90,27 +102,27 @@ export function erRows(s: Snapshot, c: Contract | null): ErRow[] {
   const disputed = new Set(s.alerts.filter((a) => a.type === "contradiction").map((a) => (a as { key: string }).key));
   const rows: ErRow[] = [];
   for (const key of keys) {
-    const sync = s.relay.sync[key];
+    const sync = activeSync(s)[key];
     const fact = s.facts[key];
     // Held wins: an unconfirmed newest value never counts as sent, even if an older confirmed value was
     // (e.g. the husband's "no allergies" went out; the daughter's "aspirin" is disputed and stays on the vehicle).
     if (fact && fact.status === "unconfirmed") {
       rows.push({ key, state: "held", seq: null, why: tiers[key].why, held: disputed.has(key) ? "disagree" : "tap" });
     } else if (sync === "sent" || sync === "queued") {
-      const seq = sync === "sent" ? [...s.relay.log].reverse().find((l) => l.result === "acked" && l.keys.includes(key))?.seq ?? null : null;
+      const seq = sync === "sent" ? [...s.relay.log].reverse().find((l) => patientPacket(s, l.patient) && l.result === "acked" && l.keys.includes(key))?.seq ?? null : null;
       rows.push({ key, state: sync, seq, why: tiers[key].why, held: null });
     }
   }
   return rows;
 }
 export function queuedCount(s: Snapshot): number {
-  return Object.values(s.relay.sync).filter((v) => v === "queued").length;
+  return Object.values(activeSync(s)).filter((v) => v === "queued").length;
 }
 /** The "reconciled" line shows only when everything confirmed has been acknowledged over a good link (§3.1.9). */
 export function reconciled(s: Snapshot): boolean {
   const r = s.relay;
-  return r.link === "good" && r.pending.length === 0 && Object.values(r.sync).every((v) => v === "sent")
-    && r.log.some((l) => l.tier === "full" && l.result === "acked");
+  return !!r.authorized && r.link === "good" && !r.pending.some((p) => patientPacket(s, p.patient)) && Object.values(activeSync(s)).every((v) => v === "sent")
+    && r.log.some((l) => patientPacket(s, l.patient) && l.tier === "full" && l.result === "acked");
 }
 
 // ---------- patient picture groups (§3.1.9) ----------

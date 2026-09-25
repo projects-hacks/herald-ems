@@ -1,4 +1,16 @@
 {
+  "patient.name": {
+    "label": "Patient name (reported)",
+    "type": "str",
+    "kind": "history",
+    "require_tap": true
+  },
+  "patient.identifier": {
+    "label": "Patient identifier / wristband",
+    "type": "str",
+    "kind": "history",
+    "require_tap": true
+  },
   "patient.age": {
     "label": "Age",
     "type": "int",
@@ -209,6 +221,344 @@
       6
     ]
   },
+  "vitals.gcs_eye": {
+    "label": "GCS eye",
+    "type": "int",
+    "kind": "measure",
+    "range": [
+      1,
+      4
+    ]
+  },
+  "vitals.gcs_verbal": {
+    "label": "GCS verbal",
+    "type": "int",
+    "kind": "measure",
+    "range": [
+      1,
+      5
+    ]
+  },
+  "vitals.gcs_total": {
+    "label": "GCS total",
+    "type": "int",
+    "kind": "measure",
+    "range": [
+      3,
+      15
+    ]
+  },
+  "vitals.pain": {
+    "label": "Pain score (0-10)",
+    "type": "int",
+    "kind": "measure",
+    "range": [
+      0,
+      10
+    ]
+  },
+  "vitals.etco2": {
+    "label": "EtCO2 (mmHg)",
+    "type": "int",
+    "kind": "measure",
+    "unit": "mmHg",
+    "range": [
+      0,
+      150
+    ]
+  },
+  "meds.given": {
+    "label": "Medication given",
+    "type": "record",
+    "kind": "event",
+    "merge": "each",
+    "identity": "drug",
+    "fields": {
+      "drug": "str",
+      "dose": "float",
+      "unit": "str",
+      "route": "str",
+      "time": "time",
+      "by": "str",
+      "count": "int",
+      "before_arrival": "bool"
+    },
+    "field_ranges": {
+      "dose": [
+        0,
+        10000
+      ],
+      "count": [
+        1,
+        20
+      ]
+    },
+    "field_synonyms": {
+      "by": {
+        "family": [
+          "husband",
+          "wife",
+          "spouse",
+          "partner",
+          "mother",
+          "father",
+          "mom",
+          "dad",
+          "parent",
+          "son",
+          "daughter",
+          "brother",
+          "sister",
+          "grandmother",
+          "grandfather",
+          "grandma",
+          "grandpa",
+          "grandson",
+          "granddaughter",
+          "aunt",
+          "uncle",
+          "cousin",
+          "boyfriend",
+          "girlfriend",
+          "fiance",
+          "niece",
+          "nephew",
+          "relative"
+        ],
+        "facility": [
+          "nurse",
+          "aide",
+          "staff",
+          "nursing home staff",
+          "facility staff",
+          "caregiver",
+          "school nurse",
+          "home health aide",
+          "group home staff",
+          "care home staff"
+        ],
+        "bystander": [
+          "friend",
+          "roommate",
+          "neighbor",
+          "neighbour",
+          "coworker",
+          "co-worker",
+          "witness",
+          "passerby",
+          "teacher",
+          "coach",
+          "lifeguard",
+          "security",
+          "security guard",
+          "store manager",
+          "clerk",
+          "stranger",
+          "golf partner",
+          "trainer",
+          "athletic trainer",
+          "supervisor",
+          "landlord"
+        ],
+        "police": [
+          "officer",
+          "pd",
+          "cop",
+          "police officer",
+          "deputy",
+          "law enforcement"
+        ],
+        "fire": [
+          "firefighter",
+          "fire department",
+          "engine",
+          "engine company",
+          "fd"
+        ],
+        "first responder": [
+          "first responders",
+          "responder"
+        ],
+        "crew": [
+          "we",
+          "us",
+          "ems",
+          "medic",
+          "paramedic",
+          "our crew"
+        ]
+      }
+    }
+  },
+  "procedures.done": {
+    "label": "Procedure done",
+    "type": "record",
+    "kind": "event",
+    "merge": "each",
+    "identity": "procedure",
+    "fields": {
+      "procedure": "str",
+      "time": "time",
+      "detail": "str",
+      "by": "str",
+      "before_arrival": "bool"
+    },
+    "field_synonyms": {
+      "by": {
+        "family": [
+          "husband",
+          "wife",
+          "spouse",
+          "partner",
+          "mother",
+          "father",
+          "mom",
+          "dad",
+          "parent",
+          "son",
+          "daughter",
+          "brother",
+          "sister",
+          "grandmother",
+          "grandfather",
+          "grandma",
+          "grandpa",
+          "grandson",
+          "granddaughter",
+          "aunt",
+          "uncle",
+          "cousin",
+          "boyfriend",
+          "girlfriend",
+          "fiance",
+          "niece",
+          "nephew",
+          "relative"
+        ],
+        "facility": [
+          "nurse",
+          "aide",
+          "staff",
+          "nursing home staff",
+          "facility staff",
+          "caregiver",
+          "school nurse",
+          "home health aide",
+          "group home staff",
+          "care home staff"
+        ],
+        "bystander": [
+          "friend",
+          "roommate",
+          "neighbor",
+          "neighbour",
+          "coworker",
+          "co-worker",
+          "witness",
+          "passerby",
+          "teacher",
+          "coach",
+          "lifeguard",
+          "security",
+          "security guard",
+          "store manager",
+          "clerk",
+          "stranger",
+          "golf partner",
+          "trainer",
+          "athletic trainer",
+          "supervisor",
+          "landlord"
+        ],
+        "police": [
+          "officer",
+          "pd",
+          "cop",
+          "police officer",
+          "deputy",
+          "law enforcement"
+        ],
+        "fire": [
+          "firefighter",
+          "fire department",
+          "engine",
+          "engine company",
+          "fd"
+        ],
+        "first responder": [
+          "first responders",
+          "responder"
+        ],
+        "crew": [
+          "we",
+          "us",
+          "ems",
+          "medic",
+          "paramedic",
+          "our crew"
+        ]
+      }
+    }
+  },
+  "trauma.mechanism": {
+    "label": "Mechanism of injury",
+    "type": "str",
+    "kind": "history"
+  },
+  "trauma.injury_time": {
+    "label": "Time of injury",
+    "type": "time",
+    "kind": "history"
+  },
+  "trauma.injuries": {
+    "label": "Injuries found",
+    "type": "list",
+    "kind": "measure",
+    "merge": "accumulate"
+  },
+  "trauma.criteria": {
+    "label": "Trauma criteria described",
+    "type": "list",
+    "kind": "measure",
+    "merge": "accumulate",
+    "enum": [
+      "penetrating injury head neck torso or proximal extremity",
+      "skull deformity",
+      "spinal injury with new motor or sensory loss",
+      "chest wall instability",
+      "pelvic fracture",
+      "two or more proximal long bone fractures",
+      "crushed degloved mangled or pulseless extremity",
+      "amputation proximal to wrist or ankle",
+      "bleeding requiring tourniquet or wound packing",
+      "respiratory distress or need for respiratory support",
+      "ejection",
+      "intrusion or extrication",
+      "death in same passenger compartment",
+      "child unrestrained",
+      "rider separated with significant impact",
+      "rollover unrestrained",
+      "pedestrian or cyclist thrown or run over",
+      "fall over 10 feet",
+      "time sensitive extremity injury",
+      "low level fall with significant head impact",
+      "major burn"
+    ]
+  },
+  "infection.suspected": {
+    "label": "Suspected infection (source)",
+    "type": "str",
+    "kind": "history"
+  },
+  "patient.pregnancy_weeks": {
+    "label": "Pregnancy (weeks)",
+    "type": "int",
+    "kind": "history",
+    "range": [
+      1,
+      45
+    ]
+  },
   "meds.list": {
     "label": "Medications",
     "type": "list",
@@ -240,6 +590,61 @@
     "label": "12-lead attached",
     "type": "bool",
     "kind": "measure"
+  },
+  "ecg.stemi_reading": {
+    "label": "12-lead reads STEMI",
+    "type": "bool",
+    "kind": "measure"
+  },
+  "ecg.transmitted": {
+    "label": "12-lead transmitted",
+    "type": "bool",
+    "kind": "measure"
+  },
+  "ecg.territory": {
+    "label": "12-lead territory",
+    "type": "list",
+    "kind": "measure",
+    "merge": "accumulate",
+    "enum": [
+      "inferior",
+      "anterior",
+      "septal",
+      "lateral",
+      "posterior",
+      "right ventricular"
+    ]
+  },
+  "airway.status": {
+    "label": "Airway",
+    "type": "str",
+    "kind": "measure",
+    "enum": [
+      "patent",
+      "patent with adjunct",
+      "supraglottic airway",
+      "endotracheal tube",
+      "bag-valve-mask ventilation",
+      "compromised"
+    ]
+  },
+  "impression.primary": {
+    "label": "Primary impression",
+    "type": "str",
+    "kind": "history"
+  },
+  "triage.category": {
+    "label": "Triage category (SALT)",
+    "type": "str",
+    "kind": "measure",
+    "require_tap": true,
+    "enum": [
+      "immediate",
+      "delayed",
+      "minimal",
+      "expectant",
+      "dead"
+    ]
   },
   "transport.destination": {
     "label": "Destination",

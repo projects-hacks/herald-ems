@@ -1,5 +1,7 @@
 # Herald UX plan
 
+**Open UX audit, 2026-09-25:** [MEDIC_UX_AUDIT.md](MEDIC_UX_AUDIT.md) records 16 prioritized findings from the medic workspace review, including empty/offline states, unsent note loss, camera routing and ownership, and task discoverability. The audit now includes the follow-up status for the camera/page correction; remaining findings are explicitly listed. The earlier populated-screen checks did not cover these workflows. No API contract changes accompany the audit.
+
 **Version 2, full detail (2026-09-23; updated 2026-09-24 for model-only extraction).** This replaces the compressed version 1 from earlier the same day. Every decision in version 1 still stands, except where the 2026-09-24 change note below replaces it; this version adds the detail behind it.
 **Demo:** Fri 2026-09-25. **Feature freeze:** Fri 11:00. **Owners:** frontend teammates build the screens; backend owns the data contracts and `/api/telemetry`; pitch owns the stage, the 3 m test, and the video.
 
@@ -76,6 +78,15 @@ Herald now writes the handoff the paramedic reads to the ED, by radio or at the 
    - **DONE:** `last_contact_at` in `ed_receiver`, at the **top level** of the view (`{incidents, last_contact_at}`), because the link belongs to the ambulance, not to one incident. It is set by every `/ping` and `/ingest`, and cleared by `/reset`. It stays null until the medic authorizes a destination, because the rig contacts nobody before that (§3.4, U10).
    - **DONE:** U7 serving. `/classic/` serves `web/`; `/` serves `ui/dist` when `ui/dist/index.html` exists, otherwise `web/`; `HERALD_UI=classic` switches back. `web/index.html` now loads `style.css` and `app.js` relatively (§5.10).
 
+
+### Medic workflow update (2026-09-25)
+
+**Ambulance workspace revision:** the default medic view now uses a fixed-position cabin layout, in-place detail panels, large view, continuous ambient audio capture and deliberate camera freeze/review. This supersedes the sidebar and repeated push-to-talk interaction for the default medic view; the detailed/explain view retains the previous controls. Rationale, sources, implementation limits and validation plan: [AMBULANCE_WORKSPACE.md](AMBULANCE_WORKSPACE.md). Continuous listening never holds the alert queue. No clinical decision rules are changed.
+
+The primary clinical view now follows the incident workflow rather than the data model: Now, Capture, and Handoff are primary; Patient, Vitals, and Audit are secondary record views. Capture is persistent and supports medic voice, patient/bystander voice, typed speech, manual structured entry and camera input without leaving the React screen. A stale WebSocket never covers the last received patient picture; writes pause and the banner makes clear this memory-only view is not a backup. Detailed implementation boundaries are in `docs/MEDIC_UX_IMPLEMENTATION.md`.
+
+The public API adds `POST /api/facts/{fact_id}/correct` with `{ "value": ... }`. A correction rejects the original fact without deleting it, appends a confirmed medic-authored replacement with `manual-correction` provenance, emits an audit trace entry, and broadcasts the new snapshot. Only the current non-rejected fact may be corrected (409 otherwise); invalid values return 400 without mutation and absent facts return 404. Handoff copy distinguishes receiving-system delivery from human acknowledgment; the current contract does not claim viewed or acknowledged status.
+
 ## Glossary
 
 | Term | Meaning in this document |
@@ -88,7 +99,7 @@ Herald now writes the handoff the paramedic reads to the ED, by radio or at the 
 | Extraction model | The fine-tuned model that turns speech into facts, served by ZRT on this box under the label `ems-e-v2-fp8` (`HERALD_LLM_MODEL`). It is the **only** speech extractor: there is no rules extractor in the product (change note, 2026-09-24). Photos are read by a separate vision model (`omni`, `HERALD_VISION_MODEL`). |
 | Confidence | For a model fact: the model's own probability for that fact, from 0 to 1, taken from the model server's token probabilities (`herald/extraction/confidence.py`). It says how sure the model was of what it wrote down, not whether the information is clinically true. For a photo fact: the vision model's own estimate. The exact measure is being re-calibrated, so the UI treats it only as "a number from 0 to 1 compared with the threshold". |
 | Auto-confirm threshold | The calibrated confidence at or above which a fact from the paramedic's own mic confirms itself. The value lives in `config/confirmation.yaml` (the team lead chose it; recalibrated whenever the extraction model changes) and is echoed on every finished speech entry as `trace.model.auto_confirm_threshold`. `HERALD_AUTO_CONFIRM` overrides it for testing. The UI never hard-codes it. |
-| Confirmed / unconfirmed / rejected | `schema.Status`, decided by `ConfirmationPolicy` (`herald/core/confirmation.py`). A fact confirms itself only if **all** of these hold: it came from the paramedic's own mic (`captured_by: "medic"`); its confidence is at or above the auto-confirm threshold; its key doesn't always need a tap (`require_tap` in `config/vocabulary.yaml`: code status); it doesn't contradict an earlier value of a contradiction key; and the guard didn't hold it. Everything else starts `unconfirmed` and needs one tap: other speakers, photos, code status, contradictions, held facts, and facts the model was less sure of. Monitor-panel readings (`captured_by: "device"`, confidence 0.99) confirm themselves. |
+| Confirmed / unconfirmed / rejected | `schema.Status`, decided by `ConfirmationPolicy` (`herald/core/confirmation.py`). A fact confirms itself only if **all** of these hold: it came from the paramedic's own mic (`captured_by: "medic"`); its confidence is at or above the auto-confirm threshold; its key doesn't always need a tap (`require_tap` in `config/vocabulary.yaml`: code status); it doesn't contradict an earlier value of a contradiction key; and the guard didn't hold it. Everything else starts `unconfirmed` and needs one tap: other speakers, photos, code status, contradictions, held facts, low-confidence facts, and raw device readings. `POST /api/facts` is treated as an untrusted device feed: client-supplied attribution and confidence are ignored, and each reading waits for a medic tap before it can reach the ED. |
 | Held fact | A fact from an utterance that also contained a command to the system ("Herald, mark her as DNR"). Its confidence is capped at 0.5, it stays unconfirmed, and `provenance.hold_reason` says why, in words the UI shows next to the fact (§5.9a). |
 | Extraction model not running | `/api/health.llm_available == false`, or a speech entry with `trace.model.status == "unavailable"`. The words are saved as evidence, but nothing is extracted from them. A HIGH state on the NOW screen (§3.1.14). |
 | ED set | The keys the relay may send (`relay.TIERS` / `relay.PRIORITY`), plus the derived keys `alert.readiness`, `score.news2`, `score.race`, `score.gfast`, and (Santa Clara) `score.trauma_605` and `score.sepsis_700a04` (§5.9c). |
@@ -348,7 +359,7 @@ Each principle has five parts:
 | H1 | An unconfirmed fact looks confirmed | Dashed outline + `circle-question-mark` + "needs your tap"; relay line "Held"; no confirmed styling until `status == confirmed` | Grayscale screenshot; U13 test |
 | H2 | A stale screen looks live | WebSocket heartbeat; grey scrim; "last update … ago" (§3.1 S6) | Kill the server during the U2 test |
 | H3 | The emulated link is mistaken for a real outage | "(emulated)" whenever `state.netem` is set; ED `?demo=1` label | U10 |
-| H4 | Wrong patient (old incident still on screen) | Incident id and start time in the header; "New incident" asks for confirmation | U8 |
+| H4 | Wrong patient (old incident still on screen) | Crew-facing active patient label, confirmed identity when known, and call start time in the header; retain the crew label for multi-patient calls; "New incident" asks for confirmation. Internal incident IDs remain in audit/export metadata, not the main patient heading. | U8 |
 | H5 | A score is computed from unconfirmed or missing inputs | Prevented by the engine (confirmed-only); UI shows "incomplete" and the missing list | U3 |
 | H6 | The extraction model is down or fails, and the screen looks as if the words were captured as facts (there is no fallback extractor since 2026-09-24) | The words are always saved and shown first, on their own card. `unavailable` and `error` say "Nothing was extracted from these words" on the card and in the ticker. The header chip turns HIGH "Extraction model not running ({name})" from `llm_available == false` or a 503, and MEDIUM "Extraction error" after an `error` (§3.1.3, §3.1.14, §4.3 d–e). The capture bar and presenter input show the 503 message. | U3, U4, U6 (T2, T3) |
 | H7 | An alert is missed because it is queued | Alert count badge in the top band; "1 of N" navigation | U3 |
@@ -383,7 +394,12 @@ This principle turns existing team decisions into a design rule.
 ---
 ## 2. Visual system
 
-> **Visual refresh (2026-09-24, @tushar-fs, branch `feat/c1-now-screen`; revised to the light-first clinical shell).** The first build followed this section literally and read as dated and flat (the team's verdict); a second pass as a dense dashboard still carried too much visual chrome. The NOW screen is now a **health workspace**: quiet navigation, a patient-first top bar, independent summary widgets, and one attention queue. **The rules of §1 and §2.3–2.4 are unchanged:** priority is color + icon + word, never color alone; every text pair is ≥4.5:1 and every control or fill ≥3:1 (`npm run contrast` checks all of them, both themes); critical text stays 20 px (≥16′ at 0.7 m). What changed, and where the values now live:
+## Medic workspace redesign, 2026-09-25
+
+The default medic application now uses the clinical workspace described in [MEDIC_WORKSPACE_REDESIGN.md](MEDIC_WORKSPACE_REDESIGN.md): daylight by default, a consistent teal interaction palette, seven task destinations, persistent patient/connection context, documented vitals, a pre-alert checklist, and accessible capture controls. The existing React, shadcn/Radix and Lucide foundation remains. Night mode and saved theme preferences remain available. This supersedes the older Apple Health styling description for the medic workspace; clinical status semantics and confirmation requirements remain in force. The protocol library consumes the existing GET search and page-image endpoints; no API or snapshot contract changed.
+
+
+> **Visual refresh (2026-09-24, @tushar-fs, branch `feat/c1-now-screen`).** The first build followed this section literally and read as dated and flat (the team's verdict); a second pass as a card grid was still judged cluttered and hard to scan. The NOW screen is now a **dashboard**: a sidebar with pages, an inset canvas, a KPI row, and one attention queue. **The rules of §1 and §2.3–2.4 are unchanged:** priority is color + icon + word, never color alone; every text pair is ≥4.5:1 and every control or fill ≥3:1 (`npm run contrast` checks all of them, both themes); critical text stays 20 px (≥16′ at 0.7 m). What changed, and where the values now live:
 >
 > - **Palette.** Soft clinical neutrals plus one medical-blue accent for everything interactive. Status colors are used sparingly (dots, icons, badges, thin bars) and never as large fills, except the one urgent (HIGH) row. **The authoritative values are `ui/src/styles/tokens.css`**; the tables in §2.2 below are the first version, kept for the record.
 >   - Dark: frame `#07131A`, canvas `#0B171F`, cards `#112029`, raised rows and controls `#192A34`, overlays `#223640`; accent text `#8CB9FF`, button fill `#3F70DE`.
@@ -656,6 +672,8 @@ Checklist segments use shape as well as color:
 - **Hit areas can extend past the visual edge through padding.** For example, a 24 px ▶ glyph sits inside a 48 px button.
 
 ### 2.8 Motion
+
+**Ambulance workspace refinement (2026-09-25).** Group supporting work into Capture & evidence and Receiving team. Their order may change only in explicit Arrange cards mode: pointer drag or Move earlier/later, followed by Save layout; Cancel restores the prior order and Reset previews the default. Store only the validated card-order preference locally, never patient content. New facts never rearrange modules. Patient context, priority review, the reading group, connection status and recording controls are not draggable. Expansion is component-specific: a selected reading reveals its confirmed history; transcript, evidence and handoff open their own details. There is no whole-page Large view. Browser zoom and accessible text scaling remain available. These are prototype interaction decisions, not clinical validation; see `AMBULANCE_WORKSPACE.md`.
 
 Durations and easing come from the Material 3 motion tokens [47] (verified in the source):
 - **Durations:** short1 = 50 ms, short2 = 100, short3 = 150, short4 = 200, medium1 = 250.
@@ -1036,6 +1054,7 @@ The interval comes from `HERALD_REASSESS_MIN` (default 10) and appears in the `r
 - **Overflow:** the panel scrolls inside itself. A bottom fade and a "{n} more ▾" button appear when content is hidden.
 - **Actions:**
   - Confirm → `POST /api/facts/{id}/confirm`.
+  - Confirm selected independent facts from one capture → `POST /api/facts/confirm` `{ids: string[]}`. The response is `{confirmed: string[], skipped: {id: string, reason: string}[]}`; held facts and contradictions are skipped and must remain individual decisions.
   - Reject → `POST /api/facts/{id}/reject`.
   - Both follow the pending/error rules in §3.0.
 
@@ -1104,6 +1123,8 @@ The interval comes from `HERALD_REASSESS_MIN` (default 10) and appears in the `r
 | `confirm_required` | CHECK "{label} needs your tap" | Value; source; photo thumbnail with the crop box. "Code status is never sent until you confirm it." If the fact carries `provenance.hold_reason`, the reason is shown under the value in body size, with `lock` and "Held · check" (§5.9a). | `[ Confirm ]` (or `[ Confirm · said with a command ]` for a held fact), `[ Reject ]` |
 | `news2_rise` (medium/high) | CHECK or HIGH "NEWS2 {from} → {to} ({band} band)" | The contributing parameters: every `scores.news2.parts` entry with points > 0, e.g. "RR 22 (+2) · HR 104 (+1) · SpO2 94 (+1)". "Published threshold: {thresholds}." If `any_single_3` is false, add "No single parameter scored 3." | `[ Seen ]` (UI state only) |
 | `news2_rise` (low) | (i) "NEWS2 {from} → {to}" | As above | `[ Seen ]` |
+| `news2_high` | HIGH "NEWS2 {score} · high band" | First complete NEWS2 at or above 7; this is emitted even when there is no prior score to compare. | `[ Seen ]` (UI state only) |
+| `stemi_alert` | HIGH "STEMI Alert criteria met (700-A08 §3.2)" | The documented monitor interpretation, with the county source wording. Herald reports the documented interpretation; it does not interpret a 12-lead. | `[ Seen ]` |
 | `race_positive` | CHECK "RACE {score}: large-vessel screen positive (≥5)" | "Published sensitivity 0.85, specificity 0.68 (Pérez de la Ossa 2014)." "County destination policy ▸" | `[ Seen ]` |
 | `trauma_alert_criteria` (new 2026-09-24) | HIGH (`level == "red"`) or CHECK (`"yellow"`) "Trauma Alert criteria met ({level}, Policy 605)" | Each `criteria[]` line verbatim (the county's words with the letter, e.g. "N.3 Age older than 65 years: Systolic BP is less than 110 mmHg (SBP 84, age 70)"). Then "{county}:" and each `county_rule[]` line verbatim in quotation style (Policy 602 destinations, e.g. the closest open Adult Trauma Center). Never paraphrase; never name a hospital that the rule doesn't name. | `[ Seen ]` |
 | `sepsis_prenotification` (new 2026-09-24) | CHECK "Sepsis pre-notification criteria met (700-A04 §1.4)" | The `criteria[]` line verbatim, then the met SIRS findings from `scores.sepsis_700a04` (e.g. "T 38.6 °C · HR 112 · RR 24"), then "EtCO2 not measured" when it is in `missing[]`. Never "Sepsis Alert". | `[ Seen ]` |
@@ -1121,7 +1142,7 @@ The interval comes from `HERALD_REASSESS_MIN` (default 10) and appears in the `r
 - **Not configured:** "ED link not set up on this vehicle (HERALD_ED_URL)." (muted).
 - **Configured, not authorized:**
   - If `facts["transport.destination"]` is known: `[ Authorize pre-alert → {destination} ]` (64 px).
-  - Otherwise: `[ Authorize pre-alert… ]`, which opens a dialog with a destination field and the fixed scope "stroke pre-alert set".
+  - Otherwise: `[ Authorize pre-alert… ]`, which opens a dialog with a destination field. The backend derives the scope from the active checklist (for example, "Trauma Alert pre-alert set"); callers cannot label a trauma or medical pre-alert as stroke.
   - The helper text under either button: "Once authorized, confirmed updates in this scope are sent automatically. Unconfirmed facts never leave the vehicle."
   - The button calls `POST /api/relay/authorize`.
 - **Rows:** ED-set keys in tier order: tier 1, then derived scores, vitals, logistics, and context (the same order as `relay.TIERS`).
@@ -1229,7 +1250,7 @@ The interval comes from `HERALD_REASSESS_MIN` (default 10) and appears in the `r
 | S7 Action error | — | Inline error on that row | Inline error on that button | Inline error on Authorize | — |
 | S8 Extraction model not running | Header chip HIGH "Extraction model not running ({llm_model})"; in medic mode the ticker slot shows the HIGH line (§3.1.14) | Unchanged: existing facts stay; nothing new arrives from speech | Unchanged | Unchanged | New cards show the words and MODEL "not running · nothing extracted" (§4.3 e) |
 | S9 Replay | REPLAY banner above the header | Actions disabled | Actions disabled | Actions disabled | Normal; ▶ disabled ("audio isn't included in the recording") |
-| S10 New incident requested | — | — | — | — | Dialog: "Start a new incident? This clears the current patient from this screen and resets the ED relay." `[ Start new incident ]` `[ Cancel ]` → `POST /api/incident` |
+| S10 New incident requested | — | — | — | — | Dialog: "Start a new incident? This ends the current call, permanently deletes its audio and photos, clears the patient from this screen, and resets the ED relay." `[ Start new incident ]` `[ Cancel ]` → `POST /api/incident` |
 | S11 Extraction error on one utterance | Header chip MEDIUM "Extraction error" until the next `done` | Unchanged | Unchanged | Unchanged | That card: MODEL "failed after {s} s · Nothing was extracted from these words" (§4.3 d) |
 | S12 Held facts (said together with a command) | Count and chips unchanged: held facts don't count until confirmed | "Held · check" rows first in "Needs your tap", each with its hold reason and `[ Confirm · said with a command ]` | Code status, if held, shows the same reason in its `confirm_required` card | "Held · needs your tap" | Guard line under HEARD and `lock` rows (§4.3 l) |
 
@@ -1541,7 +1562,7 @@ The short talk track and rehearsal instructions live in `docs/DEMO_GUIDE.md`.
 |---|---|---|
 | Link | Segmented `[ Good ] [ Weak ] [ Down ]` (48 px), the current `netem` mode highlighted | Calls `POST /api/netem/{mode}`, the same as Shift+G/W/D. The subtitle reads "Emulated with Toxiproxy · real packets" [65]. On a 503: "Link control unavailable: Toxiproxy isn't reachable. The relay still works." |
 | View | Explain on/off · Type 1.0 / 1.25 / 1.5 · Theme dark/light · Reduce motion · Keyboard push-to-talk on/off · Hide cursor when idle (3 s) | The same as the hotkeys. Everything is stored in `localStorage`. |
-| Rehearsal input | A text field with a speaker picker (medic / other + label) → `POST /api/transcript` `{text, captured_by, speaker, use_llm: true}`. Typed text goes through the extraction model exactly like speech; there is no other extractor. Also a simulated monitor form (SBP, DBP, HR, RR, SpO2, Temp °C, Glucose, O2) → `POST /api/facts`, the existing contract with `captured_by: "device"` and confidence 0.99. The monitor form doesn't use the model, so it works while the model is down. | Labels: "Type what was said (rehearsal)" and "Simulated monitor (stage fallback)". Monitor facts are labelled as device facts in the trace. On a 503 from `/api/transcript`: "Extraction model not running: the words were saved on a card, nothing was extracted." |
+| Rehearsal input | A text field with a speaker picker (medic / other + label) → `POST /api/transcript` `{text, captured_by, speaker, use_llm: true}`. Typed text goes through the extraction model exactly like speech; there is no other extractor. Also a simulated monitor form (SBP, DBP, HR, RR, SpO2, Temp °C, Glucose, O2) → `POST /api/facts`. The server treats that endpoint as an untrusted device feed and ignores caller-provided attribution and confidence; readings are labelled device, held for a medic tap, and do not use the model. | Labels: "Type what was said (rehearsal)" and "Simulated monitor (stage fallback)". Monitor facts are labelled as device facts in the trace. On a 503 from `/api/transcript`: "Extraction model not running: the words were saved on a card, nothing was extracted." |
 | Incident | `[ New incident… ]` with a dispatch select (possible stroke / chest pain / fall / unknown) | A confirmation dialog (§3.1.12 S10) |
 | Judge beat | `[ Set other speaker: daughter ]` | Sets the speaker select in one tap before handing over the mic |
 | Status | WebSocket state and last message age; `/api/health`: extraction model (`llm_model`, and whether it is served: `llm_available`), photo model (`vision_model`, `vision_available`), STT; the auto-confirm threshold from the newest finished speech entry (`trace.model.auto_confirm_threshold`); fixture controls in replay (pause, step, restart, speed 1×/2×/4×) | Read-only, except the fixture controls |
@@ -1731,7 +1752,7 @@ Live relay state comes from `state.ed_sync[key]` (`sent` or `queued`) and `state
 3. Photo facts always start `unconfirmed` (`captured_by: "camera"`), whatever their confidence.
 4. If the vision model fails, the endpoint returns 503 **and an entry is created** with `model.status = "error"` and `heard.photo_id` (done; §4.3 g).
 
-**Monitor-panel facts** (`POST /api/facts`) create one transcript entry per call (done): `captured_by: "device"`, the facts under `trace.rules.facts`, and `model.status = "off"` with `reason: "structured readings; nothing to extract"`. They don't use the model, so they work while it is down. With confidence 0.99 from the medic's own panel they confirm themselves. They also show in the Patient picture with the `monitor` icon.
+**Monitor-panel facts** (`POST /api/facts`) create one transcript entry per call (done): `captured_by: "device"`, the facts under `trace.rules.facts`, and `model.status = "off"` with `reason: "structured readings; nothing to extract"`. They don't use the model, so they work while it is down. The server ignores submitted attribution/confidence and holds every device reading until a medic confirms it; then it may affect alerts and the relay. They also show in the Patient picture with the `monitor` icon.
 
 ### 4.3 Card states and wireframes
 
@@ -2252,6 +2273,53 @@ These run against fixtures (§5.8) and live (U6).
 ---
 ## 5. Stack
 
+### UI review contract additions (2026-09-25)
+
+Integration with ambient capture and patient roster: both `X-Herald-Patient` and existing multipart `incident_id` guards remain supported. Request-scoped capture retains camera listeners and ambient confirmation holds. Roster changes clear automatic camera work and ROI. Generic fact correction returns409 for an unresolved medication-label mismatch; only the explicit capture verification endpoint resolves it. These additive checks also apply when using the ambulance workspace.
+
+- React text, audio and device-reading capture sends optional `X-Herald-Patient: <incident id>` to existing `/api/transcript`, `/api/audio`, `/api/facts` (and supported photo capture). Mismatch returns409 before processing. Each admitted request binds its capture service to the original patient throughout asynchronous extraction. This header is a race guard, not authentication.
+- Live label loading prefers `/api/meta`; bundled `/contract/*.json` stays the offline/fixture fallback. Numeric monitor controls accept vocabulary `int`/`float` types and use their labels/units.
+- React uses existing `/api/patients` add and `/{id}/activate` endpoints; `Snapshot.relay.patients[active_patient].sync` is authoritative in multi-patient mode. Packet log entries carry `patient?: string`; pending rows also carry `patient?: string`. Legacy single-patient snapshots fall back to `relay.sync`. No sent/queued badge is shown before authorization.
+- Trauma/sepsis alerts carry `{type:"trauma_alert_criteria"|"sepsis_prenotification", label:string, level:string, score:string, criteria:string[], county_rule?:string[], county?:string}`. Red trauma is HIGH; other listed criteria alerts are CHECK. Criteria and county text are displayed verbatim.
+- Vehicle read-aloud view uses existing `/api/handoff?format=<id>`; results are invalidated on patient change and hidden while stale. It is available independently of relay authorization.
+- **ED receiver only:** `GET /api/meta` returns `{keys: Record<string,{label:string}>, display:{critical_keys:string[],critical_px:number,body_px:number,highlight_ms:number,report_county:string,report_timezone:string}}` from reviewed vocabulary/scores and `config/ed_display.yaml`. `GET /api/handoff/{patient_id}?format=<id>` returns the existing report shape plus `scope:string`, computed solely from received confirmed fields/timeline. Missing patient →404; unknown format →400. It is explicitly a received-data projection, not the vehicle's full report; vehicle dispatch/county/timezone are not inferred. The receiver uses generic published scales and UTC, explicitly labeled, with no guessed county-local rule. Neither endpoint starts models or reaches the vehicle.
+### S9 agentic capture contract (2026-09-25)
+
+Camera capture is off by default. `HERALD_CAPTURE_SOURCE=off|browser|replay:<folder>` and `HERALD_CAPTURE_AUTO=0|1` configure initial state; `HERALD_CAPTURE_CONFIG` names reviewed content under `config/`. USB/local camera support remains optional and is not enabled. The policy, gate, intervals, storage limits and trigger keys live in `config/capture.yaml`.
+
+| Boundary | Contract |
+|---|---|
+| `WS /ws/frames` | One same-origin browser source per incident. Binary JPEG, longest side ≤1280 px and encoded size ≤1 MiB. Process/reply at most `fps_in` (default 1 Hz). Reply `{accepted, gate: {sharp, changed, bright, passed, reason, usable} | null, error?: string}`. Extra frames are dropped, never queued without a bound. Patient change requires explicit reconnect. |
+| `GET /api/capture/status` | `CaptureStatus` below. `watching` requires recent accepted input, not merely the switch being on. |
+| `POST /api/capture/auto` | `{on: boolean}`; returns status. Off invalidates pending work/results and clears frame buffers. A submitted model call cannot be preempted, but its result is discarded. Turning on an off source selects browser input. |
+| `POST /api/capture/roi` | `{x0,y0,x1,y1,target?: "monitor"}`, finite normalized coordinates with positive area. Returns status; invalid rectangle →422. ROI changes invalidate old buffered work. |
+| `DELETE /api/capture/roi` | Clears the incident's monitor ROI; monitor watch remains disabled without one. |
+| `POST /api/capture/now` | `{mode?: "monitor"|"pill_bottle"|"form"|"scene"}` →202 and status. Defaults to monitor with ROI, label otherwise. Queues best recent frame or next frame, expires after ten seconds. Bypasses quality and automatic rate limits, not single-flight or speech priority. |
+| `POST /api/capture/verify/{fact_id}` | `{action:"keep"}` or `{action:"edit",value:<complete dose record>}`. Returns fact view; 404 other incident/missing dose, 409 closed/invalid mismatch, 422 malformed request. Edits append a medic-confirmed replacement and reject the old event; Keep confirms the original explicitly. Both retain an audit trace. Generic `/facts/{id}/confirm` returns409 for unresolved mismatches. |
+
+```ts
+interface CaptureStatus {
+  auto: boolean; source: string; fps_in: number; incident_id: string;
+  sees: "off" | "watching" | "reading";
+  roi: {x0:number; y0:number; x1:number; y1:number} | null;
+  last: {ts:number; trigger:string; mode:string; reason:string; facts:string[]; photo_id:string|null} | null;
+  counts: {frames:number; gated:number; captured:number; stored:number};
+  error: string | null; pending: number;
+}
+interface Verification {
+  status: "match" | "mismatch"; label_drug: string; photo_id: string | null;
+  resolution: "kept" | "edited" | null;
+}
+```
+
+Snapshot gains `capture: CaptureStatus`. Fact views gain nullable `verify: Verification`; provenance gains optional `trigger`, `frame_id`, and `auto`. Selected-frame trace entries retain `captured_by="camera"` and add `trigger`, `reason`, `frame_id`, nullable `photo_id` and fact IDs. Stored evidence is retrieved through the existing `/api/photo/{photo_id}`; `auto_*` IDs resolve inside `photo_dir/auto`. No file exists when no usable fact/flag results or redaction fails. Old fixture snapshots omit the additive fields; the UI must tolerate this.
+
+Patient guard: `auto`, `roi` and `now` POST bodies accept optional `incident_id: string`; DELETE ROI accepts the same query parameter. The shipped UI always sends it. A stale identity returns409 without changing the new incident. Verification IDs are resolved only in the current incident. A configured replay source rejects browser sockets to prevent mixed views. Switching patients also disables capture and clears ROI. Speech-to-text and extraction counters both block capture admission; already-running vision cannot be preempted.
+
+Visual semantics: “Herald sees” off/watching/reading is technical status, not an alarm. Reading may use a reduced-motion-aware pulse. A drug-label mismatch is a steady caution/check card with spoken drug, label, evidence and explicit Keep as said/Edit actions. A match verifies ingredient only—not dose, route, patient, timing or administration. Verify-intent output never enters `meds.list`. Camera facts always start unconfirmed. The confirmation hold is applied synchronously to the crew dose before the asynchronous label check, so it cannot leave while the check waits. Match/unreadable never auto-confirm it.
+
+The capture page uses `/classic/capture.html` (also `/capture.html` with the React UI). Continuous camera requires localhost or HTTPS, explicit permission, visible preview and a stop control. It offers drag ROI and numeric-coordinate alternatives; a one-shot file input remains available. Camera close/tab hide/network failure stops the source; no automatic permission restart. Privacy is an in-memory ring buffer plus redacted used-evidence files, not continuous video storage. Face detection is fallible and requires spot checks. No field-safety or real-model acceptance claim is implied by fake tests.
+
 ### 5.1 Decision
 
 **React 19 + TypeScript + Vite + Tailwind v4 + shadcn/ui on Radix primitives [29], with Zustand for state, lucide-react for icons [33], Fontsource for self-hosted fonts [32], and hand-drawn SVG sparklines (no chart library).**
@@ -2440,6 +2508,10 @@ scripts/                                (repo root)
 
 ### 5.6 TypeScript contract (`ui/src/lib/types.ts`)
 
+**2026-09-25 ambient capture additions:** `POST /api/audio` and `POST /api/photo` accept optional multipart `incident_id`; a stale ID returns 409 before processing. `/api/audio` also accepts `ambient: bool = false`. Ambient facts always have `captured_by=other`, `role=unknown` (new Role enum value), an unverified-speaker label, and a confirmation hold regardless of extracted attribution. Existing clients remain compatible. Request-scoped capture binds delayed extraction to the original incident. Audio whose incident changes during STT returns 409 without adding the transcript; photo/refinement already running can finish on the original incident but cannot add facts to the new one. This is isolation, not durable incident archival. Snapshot field names are unchanged. Requests are batch jobs; there is no streaming-STT contract or cancel-job endpoint. Browser cancellation does not guarantee cancellation of server-side inference.
+
+**2026-09-25 medic workflow additions:** `POST /api/facts/{fact_id}/correct` accepts `{value}` in the canonical key's native JSON type and returns the appended confirmed fact. Errors: 400 invalid value (no mutation), 404 absent/current-incident mismatch, 409 obsolete/repeated correction. The rejected original and correction trace retain the audit history. `patient.name` and `patient.identifier` are optional canonical string fields requiring an explicit confirmation; both participate in conflict detection. Contract exports were refreshed. The snapshot wire shape is unchanged. Workspace phase is local UI state, not a persisted API field.
+
 These types are derived from `herald/core/snapshot.py` (`Projector.snapshot()`), `herald/relay/relay.py` `status()`, `herald/api/trace.py`, `herald/api/capture.py`, and `ed_receiver/app.py`, as read on 2026-09-23 (after the modular restructure; shapes unchanged), and updated on 2026-09-24 for model-only extraction (also read from `herald/api/routes/capture.py`, `herald/api/routes/system.py`, and `herald/core/schema.py`) and for the county alert checklists and criteria scores (`herald/scoring/criteria.py`, `herald/checklists/`, `herald/api/contract.py`; §5.9c). When the backend changes a field, change it here in the same PR.
 
 **The authoritative copy is now `ui/src/lib/types.ts`** (checked against a live snapshot on 2026-09-24). It adds what the backend gained after this section was written: `scores.gfast`, `scores.stroke_scales`, `scores.primary_stroke_scale`, `county`, `protocols`, the `gfast_positive` alert (`county_rule`, `county`), `provenance.hold_reason` and `TraceFact.hold_reason`, and `Health.vision_model` / `Health.county`. The block below is kept for the record.
@@ -2568,7 +2640,7 @@ export interface TraceFact {
 }
 // extractor: "llm:<name>" (every speech fact now), "vision:<name>", "manual" (monitor panel).
 // Legacy, older recordings only: "rules", "rules+llm:<name>".
-export interface SttInfo { seconds: number; chunks: { text: string; t: [number | null, number | null] }[]; ms?: number }
+export interface SttInfo { seconds: number | null; chunks: { text: string; t: [number | null, number | null] }[]; ms?: number; error?: string }
 export interface RejectedFact { key: string; value: FactValue; reason: string }  // implausible or malformed
 export type ModelStatus = "running" | "done" | "error" | "off" | "unavailable" | "skipped";   // §4.1
 export interface Trace {
@@ -2587,6 +2659,7 @@ export interface Trace {
     auto_confirm_threshold?: number;  // speech done: the calibrated threshold used; never hard-code it
     error?: string;                   // error: first 200 characters
     reason?: string;                  // off, unavailable, skipped (backend wording; explain mode)
+    retry?: boolean;                  // running: a preserved unavailable transcript is being re-extracted
     // REMOVED 2026-09-24: agreed_with_rules, overridden_by_rules (older recordings may carry them; ignore)
   };
   guard?: { instruction_shaped: string | null; policy?: string };   // absent on photo entries;
@@ -2605,24 +2678,46 @@ export interface TranscriptEntry {
   stt?: SttInfo | null; trace: Trace;
 }
 
+// Mass-casualty roster (S5). `active_patient` is the incident id that capture, trace and handoff routes target.
+export type TriageCategory = "immediate" | "delayed" | "minimal" | "expectant" | "dead";
+export interface PatientSummary {
+  id: string; label: string; triage: TriageCategory | null; summary: string;
+  readiness_done: number; readiness_total: number;
+}
+
 // ---------- relay (relay.py status()) ----------
 export type LinkState = "good" | "weak" | "down" | "unknown" | "not configured";
 export interface RelayLogEntry {
-  ts: string; seq: number; tier: "critical" | "full"; bytes: number; keys: string[]; why: string[];
-  queued_after: number; result: "acked" | "failed"; rtt_ms?: number; error?: string;
+  ts: string; seq: number; patient: string; tier: "critical" | "full"; bytes: number; keys: string[]; why: string[];
+  removed: string[]; queued_after: number; result: "acked" | "failed"; rtt_ms?: number; error?: string;
+}
+export interface RelayPatientStatus {
+  triage: TriageCategory | "unknown"; pending: number; sync: Record<string, "sent" | "queued">;
 }
 export interface RelayStatus {
   configured: boolean; ed_url: string | null;
   authorized: { destination: string; scope: string; at: string } | null;
-  link: LinkState; pending: { key: string; priority: number; why: string }[];
+  link: LinkState; pending: { patient: string; key: string; priority: number; why: string }[];
+  patients: Record<string, RelayPatientStatus>;
   sync: Record<string, "sent" | "queued">; bytes_sent: number; local_bytes: number;
   kept_local_pct: number; packets_acked: number; retries: number; last_ack_at: string | null;
   log: RelayLogEntry[];                                   // last 12
 }
 
 // ---------- the snapshot (app.full_state()) ----------
+export interface MediaDisposal {
+  at: string;
+  deleted: { audio: string[]; photo: string[] };
+  missing: { audio: string[]; photo: string[] };
+  invalid: { audio: string[]; photo: string[] };
+  patients?: Record<string, Omit<MediaDisposal, "patients">>;  // end-call response aggregates every patient
+}
 export interface Snapshot {
-  incident: { id: string; dispatch: string | null; started: string };
+  incident: { id: string; dispatch: string | null; started: string; ended_at: string | null;
+              media_disposal: MediaDisposal | null };
+  patients: PatientSummary[];                              // every patient on this rig, insertion order
+  active_patient: string;                                 // incident id; POST /api/patients/{id}/activate
+  restored: boolean;                                      // show "Call restored after restart" when true
   summary: string;
   readiness: Readiness[];
   needs_attention: { missing: NeedItem[]; unknown: NeedItem[] };
@@ -2638,8 +2733,10 @@ export interface Snapshot {
   facts: Record<string, FactView>;                        // latest non-rejected fact per key
   events: Record<string, FactView[]>;                     // event keys (meds.given, procedures.done): every event in order; show these as a list (a timeline of doses and procedures), not only facts[key]
   timeline: FactView[];                                   // last 60 facts, all statuses
+  audit: { at: string; action: "fact_status_changed"; actor: string; fact_id: string; key: string;
+           from: FactStatus; to: FactStatus }[];           // last 60 confirmation/rejection actions
   transcripts: TranscriptEntry[];                         // last 20
-  ed_sync: Record<string, "sent" | "queued">;             // = relay.sync
+  ed_sync: Record<string, "sent" | "queued">;             // active patient's relay sync
   counters: { facts: number; cloud_ai_calls: number };
   relay: RelayStatus;
   netem: "good" | "weak" | "down" | null;
@@ -2683,12 +2780,17 @@ export type CaptureResponse =
   | { transcript: TranscriptEntry; facts: [] }             // 200: running, off, skipped (facts arrive on /ws)
   | { transcript: null; facts: []; stt: unknown };         // 200 from /api/audio when nothing was heard
 export interface CaptureUnavailable { detail: string }     // 503: extraction model not served; the entry is still on /ws
+// POST /api/transcripts/{id}/retry re-runs only a transcript preserved with model status "unavailable".
+// POST /api/audio returns 503 on speech-to-text failure after recording a trace entry whose `stt.error` is set.
+// POST /api/incident/end returns MediaDisposal, closes the call to further writes, and is idempotent.
+// POST /api/incident also disposes the previous call's media before creating the replacement incident.
 
 // ---------- ED receiver (ed_receiver/app.py view()) ----------
 export interface EdIncident {
   fields: Record<string, { v: FactValue; seq: number; t: string }>;
   history: Record<string, { v: FactValue; t: string }[]>;
-  packets: { seq: number; tier: "critical" | "full"; bytes: number; keys: string[]; at: string }[];
+  packets: { seq: number; tier: "critical" | "full"; bytes: number; keys: string[]; removed: string[]; at: string }[];
+  audit: { at: string; action: "withdrawn"; key: string; seq: number; previous: FactValue | null }[];
   applied: number[]; duplicates: number; bytes: number;
   timeline: { k: string; v: FactValue; t: string; r: Role; s: string | null }[];
   dest: string | null; queued_on_rig: number; first_at: string;
@@ -2917,6 +3019,12 @@ GET /api/telemetry  →  200
 - `GET /api/protocols/{doc}/page/{n}` → PNG of the printed page.
 - `POST /api/protocols/sync` → `{checked, updated[], errors[], at}`. `POST /api/protocols/{doc}/reviewed` clears the review flag after a person checks the county config.
 - The snapshot's `protocols` block is the same shape as `GET /api/protocols` without the audit detail. Show "Protocol updated: review county settings" while `review_required` is non-empty.
+- **Search panel (UI, 2026-09-25):** `ui/src/features/protocols/ProtocolSearch.tsx`, `<ProtocolSearch open query? onClose />`, a right-side sheet with types `ProtocolAnswer` / `ProtocolPassage` in `lib/types.ts`.
+  - Opened from the sidebar's "Protocols" row (explain view) and the "Protocols" button in the ambulance workspace header (medic view). A `query` opens it already searched, e.g. from the RACE / G.F.A.S.T. "County destination policy ▸" link (§3.1.7).
+  - Each passage: heading, the citation line above, parent headings, then `text` verbatim; the first passage is open, the rest collapsed.
+  - States: "Searching the county documents…", then "Still waiting for the server…" after 2 s; 404 → "Protocol lookup is off on this vehicle."; 503 while building → "The county documents are still loading. Try again in a moment."; any other failure → "The Herald server didn't answer. Try again."; replay → off.
+  - `answerable: false` still lists the closest passages, under "The county documents don't cover this. Closest passages:".
+  - Typed search only; asking by voice comes later.
 
 ### 5.9c County alert checklists and criteria scores (backend, 2026-09-24)
 
@@ -3156,7 +3264,8 @@ export interface HandoffReport {
   format: { id: "mist" | "medical"; label: string; title: string; source: string };
   formats: { id: string; label: string }[];
   selected_by: string;                           // "checklist:trauma" | "default" | "request"
-  incident: { id: string; dispatch: string | null; started: string };
+  incident: { id: string; dispatch: string | null; started: string; ended_at: string | null;
+              media_disposal: MediaDisposal | null };
   county: { id: string; name: string };
   as_of: string;                                 // time of the last fact (ISO)
   open_checklists: ChecklistId[];

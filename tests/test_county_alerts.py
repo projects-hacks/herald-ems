@@ -168,7 +168,12 @@ def test_stemi_opens_on_the_monitor_reading_not_on_a_negative_one(santa_clara_co
     medic(inc, "ecg.stemi_reading", False)
     assert inc.snapshot()["readiness"] == []
     medic(inc, "ecg.stemi_reading", True)
-    assert [r["id"] for r in inc.snapshot()["readiness"]] == ["stemi"]
+    snap = inc.snapshot()
+    assert [r["id"] for r in snap["readiness"]] == ["stemi"]
+    assert next(a for a in snap["alerts"] if a["type"] == "stemi_alert")["criteria"]
+    sent = Relay(lambda: inc).critical_values()
+    assert sent["score.stemi_700a08"] == "met (monitor interpretation: True)"
+    assert sent["ecg.stemi_reading"] is True
 
 
 # ---------- the generic county uses the defaults ----------

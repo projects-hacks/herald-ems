@@ -15,6 +15,8 @@ Every model runs on one HP ZGX Nano (NVIDIA GB10). **No cloud AI.**
 
 ## What it does
 
+**Agentic capture (S9):** opt-in mounted-camera frames trigger selected still readings, proposed vitals, and spoken-drug/label checks; the medic confirms. [Setup, synthetic rehearsal, and pending real-model acceptance](docs/AGENTIC_CAPTURE.md).
+
 | | |
 |---|---|
 | **Speech → facts** | Whisper large-v3-turbo on the GPU (a 10 s clip transcribes in about 0.3 s). Then a **fine-tuned Qwen3-4B extractor, trained on this box**, turns the words into typed facts: vitals, medications, allergies, last known well, stroke-exam items, code status. It is served in FP8, at about 1 s per utterance. |
@@ -101,6 +103,19 @@ Open `http://localhost:8100`. Browsers only allow the microphone on `localhost` 
 - **Protocol-update demo** (two real versions of 700-S04): `scripts/demo_protocol_update.sh setup` and `HERALD_PROTOCOL_MIRROR=http://127.0.0.1:8300`.
 - **Tests:** `python -m pytest -q`.
 - **Benchmarks:** `eval/bench_extract.py`, `eval/adversarial_bench.py`.
+
+### Unfinished-call recovery and retention
+
+Herald keeps one authenticated, encrypted recovery snapshot for an unfinished call. The ciphertext is
+`data/state/active-call.fernet`; its 0600 key is stored separately at
+`~/.config/herald/state.fernet.key` (override with `HERALD_STATE_KEY_FILE`). A restart restores the active patient
+roster, facts, transcript trace, audit entries and relay state, and the API marks the snapshot `restored: true`.
+Ending or replacing the call deletes the recovery snapshot and that call's registered audio/photos. The key is kept
+for the next call and must not be committed or copied with patient data. If the key is missing, too broadly readable,
+or the ciphertext fails authentication, Herald refuses to start rather than silently replacing the record.
+
+Audio and photos remain local evidence files; they are deleted at call end but are not encrypted by this recovery
+snapshot mechanism. Set `HERALD_PERSISTENCE=0` only for disposable tests or fixtures.
 
 ## Evidence behind the scores (sources checked September 2026)
 

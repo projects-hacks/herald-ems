@@ -7,6 +7,7 @@ import type { Health, Snapshot } from "./types";
 export type Mode = "medic" | "explain";
 export type Theme = "dark" | "light";
 export type TypeScale = 1 | 1.25 | 1.5;
+export type IncidentPhase = "scene" | "transport" | "handoff";
 export type Pending = "pending" | "sent" | { error: string };
 export type Page = "overview" | "patient" | "trends" | "handoff" | "transcript";
 export const PAGES: Page[] = ["overview", "patient", "trends", "handoff", "transcript"];
@@ -20,7 +21,8 @@ export interface UiState {
   heldAlerts: boolean;
   page: Page; sidebarCollapsed: boolean;
   presentationMode: boolean;
-  confirmNewIncident: boolean;
+  confirmNewIncident: boolean; confirmEndIncident: boolean;
+  incidentPhase: IncidentPhase;
 }
 
 export interface FixtureState { name: string; index: number; total: number; playing: boolean; speed: number }
@@ -52,8 +54,7 @@ export interface HeraldState {
 }
 
 // ---------- per-device preferences (localStorage can throw or be empty: never rely on it) ----------
-// v2 starts with the daylight clinical theme. The old v1 preference belonged to the previous dark-first shell.
-const PREFS = "herald.ui.v2";
+const PREFS = "herald.ui.v1";
 type Prefs = Pick<UiState, "theme" | "typeScale" | "reducedMotion" | "keyboardPtt" | "sidebarCollapsed">;
 const PREF_KEYS: (keyof Prefs)[] = ["theme", "typeScale", "reducedMotion", "keyboardPtt", "sidebarCollapsed"];
 
@@ -95,6 +96,8 @@ export function initialUi(search = typeof location === "undefined" ? "" : locati
     sidebarCollapsed: p.sidebarCollapsed ?? narrow,
     presentationMode: q.get("present") === "1",
     confirmNewIncident: false,
+    incidentPhase: "scene",
+    confirmEndIncident: false,
   };
 }
 
@@ -114,15 +117,17 @@ export const useHerald = create<HeraldState>()((set, get) => ({
   holdMark: null,
   toast: null,
   setSnapshot: (s) => {
+    const switched = get().snapshot !== null && get().snapshot?.incident.id !== s.incident.id;
     // An action whose request succeeded stays pending until the next snapshot: no optimistic updates (§5.7).
     const pending = Object.fromEntries(Object.entries(get().pending).filter(([, v]) => v !== "sent"));
-    const arrival = { ...get().alertArrival };
+    const arrival = switched ? {} : { ...get().alertArrival };
     let next = Object.keys(arrival).length;
     for (const a of s.alerts) {
       const k = alertKey(a);
       if (!(k in arrival)) arrival[k] = ++next;
     }
-    set({ snapshot: s, pending, alertArrival: arrival, lastStateAt: Date.now() });
+    set({ snapshot: s, pending: switched ? {} : pending, alertArrival: arrival, lastStateAt: Date.now(),
+      ...(switched ? { ui: { ...get().ui, incidentPhase: "scene", seenAlerts: {}, expanded: {}, heldAlerts: false }, holdMark: null } : {}) });
   },
   setUi: (patch) => {
     const ui = { ...get().ui, ...patch };

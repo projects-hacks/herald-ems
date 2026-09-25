@@ -1,0 +1,57 @@
+# S9 interaction policy; engineering defaults pending mounted-camera acceptance, not clinical thresholds.
+fps_in: 1                    # One input frame each second bounds CPU and network work.
+max_frame_bytes: 1048576      # One MiB encoded frame cap, checked before decoding.
+max_side: 1280               # Longest accepted image dimension; S9 wire limit.
+buffer_s: 6                  # Recent evidence only; S9 privacy window.
+max_frames: 8                # Hard cap even when source timestamps are bad.
+queue_size: 16               # Bounded pending event captures, coalesced by trigger/fact.
+decision_history: 30         # Bounded status history, never raw images.
+poll_s: 0.2                 # CPU task polls for source frames and ready intents.
+manual_window_s: 2          # S9: most recent manual evidence or next arriving frame.
+manual_wait_s: 10           # A manual request expires instead of waiting indefinitely.
+gate:
+  sharp_min: 60             # Variance of the grey 3x3 Laplacian at gate resolution.
+  change_min: 0.06          # Mean absolute grey difference divided by 255.
+  bright_min: 25            # Reject underexposed frames on the 0..255 grey scale.
+  bright_max: 235           # Reject overexposed frames on the same scale.
+  width: 320                # Cheap filter resolution; no model on the frame path.
+rate:
+  auto_calls_per_s: 0.1     # At most one automatic admission every ten seconds.
+  max_in_flight: 1          # No overlapping frame reads, including manual requests.
+  skip_while_speech: true
+monitor:
+  roi_margin: 0.10          # Ten percent of ROI width/height on each side, clipped to image.
+  stable_frames: 2          # Two successive usable ROI frames before automatic monitor reading.
+  min_interval_s: 15        # Minimum interval between monitor-watch reads.
+  max_interval_s: 60        # Permit a repeat point after a minute, even if values are unchanged.
+triggers:
+  - {'on': fact, key: meds.given, where: {by: crew}, mode: pill_bottle, purpose: verify, window_s: 8, reason: 'Crew medication recorded: check the visible label'} # Look-back/expiry in seconds.
+  - {'on': fact, key: meds.list, mode: pill_bottle, purpose: record, window_s: 8, reason: 'Medication history recorded: read the visible label'} # Recent medication evidence.
+  - {'on': fact, key: meds.anticoagulant, mode: pill_bottle, purpose: record, window_s: 8, reason: 'Anticoagulant recorded: read the visible label'} # Recent label evidence.
+  - {'on': fact, key: code_status, mode: form, purpose: record, window_s: 10, reason: 'Code status recorded: read the visible form'} # Document capture window.
+  - {'on': alert_new, mode: monitor, purpose: record, window_s: 6, reason: 'New alert: read the monitor'} # Recent monitor evidence.
+  - {'on': eta_changed, when: {lte: 5}, mode: monitor, purpose: record, once: true, window_s: 6, reason: 'Arrival approaching: refresh monitor readings'} # Five minutes to handoff; once per incident.
+reasons:
+  monitor_changed: 'Monitor image changed: propose a fresh reading'
+  monitor_refresh: 'Periodic monitor refresh: retain a current trend point'
+suppress_during: [cpr_in_progress]
+record_keys:
+  monitor: [vitals.]
+  pill_bottle: [meds.list, meds.anticoagulant]
+  form: [code_status]
+  scene: [scene.]
+verify:
+  dose_key: meds.given
+  drug_field: drug
+  label_key: meds.list
+  trusted_methods: [exact, combination, contained]
+  mismatch: 'Said {said}; label seen: {label}: check before confirming'
+  pending: 'Label check pending: verify before confirming'
+privacy:
+  store: used_only
+  blur_faces: true
+  dir: auto
+  scale_factor: 1.1         # Haar image-pyramid scale; OpenCV default detector tradeoff.
+  min_neighbors: 5         # Require five neighboring candidate detections.
+  min_face_px: 24          # Minimum face box at detector resolution.
+  blur_sigma: 30          # Gaussian blur strength on stored evidence only.

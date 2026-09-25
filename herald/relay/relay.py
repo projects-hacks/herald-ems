@@ -29,6 +29,13 @@ def _compact(obj: Any) -> bytes:
     return json.dumps(obj, separators=(",", ":"), default=str).encode()
 
 
+def _kept_local_pct(bytes_sent: int, bytes_without_relay: int) -> float:
+    """Percentage of the uncompressed local record that the relay avoided sending."""
+    if bytes_without_relay <= 0:
+        return 100.0
+    return round(max(0.0, min(100.0, 100 * (1 - bytes_sent / bytes_without_relay))), 2)
+
+
 class Relay:
     def __init__(self, incident_getter: Callable, ed_url: Optional[str] = None,
                  transport: Optional[Transport] = None, probe: Optional[Callable[[], Awaitable[None]]] = None,
@@ -46,7 +53,7 @@ class Relay:
 
     def reset(self) -> None:
         self.authorized: Optional[dict] = None
-        self.acked: dict[str, Any] = {}          # key -> value the ED acknowledged
+        self.acked: dict[str, dict[str, Any]] = {}  # patient id -> values the ED acknowledged
         self.seq = 0
         self.inflight: Optional[dict] = None     # packet being retried (same seq until acked)
         self.results: deque = deque(maxlen=8)    # (ok, rtt_ms)
@@ -54,8 +61,9 @@ class Relay:
         self.bytes_sent = 0
         self.packets_acked = 0
         self.retries = 0
-        self.full_synced_facts = 0
+        self.full_synced_facts: dict[str, int] = {}
         self.last_ack_at: Optional[str] = None
+        self.clinician_acknowledgements: dict[str, list[dict]] = {}
 
     # ---------- configuration ----------
     @property
@@ -65,9 +73,40 @@ class Relay:
     def authorize(self, destination: str, scope: str = "stroke pre-alert set") -> None:
         self.authorized = {"destination": destination, "scope": scope, "at": utcnow().isoformat()}
 
+    def set_ed_url(self, ed_url: Optional[str]) -> None:
+        """Point at a new receiver without carrying that receiver's acknowledgements over.
+
+        Authorization remains a medic action, but an acknowledgement is only meaningful for
+        the receiver that sent it.  Clearing this state makes the next tick resend the
+        current critical values to the newly configured ED.
+        """
+        if self.ed_url == ed_url:
+            return
+        self.ed_url = ed_url
+        self.acked.clear()
+        self.full_synced_facts.clear()
+        self.inflight = None
+        self.last_ack_at = None
+        self.clinician_acknowledgements.clear()
+
     # ---------- what the ED should know ----------
-    def critical_values(self) -> dict[str, Any]:
-        inc = self.get_incident()
+    def _incidents(self) -> list:
+        source = self.get_incident()
+        if isinstance(source, dict):
+            return list(source.values())
+        if isinstance(source, (list, tuple, set)):
+            return list(source)
+        return [source]
+
+    def _triage(self, inc) -> str:
+        fact = inc.latest("triage.category", confirmed_only=True)
+        return str(fact.value).lower() if fact else "unknown"
+
+    def _triage_rank(self, inc) -> int:
+        return self.tiers.triage_rank.get(self._triage(inc), self.tiers.triage_rank["unknown"])
+
+    def critical_values(self, inc=None) -> dict[str, Any]:
+        inc = inc or self._incidents()[0]
         vals = inc.values(confirmed_only=True)
         out = {k: v for k, v in vals.items() if k in self.tiers}
         snap = inc.snapshot()                  # scores from confirmed facts, for the active county only
@@ -75,14 +114,30 @@ class Relay:
             if sid in self.scales and f"score.{sid}" in self.tiers and (text := self.scales[sid].relay_text(r)):
                 out[f"score.{sid}"] = text
         if snap["readiness"]:
-            a = snap["readiness"][0]
-            out["alert.readiness"] = f'{a["label"]} {a["done"]}/{a["total"]}{" ready" if a["ready"] else ""}'
+            out["alert.readiness"] = "; ".join(
+                f'{a["label"]} {a["done"]}/{a["total"]}{" ready" if a["ready"] else ""}'
+                for a in snap["readiness"]
+            )
         return out
 
-    def pending(self) -> list[tuple[int, str, str, Any]]:
-        cur = self.critical_values()
-        rows = [(*self.tiers.priority[k], k, v) for k, v in cur.items() if self.acked.get(k) != v]
-        return sorted(rows, key=lambda r: (r[0], r[2]))
+    def pending(self) -> list[tuple[int, int, str, str, Any, Any]]:
+        rows = []
+        for inc in self._incidents():
+            cur = self.critical_values(inc)
+            acked = self.acked.get(inc.id, {})
+            rows.extend((self._triage_rank(inc), *self.tiers.priority[k], k, v, inc)
+                        for k, v in cur.items() if acked.get(k) != v)
+        return sorted(rows, key=lambda r: (r[0], r[1], r[3]))
+
+    def withdrawals(self) -> list[tuple[int, int, str, str, Any]]:
+        """Per-patient values the ED acknowledged but the medic subsequently withdrew."""
+        rows = []
+        for inc in self._incidents():
+            current = self.critical_values(inc)
+            acked = self.acked.get(inc.id, {})
+            rows.extend((self._triage_rank(inc), *self.tiers.priority[key], key, inc)
+                        for key in acked if key not in current and key in self.tiers)
+        return sorted(rows, key=lambda row: (row[0], row[1], row[3]))
 
     # ---------- link state ----------
     def link_state(self) -> str:
@@ -99,38 +154,57 @@ class Relay:
 
     # ---------- packets ----------
     def _build(self, budget: int) -> Optional[dict]:
-        inc = self.get_incident()
-        rows = self.pending()
+        rows = [(*row, False) for row in self.pending()]
+        rows += [(rank, priority, rationale, key, None, inc, True)
+                 for rank, priority, rationale, key, inc in self.withdrawals()]
+        rows.sort(key=lambda row: (row[0], row[1], row[3]))
         if not rows:
             return None
-        fields, why = {}, []
-        for prio, rationale, key, value in rows:
+        inc = rows[0][5]
+        patient_rows = [row for row in rows if row[5].id == inc.id]
+        fields, removed, why = {}, [], []
+        for _rank, _prio, rationale, key, value, _inc, withdraw in patient_rows:
             trial = dict(fields)
-            trial[key] = value
+            trial_removed = [*removed]
+            if withdraw:
+                trial_removed.append(key)
+            else:
+                trial[key] = value
             body = {"i": inc.id, "q": self.seq + 1, "tier": "critical", "f": trial,
-                    "dest": (self.authorized or {}).get("destination"), "x": len(rows) - len(trial)}
-            if fields and len(_compact(body)) > budget:
+                    "patient": inc.patient_label, "dest": (self.authorized or {}).get("destination"),
+                    "x": len(rows) - len(trial) - len(trial_removed)}
+            if trial_removed:
+                body["rm"] = trial_removed
+            if (fields or removed) and len(_compact(body)) > budget:
                 break
-            fields[key] = value
+            fields, removed = trial, trial_removed
             if rationale not in why:
                 why.append(rationale)
             if len(_compact(body)) > budget:   # always send at least the top item
                 break
         self.seq += 1
-        return {"i": inc.id, "q": self.seq, "tier": "critical", "f": fields,
-                "dest": (self.authorized or {}).get("destination"), "x": len(rows) - len(fields),
-                "_why": why}
+        packet = {"i": inc.id, "q": self.seq, "tier": "critical", "f": fields,
+                  "patient": inc.patient_label, "dest": (self.authorized or {}).get("destination"),
+                  "x": len(rows) - len(fields) - len(removed), "_why": why}
+        if removed:
+            packet["rm"] = removed
+        return packet
 
     def _build_full(self) -> Optional[dict]:
-        inc = self.get_incident()
-        confirmed = [f for f in inc.facts if f.status.value == "confirmed"]
-        if len(confirmed) == self.full_synced_facts:
+        candidates = []
+        for order, inc in enumerate(self._incidents()):
+            confirmed = [f for f in inc.facts if f.status.value == "confirmed"]
+            if len(confirmed) != self.full_synced_facts.get(inc.id, 0):
+                candidates.append((self._triage_rank(inc), order, inc, confirmed))
+        if not candidates:
             return None
+        _, _, inc, confirmed = min(candidates, key=lambda row: (row[0], row[1]))
         self.seq += 1
         timeline = [{"k": f.key, "v": f.value, "t": f.ts.isoformat(), "r": f.role.value, "s": f.speaker}
                     for f in confirmed]
-        return {"i": inc.id, "q": self.seq, "tier": "full", "f": self.critical_values(), "tl": timeline,
-                "dest": (self.authorized or {}).get("destination"), "x": 0, "_why": ["full record on a good link"],
+        return {"i": inc.id, "q": self.seq, "tier": "full", "f": self.critical_values(inc), "tl": timeline,
+                "patient": inc.patient_label, "dest": (self.authorized or {}).get("destination"), "x": 0,
+                "_why": ["full record on a good link"],
                 "_n": len(confirmed)}
 
     async def _maybe_probe(self) -> None:
@@ -148,6 +222,13 @@ class Relay:
                 import httpx
                 async with httpx.AsyncClient(timeout=2.0) as c:
                     (await c.get(f"{self.ed_url.rstrip('/')}/ping")).raise_for_status()
+                    state_response = await c.get(f"{self.ed_url.rstrip('/')}/state")
+                    state_response.raise_for_status()
+                    state = state_response.json()
+                    self.clinician_acknowledgements = {
+                        patient_id: row.get("acknowledgements", [])
+                        for patient_id, row in state.get("incidents", {}).items()
+                    }
             self.results.append((True, (time.perf_counter() - t0) * 1000))
         except Exception:
             self.results.append((False, (time.perf_counter() - t0) * 1000))
@@ -183,18 +264,23 @@ class Relay:
         pkt = self.inflight
         wire_len = len(_compact({k: v for k, v in pkt.items() if not k.startswith("_")}))
         t0 = time.perf_counter()
-        entry = {"ts": utcnow().isoformat(), "seq": pkt["q"], "tier": pkt["tier"], "bytes": wire_len,
-                 "keys": list(pkt["f"].keys()), "why": pkt["_why"], "queued_after": pkt["x"]}
+        entry = {"ts": utcnow().isoformat(), "seq": pkt["q"], "patient": pkt["i"],
+                 "tier": pkt["tier"], "bytes": wire_len,
+                 "keys": list(pkt["f"].keys()), "removed": pkt.get("rm", []),
+                 "why": pkt["_why"], "queued_after": pkt["x"]}
         try:
             ack = await self._send(pkt)
             rtt = (time.perf_counter() - t0) * 1000
             if ack.get("ack") != pkt["q"]:
                 raise RuntimeError(f"bad ack {ack}")
             self.results.append((True, rtt))
+            patient_acked = self.acked.setdefault(pkt["i"], {})
             for k, v in pkt["f"].items():
-                self.acked[k] = v
+                patient_acked[k] = v
+            for k in pkt.get("rm", []):
+                patient_acked.pop(k, None)
             if pkt["tier"] == "full":
-                self.full_synced_facts = pkt["_n"]
+                self.full_synced_facts[pkt["i"]] = pkt["_n"]
             self.bytes_sent += wire_len
             self.packets_acked += 1
             self.last_ack_at = utcnow().isoformat()
@@ -205,33 +291,41 @@ class Relay:
             entry.update(result="failed", error=str(e)[:120])
             # If the link got worse, drop the in-flight packet so the next one is rebuilt smaller.
             # Sequence numbers are never reused for different content; re-sent values are idempotent.
-            if self.link_state() in ("weak", "down") and len(pkt["f"]) > 1:
+            if self.link_state() in ("weak", "down") and len(pkt["f"]) + len(pkt.get("rm", [])) > 1:
                 self.inflight = None
         self.log.append(entry)
         return entry
 
     def status(self) -> dict:
-        inc = self.get_incident()
         pend = self.pending() if self.authorized else []
-        local_bytes = len(_compact([f.model_dump(mode="json") for f in inc.facts]))
+        incidents = self._incidents()
+        local_bytes = sum(len(_compact([f.model_dump(mode="json") for f in inc.facts])) for inc in incidents)
         if self.audio_dir:
             try:
                 local_bytes += sum(os.path.getsize(p) for p in Path(self.audio_dir).glob("*.wav"))
             except OSError:
                 pass
-        sync = {}
-        for k in self.critical_values():
-            if self.acked.get(k) == self.critical_values().get(k):
-                sync[k] = "sent"
-            else:
-                sync[k] = "queued"
+        patients = {}
+        for inc in incidents:
+            critical = self.critical_values(inc)
+            acked = self.acked.get(inc.id, {})
+            patients[inc.id] = {
+                "triage": self._triage(inc),
+                "pending": sum(1 for row in pend if row[5].id == inc.id),
+                "sync": {key: "sent" if acked.get(key) == value else "queued"
+                         for key, value in critical.items()},
+            }
+        sync = patients[incidents[0].id]["sync"] if len(incidents) == 1 else {}
         return {
             "configured": self.configured, "ed_url": self.ed_url, "authorized": self.authorized,
             "link": self.link_state() if self.configured else "not configured",
-            "pending": [{"key": k, "priority": p, "why": w} for p, w, k, _ in pend],
+            "pending": [{"patient": inc.id, "key": key, "priority": tier, "why": why}
+                        for _rank, tier, why, key, _value, inc in pend],
+            "patients": patients,
             "sync": sync, "bytes_sent": self.bytes_sent, "local_bytes": local_bytes,
-            "kept_local_pct": round(100 * (1 - self.bytes_sent / local_bytes), 2) if local_bytes else 100.0,
+            "kept_local_pct": _kept_local_pct(self.bytes_sent, local_bytes),
             "packets_acked": self.packets_acked, "retries": self.retries, "last_ack_at": self.last_ack_at,
+            "clinician_acknowledgements": self.clinician_acknowledgements,
             "log": list(self.log)[-12:],
         }
 

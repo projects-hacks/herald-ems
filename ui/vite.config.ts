@@ -15,7 +15,10 @@ export default defineConfig({
     outDir: "dist",
     rolldownOptions: {
       // The ED screen (ed.html, UX_PLAN §3.4) is added here by U9.
-      input: { now: resolve(import.meta.dirname, "index.html") },
+      input: {
+        now: resolve(import.meta.dirname, "index.html"),
+        deck: resolve(import.meta.dirname, "deck.html"),
+      },
     },
   },
   server: {
@@ -23,8 +26,9 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": API,
+      "/classic": API,
       "/ws": { target: API.replace("http", "ws"), ws: true },
     },
   },
-  test: { environment: "jsdom", include: ["src/test/**/*.test.{ts,tsx}"] },
+  test: { environment: "jsdom", include: ["src/test/**/*.test.{ts,tsx,mjs}"] },
 });

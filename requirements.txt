@@ -2,6 +2,7 @@
 # `zgx` conda env (torch 2.14.0+cu130). Everything below is plain pip.
 fastapi>=0.115
 uvicorn[standard]>=0.30
+websockets>=15         # bounded synchronous camera replay; no model dependencies
 python-multipart>=0.0.9
 pydantic>=2.7
 httpx>=0.27
@@ -10,3 +11,4 @@ numpy>=1.26
 pytest>=8
 rapidfuzz>=3.9          # RxNorm drug-name matching (herald/terminology/)
 jellyfish>=1.0
+cryptography==50.0.1     # authenticated local recovery for unfinished calls

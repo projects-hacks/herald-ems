@@ -1,9 +1,48 @@
 # TASKS.md: Herald task board
 
+## Component-focused workspace refinement — Tushar, 2026-09-25
+
+- ✅ Grouped Capture & evidence / Receiving team cards with explicit drag or button ordering, Save/Cancel/Reset and layout-only persistence.
+- ✅ Individual vital expansion replaces whole-page Large view; removed public incident ID fragments; retained clinical identifiers and provenance in details.
+- ✅ Component audit follow-up: camera stop/stale-state clarity, focused transcript details, mismatch navigation, active-patient relay copy and keyboard focus recovery.
+- ✅ 95 UI tests and 465 backend tests pass (one backend skip); build and theme contrast checks pass. Firefox screenshots and pointer-drag persistence checked; physical medic/device acceptance remains open. Details: [WORKSPACE_POLISH.md](docs/WORKSPACE_POLISH.md).
+- Branch: `feat/workspace-polish` in the owner's clone. This iteration is not yet committed or merged.
+
+## Tushar review follow-up (Fri 25 Sep)
+
+Owner-requested integration: `feat/c1-now-screen` + `feat/agentic-capture` + `feat/ui-review-gaps`, checked together on `feat/merge-tushar-work` before updating main. The ambulance workspace is the default medic screen; detailed and guided-demo views remain available. See [MERGE_VERIFICATION.md](docs/MERGE_VERIFICATION.md). This delivery does not waive real-model, physical-device or clinical acceptance gates.
+
+U1/U2/U3, U4/U5/U6/U7, U8 frontend, U10/U11 and X3 implemented, now integrated with the ambulance UI and C1 agentic capture at the owner's request. Combined checks: 465 backend tests passed, one skipped; 77 UI tests passed; build and contrast checks passed. Details in [UI_REVIEW_GAPS.md](docs/UI_REVIEW_GAPS.md). Physical mic/tablet/three-metre ED checks remain. U13 stays gated on model lock with Jenil; U8 startup default remains with Vineet; C1 real-model acceptance still needs Rajeev's serving approval.
+
 Deadline **Fri 2026-09-25, 8:00 PM**. Internal target: submit by 6:00 PM. Feature freeze Fri 11:00 AM.
 **Scope: the full product ships. Nothing is cut** (team lead, 2026-09-23). P1–P10 is the **build order** (dependencies and what gets hardened first), not a cut list. If something runs late, add people to it. The only things we never build are safety principles, not scope cuts: treatment/dose/eligibility advice, cloud AI inference, and self-trained clinical predictors. Rules for agents: `AGENTS.md`.
 Where decisions live: product spec and pitch → `/home/hp18/Documents/team-last-minute/.agent/ideas/herald-ems-copilot.md` (Nano only) · models → `docs/MODEL_PLAN.md` · UI → `docs/UX_PLAN.md` · hackathon rules and history → `/home/hp18/Documents/team-last-minute/.agent/context.md` (Nano only). The full document map is in `AGENTS.md`.
 Status: ✅ done · 🔄 in progress · ⏳ todo · ⛔ blocked. Update this file in the same PR as the work.
+
+## Medic experience implementation — 2026-09-25 (@tushar-fs clone)
+
+- ✅ Ambulance workspace replaces the default medic sidebar: stable latest-reading positions, persistent capture/priority controls, large view, in-place details, daylight/night themes.
+- ✅ Explicit-start continuous ambient audio with bounded local clip uploads, unverified-speaker confirmation holds, and incident-scoped delayed extraction.
+- ✅ Camera preview → freeze → zoom → local photo reading; file picker/drop alternative; visible background reading status and camera cleanup.
+- ✅ Research and interaction rationale in `docs/AMBULANCE_WORKSPACE.md`; field simulation, real-device rehearsal, streaming STT/diarization and durable capture remain open. Browser screenshot checks blocked by browser download timeout.
+- ✅ Cabin checkpoint: 117 backend tests, 44 frontend tests, production build, theme-token contrast and whitespace checks pass; updated bundle and AudioWorklet served on port 8101. No claim of hardware or clinical validation.
+
+- ✅ Persistent voice/typed/photo capture and vocabulary-driven manual entry in the modern UI; release/permission race and keyboard interaction regressions covered.
+- ✅ Workflow navigation, screen-local phases, explicit identity incompleteness, contextual score tiles, timestamped vitals, and clearer verification/change/gap sections.
+- ✅ Atomic validated fact correction with retained evidence, audit trace, stale-edit conflicts and explicit confirmation.
+- ✅ Nonblocking disconnected state with last-received data and writes paused; receiving-system delivery distinguished from clinician acknowledgment.
+- ✅ Confirmed-fact handoff draft with unresolved fields, text download and collapsed packet diagnostics.
+- 🔄 Full lifecycle, durable offline persistence, receiver human acknowledgment, administration-event schema, integration and real medic validation remain open. See `docs/MEDIC_UX_IMPLEMENTATION.md` for boundaries and verification limitations.
+
+## S9 agentic capture — Tushar, `feat/agentic-capture`
+
+| Scope | Status |
+|---|---|
+| Backend package, policy/gate/buffer/scheduler, RxNorm label verification, redacted used-frame storage | Implemented; fake-only regression tests |
+| API and UX_PLAN §5 contract, continuous browser camera + monitor ROI, NOW controls/trace/mismatch review | Implemented; automated UI tests; physical camera/ROI sign-off pending |
+| Synthetic timed replay and CPU-only integration rehearsal | Implemented; see [AGENTIC_CAPTURE.md](docs/AGENTIC_CAPTURE.md) |
+| Real-model acceptance, three-run timing/accuracy checks and 30-minute soak | Pending explicit Rajeev confirmation that `herald-f` is serving; no GPU/model loads authorized yet |
+| Delivery | PR to main requested Friday afternoon; S9 deadline Fri 11 PM PDT per handoff (supersedes the older board deadline for this task only) |
 
 ## Checkpoint: Thu 2026-09-24, 18:00 UTC (11:00 PDT) (verified: every line below checked against the repo and the live server)
 **Scope (team lead, 2026-09-24): a copilot for every EMS call, not a stroke tool.** Stroke stays the demo story.
@@ -190,7 +229,7 @@ Docs: `docs/MODEL_PLAN.md`, `docs/LABELING_GUIDE.md`, `eval/`.
 | B4 | Medication normalization with RxNorm | ➡️ moved to Collaborator 3 (C3.7, spec S6); ✅ PR #1 (review fixes by Rajeev) | brand names and ASR misspellings map to generics on gold v2 |
 | B5 | G.F.A.S.T. extraction: labeling-guide rules, annotated training data, run C fine-tune, gold G.F.A.S.T. labels (two annotators) | ✅ Rajeev: labeling rules (§4d), gold G.F.A.S.T. labels (two annotators, 99–100% identical), training data, **run C: held-out G.F.A.S.T. F1 0.789 (P 0.90), main F1 0.871**; was live as `ems-c-fp8` (now run E v2, B11) | G.F.A.S.T. items extracted from speech; measured |
 | B6 | Latency: fine-tuned model p95 ≤ 2 s (FP8 serving or the 1.7B run B) | ⚠️ Rajeev: FP8 halved latency (run C p95 2.24 s). **Run E v2 misses the target**: held-out p50 1.1–1.5 s, p95 2.4–3.1 s; long multi-fact lines about 2.5 / 3.5 s (it writes more facts). Options: the 1.7B base for run F, or shorter outputs | p50/p95 measured 3× |
-| B7 | P9 protocol lookup + online sync (document-parser bake-off on the county PDFs, local index, cited sections, version on screen, review flag on update) | 🔄 Rajeev: `herald/knowledge/` built and tested: Table B 168/168 from the text layer, flowchart read by the local vision model, hybrid search + model reranking (top-1 14/22, top-3 19/22, refusals 2/3 on the first 25 questions), sync on good link with review flags, destination audit. **2026-09-24: 32 documents indexed** (the 27 new current files incl. Policy 605, sepsis, trauma, shock, chest pain, overdose, falls, hemorrhage, pediatrics, 302/410/420/430/500; 1,804 passages): numbered sections 1,746/1,746 against the CPU answer key with none extra, every effective date read from its file, 8 figure pages configured; qa_gold 59 questions; retrieval without the reranker (hybrid, 52 answerable, deterministic): top-1 26, top-3 37, in the reranker's 8: 43 (`eval/bench_protocols.py`, `eval/protocols/README.md` §5). Live on 8100 since 2026-09-24 with Qwen3-VL (7 new figures read, no errors). Pending: 700-A02/A05/A07/A11, AO 2025-006/007 and other files no archive holds (Rajeev downloads), rerank bench on the 59 questions, UI panel, demo mirror | "open the stroke protocol" shows 700-A13 §3.2 with its effective date |
+| B7 | P9 protocol lookup + online sync (document-parser bake-off on the county PDFs, local index, cited sections, version on screen, review flag on update) | 🔄 Rajeev: `herald/knowledge/` built and tested: Table B 168/168 from the text layer, flowchart read by the local vision model, hybrid search + model reranking (top-1 14/22, top-3 19/22, refusals 2/3 on the first 25 questions), sync on good link with review flags, destination audit. **2026-09-24: 32 documents indexed** (the 27 new current files incl. Policy 605, sepsis, trauma, shock, chest pain, overdose, falls, hemorrhage, pediatrics, 302/410/420/430/500; 1,804 passages): numbered sections 1,746/1,746 against the CPU answer key with none extra, every effective date read from its file, 8 figure pages configured; qa_gold 59 questions; retrieval without the reranker (hybrid, 52 answerable, deterministic): top-1 26, top-3 37, in the reranker's 8: 43 (`eval/bench_protocols.py`, `eval/protocols/README.md` §5). Live on 8100 since 2026-09-24 with Qwen3-VL (7 new figures read, no errors). UI panel built (`ui/src/features/protocols/ProtocolSearch.tsx`, Shivani; UX_PLAN §5.9b), opened from the sidebar and the ambulance workspace header. Pending: 700-A02/A05/A07/A11, AO 2025-006/007 and other files no archive holds (Rajeev downloads), rerank bench on the 59 questions, demo mirror | "open the stroke protocol" shows 700-A13 §3.2 with its effective date |
 | B8 | Field robustness eval (real people, own words, noise) | ➡️ moved to Jenil (C4.9, spec S8) | per-key precision/recall with confidence intervals |
 | B9 | UI fixtures | ➡️ moved to Collaborator 1 (C1.5, spec S1) | the frontend can build every state without the Nano |
 | B11 | **Every call type + dispatch (run E):** new keys, labeling rules (§4c dispatch rule, §4e, §5b), 780 + 750 annotated lines from independent annotators, gold v3 / gold_ctx / new-key labels (two blind annotators each), run E v1 → dispatch-assignment flaw found on dev → run E v2 | ✅ Rajeev: **live as `ems-e-v2-fp8`**: held-out F1 0.950 (+0.032, significant), G.F.A.S.T. 0.961, every-call F1 0.92, new keys 0.84; weak: trauma criteria, suspected infection (MODEL_PLAN §0i) | measured on dev, held-out, v3, gold_ctx; 3 runs; bootstrap |
@@ -234,9 +273,9 @@ Docs: `docs/UX_PLAN.md` §3.4 (ED screen), §3.5 (presenter), §3.6 (phone captu
 | C3.3 | **U12:** phone capture page restyle (`ui/public/capture.html`) | 1 | C1.1 | photo → facts on the NOW screen; the failed-photo state shown |
 | C3.4 | **U15 strip:** telemetry strip (tokens/s, GPU W, Wh, $ vs cloud with the stated rates and sources, cloud AI calls 0) | 1.5 | C1.3 | the UX_PLAN §5.9 contract rendered; honest labels |
 | C3.5 | **P4.3:** show field-triage criteria only on trauma or fall dispatches | 0.5 | C1.3 | hidden on stroke |
-| C3.6 | **Mass-casualty mode (P11)**: patient roster, `triage.category`, relay across patients by triage rank, patient strip + ED list. **Spec S5** | 5 | C3.2 | two patients on a weak link: the immediate one's update goes first |
+| C3.6 | **Mass-casualty mode (P11)**: patient roster, `triage.category`, relay across patients by triage rank, patient strip + ED list. **Spec S5**. 🔄 Vineet (`feat/p11-mass-casualty`): backend, ED list, replay and standalone NOW strip implemented; 411 backend tests + 27 UI tests pass; no-model live replay on :8103/:8203 sent immediate before minimal. Pending: Tushar places the strip and the 3-run `herald-f` voice check after the model is available | 5 | C3.2 | two patients on a weak link: the immediate one's update goes first |
 | C3.7 | ✅ PR #1 (Shivani; review fixes by Rajeev) **Medication normalization with RxNorm (B4)**: pinned RxNorm release + RxNav brand supplement (Coumadin, Zofran, Vicodin), exact → product name → combination → contained / fuzzy → phonetic, class allergies → ICD-10-CM (NEMSIS), `Coding` on facts, non-exact matches held for a tap, classes and drug keys in config. **Spec S6**. Held-out gold v2 drug keys, live run D: P 0.933 → 0.956, R 0.850 → 0.871 (F1 0.890 → 0.911); Omni F1 0.484 → 0.875; 200 atoms fixed, 0 lost across 42 saved runs; auto-confirm unchanged (MODEL_PLAN §0j). ✅ merged; index built and live on 8100 (release 2026-09-08) | 3.5 | — | med/allergy recall up on gold v2 with no precision loss beyond the spread |
-| C3.8 | **30-minute soak test + pre-demo runbook (M5)**: `scripts/soak.py`, MARLIN check, `docs/RUNBOOK.md`. **Spec S7** | 1 | — | 30 min, 0 errors, no drift; runbook rehearsed |
+| C3.8 | **30-minute soak test + pre-demo runbook (M5)**: `scripts/soak.py`, backend check, `docs/RUNBOOK.md`. **Spec S7** | 1 | — | 🔄 Vineet: harness + runbook done; 30.1 min / 1,413 model calls / 0 errors / stable memory, but latency window invalidated by concurrent model download + vision benchmark. Exclusive-GPU rerun pending |
 
 ### Jenil Savalia (@Jenil133): pitch, field evaluation, and deliverables (claimed)
 Docs: the product spec on the Nano (`/home/hp18/Documents/team-last-minute/.agent/ideas/herald-ems-copilot.md` §10–§14), `.agent/context.md` (judging criteria), `docs/UX_PLAN.md` U11/U14/U16/U17.
@@ -265,8 +304,8 @@ These are in nobody's lane. To claim one, put your GitHub handle in "Claimed by"
 | From | Request | Status |
 |---|---|---|
 | @Jenil133 | **A speaker on the other mic who is a neighbor, friend, coworker or other non-relative is recorded as `family`.** `herald/core/schema.source_role` maps any speaker label that isn't a role name to `family`, and `ModelExtractor` uses that role for every fact on someone else's mic, but LABELING_GUIDE §3 makes a neighbor a bystander. `config/vocabulary.yaml` already groups these words (`field_synonyms.by`: family / facility / bystander …), so the same groups could decide the source role. Found while writing the field cards (fc28, a neighbor on the mic, will show it) | ✅ fixed 2026-09-24: `config/vocabulary.yaml` `people` groups decide the speaker's role (`speaker_roles`: neighbor, coworker, police → bystander; facility staff → family), shared by the app and the benchmarks; test in `tests/test_trace.py` |
-| @tushar-fs | `relay.status().kept_local_pct` goes negative (−57.5% in the recorded stroke replay): typed input has no audio, and every good-link full sync re-sends the whole timeline, so bytes sent exceed local bytes. The ER footer would read "−57.5% kept on the vehicle". | ⏳ |
-| @tushar-fs | `scripts/replay.py` writes LKW_TIME in the box's clock (UTC) but the server reads clock times in `HERALD_TZ` (Pacific), so the demo's LKW clock shows about +06:04 instead of about +01:04. | ⏳ |
+| @tushar-fs | `relay.status().kept_local_pct` goes negative (−57.5% in the recorded stroke replay): typed input has no audio, and every good-link full sync re-sends the whole timeline, so bytes sent exceed local bytes. The ER footer would read "−57.5% kept on the vehicle". | ✅ fixed on `feat/p11-mass-casualty`: bytes kept local is clamped to 0–100%; regression covers the recorded 25,837 / 16,403-byte replay |
+| @tushar-fs | `scripts/replay.py` writes LKW_TIME in the box's clock (UTC) but the server reads clock times in `HERALD_TZ` (Pacific), so the demo's LKW clock shows about +06:04 instead of about +01:04. | ✅ fixed in PR #3: replay and soak use `HERALD_TZ` |
 
 ## P1: Speech → patient picture → NOW screen, gap-first
 | ID | Task | Owner | Status | Done when |
@@ -319,8 +358,8 @@ These are in nobody's lane. To claim one, put your GitHub handle in "Claimed by"
 |---|---|---|---|---|
 | P7 | Simulated monitor panel | frontend | ✅ | fallback for P5 |
 | P8 | Interpreter (Spanish ↔ English: Whisper + LLM + Kokoro TTS), statements land in the timeline with the original kept | Collaborator 2 (S3) | ⏳ | a Spanish answer shows up translated in the chart; round-trip latency measured |
-| P9 | Protocol lookup: county policy PDFs → local search, read-only, cited section shown | Rajeev | ✅ backend, 32 documents live; 🔄 UI panel, rerank bench on 59 questions (= B7) | "open the stroke protocol" shows the right county section |
-| P11 | Multi-patient mass-casualty mode: several patient pictures on one rig; the relay prioritizes across patients by triage color | Collaborator 3 (S5) | ⏳ | two patients, the critical one's update goes first on a weak link |
+| P9 | Protocol lookup: county policy PDFs → local search, read-only, cited section shown | Rajeev | ✅ backend, 32 documents live; ✅ UI panel (`ProtocolSearch`, Shivani) in the sidebar and the ambulance workspace header; 🔄 rerank bench on 59 questions (= B7) | "open the stroke protocol" shows the right county section |
+| P11 | Multi-patient mass-casualty mode: several patient pictures on one rig; the relay prioritizes across patients by triage color | Collaborator 3 (S5) | 🔄 implementation and no-model live acceptance done on `feat/p11-mass-casualty`; NOW placement + `herald-f` voice check pending | two patients, the critical one's update goes first on a weak link |
 | P12 | County configuration file (stroke scale, checklist items, destinations, reassessment interval); switch counties live | Rajeev (backend) + Collaborator 3 (switch UI, C3.1) | ✅ backend: `config/counties/*.json`, `POST /api/county/{id}`; UI in C3.1 | switching county changes the checklist and scale on screen |
 | P10.0 | Synthetic data (`scripts/compose_synth.py`, template composition; teacher generation piloted and rejected, MODEL_PLAN §4): 3,000 rows, 2,448 / 274 / 278 | Rajeev | ✅ | labels correct by construction |
 | P10.1 | Go/no-go checklist (MODEL_PLAN §4) | Rajeev | ✅ 1–4 · 🔄 5 (latency) | failures get a root cause and a fix path the same morning |
@@ -334,7 +373,7 @@ These are in nobody's lane. To claim one, put your GitHub handle in "Claimed by"
 | M1 | Serve Nemotron-3-Nano-Omni NVFP4 with the fixes in AGENTS.md | Rajeev | ✅, then replaced by Qwen3-VL for vision (B12); Omni stays cached for rollback | `omni` serving on :8080 |
 | M2 | Bake-off (MODEL_PLAN §5). gold v1 dev: rules 0.571, Omni p3 0.710, rules + Omni 0.764, run B 0.903. **gold v2 held-out (run 1): rules 0.444, Omni 0.644, rules + Omni 0.696, run B 0.860, rules + run B 0.854.** Always 3 runs; report the spread | Rajeev | ✅ all 3 runs; later runs in MODEL_PLAN §0h, §0i (run E v2 0.950 held-out) | table in MODEL_PLAN |
 | M3 | Lock: best F1 with p95 ≤ 2 s; on a tie, prefer the model that also reads photos | Rajeev | ✅ **locked: run E v2** (team lead, 2026-09-24): best held-out F1; p95 is above 2 s on long lines (B6) | decision logged |
-| M5 | 30-min soak test of the chosen model (NVFP4 instability reports); confirm MARLIN in the log; warm-up before the demo | Collaborator 3 (S7) | ⏳ | no errors |
+| M5 | 30-min soak test of the chosen models; record the actual kernel backend; warm-up before the demo | Vineet (S7) | 🔄 harness/runbook done; uncontended acceptance rerun pending | no errors, no drift, stable memory |
 | M6 | `python3.12-dev` installed | lead | ✅ | — |
 | M7 | 30-item gold v0 → **independent held-out gold v1 (100 items)**: labeler A writes and labels per `docs/LABELING_GUIDE.md`, labeler B labels blind, agreement measured, disagreements adjudicated | Rajeev | ✅ F1 0.993; bench 3× done | agreement ≥ 0.9 F1 between labelers; bench rerun 3× on v1 |
 | M7b | **Gold v2 (100 items), the held-out set from now on**: same protocol, stricter phrasing variety; quotas for onset phrasing, non-anticoagulant brand names, misspelled drug names, EMS-given drugs | Rajeev | ✅ 100 items, 320 facts, agreement F1 0.976 before adjudication; 15 disagreements settled into LABELING_GUIDE §4c | agreement ≥ 0.9; adjudicated `eval/gold_v2.jsonl`; every extractor 3× |
@@ -364,3 +403,21 @@ These are in nobody's lane. To claim one, put your GitHub handle in "Claimed by"
 | D4 | Ask the organizers: does the overall prize depend on track? → submit to Community Impact (recommended) or Local Agentic | lead | ⏳ Thu AM |
 | D5 | Fill in owners (`CONTRIBUTING.md` §5) | Rajeev | 🔄 lanes assigned in this file; collaborators add handles
 | D6 | HF token in `~/.config/herald/secrets.env`; private repo `rajeev-chaurasia/herald-extractor-lora` | lead | ✅ |
+
+## Medic workspace redesign — 2026-09-25
+
+- ✅ Cohesive responsive medic shell, patient context, documented vital cards with confirmed-history sparklines, overview pre-alert readiness, theme and capture controls.
+- ✅ Seven task destinations, accessible phone navigation, replay controls, and county protocol search using existing cited passages and original page images.
+- ✅ 102 frontend tests; 465 backend tests passed, one skipped. Browser navigation checked on desktop, tablet and phone, including 150% text.
+- Design, workflow map, scope and verification notes: [MEDIC_WORKSPACE_REDESIGN.md](docs/MEDIC_WORKSPACE_REDESIGN.md). Hardware/real-model field validation remains open.
+
+## Medic workspace UX audit — 2026-09-25
+
+- ✅ Audit completed: 16 prioritized findings with evidence, reproduction paths, proposed corrections, and acceptance criteria in [MEDIC_UX_AUDIT.md](docs/MEDIC_UX_AUDIT.md). Isolated browser checks repeated three times; no live patient/device mutations.
+- ⏳ Fixes remain open: unknown/empty states, patient-scoped note drafts, direct note entry, camera routing and ownership, unified capture flow, task hierarchy, readable statuses, and replay handoff. The earlier passing build/tests do not establish completion of these workflows.
+
+## Camera and page correction — 2026-09-25
+
+- ✅ Replaced the disconnected heading/Close details card with one camera workspace, accessible capture-method tabs, consistent controls, compact starting actions, patient context, and photo recovery. Top-level care destinations use page content and explicit unavailable states.
+- ✅ 108 frontend tests; TypeScript/build and theme contrast pass. Responsive camera, keyboard tabs, photo recovery, replay restrictions, and enlarged-text checks passed with intercepted API calls. Default-size starting actions clear the dock on desktop/tablet/phone in three repeated checks.
+- Current implementation and remaining audit items: [MEDIC_WORKSPACE_REDESIGN.md](docs/MEDIC_WORKSPACE_REDESIGN.md), [MEDIC_UX_AUDIT.md](docs/MEDIC_UX_AUDIT.md).

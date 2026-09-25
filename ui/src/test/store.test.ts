@@ -36,6 +36,13 @@ describe("store", () => {
     expect(initialUi("?theme=light&type=1.5&mode=explain&present=1")).toMatchObject({ theme: "light", typeScale: 1.5, mode: "explain", presentationMode: true });
     expect(initialUi("?type=3")).toMatchObject({ typeScale: 1 });
   });
+
+  it("clears phase and patient-specific UI state when the incident changes", () => {
+    useHerald.getState().setSnapshot(states[0]);
+    useHerald.getState().setUi({ incidentPhase: "handoff", seenAlerts: { old: true } });
+    useHerald.getState().setSnapshot({ ...states[0], incident: { ...states[0].incident, id: "new-patient" } });
+    expect(useHerald.getState().ui).toMatchObject({ incidentPhase: "scene", seenAlerts: {}, heldAlerts: false });
+  });
 });
 
 describe("stale detection", () => {

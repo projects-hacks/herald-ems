@@ -7,7 +7,10 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme inline {
+  /* Words in Inter (the closest open face to SF Pro); numbers in Nunito, standing in for SF Pro Rounded the way
+     Health sets its values. Nunito's digits all have the same width, so ticking clocks never shift. */
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-rounded: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
   --font-heading: var(--font-sans);
 
@@ -47,13 +50,22 @@
   --color-ok-fill: var(--ok-fill);
   --color-ok-on-fill: var(--ok-on-fill);
   --color-ok-tint: var(--ok-tint);
+  --color-cat-attention: var(--cat-attention);   --color-cat-attention-fg: var(--cat-attention-fg);
+  --color-cat-time: var(--cat-time);             --color-cat-time-fg: var(--cat-time-fg);
+  --color-cat-heart: var(--cat-heart);           --color-cat-heart-fg: var(--cat-heart-fg);
+  --color-cat-neuro: var(--cat-neuro);           --color-cat-neuro-fg: var(--cat-neuro-fg);
+  --color-cat-ed: var(--cat-ed);                 --color-cat-ed-fg: var(--cat-ed-fg);
+  --color-cat-check: var(--cat-check);           --color-cat-check-fg: var(--cat-check-fg);
+  --color-cat-meds: var(--cat-meds);             --color-cat-meds-fg: var(--cat-meds-fg);
+  --color-cat-patient: var(--cat-patient);       --color-cat-patient-fg: var(--cat-patient-fg);
+  --color-cat-speech: var(--cat-speech);         --color-cat-speech-fg: var(--cat-speech-fg);
 
   /* shadcn's variables, pointed at Herald's tokens so its primitives match the screen */
   --color-background: var(--bg);
   --color-foreground: var(--text-primary);
   --color-card: var(--surface-1);
   --color-card-foreground: var(--text-primary);
-  --color-popover: var(--surface-3);
+  --color-popover: var(--surface-2);
   --color-popover-foreground: var(--text-primary);
   --color-primary: var(--accent-fill);
   --color-primary-foreground: var(--on-accent-fill);
@@ -77,9 +89,11 @@
   --text-critical: 1.25rem;    --text-critical--line-height: 1.75rem;   /* 20 px: >= 16 arcmin at 0.7 m (§2.5) */
   --text-value: 1.25rem;       --text-value--line-height: 1.75rem;
   --text-button: 0.9375rem;    --text-button--line-height: 1.25rem;
-  --text-clock: 1.5rem;        --text-clock--line-height: 2rem;
-  --text-kpi: 1.875rem;        --text-kpi--line-height: 2.25rem;
+  --text-clock: 1.5rem;        --text-clock--line-height: 2.25rem;
+  --text-kpi: 2rem;            --text-kpi--line-height: 2.25rem;
   --text-hero: 1.25rem;        --text-hero--line-height: 1.75rem;
+  --text-large-title: 1.75rem; --text-large-title--line-height: 2.125rem;   /* iOS large title, scaled for 1366 px */
+  --text-section: 1.25rem;     --text-section--line-height: 1.625rem;       /* iOS section header ("Pinned") */
 
   --radius-sm: var(--radius-chip);
   --radius-md: var(--radius-control);
@@ -119,12 +133,19 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-/* A card: the one container on a page */
+/* Shared clinical cards use a quiet border and shallow elevation. */
 @utility card {
   background-color: var(--surface-1);
-  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-2);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-1);
+}
+/* Numbers in the rounded face, bold and tabular, like Health's values */
+@utility rounded-num {
+  font-family: var(--font-rounded);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 /* Apple/Google Health-style summary widgets: independent, calm cards with generous padding and no dense rails. */

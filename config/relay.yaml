@@ -7,7 +7,8 @@ tiers:
   - {tier: 1, why: the receiving team needs this before arrival,
      keys: [alert.readiness, triage.category, code_status, meds.anticoagulant, allergies, stroke.lkw, complaint.chief, meds.given,
             impression.primary, trauma.mechanism, trauma.injury_time, trauma.injuries, infection.suspected, patient.pregnancy_weeks,
-            score.trauma_605, score.sepsis_700a04]}
+            score.trauma_605, score.sepsis_700a04, score.stemi_700a08,
+            ecg.stemi_reading, ecg.transmitted, ecg.twelve_lead_time, symptom.onset]}
   - {tier: 2, why: deterioration / published score changed, keys: [score.news2, score.race, score.gfast]}
   - {tier: 3, why: latest vitals and exam,
      keys: [vitals.sbp, vitals.dbp, vitals.hr, vitals.spo2, vitals.rr, vitals.glucose, vitals.consciousness, stroke.deficits,
@@ -17,3 +18,4 @@ tiers:
      keys: [patient.age, patient.sex, stroke.onset_witnessed, vitals.temp, vitals.on_oxygen, meds.list, scene.notes]}
 # Bytes per packet by measured link state (an unmeasured link is treated as weak).
 budget_bytes: {good: 64000, weak: 420, down: 0}
+triage_rank: {immediate: 0, delayed: 1, minimal: 2, expectant: 3, dead: 4, unknown: 1}

@@ -11,13 +11,40 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="Herald ED receiver")
 INCIDENTS: dict[str, dict] = {}
 CLIENTS: set[WebSocket] = set()
 LINK = {"last_contact_at": None}   # any request from the ambulance (packet or idle probe)
+
+
+@app.get("/api/meta")
+async def metadata():
+    from herald.config import load_yaml
+    from herald.core.vocabulary import default_vocabulary
+    from herald.scoring import default_scales
+    keys = {key: {"label": meta["label"]} for key, meta in default_vocabulary().keys.items()}
+    keys.update({f"score.{sid}": {"label": default_scales()[sid].name} for sid in default_scales().ids()})
+    return {"keys": keys, "display": load_yaml("ed_display.yaml")}
+
+
+@app.get("/api/handoff/{patient_id}")
+async def handoff(patient_id: str, format: str | None = None):
+    from .report import received_report
+    if patient_id not in INCIDENTS:
+        raise HTTPException(404, "No received patient with that ID")
+    try:
+        return received_report(patient_id, INCIDENTS[patient_id], format)
+    except KeyError:
+        raise HTTPException(400, "Unknown handoff format")
+
+
+class Acknowledgement(BaseModel):
+    status: str
+    note: str | None = None
 
 
 def now() -> str:
@@ -43,7 +70,10 @@ async def ingest(req: Request):
     p = json.loads(raw)
     inc = INCIDENTS.setdefault(p["i"], {"fields": {}, "history": {}, "packets": [], "applied": [],
                                         "duplicates": 0, "bytes": 0, "timeline": [], "dest": p.get("dest"),
+                                        "audit": [], "label": p.get("patient") or p["i"],
                                         "queued_on_rig": 0, "first_at": now()})
+    if p.get("patient"):
+        inc["label"] = p["patient"]
     if p["q"] in inc["applied"]:
         inc["duplicates"] += 1
         await push()
@@ -52,13 +82,17 @@ async def ingest(req: Request):
         if inc["fields"].get(k, {}).get("v") != v:
             inc["history"].setdefault(k, []).append({"v": v, "t": now()})
         inc["fields"][k] = {"v": v, "seq": p["q"], "t": now()}
+    for key in p.get("rm", []):
+        previous = inc["fields"].pop(key, None)
+        inc["audit"].append({"at": now(), "action": "withdrawn", "key": key, "seq": p["q"],
+                             "previous": previous["v"] if previous else None})
     if p.get("tl"):
         inc["timeline"] = p["tl"]
     inc["applied"].append(p["q"])
     inc["bytes"] += len(raw)
     inc["queued_on_rig"] = p.get("x", 0)
     inc["packets"].append({"seq": p["q"], "tier": p.get("tier"), "bytes": len(raw),
-                           "keys": list(p.get("f", {}).keys()), "at": now()})
+                           "keys": list(p.get("f", {}).keys()), "removed": p.get("rm", []), "at": now()})
     await push()
     return {"ack": p["q"]}
 
@@ -81,6 +115,18 @@ async def reset():
     LINK["last_contact_at"] = None
     await push()
     return {"ok": True}
+
+
+@app.post("/incidents/{incident_id}/acknowledgements")
+async def acknowledge(incident_id: str, body: Acknowledgement):
+    if body.status not in {"received", "cath_lab_activated"}:
+        raise HTTPException(400, "status must be received or cath_lab_activated")
+    if incident_id not in INCIDENTS:
+        raise HTTPException(404, "unknown incident")
+    ack = {"at": now(), "status": body.status, "note": body.note}
+    INCIDENTS[incident_id].setdefault("acknowledgements", []).append(ack)
+    await push()
+    return ack
 
 
 @app.websocket("/ws")
