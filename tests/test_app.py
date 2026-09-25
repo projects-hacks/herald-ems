@@ -184,6 +184,33 @@ def test_starting_a_new_incident_disposes_the_previous_calls_media(tmp_path):
     assert client.get(f"/api/audio/{audio}").status_code == 404
 
 
+def test_ending_a_multi_patient_call_disposes_every_patients_media(tmp_path):
+    client, context = make_client(data_dir=tmp_path)
+    client.post("/api/audio", files={"file": ("driver.wav", wav_bytes(), "audio/wav")})
+    driver_audio = next(iter(context.incident.media_ids["audio"]))
+    client.post("/api/patients", json={"label": "Passenger"})
+    client.post("/api/audio", files={"file": ("passenger.wav", wav_bytes(), "audio/wav")})
+    passenger_audio = next(iter(context.incident.media_ids["audio"]))
+
+    cleanup = client.post("/api/incident/end").json()
+
+    assert cleanup["deleted"]["audio"] == sorted([driver_audio, passenger_audio])
+    assert set(cleanup["patients"]) == {inc.id for inc in context.roster.incidents()}
+    assert all(inc.ended_at is not None for inc in context.roster.incidents())
+    assert client.post("/api/patients", json={"label": "Late patient"}).status_code == 409
+
+
+def test_ed_receiver_keeps_the_patient_label_from_relay_packets():
+    c = TestClient(ed_mod.app)
+    c.post("/reset")
+    packet = {"i": "inc-driver", "q": 1, "tier": "critical", "patient": "Driver",
+              "f": {"triage.category": "immediate"}, "x": 1}
+    assert c.post("/ingest", json=packet).json() == {"ack": 1}
+    incident = c.get("/state").json()["incidents"]["inc-driver"]
+    assert incident["label"] == "Driver"
+    assert incident["fields"]["triage.category"]["v"] == "immediate"
+
+
 def test_extraction_and_photo_reading_use_their_own_models(tmp_path):
     from fakes import FakeModel
     c, ctx = make_client(FakeModel(name="ems-b"), vision=FakeVision(facts=[]), vision_model=FakeModel(name="omni"),

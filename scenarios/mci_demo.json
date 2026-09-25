@@ -1,0 +1,16 @@
+{
+  "name": "Two-patient mass-casualty relay demo",
+  "note": "Run with the ED receiver and Toxiproxy configured. The immediate patient's tier-1 update must reach the ED before the minimal patient's update.",
+  "steps": [
+    {"incident": "two-vehicle collision", "pause": 1},
+    {"patient": "Patient 1", "pause": 0},
+    {"monitor": {"triage.category": "immediate", "complaint.chief": "chest injury", "vitals.spo2": 84}, "pause": 0},
+    {"confirm": "triage.category", "pause": 0},
+    {"patient": "Passenger", "pause": 0},
+    {"monitor": {"triage.category": "minimal", "complaint.chief": "arm pain", "vitals.spo2": 98}, "pause": 0},
+    {"confirm": "triage.category", "pause": 0},
+    {"link": "weak", "pause": 1},
+    {"authorize": "Valley Medical", "scope": "mass-casualty pre-alert set", "pause": 8},
+    {"patient": "Patient 1", "pause": 0}
+  ]
+}

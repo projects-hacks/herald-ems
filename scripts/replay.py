@@ -8,8 +8,11 @@ import argparse
 import json
 import time
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import httpx
+
+from herald.config import get_settings
 
 ap = argparse.ArgumentParser()
 ap.add_argument("scenario")
@@ -20,7 +23,7 @@ ap.add_argument("--lkw-minutes-ago", type=int, default=64)
 a = ap.parse_args()
 
 sc = json.load(open(a.scenario))
-lkw = (datetime.now() - timedelta(minutes=a.lkw_minutes_ago)).strftime("%-I:%M")
+lkw = (datetime.now(ZoneInfo(get_settings().timezone)) - timedelta(minutes=a.lkw_minutes_ago)).strftime("%-I:%M")
 c = httpx.Client(base_url=a.url, timeout=120)
 
 
@@ -38,6 +41,25 @@ for step in sc["steps"]:
     if "incident" in step:
         c.post("/api/incident", json={"dispatch": step["incident"]}).raise_for_status()
         print(f"[incident] {step['incident']}")
+    elif "patient" in step:
+        roster = c.get("/api/patients").raise_for_status().json()["patients"]
+        match = next((row for row in roster if row["label"] == step["patient"]), None)
+        if match:
+            state = c.post(f"/api/patients/{match['id']}/activate").raise_for_status().json()
+            action = "activated"
+        else:
+            state = c.post("/api/patients", json={"label": step["patient"]}).raise_for_status().json()
+            action = "created"
+        print(f"[patient] {action} {step['patient']} ({state['active_patient']})")
+    elif "link" in step:
+        mode = step["link"]
+        c.post(f"/api/netem/{mode}").raise_for_status()
+        print(f"[link] {mode}")
+    elif "authorize" in step:
+        destination = step["authorize"]
+        c.post("/api/relay/authorize", json={"destination": destination,
+                                             "scope": step.get("scope", "mass-casualty pre-alert set")}).raise_for_status()
+        print(f"[relay] authorized {destination}")
     elif "say" in step:
         text = step["say"].replace("LKW_TIME", lkw)
         body = {"text": text, "captured_by": step.get("by", "medic"), "speaker": step.get("speaker"),

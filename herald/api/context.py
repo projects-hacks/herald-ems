@@ -14,6 +14,7 @@ from ..config.county import CountyRegistry
 from ..core.confirmation import ConfirmationPolicy
 from ..core.incident import Incident
 from ..core.ports import Normalizer, PhotoReader, SpeechToText, TextModel
+from ..core.roster import PatientRoster
 from ..core.snapshot import Projector
 from ..core.trends import TrendRules
 from ..core.vocabulary import Vocabulary, default_vocabulary
@@ -57,17 +58,39 @@ class AppContext:
     coder: Optional[MedicationCoder] = None      # drug names -> RxNorm; None when the index isn't built
     relay: Optional[Relay] = None
     knowledge: Optional[KnowledgeService] = None
-    incident: Optional[Incident] = None
+    roster: Optional[PatientRoster] = None
     netem_mode: Optional[str] = None
     extra: dict = field(default_factory=dict)
 
+    @property
+    def incident(self) -> Incident:
+        if self.roster is None:
+            raise RuntimeError("patient roster is not initialized")
+        return self.roster.active()
+
     def new_incident(self, dispatch: Optional[str]) -> Incident:
-        self.incident = Incident(dispatch, vocabulary=self.vocab, policy=self.policy, projector=self.projector)
-        return self.incident
+        def factory() -> Incident:
+            return Incident(dispatch, vocabulary=self.vocab, policy=self.policy, projector=self.projector)
+
+        self.roster = PatientRoster(factory)
+        return self.roster.add("Patient 1")
 
     def end_incident(self) -> dict:
-        return dispose_incident_media(self.incident, audio_dir=self.settings.audio_dir,
-                                      photo_dir=self.settings.photo_dir)
+        cleanups = {
+            inc.id: dispose_incident_media(inc, audio_dir=self.settings.audio_dir,
+                                           photo_dir=self.settings.photo_dir)
+            for inc in self.roster.incidents()
+        }
+        return {
+            "at": max(row["at"] for row in cleanups.values()),
+            "deleted": {kind: sorted(media_id for row in cleanups.values() for media_id in row["deleted"][kind])
+                        for kind in ("audio", "photo")},
+            "missing": {kind: sorted(media_id for row in cleanups.values() for media_id in row["missing"][kind])
+                        for kind in ("audio", "photo")},
+            "invalid": {kind: sorted(media_id for row in cleanups.values() for media_id in row["invalid"][kind])
+                        for kind in ("audio", "photo")},
+            "patients": cleanups,
+        }
 
     def pre_alert_scope(self) -> str:
         """Describe the current checklist truthfully; authorization never relies on caller-provided wording."""
@@ -76,9 +99,12 @@ class AppContext:
 
     def full_state(self) -> dict:
         snap = self.incident.snapshot()
+        snap["patients"] = self.roster.summaries()
+        snap["active_patient"] = self.incident.id
         snap["handoff"] = self.handoff.summary(self.handoff.build(self.incident, snapshot=snap))
         rs = self.relay.status()
-        snap["relay"], snap["ed_sync"], snap["netem"] = rs, rs["sync"], self.netem_mode
+        active_relay = rs["patients"].get(self.incident.id, {})
+        snap["relay"], snap["ed_sync"], snap["netem"] = rs, active_relay.get("sync", {}), self.netem_mode
         if self.knowledge is not None:
             snap["protocols"] = self.knowledge.status()
         return snap
@@ -119,7 +145,7 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
         link=LinkEmulator(s.toxiproxy_url), coder=coder,
         handoff=build_handoff(default_handoff_config(), vocab, scales, checklists, s))
     ctx.new_incident(s.dispatch)
-    ctx.relay = Relay(lambda: ctx.incident, s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir)
+    ctx.relay = Relay(lambda: ctx.roster.incidents(), s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir)
     if s.knowledge:
         if embedder is None and text_model is None:        # real deployment; tests pass their own (or none)
             from ..config import load_yaml

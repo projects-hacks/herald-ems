@@ -6,7 +6,8 @@ import random
 
 from eval.baselines.rules_extractor import extract  # test input generator only
 from herald.relay import Relay
-from herald.core.schema import CapturedBy, Role, Status
+from herald.relay.relay import _kept_local_pct
+from herald.core.schema import CapturedBy, FactIn, Role, Status
 from herald.core.incident import Incident
 
 
@@ -14,6 +15,8 @@ class FakeED:
     def __init__(self, fail_rate=0.0, seed=0):
         self.fields, self.applied, self.duplicates, self.bytes = {}, [], 0, []
         self.withdrawals = []
+        self.fields_by_patient = {}
+        self.patient_order = []
         self.rng = random.Random(seed)
         self.fail_rate = fail_rate
 
@@ -29,6 +32,11 @@ class FakeED:
             for key in p.get("rm", []):
                 self.fields.pop(key, None)
                 self.withdrawals.append(key)
+            patient_fields = self.fields_by_patient.setdefault(p["i"], {})
+            patient_fields.update(p["f"])
+            for key in p.get("rm", []):
+                patient_fields.pop(key, None)
+            self.patient_order.append(p["i"])
             self.applied.append(p["q"])
             self.bytes.append(len(wire))
         if self.rng.random() < self.fail_rate / 2:   # applied, but the ACK is lost -> sender retries
@@ -44,6 +52,17 @@ def build_incident():
               "She takes warfarin. Glucose 142. Transporting to Valley Medical, ETA 12 minutes."]:
         for f in extract(t):
             inc.ingest(f, record=False)
+    inc.commit()
+    return inc
+
+
+def build_triage_incident(label, triage, complaint):
+    inc = Incident(dispatch="multi-vehicle collision")
+    inc.patient_label = label
+    for key, value in [("triage.category", triage), ("complaint.chief", complaint)]:
+        fact = inc.ingest(FactIn(key=key, value=value, captured_by=CapturedBy.medic, confidence=0.99),
+                          record=False)
+        inc.set_status(fact.id, Status.confirmed)
     inc.commit()
     return inc
 
@@ -115,3 +134,50 @@ def test_rejected_critical_fact_is_withdrawn_from_the_ed_with_an_audit_event():
     assert "meds.anticoagulant" not in ed.fields
     assert ed.withdrawals == ["meds.anticoagulant"]
     assert relay.log[-1]["removed"] == ["meds.anticoagulant"]
+
+
+def test_weak_link_prioritizes_immediate_patient_before_minimal_patient():
+    minimal = build_triage_incident("Passenger", "minimal", "arm pain")
+    immediate = build_triage_incident("Driver", "immediate", "difficulty breathing")
+    ed = FakeED()
+    relay = Relay(lambda: [minimal, immediate], transport=ed)
+    relay.authorize("Valley Medical")
+    relay.results.extend([(False, 3000), (True, 1500)])
+
+    asyncio.run(relay.tick())
+
+    assert ed.patient_order == [immediate.id]
+    assert {"triage.category", "complaint.chief"} <= set(ed.fields_by_patient[immediate.id])
+    assert relay.pending()[0][5] is minimal
+
+
+def test_unknown_triage_uses_configured_unknown_rank():
+    unknown = build_incident()
+    immediate = build_triage_incident("Driver", "immediate", "difficulty breathing")
+    relay = Relay(lambda: [unknown, immediate])
+
+    rows = relay.pending()
+
+    assert rows[0][5] is immediate
+    unknown_rows = [row for row in rows if row[5] is unknown]
+    assert unknown_rows and {row[0] for row in unknown_rows} == {relay.tiers.triage_rank["unknown"]}
+
+
+def test_two_patients_reconcile_without_duplicates_or_loss_on_flaky_link():
+    for seed in range(20):
+        minimal = build_triage_incident("Passenger", "minimal", "arm pain")
+        immediate = build_triage_incident("Driver", "immediate", "difficulty breathing")
+        ed = FakeED(fail_rate=0.5, seed=seed)
+        relay = Relay(lambda: [minimal, immediate], transport=ed)
+        relay.authorize("Valley Medical")
+
+        asyncio.run(drain(relay))
+
+        for incident in (minimal, immediate):
+            assert ed.fields_by_patient[incident.id] == relay.critical_values(incident), f"seed {seed}"
+        assert len(ed.applied) == len(set(ed.applied))
+
+
+def test_recorded_stroke_replay_kept_local_percentage_is_clamped():
+    assert _kept_local_pct(bytes_sent=25837, bytes_without_relay=16403) == 0.0
+    assert _kept_local_pct(bytes_sent=4100, bytes_without_relay=16400) == 75.0

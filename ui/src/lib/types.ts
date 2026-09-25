@@ -110,6 +110,13 @@ export interface TranscriptEntry {
   stt?: SttInfo | null; trace: Trace;
 }
 
+// ---------- mass-casualty patient roster (TASK_SPECS S5) ----------
+export type TriageCategory = "immediate" | "delayed" | "minimal" | "expectant" | "dead";
+export interface PatientSummary {
+  id: string; label: string; triage: TriageCategory | null; summary: string;
+  readiness_done: number; readiness_total: number;
+}
+
 // ---------- relay (relay/relay.py status()) ----------
 export type LinkState = "good" | "weak" | "down" | "unknown" | "not configured";
 export interface RelayLogEntry {
@@ -138,6 +145,8 @@ export interface Snapshot {
     id: string; dispatch: string | null; started: string; ended_at: string | null;
     media_disposal: MediaDisposal | null;
   };
+  patients: PatientSummary[];
+  active_patient: string;
   summary: string;
   readiness: Readiness[];
   needs_attention: { missing: NeedItem[]; unknown: NeedItem[] };
@@ -163,6 +172,7 @@ export interface MediaDisposal {
   deleted: { audio: string[]; photo: string[] };
   missing: { audio: string[]; photo: string[] };
   invalid: { audio: string[]; photo: string[] };
+  patients?: Record<string, Omit<MediaDisposal, "patients">>;
 }
 export type NowMessage = { type: "state"; state: Snapshot } | { type: "pong"; t: string };
 
