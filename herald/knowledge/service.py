@@ -6,13 +6,15 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from ..config import load_yaml
+from ..egress import EgressPolicy
 from .base import KnowledgeBase
 from .sync import ProtocolSync
 
 
 class KnowledgeService:
     def __init__(self, county_getter: Callable[[], dict], protocols_dir: Path, link_state: Callable[[], str],
-                 embedder=None, reranker=None, vision=None, fetch=None, mirror: Optional[str] = None):
+                 embedder=None, reranker=None, vision=None, fetch=None, mirror: Optional[str] = None,
+                 egress: Optional[EgressPolicy] = None):
         self.dir, self.mirror = protocols_dir, mirror.rstrip("/") if mirror else None
         self.county_getter = lambda: self._with_mirror(county_getter())
         self.embedder, self.reranker, self.vision = embedder, reranker, vision
@@ -21,7 +23,7 @@ class KnowledgeService:
         self.error: Optional[str] = None
         self._building = False
         self._lock = threading.Lock()
-        self.sync = ProtocolSync(lambda: self.kb, link_state, self.cfg, fetch=fetch)
+        self.sync = ProtocolSync(lambda: self.kb, link_state, self.cfg, fetch=fetch, egress=egress)
 
     def _with_mirror(self, county: dict) -> dict:
         """Documents without their own update URL are fetched from the configured mirror, if any."""

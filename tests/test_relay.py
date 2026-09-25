@@ -214,3 +214,27 @@ def test_two_patients_reconcile_without_duplicates_or_loss_on_flaky_link():
 def test_recorded_stroke_replay_kept_local_percentage_is_clamped():
     assert _kept_local_pct(bytes_sent=25837, bytes_without_relay=16403) == 0.0
     assert _kept_local_pct(bytes_sent=4100, bytes_without_relay=16400) == 75.0
+
+
+def test_local_bytes_are_counted_per_incident_not_just_as_one_pooled_total(tmp_path):
+    """E3: the "kept local" story has to survive a mass-casualty incident with several open patients, so
+    `status()` breaks bytes down per patient instead of only reporting one number across all of them."""
+    small = build_triage_incident("Passenger", "minimal", "arm pain")
+    big = build_triage_incident("Driver", "immediate", "difficulty breathing")
+    for i in range(20):
+        fact = big.ingest(FactIn(key="scene.notes", value=f"note {i}" * 10, captured_by=CapturedBy.medic,
+                                 confidence=0.99), record=False)
+        big.set_status(fact.id, Status.confirmed)
+    big.commit()
+    audio_id = "a_test_clip"
+    small.register_media("audio", audio_id)
+    (tmp_path / f"{audio_id}.wav").write_bytes(b"x" * 4096)
+
+    relay = Relay(lambda: [small, big], audio_dir=tmp_path)
+    status = relay.status()
+
+    assert status["patients"][small.id]["local_bytes"] > 4096          # its own facts, plus its own 4 KiB clip
+    assert status["patients"][big.id]["local_bytes"] > status["patients"][small.id]["local_bytes"] - 4096
+    assert status["local_bytes"] == sum(row["local_bytes"] for row in status["patients"].values())
+    # `big`'s clip never existed, so none of its byte count comes from `small`'s audio file.
+    assert status["patients"][big.id]["local_bytes"] < status["local_bytes"]

@@ -21,6 +21,7 @@ from typing import Any, Awaitable, Callable, Optional
 
 from ..core.ports import Transport
 from ..core.schema import utcnow
+from ..egress import EgressPolicy
 from ..scoring import ScaleRegistry, default_scales
 from .tiers import RelayTiers, default_tiers
 
@@ -40,16 +41,23 @@ class Relay:
     def __init__(self, incident_getter: Callable, ed_url: Optional[str] = None,
                  transport: Optional[Transport] = None, probe: Optional[Callable[[], Awaitable[None]]] = None,
                  tiers: Optional[RelayTiers] = None, scales: Optional[ScaleRegistry] = None,
-                 audio_dir: Optional[Path] = None):
+                 audio_dir: Optional[Path] = None, egress: Optional[EgressPolicy] = None,
+                 ed_token: Optional[str] = None):
         self.get_incident = incident_getter
         self.ed_url = ed_url
         self.tiers = tiers or default_tiers()
         self.scales = scales or default_scales()
         self.audio_dir = audio_dir
+        self.egress = egress    # E1: the real network path (below) always checks this before a packet leaves
+        self.ed_token = ed_token  # B7: sent as X-Herald-Token; must match the receiver's own ED_RECEIVER_TOKEN
         self._transport = transport
         self._probe = probe
         self.last_probe = 0.0
         self.reset()
+
+    def _headers(self, extra: Optional[dict] = None) -> dict:
+        h = {"X-Herald-Token": self.ed_token} if self.ed_token else {}
+        return {**h, **(extra or {})}
 
     def reset(self) -> None:
         self.authorized: Optional[dict] = None
@@ -224,10 +232,14 @@ class Relay:
             elif self._transport:
                 return                      # injected transports (tests) are not probed
             else:
+                if self.egress:
+                    decision = self.egress.decide(self.ed_url, purpose="relay:probe", link_state=self.link_state())
+                    if decision.action != "allow":
+                        raise RuntimeError(f"egress policy: {decision.reason}")
                 import httpx
                 async with httpx.AsyncClient(timeout=2.0) as c:
-                    (await c.get(f"{self.ed_url.rstrip('/')}/ping")).raise_for_status()
-                    state_response = await c.get(f"{self.ed_url.rstrip('/')}/state")
+                    (await c.get(f"{self.ed_url.rstrip('/')}/ping", headers=self._headers())).raise_for_status()
+                    state_response = await c.get(f"{self.ed_url.rstrip('/')}/state", headers=self._headers())
                     state_response.raise_for_status()
                     state = state_response.json()
                     self.clinician_acknowledgements = {
@@ -242,10 +254,14 @@ class Relay:
         wire = _compact({k: v for k, v in packet.items() if not k.startswith("_")})
         if self._transport:
             return await self._transport(wire)
+        if self.egress:
+            decision = self.egress.decide(self.ed_url, purpose="relay:packet", link_state=self.link_state())
+            if decision.action != "allow":
+                raise RuntimeError(f"egress policy: {decision.reason}")
         import httpx
         async with httpx.AsyncClient(timeout=3.0) as c:
             r = await c.post(f"{self.ed_url.rstrip('/')}/ingest", content=wire,
-                             headers={"Content-Type": "application/json"})
+                             headers=self._headers({"Content-Type": "application/json"}))
             r.raise_for_status()
             return r.json()
 
@@ -303,15 +319,28 @@ class Relay:
         self.log.append(entry)
         return entry
 
+    def _incident_audio_bytes(self, inc) -> int:
+        """This incident's own registered clips only (`inc.media_ids["audio"]`), not every .wav on disk."""
+        if not self.audio_dir:
+            return 0
+        total = 0
+        for audio_id in inc.media_ids.get("audio", ()):
+            try:
+                total += os.path.getsize(Path(self.audio_dir) / f"{audio_id}.wav")
+            except OSError:
+                continue
+        return total
+
+    def _incident_local_bytes(self, inc) -> int:
+        """E3: what this one incident kept on this box -- its facts plus its own audio clips -- so the "kept
+        local" story is defensible per patient, not just as one number across every open call."""
+        return len(_compact([f.model_dump(mode="json") for f in inc.facts])) + self._incident_audio_bytes(inc)
+
     def status(self) -> dict:
         pend = self.pending() if self.authorized else []
         incidents = self._incidents()
-        local_bytes = sum(len(_compact([f.model_dump(mode="json") for f in inc.facts])) for inc in incidents)
-        if self.audio_dir:
-            try:
-                local_bytes += sum(os.path.getsize(p) for p in Path(self.audio_dir).glob("*.wav"))
-            except OSError:
-                pass
+        local_bytes_by_patient = {inc.id: self._incident_local_bytes(inc) for inc in incidents}
+        local_bytes = sum(local_bytes_by_patient.values())
         patients = {}
         for inc in incidents:
             critical = self.critical_values(inc)
@@ -321,6 +350,7 @@ class Relay:
                 "pending": sum(1 for row in pend if row[5].id == inc.id),
                 "sync": {key: "sent" if acked.get(key) == value else "queued"
                          for key, value in critical.items()},
+                "local_bytes": local_bytes_by_patient[inc.id],
             }
         sync = patients[incidents[0].id]["sync"] if len(incidents) == 1 else {}
         return {

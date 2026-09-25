@@ -3046,6 +3046,14 @@ GET /api/telemetry  →  200
 }
 ```
 
+**Fields added since this spec was written (E1/E3, herald/telemetry/collector.py, herald/api/routes/system.py):**
+`GET /api/telemetry`'s actual response uses `energy_wh` (not `gpu_wh`) for the since-start total, and now also
+carries `requests: {attributed_energy_wh, count, recent}` -- GPU energy attributed to individual inference calls
+(power x that call's own elapsed time, `Telemetry.track()`), the defensible number next to the since-start
+total -- plus `local_bytes` and `local_bytes_by_patient` (bytes kept on this box, per open incident,
+`Relay._incident_local_bytes`), `cloud_ai_calls` (now backed by `herald/egress/policy.py` instead of a literal),
+and `cloud_calls_refused`. `GET /api/egress` is new: the egress policy's own counts and a bounded decision log.
+
 **Where the numbers come from (verified on this box, 2026-09-23).**
 - **ZRT proxy metrics:** `GET http://127.0.0.1:8080/metrics/<served-name>` (e.g. `/metrics/omni`) returns vLLM's Prometheus metrics through the ZRT proxy [63].
   - Available names include `vllm:prompt_tokens_total`, `vllm:generation_tokens_total`, `vllm:num_requests_running`, `vllm:num_requests_waiting`, `vllm:time_to_first_token_seconds` (histogram), and `vllm:e2e_request_latency_seconds` (histogram).

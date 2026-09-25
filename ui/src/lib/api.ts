@@ -1,6 +1,7 @@
 // POST helpers with pending/error state (UX_PLAN §3.0, §5.7): the button disables within 0.1 s, a request times out
 // after 5 s with an inline error, and success stays "pending" until the next snapshot shows it (no optimistic updates).
 // In fixture mode every action is off.
+import { authHeaders } from "./authToken";
 import { useHerald } from "./store";
 
 export async function act(key: string, url: string, body?: unknown, failCopy = "The Herald server didn't answer. Try again.") {
@@ -14,7 +15,8 @@ export async function act(key: string, url: string, body?: unknown, failCopy = "
   try {
     const r = await fetch(url, {
       method: "POST",
-      headers: { "X-Herald-Patient": st.snapshot?.incident.id ?? "", ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
+      headers: { "X-Herald-Patient": st.snapshot?.incident.id ?? "", ...authHeaders(),
+                ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(5000),
     });

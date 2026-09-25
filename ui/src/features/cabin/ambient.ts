@@ -1,3 +1,5 @@
+import { authHeaders } from "@/lib/authToken";
+
 import { join, wav } from "./pcm";
 
 export interface AmbientStatus { listening: boolean; starting: boolean; queued: number; level: number; message: string; error: boolean }
@@ -83,7 +85,7 @@ export class AmbientCapture {
       this.abort = new AbortController();
       const timeout = window.setTimeout(() => this.abort?.abort(), 60000);
       try {
-        const response = await fetch("/api/audio", { method: "POST", body: form, signal: this.abort.signal });
+        const response = await fetch("/api/audio", { method: "POST", headers: authHeaders(), body: form, signal: this.abort.signal });
         if (!response.ok) throw new Error(response.status === 409 ? "Patient changed. Recording was not added to the current patient." : `Audio processing failed (${response.status}).`);
         await response.json();
         if (!this.state.error) this.update({ message: this.state.listening ? "Listening · latest clip processed" : "Microphone off · clips processed" });

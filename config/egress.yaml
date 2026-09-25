@@ -1,0 +1,19 @@
+# Egress policy (E1): every outbound HTTP call from Herald -- relay packets to the ED, protocol-mirror sync, and
+# local model requests -- passes through herald/egress/policy.py before it happens. GET /api/egress shows the
+# live decision log and counters this file feeds.
+#
+# Local model endpoints (127.0.0.1 / localhost / ::1) are always allowed and never counted as a cloud escalation:
+# inference never leaves this box (AGENTS.md invariant 1). That rule is not listed here because it isn't
+# configurable -- herald/egress/policy.py checks the host itself, the same way herald/config/settings.py already
+# refuses to start with a non-local HERALD_LLM_URL.
+#
+# ed_allow_list: additional hosts (host, or host:port) the relay and protocol sync may reach, beyond the ones this
+# deployment already named itself. HERALD_ED_URL and HERALD_PROTOCOL_MIRROR (herald/config/settings.py) are added
+# automatically -- an operator naming a host in the environment already chose to trust it. List a host here only
+# for another receiving hospital, or a teammate's rehearsal laptop, that isn't already one of those two settings.
+# Empty by default: with no ED configured, no host is ever reachable off this box, and the ONLY egress that can
+# ever happen is to a host this deployment explicitly named.
+ed_allow_list: []
+
+# How many recent egress decisions GET /api/egress keeps (oldest dropped first).
+decision_log_size: 200

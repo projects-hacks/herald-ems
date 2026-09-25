@@ -4,15 +4,22 @@ Run it on a DIFFERENT machine or network from the Nano (e.g., a teammate's lapto
 link between them can be degraded for real:
     python -m uvicorn ed_receiver.app:app --host 0.0.0.0 --port 8200
 Idempotent by sequence number: a retried packet is acknowledged again but never applied twice.
+
+B7: this service is meant to be reachable on a real network (the whole point is a degradable link to a
+different machine), so its two mutating endpoints, /ingest and /reset, are gated by ED_RECEIVER_TOKEN -- a
+shared secret, unset by default (open, for local rehearsal). Set it to the same value Herald sends as
+HERALD_ED_TOKEN (herald/config/settings.py, herald/relay/relay.py) before running this on a network you don't
+trust. /ping, /state and /ws stay open: they carry nothing back to the ambulance and reading them costs nothing.
 """
 from __future__ import annotations
 
 import json
+import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 
@@ -20,6 +27,13 @@ app = FastAPI(title="Herald ED receiver")
 INCIDENTS: dict[str, dict] = {}
 CLIENTS: set[WebSocket] = set()
 LINK = {"last_contact_at": None}   # any request from the ambulance (packet or idle probe)
+TOKEN_HEADER = "x-herald-token"
+
+
+def _check_token(x_herald_token: str | None = Header(default=None, alias=TOKEN_HEADER)) -> None:
+    expected = os.environ.get("ED_RECEIVER_TOKEN")
+    if expected and x_herald_token != expected:
+        raise HTTPException(401, "missing or invalid device token (X-Herald-Token)")
 
 
 def _key_meta(meta: dict) -> dict:
@@ -76,7 +90,7 @@ async def push() -> None:
             CLIENTS.discard(ws)
 
 
-@app.post("/ingest")
+@app.post("/ingest", dependencies=[Depends(_check_token)])
 async def ingest(req: Request):
     raw = await req.body()
     LINK["last_contact_at"] = now()
@@ -127,7 +141,7 @@ async def state():
     return view()
 
 
-@app.post("/reset")
+@app.post("/reset", dependencies=[Depends(_check_token)])
 async def reset():
     INCIDENTS.clear()
     LINK["last_contact_at"] = None

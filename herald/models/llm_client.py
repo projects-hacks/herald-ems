@@ -9,13 +9,20 @@ from typing import Optional
 import httpx
 
 from ..core.ports import UsageRecorder
+from ..egress import EgressPolicy
+from ..telemetry import tracking
 
 
 class LocalLLMClient:
-    """The `TextModel` interface. `model` pins a served label; otherwise the first label the server lists."""
+    """The `TextModel` interface. `model` pins a served label; otherwise the first label the server lists.
+
+    `egress` (optional) is the one decision point (herald/egress/policy.py, E1) every request here is recorded
+    against, even though `base_url` is already checked local-only above: every model call counts toward the same
+    local-call total GET /api/egress reports, instead of local inference being invisible to that count.
+    """
 
     def __init__(self, base_url: str, model: Optional[str] = None, usage: Optional[UsageRecorder] = None,
-                 timeout: float = 60.0, availability_ttl: float = 5.0):
+                 timeout: float = 60.0, availability_ttl: float = 5.0, egress: Optional[EgressPolicy] = None):
         if not re.match(r"^https?://(127\.0\.0\.1|localhost|\[::1\])(:\d+)?(/|$)", base_url):
             raise RuntimeError(f"the model server must be on this box, got {base_url}")
         self.base_url = base_url.rstrip("/")
@@ -23,6 +30,7 @@ class LocalLLMClient:
         self.usage = usage
         self.timeout = timeout
         self.availability_ttl = availability_ttl
+        self.egress = egress
         self._served: tuple[float, list[str]] = (float("-inf"), [])
 
     def served(self) -> list[str]:
@@ -30,6 +38,8 @@ class LocalLLMClient:
         checked, labels = self._served
         if time.monotonic() - checked > self.availability_ttl:
             try:
+                if self.egress:
+                    self.egress.decide(self.base_url, purpose="model:list")
                 r = httpx.get(f"{self.base_url}/models", timeout=2.0)
                 r.raise_for_status()
                 labels = [m["id"] for m in r.json().get("data", [])]
@@ -60,6 +70,8 @@ class LocalLLMClient:
         model = self.model_name()
         if not model:
             raise RuntimeError("no local model is being served (check `zrt status`)")
+        if self.egress:
+            self.egress.decide(self.base_url, purpose="model:chat")
         content: list | str = user
         if image_b64:
             content = [{"type": "text", "text": user},
@@ -77,8 +89,9 @@ class LocalLLMClient:
             **({"logprobs": True} if logprobs else {}),
             **({"top_logprobs": top_logprobs} if logprobs and top_logprobs else {}),
         }
-        r = httpx.post(f"{self.base_url}/chat/completions", json=body, timeout=self.timeout)
-        r.raise_for_status()
+        with tracking(self.usage, "vision" if image_b64 else "text"):
+            r = httpx.post(f"{self.base_url}/chat/completions", json=body, timeout=self.timeout)
+            r.raise_for_status()
         data = r.json()
         u = data.get("usage") or {}
         if self.usage:

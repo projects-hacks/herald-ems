@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, ClipboardCheck, ImagePlus, Info, LoaderCircle, ShieldCheck, ZoomIn, ZoomOut } from "lucide-react";
+import { authHeaders } from "@/lib/authToken";
 import { useHerald } from "@/lib/store";
 
 export interface CameraStatus { active: boolean; busy: boolean; message: string; failed: boolean }
@@ -77,7 +78,7 @@ export function CameraCapture({ visible = true, onStatus, onReview }: { visible?
     const timeout = window.setTimeout(() => abort.abort(), 90000);
     try {
       const form = new FormData(); form.append("file", file, "capture.jpg"); form.append("mode", mode); form.append("incident_id", incident);
-      const response = await fetch("/api/photo", { method: "POST", body: form, signal: abort.signal });
+      const response = await fetch("/api/photo", { method: "POST", headers: authHeaders(), body: form, signal: abort.signal });
       if (!response.ok) throw new Error(`Photo reading failed (${response.status}).`);
       const result = await response.json();
       setResultCount(result.facts.length);

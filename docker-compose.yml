@@ -17,6 +17,15 @@
 #
 # Full loop, two containers, emulated weak link (needs scripts/link.sh start 127.0.0.1:8200 on the host first):
 #   docker compose --profile full up --build
+#
+# Bind address and the device token (B7): HERALD_BIND_HOST defaults to 127.0.0.1 (Dockerfile). With
+# `network_mode: host` that means only this box can reach the app, exactly like a bare `scripts/run_dev.sh`. The
+# tablet in the back of the ambulance is a separate device on the LAN -- to let it reach the app, both of:
+#   HERALD_BIND_HOST=0.0.0.0                 # every interface, not just loopback
+#   HERALD_DEVICE_TOKEN=<a shared secret>    # every mutating /api/* request must present it (X-Herald-Token);
+#                                             # open the tablet's page once as .../?token=<the same secret> and
+#                                             # the UI remembers it (ui/src/lib/authToken.ts)
+# Skip HERALD_DEVICE_TOKEN and any other device on that LAN/Wi-Fi can read and write patient state.
 
 services:
   herald:
@@ -27,6 +36,8 @@ services:
     gpus: all
     environment:
       PORT: "8100"
+      HERALD_BIND_HOST: ${HERALD_BIND_HOST:-127.0.0.1}   # 0.0.0.0 to reach it from a tablet on the LAN; see above
+      HERALD_DEVICE_TOKEN: ${HERALD_DEVICE_TOKEN:-}      # set this whenever HERALD_BIND_HOST is not loopback
       HERALD_LLM_URL: http://127.0.0.1:8080/v1
       HERALD_LLM_MODEL: ${HERALD_LLM_MODEL:-}
       HERALD_VISION_MODEL: ${HERALD_VISION_MODEL:-qwen3vl-fp8}

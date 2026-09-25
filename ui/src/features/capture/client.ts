@@ -1,3 +1,4 @@
+import { authHeaders } from "@/lib/authToken";
 import { useHerald } from "@/lib/store";
 
 export function livePatient(): string {
@@ -9,7 +10,7 @@ export async function submitCapture(path: string, body: unknown, patient: string
   if (livePatient() !== patient) throw new Error("Patient changed. Review before submitting again.");
   const form = body instanceof FormData;
   const response = await fetch(path, { method: "POST", headers: {
-    "X-Herald-Patient": patient, ...(!form ? { "Content-Type": "application/json" } : {}) },
+    "X-Herald-Patient": patient, ...authHeaders(), ...(!form ? { "Content-Type": "application/json" } : {}) },
     body: form ? body : JSON.stringify(body), signal: AbortSignal.timeout(form ? 90000 : 15000) });
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));

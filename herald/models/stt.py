@@ -9,6 +9,7 @@ import numpy as np
 
 from ..config import load_text
 from ..core.ports import UsageRecorder
+from ..telemetry import tracking
 from .weights import local_weights
 
 
@@ -73,8 +74,9 @@ class WhisperSTT:
     def transcribe(self, audio: np.ndarray, sr: int, language: Optional[str] = None) -> dict:
         pipe = self._load()
         audio = self._mono16k(audio, sr)
-        out = pipe({"raw": audio, "sampling_rate": 16000}, generate_kwargs=self._kwargs(pipe, language),
-                   return_timestamps=True)
+        with tracking(self.usage, "stt"):
+            out = pipe({"raw": audio, "sampling_rate": 16000}, generate_kwargs=self._kwargs(pipe, language),
+                       return_timestamps=True)
         if self.usage:
             self.usage.record_stt(len(audio) / 16000)
         return self._result(out, len(audio) / 16000)

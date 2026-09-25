@@ -18,7 +18,8 @@ async def health(c=Depends(get_ctx)):
             "vision_model": c.vision_model.model_name(),
             "vision_available": await run_in_threadpool(c.vision_model.available),
             "stt_model": c.stt.model, "stt_loaded": c.stt.ready(),
-            "incident": c.incident.id, "county": c.counties.active["id"], "cloud_ai_calls": 0,
+            "incident": c.incident.id, "county": c.counties.active["id"],
+            "cloud_ai_calls": c.egress.snapshot()["cloud_ai_calls"],
             "terminology": {"rxnorm_release": c.coder.release} if c.coder else None,
             "memory": await run_in_threadpool(memory_health, c.settings.memguard_status, c.settings.memguard_stale_s)}
 
@@ -28,7 +29,18 @@ async def telemetry(c=Depends(get_ctx)):
     """Tokens, tok/s, GPU watts, energy, and $ vs a cloud equivalent, with the assumptions stated."""
     jobs = ({"extraction": c.text_model.model_name(), "photos": c.vision_model.model_name(),
              "knowledge": c.knowledge_model.model_name()} if c.settings.knowledge_model else None)
-    return await run_in_threadpool(c.telemetry.snapshot, c.text_model.model_name(), jobs)
+    snap = await run_in_threadpool(c.telemetry.snapshot, c.text_model.model_name(), jobs)
+    # E1: the measured decision (herald/egress/policy.py), not a literal -- telemetry/collector.py has no
+    # network-policy dependency of its own, so the composition root fills this in, as system.py's routes do.
+    egress_snapshot = c.egress.snapshot()
+    snap["cloud_ai_calls"] = egress_snapshot["cloud_ai_calls"]
+    snap["cloud_calls_refused"] = egress_snapshot["cloud_calls_refused"]
+    # E3: bytes kept on this box, per open incident (herald/relay/relay.py `_incident_local_bytes`) -- the other
+    # half of the defensibility story next to energy: not just cheaper inference, less ever leaves the vehicle.
+    relay_status = c.relay.status()
+    snap["local_bytes"] = relay_status["local_bytes"]
+    snap["local_bytes_by_patient"] = {pid: row["local_bytes"] for pid, row in relay_status["patients"].items()}
+    return snap
 
 
 @router.get("/stack")
@@ -46,7 +58,8 @@ async def stack(c=Depends(get_ctx)):
                       "not served" if now is None else f"not served (serving {now})")
         models.append({k: v for k, v in m.items() if k != "component"} | {"status": status})
     out = {"models": models, "services": cfg["services"],
-           "summary": f"{len(models)} models · {len(cfg['services'])} services", "cloud_ai_calls": 0}
+           "summary": f"{len(models)} models · {len(cfg['services'])} services",
+           "cloud_ai_calls": c.egress.snapshot()["cloud_ai_calls"]}
     # Split stack only (TRAINING_PLAN §7a): name the model doing each job, so the demo and the deck show the split
     # honestly instead of implying one model does everything. Added only when the split is actually configured, so the
     # single-model response stays exactly as it was (UX_PLAN §5).
