@@ -49,7 +49,7 @@ export function NowApp({ player }: { player: FixturePlayer | null }) {
   return (
     <TooltipProvider delayDuration={300}>
       <a href={medic && !presentation ? "#cabin-attention" : "#needs-attention"} className="sr-only focus:not-sr-only focus:absolute focus:z-[70] focus:rounded-lg focus:bg-surface-3 focus:p-3">Skip to Needs attention</a>
-      {presentation ? <PresentationApp player={player} /> : medic ? <CabinApp /> : <div className="flex h-dvh bg-bg max-lg:h-auto max-lg:min-h-dvh max-lg:flex-col">
+      {presentation ? <PresentationApp player={player} /> : medic ? <CabinApp player={player} /> : <div className="flex h-dvh bg-bg max-lg:h-auto max-lg:min-h-dvh max-lg:flex-col">
         <Sidebar player={player} />
         <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden max-lg:overflow-visible">
           <TopBar />

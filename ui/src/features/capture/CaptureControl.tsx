@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Camera, Eye, EyeOff } from "lucide-react";
+import { Camera, ExternalLink, Eye, EyeOff, Info } from "lucide-react";
 import { useHerald } from "@/lib/store";
 import { captureAction } from "./actions";
 
-export function CaptureControl() {
+export function CaptureControl({ compact = false, stopOnly = false, onSetup }: { compact?: boolean; stopOnly?: boolean; onSetup?: () => void }) {
   const capture = useHerald((s) => s.snapshot?.capture);
   const disabled = useHerald((s) => s.source === "fixture" || s.stale || s.conn !== "open");
-  const reduced = useHerald((s) => s.ui.reducedMotion);
+  const replay = useHerald((s) => s.source === "fixture");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [mode, setMode] = useState("");
@@ -17,20 +17,34 @@ export function CaptureControl() {
     finally { setBusy(false); }
   }
   const watching = capture?.sees === "watching", reading = capture?.sees === "reading";
-  return <section className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border-subtle bg-surface-1 px-5 py-3" aria-label="Agentic camera capture">
-    <span className={`flex min-w-44 items-center gap-2 text-body ${watching || reading ? "text-herald-accent" : "text-text-muted"}`} role="status">
-      {watching || reading ? <Eye size={21} className={reading && !reduced ? "motion-safe:animate-pulse" : ""} /> : <EyeOff size={21} />}
-      Herald sees: {capture?.sees ?? "off"}
-    </span>
-    <button type="button" className="min-h-12 rounded-xl border border-border-control px-4 text-button" aria-pressed={capture?.auto ?? false} disabled={disabled || busy || !capture}
-      onClick={() => void run("/api/capture/auto", { on: !capture?.auto })}>{capture?.auto ? "Turn auto off" : "Turn auto on"}</button>
-    <label className="flex items-center gap-2 text-meta">Capture mode<select className="min-h-12 rounded-xl border border-border-control bg-surface-2 px-3" value={mode} disabled={busy || disabled} onChange={(e) => setMode(e.target.value)}>
-      <option value="">Auto choice</option><option value="monitor">Monitor</option><option value="pill_bottle">Label</option><option value="form">Form</option><option value="scene">Scene</option>
-    </select></label>
-    <button type="button" className="flex min-h-12 items-center gap-2 rounded-xl bg-herald-accent px-4 text-button font-semibold text-on-accent" disabled={disabled || busy || !capture}
-      onClick={() => void run("/api/capture/now", mode ? { mode } : {})}><Camera size={19} />{busy ? "Requesting…" : "Show Herald"}</button>
-    <a className="ml-auto inline-flex min-h-12 items-center rounded-lg px-2 text-meta font-semibold text-herald-accent" href="/capture.html" target="_blank" rel="noreferrer">Open camera & set region ↗</a>
-    <p className="w-full text-meta text-text-muted">{capture?.auto && capture.sees === "off" ? "Waiting for a camera source. " : ""}{capture?.roi ? "Monitor region set." : "Monitor watch off: set a region first."} Selected stills only · all readings need confirmation{capture?.pending ? ` · ${capture.pending} capture(s) waiting` : ""}</p>
-    {(error || capture?.error) && <p role="alert" className="w-full text-meta text-medium-fg">{error || capture?.error}</p>}
+  if (stopOnly) return <div><button className="cabin-button" disabled={disabled || busy} onClick={() => void run("/api/capture/auto", { on: false })}><EyeOff size={18} />{busy ? "Stopping…" : "Stop auto capture"}</button>{error && <p role="alert">{error}</p>}</div>;
+  if (compact) return <section className="capture-compact" aria-label="Camera capture">
+    <span role="status">Selected stills need verification</span>
+    <button className="cabin-button" disabled={disabled || busy || !capture} onClick={() => void run("/api/capture/now", {})}><Camera size={18} />{busy ? "Requesting…" : "Capture once"}</button>
+    <button className="cabin-button" onClick={onSetup}>Camera options</button>
+    {(error || capture?.error) && <p role="alert">{error || capture?.error}</p>}
+  </section>;
+  return <section className="connected-camera" aria-label="Connected camera controls">
+    <div className="connected-camera-status">
+      {watching || reading ? <Eye size={24} aria-hidden /> : <EyeOff size={24} aria-hidden />}
+      <div><strong role="status">{disabled ? replay ? "Recorded camera state" : "Camera connection unavailable" : !capture ? "Camera status unavailable" : reading ? "Reading a captured image" : watching ? "Camera watching" : "Camera off"}</strong>
+        <p>{capture?.auto && capture.sees === "off" ? "Automatic capture is enabled. Waiting for a camera feed." : "Control a camera connected to this vehicle."}</p></div>
+    </div>
+    <div className="connected-camera-setup">
+      <div><h2>Connect a camera source</h2><p>Open setup on the camera device to start its feed and select the monitor area. Keep that page visible while capturing.</p></div>
+      {disabled ? <button className="cabin-button" disabled>Open camera setup<ExternalLink size={17} aria-hidden /></button> : <a className="cabin-button" href="/classic/capture.html" target="_blank" rel="noreferrer">Open camera setup<ExternalLink size={17} aria-hidden /></a>}
+    </div>
+    {disabled && <p className="capture-notice">{replay ? "Camera controls are unavailable in a recorded demo." : "Reconnect to the vehicle to control its camera."}</p>}
+    <div className="connected-camera-controls">
+      <label>Image type<select value={mode} disabled={busy || disabled} onChange={(e) => setMode(e.target.value)}>
+        <option value="">Detect automatically</option><option value="monitor">Monitor reading</option><option value="pill_bottle">Medication label</option><option value="form">Document / form</option><option value="scene">Scene context</option>
+      </select></label>
+      <button type="button" className="cabin-button" aria-pressed={capture?.auto ?? false} disabled={disabled || busy || !capture}
+        onClick={() => void run("/api/capture/auto", { on: !capture?.auto })}>{capture?.auto ? <EyeOff size={18} aria-hidden /> : <Eye size={18} aria-hidden />}{capture?.auto ? "Pause auto capture" : "Enable auto capture"}</button>
+      <button type="button" className="cabin-button primary" disabled={disabled || busy || !capture}
+        onClick={() => void run("/api/capture/now", mode ? { mode } : {})}><Camera size={18} aria-hidden />{busy ? "Requesting…" : "Capture once"}</button>
+    </div>
+    <p className="capture-help"><Info size={16} aria-hidden /><span>{capture?.roi ? "Monitor area selected. " : "Select a monitor area in setup to watch for changes. "}Every captured reading needs verification.{capture?.pending ? ` ${capture.pending} capture(s) waiting.` : ""}</span></p>
+    {(error || capture?.error) && <p role="alert" className="capture-notice">{error || capture?.error}</p>}
   </section>;
 }

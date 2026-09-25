@@ -22,18 +22,18 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
-it("does not start capture on mount; Show Herald explicitly posts with patient identity", async () => {
+it("does not start capture on mount; Capture once explicitly posts with patient identity", async () => {
   render(<CaptureControl />);
   expect(fetch).not.toHaveBeenCalled();
   expect(screen.getByRole("status").textContent).toContain("off");
-  fireEvent.click(screen.getByRole("button", { name: "Show Herald" }));
+  fireEvent.click(screen.getByRole("button", { name: "Capture once" }));
   await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/capture/now", expect.objectContaining({
     body: JSON.stringify({ incident_id: snapshot.incident.id }), method: "POST" })));
 });
 it.each(["fixture", "stale", "disconnected"])("blocks mutations when %s", (condition) => {
   useHerald.setState(condition === "fixture" ? { source: "fixture" } : condition === "stale" ? { stale: true } : { conn: "closed" });
   render(<><CaptureControl /><ul><MismatchCard fact={dose} /></ul></>);
-  for (const name of ["Show Herald", "Turn auto on", "Keep as said", "Edit"]) {
+  for (const name of ["Capture once", "Enable auto capture", "Keep as said", "Edit"]) {
     expect((screen.getByRole("button", { name }) as HTMLButtonElement).disabled).toBe(true);
   }
   expect(fetch).not.toHaveBeenCalled();

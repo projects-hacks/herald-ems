@@ -5,7 +5,7 @@
 import { CircleCheck, CircleDashed, Inbox, OctagonAlert } from "lucide-react";
 import { useAttention } from "@/hooks/useAttention";
 import { useNow } from "@/hooks/useNow";
-import { clockSeconds, clockTime, hhmm, hhmmss, shortId } from "@/lib/format";
+import { clockSeconds, clockTime, hhmm, hhmmss, patientLabel } from "@/lib/format";
 import { useHerald, type IncidentPhase } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { Badge, TINT } from "@/components/kit";
@@ -48,7 +48,7 @@ export function TopBar() {
     s?.incident.dispatch ? `Dispatch: ${s.incident.dispatch}` : null,
     s && !demographicsComplete ? "Patient demographics incomplete" : null,
     scene ? `call elapsed ${hhmmss(clockSeconds(scene, at, now))}` : null,
-    s ? `started ${hhmm(s.incident.started)} · incident ${shortId(s.incident.id)}` : null,
+    s ? `${patientLabel(s)} · started ${hhmm(s.incident.started)}` : null,
   ].filter(Boolean);
   return (
     <header className="sticky top-0 z-10 flex min-h-[4.75rem] shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border-subtle bg-bg/80 px-6 py-3 backdrop-blur-xl">
