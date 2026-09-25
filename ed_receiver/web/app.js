@@ -20,6 +20,16 @@ async function loadReport(id, version, format = '') {
   } catch { if (selected === id && token === reportAbort) { container.textContent = 'Received-data report unavailable. '; const retry = document.createElement('button'); retry.textContent = 'Retry'; retry.onclick = () => loadReport(id, version, format); container.append(retry); } }
   finally { clearTimeout(timer); }
 }
+async function acknowledge(id, status) {
+  const note = window.prompt(status === 'cath_lab_activated' ? 'Optional cath-lab note' : 'Optional receipt note');
+  if (note === null) return;
+  try {
+    const r = await fetch(`/incidents/${encodeURIComponent(id)}/acknowledgements`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status, note: note || null }),
+    });
+    if (!r.ok) throw new Error();
+  } catch { window.alert('Acknowledgement was not recorded. Check the ED receiver connection.'); }
+}
 function render(view) {
   lastView = view;
   contact();
@@ -35,7 +45,10 @@ function render(view) {
   $('banner').hidden = !recent.size;
   $('banner').textContent = `UPDATE · ${incident.label || selected} · ${incident.dest || 'Destination not received'}`;
   const row = (key) => `<div class="row ${recent.has(key) ? 'new' : ''}"><span>${esc(label(key))}</span><b>${incident.fields[key] ? esc(formatValue(incident.fields[key].v)) : '<span class="empty">not received</span>'}</b></div>`;
-  $('root').innerHTML = `<div class="grid"><section class="card"><h2>${esc(incident.label || selected)} · received facts</h2>${fieldKeys(incident).map(row).join('') || '<p>No fields received yet</p>'}</section><section class="card"><h2>Link and packets</h2><p>${incident.applied.length} packets · ${incident.duplicates} duplicates ignored</p><p>${incident.queued_on_rig} queued on the vehicle · ${incident.bytes} bytes received</p><details><summary>Packet history</summary>${[...incident.packets].reverse().map((p) => `<p class="packet">${esc(incident.label || selected)} · #${p.seq} · ${esc(p.tier)} · ${p.bytes} B<br>${esc(p.keys.map(label).join(' · '))}</p>`).join('')}</details></section></div>${incident.timeline.length ? `<details class="card"><summary>Received event history</summary>${incident.timeline.map((t) => `<p>${esc(new Date(t.t).toLocaleTimeString())} · ${esc(label(t.k))}: ${esc(formatValue(t.v))}</p>`).join('')}</details>` : ''}`;
+  const acknowledgements = incident.acknowledgements || [];
+  $('root').innerHTML = `<div class="grid"><section class="card"><h2>${esc(incident.label || selected)} · received facts</h2>${fieldKeys(incident).map(row).join('') || '<p>No fields received yet</p>'}</section><section class="card"><h2>Link and packets</h2><p>${incident.applied.length} packets · ${incident.duplicates} duplicates ignored</p><p>${incident.queued_on_rig} queued on the vehicle · ${incident.bytes} bytes received</p><p><button id="ack-received">Mark received</button> <button id="ack-cath">Cath lab activated</button></p>${acknowledgements.length ? `<p>Clinician acknowledgement: ${esc(acknowledgements.at(-1).status.replaceAll('_', ' '))}</p>` : '<p>No clinician acknowledgement recorded.</p>'}<details><summary>Packet history</summary>${[...incident.packets].reverse().map((p) => `<p class="packet">${esc(incident.label || selected)} · #${p.seq} · ${esc(p.tier)} · ${p.bytes} B<br>${esc(p.keys.map(label).join(' · '))}</p>`).join('')}</details></section></div>${incident.timeline.length ? `<details class="card"><summary>Received event history</summary>${incident.timeline.map((t) => `<p>${esc(new Date(t.t).toLocaleTimeString())} · ${esc(label(t.k))}: ${esc(formatValue(t.v))}</p>`).join('')}</details>` : ''}`;
+  $('ack-received').onclick = () => acknowledge(selected, 'received');
+  $('ack-cath').onclick = () => acknowledge(selected, 'cath_lab_activated');
   seen[selected] = max;
   const factsSection = $('root').querySelector('section');
   const critical = display?.critical_keys ?? [];

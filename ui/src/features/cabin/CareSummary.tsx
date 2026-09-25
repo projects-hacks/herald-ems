@@ -10,7 +10,7 @@ export function PatientSafetySummary({ onReview }: { onReview: () => void }) {
   const s = useHerald((st) => st.snapshot);
   const facts = [s?.facts["allergies"], s?.facts["meds.anticoagulant"], s?.facts["code_status"]].filter((f) => f !== undefined);
   if (!facts.length) return null;
-  return <div className="patient-safety-summary" aria-label="Key patient information">{facts.map((fact) => <button key={fact.id} onClick={onReview}>
+  return <div className="patient-safety-summary" aria-label="Key patient information">{facts.map((fact, index) => <button key={fact.id ?? `${fact.key}-${index}`} onClick={onReview}>
     <ShieldAlert size={16} /><span>{fact.label}: <strong>{fact.status === "confirmed" ? factValue(fact) : "Needs verification"}</strong></span><ChevronRight size={14} />
   </button>)}</div>;
 }

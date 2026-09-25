@@ -43,6 +43,11 @@ describe("medic workspace navigation", () => {
     expect(screen.getByText("Needs verification")).toBeTruthy();
     expect(screen.queryByText("unverified-allergen")).toBeNull();
   });
+  it("warns the medic when an unfinished call was restored", () => {
+    useHerald.setState({ snapshot: { ...snapshot, restored: true } });
+    render(<CabinApp />);
+    expect(screen.getByText(/Unfinished call restored/)).toBeTruthy();
+  });
 });
 
 describe("local protocol library", () => {

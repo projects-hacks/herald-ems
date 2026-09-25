@@ -197,6 +197,10 @@ class CaptureService:
                                        "facts": [tracer.fact_view(f) for f in added], "rejected": rejected,
                                        "auto_confirm_threshold": ctx.policy.auto_confirm}
             entry["trace"]["effects"] = tracer.diff(before, self._summary())
+        except IncidentEnded:
+            # The call changed while local extraction was running. Discard the late result;
+            # it must not mutate the ended patient or be persisted into the new call.
+            return
         except Exception as e:
             entry["trace"]["model"] = {"status": "error", "name": name, "error": str(e)[:200],
                                        "ms": round((time.perf_counter() - t0) * 1000)}

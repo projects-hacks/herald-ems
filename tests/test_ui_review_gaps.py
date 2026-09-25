@@ -1,8 +1,10 @@
+import asyncio
+
 import pytest
 from fastapi.testclient import TestClient
 from fakes import make_client
 from herald.core.incident import IncidentEnded
-from herald.core.schema import FactIn
+from herald.core.schema import CapturedBy, FactIn, Role
 from ed_receiver.app import app, INCIDENTS, LINK
 
 
@@ -22,6 +24,19 @@ def test_stale_patient_capture_rejected_and_late_work_never_reaches_the_new_pati
     assert ctx.incident.latest("vitals.hr") is None
     assert ctx.incident.dispatch == "fall"
     assert client.get("/classic/capture.html").status_code == 200
+
+
+def test_scoped_text_capture_cannot_append_after_call_end():
+    client, ctx = make_client()
+    original = ctx.incident
+    scoped = client.app.state.capture.for_incident()
+    client.post("/api/incident", json={"dispatch": "fall"})
+
+    with pytest.raises(IncidentEnded):
+        asyncio.run(scoped.text("late words", CapturedBy.medic, Role.medic, "medic", None, use_model=False))
+
+    assert original.transcripts == []
+    assert ctx.incident.transcripts == []
 
 
 def test_ed_report_uses_received_facts_and_preserves_event_history():

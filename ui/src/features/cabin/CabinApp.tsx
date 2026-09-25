@@ -7,7 +7,7 @@ import { CaptureControl } from "@/features/capture/CaptureControl";
 import { CaptureBar } from "@/features/capture/CaptureBar";
 import { ProtocolSearch } from "@/features/protocols/ProtocolSearch";
 import { allFacts, queuedCount } from "@/lib/selectors";
-import { ConnectBand, StaleOverlay } from "@/components/GlobalStates";
+import { ConnectBand, RestoredCallBanner, StaleOverlay } from "@/components/GlobalStates";
 import { AttentionQueue } from "@/features/attention/AttentionQueue";
 import { StatTiles } from "@/features/overview/StatTiles";
 import { useAttention } from "@/hooks/useAttention";
@@ -83,6 +83,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
     <div className="cabin-sticky-status">
       <div className="cabin-patient-context"><span className="workspace-patient-pin"><UserRound size={14} />{identity?.status === "confirmed" ? String(identity.value) : s?.summary?.split(" · ")[0] || patientLabel(s)}</span><CompactStatus always /><span className="workspace-session"><Clock3 size={14} />Started {hhmm(s?.incident.started)}</span></div>
       <ConnectBand /><StaleOverlay />
+      <RestoredCallBanner />
       {isReplay && <p className="cabin-replay">Demo replay · recorded scenario, not a live patient · capture disabled</p>}
     </div>
     <main id="workspace-main" tabIndex={-1} className="cabin-main">

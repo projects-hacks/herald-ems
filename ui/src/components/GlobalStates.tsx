@@ -40,6 +40,14 @@ export function StaleOverlay() {
   );
 }
 
+export function RestoredCallBanner() {
+  const restored = useHerald((s) => s.snapshot?.restored === true);
+  if (!restored) return null;
+  return <div role="status" className="mx-5 mt-4 rounded-[14px] bg-low-tint px-4 py-3 text-body font-semibold text-low-fg">
+    Unfinished call restored from encrypted local recovery state. Review the active patient and relay status before continuing.
+  </div>;
+}
+
 export function Toast() {
   const t = useHerald((s) => s.toast);
   useEffect(() => {

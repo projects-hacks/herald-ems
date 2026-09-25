@@ -68,6 +68,7 @@ function HandoffReport({ s }: { s: Snapshot }) {
 
 function ReceiptStatus({ s }: { s: Snapshot }) {
   const r = s.relay;
+  const clinician = r.clinician_acknowledgements?.[s.incident.id]?.at(-1);
   const held = allFacts(s).filter((fact) => fact.status === "unconfirmed").length;
   const technical = reconciled(s);
   return <Card className="p-5" aria-label="Handoff receipt">
@@ -77,7 +78,9 @@ function ReceiptStatus({ s }: { s: Snapshot }) {
         <div className="flex flex-wrap items-center gap-2"><h2 className="text-title font-semibold">Receipt</h2>
           <Badge tone={technical && !held ? "ok" : r.link === "down" ? "low" : "medium"}>{technical ? held ? `${held} facts still need verification` : "Confirmed updates delivered" : r.link === "down" ? "Waiting for link" : "Sending updates"}</Badge>
         </div>
-        <p className="mt-1 text-body text-text-muted">Human acknowledgment is not recorded. Technical delivery does not mean a clinician has viewed the handoff.</p>
+        <p className="mt-1 text-body text-text-muted">{clinician
+          ? `Receiving team: ${clinician.status === "cath_lab_activated" ? "Cath lab activated" : "Received"}${clinician.note ? ` · ${clinician.note}` : ""}`
+          : "Human acknowledgment is not recorded. Technical delivery does not mean a clinician has viewed the handoff."}</p>
       </div>
     </div>
   </Card>;

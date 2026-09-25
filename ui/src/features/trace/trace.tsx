@@ -20,7 +20,7 @@ export function summarize(t: TranscriptEntry): string {
   if (t.trace.model.status === "running") bits.push("Processing captured information…");
   if (t.trace.model.status === "unavailable") bits.push("Extraction unavailable — captured words retained, no new facts extracted");
   if (t.trace.model.status === "error") bits.push("Could not extract facts — review this capture");
-  if (t.stt?.error) bits.push("speech-to-text failed; recording kept for retry");
+  if (t.stt?.error) bits.push("speech-to-text failed; recording retained for review");
   return bits.join(" · ");
 }
 
@@ -36,6 +36,7 @@ export function TraceEntry({ t, wide = false, concise = false, onReview }: {
   const Icon = sourceIcon(t);
   const m = t.trace.model;
   const facts = [...t.trace.rules.facts, ...(m.facts ?? [])];
+  const eligible = facts.filter((f) => f.status === "unconfirmed" && !f.hold_reason).map((f) => f.id);
   const failed = m.status === "error" || m.status === "unavailable";
   const processing = <div className="mt-2 flex flex-wrap gap-1.5">
     {/* trace.rules carries monitor/device readings; speech and photos come from the model. */}
@@ -68,6 +69,20 @@ export function TraceEntry({ t, wide = false, concise = false, onReview }: {
           })}</ul>
         </div>}
         {!concise && processing}
+        {eligible.length > 1 && <div className="mt-2">
+          <ActionButton disabled={blocked} pendingKey={`confirm-many:${eligible.slice().sort().join(",")}`}
+            onClick={() => api.confirmMany(eligible)} busyText="Confirming…" size="md">
+            Confirm eligible from this capture ({eligible.length})
+          </ActionButton>
+        </div>}
+        {m.status === "unavailable" && <div className="mt-2 flex flex-wrap items-center gap-2" role="status">
+          <span className="text-body text-low-fg">Words were preserved; extraction did not run.</span>
+          <ActionButton disabled={blocked} pendingKey={`retry:${t.id}`} onClick={() => api.retryTranscript(t.id)}
+            busyText="Retrying…" size="md">Retry extraction</ActionButton>
+        </div>}
+        {t.stt?.error && <p className="mt-2 text-body text-low-fg" role="alert">
+          Speech-to-text failed. The audio recording is retained for review; no transcript was created.
+        </p>}
         {wide && facts.length > 0 && (
           <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-meta text-text-secondary">
             {facts.map((f) => (

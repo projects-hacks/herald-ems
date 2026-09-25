@@ -271,8 +271,10 @@ def test_changing_ed_url_clears_the_previous_receivers_acknowledgements():
     c.post("/api/relay/config", json={"ed_url": "http://ed-a"})
     assert context.relay.acked == {}
     context.relay.acked[context.incident.id] = {"vitals.hr": 90}
+    context.relay.clinician_acknowledgements[context.incident.id] = [{"status": "received"}]
     c.post("/api/relay/config", json={"ed_url": "http://ed-b"})
     assert context.relay.acked == {}
+    assert context.relay.clinician_acknowledgements == {}
 
 
 def wav_bytes():

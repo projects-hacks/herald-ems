@@ -16,8 +16,9 @@ beforeEach(() => {
   snapshot.transcripts = [entry];
   useHerald.setState({ snapshot, source: "live", conn: "open", stale: false,
     ui: { ...useHerald.getState().ui, mode: "medic", page: "overview" } });
+  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({}) })));
 });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 it("discloses technical processing only on expansion while retaining source evidence", () => {
   render(<TranscriptPage />);
@@ -59,4 +60,23 @@ it("preserves expanded processing presentation by default in the detailed trace"
   render(<TraceEntry t={entry} />);
   expect(screen.queryByText("Processing details")).toBeNull();
   expect(screen.getByText("1234 ms").closest("details")).toBeNull();
+});
+
+it("offers an explicit retry only for words preserved during model unavailability", () => {
+  entry.trace.model.status = "unavailable";
+  render(<TraceEntry t={entry} />);
+  fireEvent.click(screen.getByRole("button", { name: "Retry extraction" }));
+  expect(fetch).toHaveBeenCalledWith(`/api/transcripts/${entry.id}/retry`, expect.anything());
+});
+
+it("bulk-confirms only eligible facts from the same capture", () => {
+  const first = { ...entry.trace.model.facts![0], id: "eligible-1", status: "unconfirmed" as const, hold_reason: null };
+  const second = { ...first, id: "eligible-2" };
+  const held = { ...first, id: "held", hold_reason: "review this value" };
+  entry.trace.model.facts = [first, second, held];
+  render(<TraceEntry t={entry} />);
+  fireEvent.click(screen.getByRole("button", { name: "Confirm eligible from this capture (2)" }));
+  expect(fetch).toHaveBeenCalledWith("/api/facts/confirm", expect.objectContaining({
+    body: JSON.stringify({ ids: ["eligible-1", "eligible-2"] }),
+  }));
 });

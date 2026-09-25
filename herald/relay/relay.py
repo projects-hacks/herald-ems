@@ -63,6 +63,7 @@ class Relay:
         self.retries = 0
         self.full_synced_facts: dict[str, int] = {}
         self.last_ack_at: Optional[str] = None
+        self.clinician_acknowledgements: dict[str, list[dict]] = {}
 
     # ---------- configuration ----------
     @property
@@ -86,6 +87,7 @@ class Relay:
         self.full_synced_facts.clear()
         self.inflight = None
         self.last_ack_at = None
+        self.clinician_acknowledgements.clear()
 
     # ---------- what the ED should know ----------
     def _incidents(self) -> list:
@@ -220,6 +222,13 @@ class Relay:
                 import httpx
                 async with httpx.AsyncClient(timeout=2.0) as c:
                     (await c.get(f"{self.ed_url.rstrip('/')}/ping")).raise_for_status()
+                    state_response = await c.get(f"{self.ed_url.rstrip('/')}/state")
+                    state_response.raise_for_status()
+                    state = state_response.json()
+                    self.clinician_acknowledgements = {
+                        patient_id: row.get("acknowledgements", [])
+                        for patient_id, row in state.get("incidents", {}).items()
+                    }
             self.results.append((True, (time.perf_counter() - t0) * 1000))
         except Exception:
             self.results.append((False, (time.perf_counter() - t0) * 1000))
@@ -316,6 +325,7 @@ class Relay:
             "sync": sync, "bytes_sent": self.bytes_sent, "local_bytes": local_bytes,
             "kept_local_pct": _kept_local_pct(self.bytes_sent, local_bytes),
             "packets_acked": self.packets_acked, "retries": self.retries, "last_ack_at": self.last_ack_at,
+            "clinician_acknowledgements": self.clinician_acknowledgements,
             "log": list(self.log)[-12:],
         }
 

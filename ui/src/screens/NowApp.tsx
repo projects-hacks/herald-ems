@@ -3,7 +3,7 @@
 // above it and the floating last-capture bar below it. The summary is the at-a-glance page; the others hold detail.
 import { useEffect } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ConnectBand, EndIncidentDialog, NewIncidentDialog, PresenterBar, StaleOverlay, Toast } from "@/components/GlobalStates";
+import { ConnectBand, EndIncidentDialog, NewIncidentDialog, PresenterBar, RestoredCallBanner, StaleOverlay, Toast } from "@/components/GlobalStates";
 import { useHotkeys } from "@/hooks/useHotkeys";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { Sidebar } from "@/layout/Sidebar";
@@ -54,6 +54,7 @@ export function NowApp({ player }: { player: FixturePlayer | null }) {
         <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden max-lg:overflow-visible">
           <TopBar />
           <ConnectBand />
+          <RestoredCallBanner />
           <CompactStatus />
           <CaptureControl />
           <StaleOverlay />
