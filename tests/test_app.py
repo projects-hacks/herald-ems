@@ -78,6 +78,17 @@ def test_ed_receiver_heartbeat_and_last_contact():
         assert ws.receive_json()["type"] == "pong"
 
 
+def test_ed_receiver_keeps_the_patient_label_from_relay_packets():
+    c = TestClient(ed_mod.app)
+    c.post("/reset")
+    packet = {"i": "inc-driver", "q": 1, "tier": "critical", "patient": "Driver",
+              "f": {"triage.category": "immediate"}, "x": 1}
+    assert c.post("/ingest", json=packet).json() == {"ack": 1}
+    incident = c.get("/state").json()["incidents"]["inc-driver"]
+    assert incident["label"] == "Driver"
+    assert incident["fields"]["triage.category"]["v"] == "immediate"
+
+
 def test_extraction_and_photo_reading_use_their_own_models(tmp_path):
     from fakes import FakeModel
     c, ctx = make_client(FakeModel(name="ems-b"), vision=FakeVision(facts=[]), vision_model=FakeModel(name="omni"),

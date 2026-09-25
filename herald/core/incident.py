@@ -17,6 +17,7 @@ class Incident:
     def __init__(self, dispatch: Optional[str] = None, *, vocabulary: Optional[Vocabulary] = None,
                  policy: Optional[ConfirmationPolicy] = None, projector=None):
         self.id = new_id("inc")
+        self.patient_label: Optional[str] = None
         self.dispatch = dispatch
         self.started = utcnow()
         self.vocab = vocabulary or default_vocabulary()

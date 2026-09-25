@@ -43,7 +43,10 @@ async def ingest(req: Request):
     p = json.loads(raw)
     inc = INCIDENTS.setdefault(p["i"], {"fields": {}, "history": {}, "packets": [], "applied": [],
                                         "duplicates": 0, "bytes": 0, "timeline": [], "dest": p.get("dest"),
+                                        "label": p.get("patient") or p["i"],
                                         "queued_on_rig": 0, "first_at": now()})
+    if p.get("patient"):
+        inc["label"] = p["patient"]
     if p["q"] in inc["applied"]:
         inc["duplicates"] += 1
         await push()

@@ -2574,16 +2574,27 @@ export interface TranscriptEntry {
   stt?: SttInfo | null; trace: Trace;
 }
 
+// Mass-casualty roster (S5). `active_patient` is the incident id that capture, trace and handoff routes target.
+export type TriageCategory = "immediate" | "delayed" | "minimal" | "expectant" | "dead";
+export interface PatientSummary {
+  id: string; label: string; triage: TriageCategory | null; summary: string;
+  readiness_done: number; readiness_total: number;
+}
+
 // ---------- relay (relay.py status()) ----------
 export type LinkState = "good" | "weak" | "down" | "unknown" | "not configured";
 export interface RelayLogEntry {
-  ts: string; seq: number; tier: "critical" | "full"; bytes: number; keys: string[]; why: string[];
+  ts: string; seq: number; patient: string; tier: "critical" | "full"; bytes: number; keys: string[]; why: string[];
   queued_after: number; result: "acked" | "failed"; rtt_ms?: number; error?: string;
+}
+export interface RelayPatientStatus {
+  triage: TriageCategory | "unknown"; pending: number; sync: Record<string, "sent" | "queued">;
 }
 export interface RelayStatus {
   configured: boolean; ed_url: string | null;
   authorized: { destination: string; scope: string; at: string } | null;
-  link: LinkState; pending: { key: string; priority: number; why: string }[];
+  link: LinkState; pending: { patient: string; key: string; priority: number; why: string }[];
+  patients: Record<string, RelayPatientStatus>;
   sync: Record<string, "sent" | "queued">; bytes_sent: number; local_bytes: number;
   kept_local_pct: number; packets_acked: number; retries: number; last_ack_at: string | null;
   log: RelayLogEntry[];                                   // last 12
@@ -2592,6 +2603,8 @@ export interface RelayStatus {
 // ---------- the snapshot (app.full_state()) ----------
 export interface Snapshot {
   incident: { id: string; dispatch: string | null; started: string };
+  patients: PatientSummary[];                              // every patient on this rig, insertion order
+  active_patient: string;                                 // incident id; POST /api/patients/{id}/activate
   summary: string;
   readiness: Readiness[];
   needs_attention: { missing: NeedItem[]; unknown: NeedItem[] };
@@ -2608,7 +2621,7 @@ export interface Snapshot {
   events: Record<string, FactView[]>;                     // event keys (meds.given, procedures.done): every event in order; show these as a list (a timeline of doses and procedures), not only facts[key]
   timeline: FactView[];                                   // last 60 facts, all statuses
   transcripts: TranscriptEntry[];                         // last 20
-  ed_sync: Record<string, "sent" | "queued">;             // = relay.sync
+  ed_sync: Record<string, "sent" | "queued">;             // active patient's relay sync
   counters: { facts: number; cloud_ai_calls: number };
   relay: RelayStatus;
   netem: "good" | "weak" | "down" | null;
