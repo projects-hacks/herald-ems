@@ -5,7 +5,6 @@ Tests and tools pass their own Settings and fakes (e.g. a stub TextModel) to `bu
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -16,7 +15,6 @@ from ..config.county import CountyRegistry
 from ..core.confirmation import ConfirmationPolicy
 from ..core.corroboration import BatchConfirmation, CorroborationRules
 from ..core.incident import Incident
-from ..core.schema import Fact
 from ..core.ports import Normalizer, PhotoReader, SpeechToText, TextModel
 from ..core.roster import PatientRoster
 from ..core.snapshot import Projector
@@ -39,6 +37,7 @@ from ..terminology import MedicationCoder, build_coder
 from .contract import UIContract
 from .media import dispose_incident_media
 from .persistence import IncidentStore
+from .encounters import SavedCall, encode_call, decode_call, fresh_relay
 from .trace import TraceRecorder
 
 
@@ -82,6 +81,7 @@ class AppContext:
     evidence_dir: Optional[Path] = None      # where agentic capture keeps redacted stills (deleted with the call)
     frame_reader: object = None
     speech_in_flight: int = 0
+    previous_calls: list[SavedCall] = field(default_factory=list)
 
     @property
     def incident(self) -> Incident:
@@ -116,47 +116,50 @@ class AppContext:
                         for kind in ("audio", "photo")},
             "patients": cleanups,
         }
-        if self.persistence:
-            self.persistence.discard()
+        if self.capture_agent is not None:
+            self.capture_agent.set_auto(False)
+        self.persist()
         return result
 
+    def advance_incident(self, dispatch: Optional[str]) -> dict:
+        # Bind the old queue before replacing the active roster. Each call keeps its own
+        # authorization, destination, sequence numbers and retry packet.
+        cleanup = self.end_incident()
+        self.relay.get_incident = self.roster.incidents
+        self.previous_calls.append(SavedCall(self.roster, self.relay))
+        self.new_incident(dispatch)
+        self.relay = fresh_relay(self, self.roster)
+        self.persist()
+        return cleanup
+
     def persist(self) -> None:
-        if not self.persistence:
-            return
-        patients = []
-        for inc in self.roster.incidents():
-            with inc.lock:
-                patients.append({"id": inc.id, "label": inc.patient_label, "dispatch": inc.dispatch,
-                                 "started": inc.started.isoformat(),
-                                 "facts": [f.model_dump(mode="json") for f in inc.facts],
-                                 "transcripts": inc.transcripts, "audit": inc.audit_log,
-                                 "news2": inc.news2_history,
-                                 "media_ids": {k: sorted(v) for k, v in inc.media_ids.items()}})
-        self.persistence.save({"v": 1, "active": self.incident.id, "patients": patients,
-                               "relay": {"authorized": self.relay.authorized, "acked": self.relay.acked,
-                                         "ed_url": self.relay.ed_url}})
+        if self.persistence:
+            self.persistence.save({"v": 2, **encode_call(self.roster, self.relay),
+                                   "previous_calls": [encode_call(c.roster, c.relay) for c in self.previous_calls]})
 
     def restore(self) -> bool:
-        """Restore only an encrypted, unfinished call; corrupted state starts clean."""
+        """Authenticate recovery before replacing state; retain completed calls and their outboxes."""
         payload = self.persistence.load() if self.persistence else None
-        if not payload or payload.get("v") != 1 or not payload.get("patients"):
+        if not payload or payload.get("v") not in (1, 2) or not payload.get("patients"):
             return False
-        factory = self.roster._factory
-        roster = PatientRoster(factory)
-        for row in payload["patients"]:
-            inc = factory()
-            inc.id, inc.patient_label, inc.dispatch = row["id"], row.get("label"), row.get("dispatch")
-            inc.started = datetime.fromisoformat(row["started"])
-            inc.facts = [Fact.model_validate(fact) for fact in row.get("facts", [])]
-            inc.transcripts, inc.audit_log = row.get("transcripts", []), row.get("audit", [])
-            inc.news2_history = row.get("news2", [])
-            inc.media_ids = {"audio": set(), "photo": set()} | {kind: set(ids) for kind, ids in row.get("media_ids", {}).items()}
-            roster._incidents[inc.id], roster._labels[inc.id] = inc, inc.patient_label
-        roster.active_id = payload.get("active") if payload.get("active") in roster._incidents else next(iter(roster._incidents))
-        self.roster = roster
-        relay = payload.get("relay", {})
-        self.relay.ed_url, self.relay.authorized, self.relay.acked = relay.get("ed_url"), relay.get("authorized"), relay.get("acked", {})
+        active = decode_call(self, payload)
+        self.previous_calls = [decode_call(self, row) for row in payload.get("previous_calls", [])]
+        self.roster, self.relay = active.roster, active.relay
         return True
+
+    def encounter_history(self) -> list[dict]:
+        rows = []
+        for call in reversed(self.previous_calls):
+            pending_ids = {row[-1].id for row in call.relay.pending() + call.relay.withdrawals()}
+            if call.relay.inflight:
+                pending_ids.add(call.relay.inflight["i"])
+            for inc, row in zip(call.roster.incidents(), call.roster.summaries()):
+                full_pending = sum(f.status.value == "confirmed" for f in inc.facts) != call.relay.full_synced_facts.get(inc.id, 0)
+                rows.append({**row, "started": inc.started.isoformat(),
+                             "destination": (call.relay.authorized or {}).get("destination"),
+                             "delivery_pending": inc.id in pending_ids or full_pending,
+                             "authorized": bool(call.relay.authorized)})
+        return rows
 
     def pre_alert_scope(self) -> tuple[str, list[str]]:
         """The medic-facing label and the checklist alert ids actually open right now (`config/relay.yaml`
@@ -172,6 +175,8 @@ class AppContext:
         snap["patients"] = self.roster.summaries()
         snap["restored"] = bool(getattr(self, "restored", False))
         snap["active_patient"] = self.incident.id
+        snap["encounter_history"] = self.encounter_history()
+        snap["history_persisted"] = self.persistence is not None
         snap["handoff"] = self.handoff.summary(self.handoff.build(self.incident, snapshot=snap))
         rs = self.relay.status()
         active_relay = rs["patients"].get(self.incident.id, {})
@@ -294,12 +299,16 @@ def wire_capture(ctx: AppContext, broadcast):
                                    ctx.vision_model.model_name, broadcast)
 
     async def read(frame, intent, roi, valid):
+        if ctx.incident.ended_at or ctx.restored:
+            from ..capture.types import CaptureResult
+            return CaptureResult(reason="Encounter is not open for capture")
         return await service.photo(frame.jpeg, intent.mode, auto=True, frame=frame, intent=intent, roi=roi, valid=valid)
 
     agent = CaptureAgent(config, read, incident_id=lambda: ctx.incident.id,
                          speech_busy=lambda: ctx.speech_in_flight > 0, source=ctx.settings.capture_source,
                          notify=broadcast, hold=lambda id, reason: ctx.incident.hold_verification(id, reason))
-    agent.set_auto(ctx.settings.capture_auto and ctx.settings.capture_source != "off")
+    agent.set_auto(ctx.settings.capture_auto and ctx.settings.capture_source != "off"
+                   and not ctx.restored and ctx.incident.ended_at is None)
     ctx.capture_agent = agent
     service.listeners.append(agent)
     source = None

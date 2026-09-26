@@ -52,6 +52,7 @@ class PatientRoster:
             rows.append({
                 "id": patient_id,
                 "label": self._labels[patient_id],
+                "ended_at": incident.ended_at.isoformat() if incident.ended_at else None,
                 "triage": triage.value if triage else None,
                 "summary": snapshot["summary"],
                 "readiness_done": readiness["done"] if readiness else 0,

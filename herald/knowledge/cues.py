@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from typing import Callable, Optional
 
 from ..config import load_yaml
+from .keypoints import flow
 
 
 def _cut(text: str, limit: int) -> tuple[str, bool]:
@@ -43,8 +44,8 @@ class ProtocolCues:
         self.asked: dict[str, list[dict]] = {}              # incident id -> the medic's own requests, newest first
         self.max_chars: int = cfg.get("max_chars", 700)
         self._kb, self._county, self._picker = kb, county, picker      # picker: KeyPointPicker, or None to skip
-        self._results: dict[tuple[str, str], dict] = {}
-        self._inflight: set[tuple[str, str]] = set()
+        self._results: dict[tuple, dict] = {}
+        self._inflight: set[tuple] = set()
         self._lock = threading.Lock()
 
     # ---------- the medic asking ----------
@@ -56,11 +57,13 @@ class ProtocolCues:
             i = low.find(phrase)
             if i < 0:
                 continue
-            topic = re.split(r"[.,;!?]", said[i + len(phrase):], maxsplit=1)[0].strip(" :\"'“”")   # the topic ends with the clause
+            clauses = re.split(r"[.,;!?]", said[i + len(phrase):], maxsplit=1)
+            topic = clauses[0].strip(" :\"'“”")   # the topic ends with the clause
             topic = re.sub(r"^(a|an|the)\s+", "", topic, flags=re.I)
             if len(topic) < 3:
                 return None
-            cue = {"id": f"asked:{topic.lower()}", "title": f"You asked: {topic}", "query": self._q(topic), "topic": topic, "asked": True,
+            cue = {"id": f"asked:{topic.lower()}", "title": f"You asked: {topic}", "query": self._q(topic), "topic": topic, "asked": True, "command_only": i == 0 and
+                       (len(clauses) == 1 or clauses[1].strip(" .,!?:;").lower() in ("", "please")),
                    "at": datetime.now(timezone.utc).isoformat()}
             with self._lock:
                 mine = [c for c in self.asked.get(incident_id, []) if c["id"] != cue["id"]]
@@ -86,10 +89,12 @@ class ProtocolCues:
                                         "topic": v.strip()})
             elif alerts & set(c["when"].get("alerts", [])) or checklists & set(c["when"].get("checklists", [])):
                 out.append(c)
-        return out
+        context = self.situation(snap)
+        patient = (snap.get("incident") or {}).get("id", "")
+        return [{**c, "cache_key": (self._county(), patient, context, c["id"])} for c in out]
 
-    def _key(self, cue: dict) -> tuple[str, str]:
-        return (self._county(), cue["id"])
+    def _key(self, cue: dict) -> tuple:
+        return tuple(cue.get("cache_key", (self._county(), "", "", cue["id"])))
 
     @staticmethod
     def situation(snap: dict) -> str:
@@ -116,9 +121,11 @@ class ProtocolCues:
             kb = self._kb()
             answer = kb.answer(cue["query"], self.passages) if kb is not None else None
             result = self._result(answer) if answer is not None else None
+            full = result.pop("_whole", []) if result is not None else []
             if result is not None and result["state"] == "found" and self._picker is not None:
+                whole = [{**p, "text": t} for p, t in zip(result["passages"], full)]   # the picker never sees a shortened list
                 try:                                              # key points are optional: without them the screen
-                    points = self._picker.pick(cue.get("situation", cue["title"]), result["passages"])   # uses lead sentences
+                    points = self._picker.pick(cue.get("situation", cue["title"]), whole)   # uses lead sentences
                     if points is not None:
                         result["points"] = points
                 except Exception:
@@ -136,13 +143,15 @@ class ProtocolCues:
         if answer.get("answerable") is False:
             return {"state": "not_covered", "passages": []}
         chosen = answer.get("chosen") or (1 if answer.get("results") else 0)
-        passages = []
+        passages, whole = [], []
         for r in answer.get("results", [])[: min(self.passages, max(chosen, 1))]:
-            text, shortened = _cut(re.sub(r"\s+", " ", r["text"]).strip(), self.max_chars)   # PDF line breaks are layout, not meaning
+            whole.append(flow(r["text"]))                        # PDF line breaks are layout; list items stay on their own lines
+            text, shortened = _cut(whole[-1], self.max_chars)
             passages.append({"doc": r["doc"], "title": r.get("title"), "section": r["section"], "heading": r.get("heading"),
                              "page": r.get("page"), "effective": r.get("effective"), "text": text, "shortened": shortened,
                              "text_layer_uncertain": r.get("text_layer_uncertain", False)})
-        return {"state": "found" if passages else "not_covered", "passages": passages, "reranked": answer.get("reranked", False)}
+        return {"state": "found" if passages else "not_covered", "passages": passages, "reranked": answer.get("reranked", False),
+                "_whole": whole}
 
     # ---------- what the screen shows ----------
     def view(self, snap: dict) -> list[dict]:

@@ -132,14 +132,15 @@ For continuous observation, choose **Start listening** and **Camera → Start mo
 - **Tests:** `python -m pytest -q`.
 - **Benchmarks:** `eval/bench_extract.py`, `eval/adversarial_bench.py`.
 
-### Unfinished-call recovery and retention
+### Encounter recovery and retention
 
-Herald keeps one authenticated, encrypted recovery snapshot for an unfinished call. The ciphertext is
+Herald keeps the active roster, previous encounters and their delivery queues in authenticated, encrypted local recovery. The ciphertext is
 `data/state/active-call.fernet`; its 0600 key is stored separately at
 `~/.config/herald/state.fernet.key` (override with `HERALD_STATE_KEY_FILE`). A restart restores the active patient
 roster, facts, transcript trace, audit entries and relay state, and the API marks the snapshot `restored: true`.
-Ending or replacing the call deletes the recovery snapshot and that call's registered audio/photos. The key is kept
-for the next call and must not be committed or copied with patient data. If the key is missing, too broadly readable,
+Finishing deletes registered audio/photos while retaining structured records. **Patients** separates adding someone at the same scene from finishing and starting the next encounter; previous handoffs open without changing the active patient. **ED handoff** records arrival and transfer-of-care times explicitly. Existing authorized updates keep their original destination and continue retrying. A new encounter requires new ED authorization. Restored encounters require a patient confirmation before capture resumes.
+
+The key must not be committed or copied with patient data. If the key is missing, too broadly readable,
 or the ciphertext fails authentication, Herald refuses to start rather than silently replacing the record.
 
 Audio and photos remain local evidence files; they are deleted at call end but are not encrypted by this recovery

@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from ...core.incident import IncidentEnded
 from ...core.schema import Status
 from . import get_capture
-from . import get_ctx, get_hub
+from . import get_ctx, get_hub, check_current_patient
 
 router = APIRouter(prefix="/api")
 ACTIONS = {"confirm": Status.confirmed, "reject": Status.rejected}
@@ -27,17 +27,16 @@ class BulkConfirm(BaseModel):
     ids: list[str]
 
 
-@router.post("/incident")
+@router.post("/incident", dependencies=[Depends(check_current_patient)])
 async def new_incident(body: NewIncident, c=Depends(get_ctx), h=Depends(get_hub)):
-    previous_cleanup = c.end_incident()
-    c.new_incident(body.dispatch)
-    c.relay.reset()
-    c.persist()
+    if any(inc.id != c.incident.id and inc.ended_at is None for inc in c.roster.incidents()):
+        raise HTTPException(409, "Finish the other patients at this scene before starting a new scene")
+    previous_cleanup = c.advance_incident(body.dispatch)
     await h.broadcast()
     return {**c.full_state(), "previous_call_cleanup": previous_cleanup}
 
 
-@router.post("/incident/end")
+@router.post("/incident/end", dependencies=[Depends(check_current_patient)])
 async def end_incident(c=Depends(get_ctx), h=Depends(get_hub)):
     cleanup = c.end_incident()
     await h.broadcast()

@@ -158,6 +158,7 @@ export interface TranscriptEntry {
 // ---------- mass-casualty patient roster (TASK_SPECS S5) ----------
 export type TriageCategory = "immediate" | "delayed" | "minimal" | "expectant" | "dead";
 export interface PatientSummary {
+  ended_at?: string | null;
   id: string; label: string; triage: TriageCategory | null; summary: string;
   readiness_done: number; readiness_total: number;
 }
@@ -201,7 +202,7 @@ export interface ProtocolAnswer {
 /** herald/knowledge/cues.py: the county's own passage for a recognised situation, verbatim with its citation. */
 export interface ProtocolCue {
   id: string; title: string; query: string; asked?: boolean; found_at?: string;
-  points?: { text: string; cite: string; marks: string[] }[];   // the model's picks among the county's own sentences
+  points?: { text: string; items?: string[]; cite: string; marks: string[] }[];   // the model's picks among the county's own rules; a lead-in keeps its list
   state: "searching" | "found" | "not_covered";
   passages: { doc: string; title: string | null; section: string; heading: string | null; page: number | null;
     effective: string | null; text: string; shortened: boolean; text_layer_uncertain: boolean }[];
@@ -213,9 +214,12 @@ export interface Snapshot {
   capture_groups?: CaptureGroup[];      // absent on older vehicles and recorded fixtures
   incident: {
     id: string; dispatch: string | null; started: string; ended_at: string | null;
+    arrived_at?: string | null; transferred_at?: string | null;
     media_disposal: MediaDisposal | null;
   };
   patients: PatientSummary[];
+  encounter_history?: (PatientSummary & { started: string; destination: string | null; authorized: boolean; delivery_pending: boolean })[];
+  history_persisted?: boolean;
   active_patient: string;
   restored: boolean;                     // unfinished call recovered after a server restart
   summary: string;

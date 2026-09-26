@@ -223,7 +223,7 @@ export function patientKnown(s: Snapshot, groups: [string, (key: string) => bool
  *  numbering dropped, and the shortest sentences that carry the passage's substance kept. Highlighting is plain
  *  pattern matching (numbers with units and time windows, facility names, the words that were asked). */
 export interface Segment { t: string; hl?: boolean }
-export interface KeyPoint { segments: Segment[]; cite: string }
+export interface KeyPoint { segments: Segment[]; items: Segment[][]; cite: string }
 
 const UNIT = String.raw`(?:mg|mcg|g|mL|ml|L|mmHg|%|minutes?|mins?|hours?|hrs?|seconds?|days?|years?|kg|joules?|J|bpm)`;
 const HL = [
@@ -251,13 +251,15 @@ export function keyPoints(passages: { doc: string; section: string; text: string
     const cite = `${p.doc} §${p.section}`;
     if (skip.has(cite)) continue;                         // already shown under another situation
     skip.add(cite);
-    const body = p.text.replace(/^\s*[\d.]+[.)]?\s+/, "").replace(/^[A-Z]\.\s+/, "").trim();
+    // the server keeps each list item on its own line ("shall be transported to:" / "a. ..." / "b. ...")
+    const [head = "", ...items] = p.text.split("\n").map((l) => l.trim()).filter(Boolean);
+    const body = head.replace(/^\s*[\d.]+[.)]?\s+/, "").replace(/^[A-Z]\.\s+/, "").trim();
     const sentences = body.split(/(?<=[.;])\s+(?=[A-Z(])/).map((s) => s.trim()).filter((s) => s.length > 12);
-    let lead = sentences[0] ?? body;
-    if (lead.endsWith(":")) lead = body.slice(0, 260);    // "shall be transported to:" means nothing without what follows
-    if (lead.trimEnd().endsWith(":")) continue;            // ...and if nothing follows in this passage, it is not a key point
-    const text = lead.length > 240 ? `${lead.slice(0, 237).replace(/\s+\S*$/, "")} …` : lead;
-    out.push({ segments: highlight(text), cite });
+    const lead = sentences.find((s) => s.endsWith(":")) && items.length ? sentences.find((s) => s.endsWith(":"))! : sentences[0] ?? body;
+    if (lead.endsWith(":") && !items.length) continue;   // a lead-in whose list is not in this passage is not a key point
+    const list = lead.endsWith(":") ? items : [];
+    const text = list.length || lead.length <= 240 ? lead : `${lead.slice(0, 237).replace(/\s+\S*$/, "")} …`;
+    out.push({ segments: highlight(text), items: list.map((i) => highlight(i)), cite });
     if (out.length >= max) break;
   }
   return out;
@@ -265,7 +267,7 @@ export function keyPoints(passages: { doc: string; section: string; text: string
 
 /** The model's picks when it made them (each already verified server-side to be the county's words), otherwise the
  *  lead sentence of each passage. Either way a passage shows once across situations. */
-export function cuePoints(c: { passages: { doc: string; section: string; text: string }[]; points?: { text: string; cite: string; marks: string[] }[] },
+export function cuePoints(c: { passages: { doc: string; section: string; text: string }[]; points?: { text: string; items?: string[]; cite: string; marks: string[] }[] },
   skip: Set<string>): KeyPoint[] {
   if (!c.points) return keyPoints(c.passages, 2, skip);   // the model could not be asked: each passage's lead sentence
   // an empty list is the model's judgement that these passages hold no rule for this situation: show none
@@ -274,7 +276,7 @@ export function cuePoints(c: { passages: { doc: string; section: string; text: s
     const key = `${p.cite}|${p.text}`;
     if (skip.has(key)) continue;
     skip.add(key); skip.add(p.cite);
-    out.push({ segments: highlight(p.text, p.marks), cite: p.cite });
+    out.push({ segments: highlight(p.text, p.marks), items: (p.items ?? []).map((i) => highlight(i, p.marks)), cite: p.cite });
   }
   return out;
 }

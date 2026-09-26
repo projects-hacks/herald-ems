@@ -123,6 +123,9 @@ class CaptureService:
         self.inc.transcripts.append(entry)
         asked = ctx.cues.ask(self.inc.id, text) if ctx.cues is not None else None   # "show me the protocol for ..."
         entry["asked"] = bool(asked)
+        if asked and asked.get("command_only"):
+            model.clear()
+            model.update(status="off", reason="Protocol request, not a patient observation")
         if model["status"] == "running":
             self.ctx.speech_in_flight += 1
             asyncio.create_task(self._extract_counted(entry, text, captured_by, default_role, speaker, audio_id, injected))

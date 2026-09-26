@@ -133,9 +133,10 @@ export function ProtocolCues() {
         if (!points.length && c.asked) { points = keyPoints(c.passages, 1); closest = points.length > 0; }   // asked: the nearest county words
         return points.length ? <>{closest && <p className="protocol-status">No rule names this exactly. The closest county text:</p>}<ul className="protocol-points">{points.map((k, i) => <li key={i}>
         <span>{k.segments.map((s, j) => s.hl ? <mark key={j}>{s.t}</mark> : <span key={j}>{s.t}</span>)}</span>
+        {k.items.length > 0 && <ol className="protocol-items">{k.items.map((item, n) => <li key={n}>{item.map((s, j) => s.hl ? <mark key={j}>{s.t}</mark> : <span key={j}>{s.t}</span>)}</li>)}</ol>}
         <cite>{k.cite}</cite>
       </li>)}</ul></> : <p className="protocol-status">Closest county sections: {[...new Set(c.passages.slice(0, 3).map((p) => `${p.doc} §${p.section}`))].join(" · ")}</p>; })()}
-      {c.state === "found" && <details className="protocol-more"><summary>Full county text{c.passages[0]?.effective ? ` · effective ${c.passages[0].effective}` : ""}</summary>
+      {c.state === "found" && <details className="protocol-more"><summary>Retrieved county passages{c.passages[0]?.effective ? ` · effective ${c.passages[0].effective}` : ""}</summary>
         {c.passages.map((p) => <Passage key={`${p.doc}-${p.section}`} p={p} />)}</details>}
     </article>)}
     </div>
@@ -215,7 +216,7 @@ export function SituationBar() {
   const s = useHerald((st) => st.snapshot);
   const at = useHerald((st) => st.lastStateAt);
   const now = useNow();
-  if (!s || (!s.readiness.length && !s.clocks.some((c) => c.id !== "scene"))) return null;
+  if (!s || s.incident.ended_at || (!s.readiness.length && !s.clocks.some((c) => c.id !== "scene"))) return null;
   const clock = (id: string) => s.clocks.find((c) => c.id === id);
   const lkw = clock("lkw"), eta = clock("eta"), due = clock("reassess");
   return <div className="situation-bar" role="group" aria-label="Situation">
@@ -232,10 +233,10 @@ export function SituationBar() {
     })}
     {lkw && <span className="sit-clock" data-unconfirmed={s.facts["stroke.lkw"]?.status === "unconfirmed" || undefined}><b>LKW</b> {lkw.label.replace(/^LKW\s*/, "")} <span className="num">+{span(clockSeconds(lkw, at, now))}</span>
       {s.facts["stroke.lkw"]?.status === "unconfirmed" && <small>not confirmed</small>}</span>}
-    {eta && (() => { const left = clockSeconds(eta, at, now); const tentative = s.facts["transport.eta_min"]?.status === "unconfirmed";
-      return <span className="sit-clock" data-unconfirmed={tentative || undefined}><b>ETA</b> <span className="num">{left > 0 ? hhmmss(left).replace(/^00:/, "") : `due ${span(-left)} ago`}</span>
+    {eta && !s.incident.arrived_at && !s.incident.transferred_at && (() => { const left = clockSeconds(eta, at, now); const tentative = s.facts["transport.eta_min"]?.status === "unconfirmed";
+      return <span className="sit-clock" data-unconfirmed={tentative || undefined}><b>ETA</b> <span className="num">{left > 0 ? hhmmss(left).replace(/^00:/, "") : "update needed"}</span>
         {tentative && <small>not confirmed</small>}</span>; })()}
-    {due && (() => { const left = clockSeconds(due, at, now); return <span className="sit-clock" data-overdue={left <= 0 || undefined}><b>Vitals</b>
+    {due && !s.incident.transferred_at && (() => { const left = clockSeconds(due, at, now); return <span className="sit-clock" data-overdue={left <= 0 || undefined}><b>Vitals</b>
       <span className="num">{left > 0 ? `due in ${hhmmss(left).replace(/^00:/, "")}` : "due now"}</span></span>; })()}
   </div>;
 }

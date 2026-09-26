@@ -142,7 +142,7 @@ export const useHerald = create<HeraldState>()((set, get) => ({
       if (!(k in arrival)) arrival[k] = ++next;
     }
     set({ snapshot: s, pending: switched ? {} : pending, alertArrival: arrival, lastStateAt: Date.now(),
-      ...(switched ? { ui: { ...get().ui, incidentPhase: "scene", seenAlerts: {}, expanded: {}, heldAlerts: false }, holdMark: null } : {}) });
+      ...(switched ? { ui: { ...get().ui, incidentPhase: "scene", seenAlerts: {}, expanded: {}, heldAlerts: false, capturePaused: !get().ui.autoCapture, page: "overview" }, holdMark: null } : {}) });
   },
   setUi: (patch) => {
     const ui = { ...get().ui, ...patch };

@@ -285,6 +285,9 @@
   font-size: 1.0625rem; line-height: 1.45; color: var(--text-primary); }
 .protocol-points mark { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--text-primary); font-weight: 700;
   padding: 0 3px; border-radius: 4px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.protocol-items { list-style: none; margin: 2px 0 0; padding: 0 0 0 10px; display: flex; flex-direction: column; gap: 4px; }
+.protocol-points .protocol-items li { border-left: 0; padding-left: 0; flex-direction: row; display: block; }
+.protocol-more blockquote { white-space: pre-line; }
 .protocol-points cite { font-style: normal; font-family: var(--font-mono); font-size: .8125rem; font-weight: 700; color: var(--low-fg); }
 
 /* ---------- every page wears the same glass: record, trends, handoff, camera, settings ---------- */
@@ -395,3 +398,22 @@ html:has(.copilot) { font-size: clamp(16px, calc(0.3vw + 11px), 19px); }
   .copilot:not(.workspace-task) .copilot-rest > .copilot-side > .copilot-movement { order: 3; }
   .copilot:not(.workspace-task) .copilot-rest > .copilot-side > .copilot-ed { order: 4; }
 }
+
+/* Encounter controls belong beside the patient roster and handoff, away from clinical decisions. */
+.copilot-patient h1 { margin: 0; font: inherit; }
+.encounter-reference { display: block; font-size: .8125rem; font-weight: 500; color: var(--text-secondary); margin-top: .25rem; }
+.encounter-card { padding: 1.25rem; margin-block: 1rem; background: var(--surface-1); border: 1px solid var(--border-subtle); border-radius: 1rem; }
+.encounter-card h2 { font-size: 1.25rem; margin-bottom: .75rem; }
+.encounter-card p { font-size: .9375rem; line-height: 1.6; margin-block: .75rem; }
+.encounter-times { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 1rem; margin-block: 1rem; }
+.encounter-times dt { font-size: .875rem; color: var(--text-secondary); }
+.encounter-times dd { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.encounter-history { display: grid; gap: .75rem; }
+.encounter-history-row { display: grid; gap: .4rem; min-height: 4rem; padding: 1rem; text-align: left; background: var(--surface-2); border: 1px solid var(--border-subtle); border-radius: .75rem; font-size: .9375rem; }
+.encounter-history-row[aria-expanded="true"] { border-color: var(--accent); }
+.retained-handoff { margin-top: 1rem; }
+.retained-handoff pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: inherit; font-size: .9375rem; line-height: 1.7; margin-top: .75rem; }
+.encounter-recovery { padding: 1rem 1.25rem; margin: 1rem; background: var(--low-tint); color: var(--low-fg); border-radius: .75rem; font-size: .9375rem; }
+.encounter-recovery .cabin-actions { margin-top: .75rem; }
+
+@media (max-width: 1000px) { .copilot-header > .copilot-patient { min-width: 14rem; } .copilot-header-actions { flex-wrap: wrap; } }

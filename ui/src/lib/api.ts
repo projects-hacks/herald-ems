@@ -37,6 +37,8 @@ export async function act(key: string, url: string, body?: unknown, failCopy = "
 }
 
 export const api = {
+  resumeEncounter: () => act("encounter:resume", "/api/encounters/resume"),
+  encounterAction: (action: "arrive" | "transfer" | "finish") => act(`encounter:${action}`, `/api/encounters/current/${action}`),
   activatePatient: (id: string) => act(`patient:${id}`, `/api/patients/${encodeURIComponent(id)}/activate`),
   addPatient: (label: string) => act("patient:add", "/api/patients", { label }),
   confirm: (factId: string) => act(`confirm:${factId}`, `/api/facts/${factId}/confirm`, undefined, "Couldn't confirm. The Herald server didn't answer. Try again."),
