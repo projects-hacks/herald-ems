@@ -11,9 +11,9 @@ import type { MonitorStatus } from "@/features/capture/monitor";
 
 type OrbState = "listening" | "thinking" | "paused" | "down" | "waiting" | "replay";
 
-export function HeraldLive({ p, paused, disabled, onToggle, level, waitingTap, warning, monitor, onCamera }: {
+export function HeraldLive({ p, paused, disabled, onToggle, level, waitingTap, warning, monitor }: {
   p: Presence; paused: boolean; disabled?: boolean; onToggle: () => void; level: number; waitingTap: boolean;
-  warning?: string | null; monitor: MonitorStatus; onCamera: () => void;
+  warning?: string | null; monitor: MonitorStatus;
 }) {
   const s = useHerald((st) => st.snapshot);
   const heard = s ? liveHeard(s) : null;
@@ -42,12 +42,13 @@ export function HeraldLive({ p, paused, disabled, onToggle, level, waitingTap, w
           {heard.effects.map((e, i) => <li key={e} className="chip-effect" style={{ animationDelay: `${(heard.chips.length + i) * 70}ms` }}>{e}</li>)}
         </ul>)}
     </div>
-    <LiveEye monitor={monitor} paused={paused} onCamera={onCamera} />
+    <LiveEye monitor={monitor} paused={paused} />
   </section>;
 }
 
-/** What the camera sees, and the last thing Herald read from it. */
-function LiveEye({ monitor, paused, onCamera }: { monitor: MonitorStatus; paused: boolean; onCamera: () => void }) {
+/** What the camera sees, and the last thing Herald read from it. The camera runs with the call and has no controls of
+ * its own: it follows the pause in the header and reconnects by itself. */
+function LiveEye({ monitor, paused }: { monitor: MonitorStatus; paused: boolean }) {
   const s = useHerald((st) => st.snapshot);
   const video = useRef<HTMLVideoElement>(null);
   useEffect(() => {
@@ -58,14 +59,14 @@ function LiveEye({ monitor, paused, onCamera }: { monitor: MonitorStatus; paused
   const read = s ? activity(s, 20).find((l) => l.kind === "read" || l.kind === "checked") : undefined;
   const on = monitor.active && !!monitor.stream;
   const failed = monitor.error && !on;
-  return <button type="button" className="live-eye" data-on={on || undefined} data-failed={failed || undefined} onClick={onCamera} aria-label="Open the camera">
+  return <div className="live-eye" data-on={on || undefined} data-failed={failed || undefined} role="group" aria-label="Camera">
     <span className="eye-view">
       <video ref={video} muted playsInline aria-hidden />
       {on ? <span className="eye-scan" aria-hidden /> : <EyeOff size={22} aria-hidden />}
     </span>
     <span className="eye-text">
       <b>{on ? <><Eye size={14} aria-hidden /> Watching the monitor</> : failed && monitor.retry && !paused ? "Camera reconnecting…" : failed ? "Camera stopped" : paused ? "Camera paused" : monitor.starting ? "Starting the camera…" : "Camera off"}</b>
-      <span>{failed ? "Tap to restart or take a photo" : read ? read.text.replace(/^Read the monitor — /, "") : on ? "Waiting for a clear frame" : "Tap to aim or take a photo"}</span>
+      <span>{failed ? (monitor.retry && !paused ? "Comes back on its own" : monitor.message) : read ? read.text.replace(/^Read the monitor — /, "") : on ? "Waiting for a clear frame" : paused ? "Resumes when you listen again" : "Starts with the call"}</span>
     </span>
-  </button>;
+  </div>;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Activity, Camera, ChevronLeft, FileText, Info, Keyboard, Moon, Settings2, Sun, Users, WifiOff } from "lucide-react";
+import { Activity, ChevronLeft, FileText, Info, Keyboard, Moon, Settings2, Sun, Users, WifiOff } from "lucide-react";
 import { ManualEntry } from "@/components/ManualEntry";
 import { PatientRoster } from "@/components/PatientRoster";
 import { CaptureBar } from "@/features/capture/CaptureBar";
@@ -9,15 +9,13 @@ import { monitorIdle } from "@/features/capture/monitor";
 import { ConnectBand, RestoredCallBanner, StaleOverlay } from "@/components/GlobalStates";
 import { AttentionQueue } from "@/features/attention/AttentionQueue";
 import { useAttention } from "@/hooks/useAttention";
-import { patientLabel } from "@/lib/format";
 import { patientLine, presence } from "@/lib/copilot";
 import { useHerald } from "@/lib/store";
 import { PatientPage } from "@/pages/PatientPage";
 import { TrendsPage } from "@/pages/TrendsPage";
 import { TranscriptPage } from "@/pages/TranscriptPage";
 import { HandoffPage } from "@/pages/HandoffPage";
-import type { CameraStatus } from "./CameraCapture";
-import { CameraWorkspace } from "./CameraWorkspace";
+import { MonitorWatch } from "@/features/capture/MonitorWatch";
 import { useAmbient } from "./useAmbient";
 import { useCaptureOwner } from "./captureOwner";
 import "./workspace.css";
@@ -30,10 +28,10 @@ import "../copilot/live.css";
 import type { FixturePlayer } from "@/lib/ws";
 
 // One screen. Everything that is not "Now" opens from the control that needs it (the ED card opens the handoff, the
-// dock opens the camera and typing, the header opens the record, protocol search and settings) and closes back to Now.
-type Panel = Exclude<WorkspacePanel, "trends" | "protocols"> | "record";
+// dock opens typing, the header opens the record, protocol search and settings) and closes back to Now.
+type Panel = Exclude<WorkspacePanel, "trends" | "protocols" | "camera"> | "record";
 type RecordView = "facts" | "trends" | "transcript";
-const TITLES = { review: "Needs you", patient: "Patient record", record: "Record", patients: "Patients", notes: "Type a note", handoff: "ED handoff", camera: "Camera", settings: "Settings" };
+const TITLES = { review: "Needs you", patient: "Patient record", record: "Record", patients: "Patients", notes: "Type a note", handoff: "ED handoff", settings: "Settings" };
 
 export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   const s = useHerald((st) => st.snapshot);
@@ -48,7 +46,6 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   const ambient = useAmbient();
   const [panel, setPanel] = useState<Panel>(null);
   const [recordView, setRecordView] = useState<RecordView>("facts");
-  const [photo, setPhoto] = useState<CameraStatus>({ active: false, busy: false, message: "", failed: false });
   const [monitor, setMonitor] = useState(monitorIdle);
   const page = useRef<HTMLElement>(null);
   const lastTrigger = useRef<HTMLElement | null>(null);
@@ -77,14 +74,13 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   }, [ui.page, setUi]);
   const openRecord = (view: RecordView) => { setRecordView(view); open("record"); };
   const recording = ambient.status.listening || ambient.status.starting;
-  const identity = s?.facts["patient.name"];
   const isReplay = source === "fixture";
   const pill = presence({ replay: isReplay, elsewhere, offline: stale, hasSnapshot: !!s, health,
     listening: ambient.status.listening, micError: ambient.status.error ? ambient.status.message : null,
     monitorWatching: !!(monitor.active || (s?.capture?.auto && s.capture.sees !== "off")),
     cameraError: s?.capture?.error ?? (monitor.error ? monitor.message : null) });
   const multi = (s?.patients?.length ?? 0) > 1;
-  return <div className={`cabin workspace-shell copilot ${panel ? "workspace-task" : ""} ${panel === "camera" ? "workspace-camera" : ""} ${ui.typeScale > 1 ? "cabin-large-text" : ""}`}><div className="workspace-body">
+  return <div className={`cabin workspace-shell copilot ${panel ? "workspace-task" : ""} ${ui.typeScale > 1 ? "cabin-large-text" : ""}`}><div className="workspace-body">
     <header className="copilot-header">
       {panel ? <button className="copilot-back" onClick={close} aria-label="Back to now"><ChevronLeft size={18} />Now</button>
         : <span className="copilot-mark" aria-label="Herald"><Activity size={22} strokeWidth={2.6} aria-hidden /></span>}
@@ -94,7 +90,6 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
       {isReplay && player && <ReplayBar player={player} />}
       <div className="copilot-header-actions">
         {s?.capture?.auto && <CaptureControl stopOnly />}   {/* the vehicle's connected camera: a direct stop */}
-        <button className="cabin-button" aria-label="Camera" aria-pressed={panel === "camera"} onClick={() => open("camera")}><Camera size={19} /></button>
         <button className="cabin-button" aria-label="Type a note" aria-pressed={panel === "notes"} onClick={() => open("notes")}><Keyboard size={19} /></button>
         <button className="cabin-button" aria-label="Record" aria-pressed={panel === "record"} onClick={() => openRecord("facts")}><FileText size={19} /><span className="patients-button-label">Record</span></button>
         {multi && <button className="cabin-button" aria-label="Patients" onClick={() => open("patients")}><Users size={19} /><span className="patients-button-label">Patients</span></button>}
@@ -117,7 +112,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
         <div className="copilot-rest">
           <div className="copilot-side copilot-side-live">
             {!panel && <HeraldLive p={pill} paused={ui.capturePaused} disabled={isReplay || ambient.blocked} level={ambient.status.level}
-              waitingTap={!!ambient.status.waitingTap} warning={ambient.status.warning} monitor={monitor} onCamera={() => open("camera")}
+              waitingTap={!!ambient.status.waitingTap} warning={ambient.status.warning} monitor={monitor}
               onToggle={() => setUi({ capturePaused: !ui.capturePaused })} />}
             <MovementStrip onTrends={() => openRecord("trends")} />
             <EdCard onHandoff={() => open("handoff")} />
@@ -143,13 +138,14 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
           {panel === "handoff" && <HandoffPage />}
         </>}
         {panel === "notes" && <><div className="copilot-notes-tools"><ManualEntry key={s?.incident.id} /></div><TranscriptPage onReview={() => open(null)} /><CaptureBar allowVoice={!recording && ambient.status.queued === 0} /></>}
-        <div hidden={panel !== "camera"}><CameraWorkspace key={s?.incident.id} patient={identity?.status === "confirmed" ? String(identity.value) : s?.summary?.split(" · ")[0] || patientLabel(s)} visible={panel === "camera"} onStatus={setPhoto} onMonitorStatus={setMonitor} onReview={() => open(null)} /></div>
+        {/* The camera watches with the call and follows the header's pause; no screen of its own (owner, 2026-09-26). */}
+        <div hidden><MonitorWatch key={s?.incident.id} onStatus={setMonitor} /></div>
         {panel === "settings" && <div className="cabin-settings workspace-page-surface"><h1 className="workspace-page-heading">Settings</h1>
           <div className="cabin-actions">{([1, 1.25, 1.5] as const).map((scale) => <button className="cabin-button" key={scale} aria-pressed={ui.typeScale === scale} onClick={() => setUi({ typeScale: scale })}>Text {scale * 100}%</button>)}
             <button className="cabin-button" onClick={() => setUi({ theme: ui.theme === "dark" ? "light" : "dark" })}>{ui.theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}{ui.theme === "dark" ? "Daylight theme" : "Night theme"}</button></div>
           <label className="copilot-switch"><input type="checkbox" checked={ui.autoCapture} onChange={(e) => setUi({ autoCapture: e.target.checked, capturePaused: !e.target.checked })} />
             Listen and watch automatically when a call starts</label>
-          <div className="cabin-actions"><button className="cabin-button" disabled={recording || ambient.status.queued > 0 || photo.busy} onClick={() => setUi({ confirmNewIncident: true })}>New incident…</button>
+          <div className="cabin-actions"><button className="cabin-button" disabled={recording || ambient.status.queued > 0} onClick={() => setUi({ confirmNewIncident: true })}>New incident…</button>
             <button className="cabin-button" onClick={() => setUi({ presentationMode: true })}>Guided demo</button><button className="cabin-button" onClick={() => setUi({ mode: "explain" })}>Detailed application view</button></div>
           <details><summary><Info size={18} />Recording, privacy and what runs in the background</summary><p>Record only when authorized. After you start listening, Herald listens continuously and sends only speech, cut at natural pauses, to this vehicle’s server; everything is processed on the vehicle. Speaker identity is not detected. Every captured fact needs your confirmation before it counts toward scores or is shared.</p><p>Monitor watch keeps the camera on the equipment while you use other pages; the vehicle keeps useful stills and holds readings for your confirmation. Capture continues while this tab is in the background. If the vehicle server is unreachable, speech waits in this page and is retried; after about a minute of waiting, or if a clip keeps failing, the oldest words are skipped and Herald says so. Pausing, changing patient or leaving the page stops capture; waiting audio is not a durable backup. Handoff delivery status is a system acknowledgment, not proof a clinician has read it.</p></details>
           <p className="cabin-muted">Prototype. Not validated for use during patient care.</p>

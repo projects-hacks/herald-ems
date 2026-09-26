@@ -73,7 +73,6 @@
 /* ---------- the eye ---------- */
 .live-eye { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 16px; text-align: left; min-height: 48px;
   background: var(--surface-2); border: 1px solid var(--border-subtle); max-width: 330px; }
-.live-eye:hover { border-color: var(--glass-border-hi); }
 .eye-view { position: relative; display: grid; place-items: center; width: 120px; aspect-ratio: 4 / 3; max-width: 100%; border-radius: 11px; overflow: hidden; flex-shrink: 0;
   background: color-mix(in srgb, var(--text-primary) 6%, var(--surface-1)); color: var(--text-muted); }
 .eye-view video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }

@@ -1,8 +1,7 @@
 import { readFileSync } from "node:fs";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CabinApp } from "@/features/cabin/CabinApp";
-import { CameraCapture } from "@/features/cabin/CameraCapture";
 import { initialUi, useHerald } from "@/lib/store";
 import { parseFixture } from "@/lib/ws";
 import type { Snapshot } from "@/lib/types";
@@ -68,15 +67,6 @@ describe("ambulance workspace", () => {
     expect(screen.getByLabelText("Spoken or typed note")).toBeTruthy();
     expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
   });
-  it("opens the camera workspace without activating a device", () => {
-    useHerald.setState({ ui: initialUi("?capture=off") }); render(<CabinApp />);
-    fireEvent.click(screen.getByRole("button", { name: "Camera" }));
-    expect(screen.getByRole("heading", { name: "Capture visual evidence" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Start listening" })).toBeTruthy();
-    expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Back to now" }));
-    expect(screen.queryByRole("heading", { name: "Capture visual evidence" })).toBeNull();
-  });
   it("never promotes an unverified reading into the glanceable value", () => {
     useHerald.setState({ snapshot: { ...snapshot, facts: { ...snapshot.facts, "vitals.hr": {
       id: "pending", key: "vitals.hr", label: "Heart rate", value: 177, unit: "bpm", status: "unconfirmed", ts: new Date().toISOString(), provenance: {},
@@ -90,34 +80,8 @@ describe("ambulance workspace", () => {
   it("disables capture in a replay", () => {
     useHerald.setState({ source: "fixture" }); render(<CabinApp />);
     expect((screen.getByRole("button", { name: "Listen and watch" }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: "Camera" }));
-    expect((screen.getByRole("button", { name: "Start monitor watch" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Close details" })).toBeNull();
-  });
-  it("camera permission completing after panel close cannot leave a live stream", async () => {
-    let resolve!: (stream: MediaStream) => void;
-    const promise = new Promise<MediaStream>((done) => { resolve = done; });
-    vi.mocked(navigator.mediaDevices.getUserMedia).mockReturnValue(promise);
-    const stop = vi.fn(); const view = render(<CameraCapture />);
-    fireEvent.click(screen.getByRole("button", { name: "Open camera" })); view.unmount();
-    await act(async () => { resolve({ getTracks: () => [{ stop }] } as unknown as MediaStream); await promise; });
-    expect(stop).toHaveBeenCalledOnce();
-  });
-  it("stops a pending permission request when switching capture methods", async () => {
-    let resolve!: (stream: MediaStream) => void;
-    const request = new Promise<MediaStream>((done) => { resolve = done; });
-    vi.mocked(navigator.mediaDevices.getUserMedia).mockReturnValue(request);
-    const stop = vi.fn();
-    useHerald.setState({ ui: initialUi("?capture=off") });
-    render(<CabinApp />);
-    fireEvent.click(screen.getByRole("button", { name: "Camera" }));
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "Take a photo" }), { button: 0, ctrlKey: false });
-    fireEvent.click(screen.getByRole("button", { name: "Open camera" }));
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "Connected camera" }), { button: 0, ctrlKey: false });
-    await act(async () => { resolve({ getTracks: () => [{ stop }] } as unknown as MediaStream); await request; });
-    expect(stop).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("button", { name: "Capture photo" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Enable auto capture" })).toBeTruthy();
   });
   it.each(["Record"])("explains unavailable patient data on %s", (name) => {
     useHerald.setState({ snapshot: null, conn: "closed" });
@@ -127,8 +91,10 @@ describe("ambulance workspace", () => {
     expect(screen.queryByText("No open review items")).toBeNull();
     expect(screen.queryByRole("button", { name: "Close details" })).toBeNull();
   });
-  it("offers a file picker alternative to dropping a photo", () => {
-    render(<CameraCapture />);
-    expect(screen.getByLabelText("Choose photo")).toBeTruthy();
+  it("has no camera screen: the camera runs with the call and follows the header's pause", () => {
+    render(<CabinApp />);
+    expect(screen.queryByRole("button", { name: "Camera" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Capture visual evidence" })).toBeNull();
+    expect(screen.getByRole("group", { name: "Camera" })).toBeTruthy();                  // the eye on Now: status only
   });
 });

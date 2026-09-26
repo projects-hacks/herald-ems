@@ -50,27 +50,38 @@ function Row({ row }: { row: TraumaCriterionRow }) {
 export function TraumaCriteriaChecklist({ a, s }: { a: TraumaAlert; s: Snapshot }) {
   const contract = useContract();
   const rows = traumaCriteriaRows(s, contract?.scores?.[a.score]?.criteria, a.score);
-  const confirmedCount = rows.filter((r) => r.status === "confirmed" || (r.status === "computed" && r.computedState === "met")).length;
+  const met = rows.filter((r) => r.status === "confirmed" || (r.status === "computed" && r.computedState === "met"));
+  const heard = rows.filter((r) => r.status === "unconfirmed" && r.factId);
+  const rest = rows.filter((r) => !met.includes(r) && !heard.includes(r));
   const byGroup = new Map<string, TraumaCriterionRow[]>();
-  for (const r of rows) byGroup.set(r.group, [...(byGroup.get(r.group) ?? []), r]);
+  for (const r of rest) byGroup.set(r.group, [...(byGroup.get(r.group) ?? []), r]);
   const groupLabel = (id: string) => contract?.scores?.[a.score]?.groups?.find((g) => g.id === id)?.label ?? id;
   if (!rows.length) {
     // The contract hasn't loaded yet, or this score has no per-criterion breakdown; fall back to the alert's
     // own already-met list rather than showing nothing.
     return <ul className="mt-2 space-y-2 text-body">{a.criteria.map((line, i) => <li key={i}>{line}</li>)}</ul>;
   }
+  // What is met and what was heard lead; the rest of the county list is folded, one tap away. Each Mark records
+  // on its own (there is no form to submit), so a long open list only read as an unfinished form.
   return <div className="mt-2">
     <p className="flex flex-wrap items-center gap-2 text-body font-semibold">
       <ShieldAlert size={16} className="shrink-0 text-medium-fg" aria-hidden />
-      Based on {confirmedCount} confirmed criteri{confirmedCount === 1 ? "on" : "a"} — not a complete screen
+      Based on {met.length} confirmed criteri{met.length === 1 ? "on" : "a"} — not a complete screen
       <Badge tone="medium">speech misses most criteria</Badge>
     </p>
-    <p className="mt-1 text-meta text-text-muted">Every county criterion is listed. Tap one you observe that speech didn't catch; heard-but-unconfirmed criteria need one more tap.</p>
-    {[...byGroup.entries()].map(([group, groupRows]) => (
-      <div key={group} className="mt-3">
-        <p className="text-meta font-semibold text-text-muted">{groupLabel(group)}</p>
-        <ul>{groupRows.map((row) => <Row key={row.code ?? row.label} row={row} />)}</ul>
-      </div>
-    ))}
+    {met.length > 0 && <ul className="mt-2" aria-label="Criteria met">{met.map((row) => <Row key={row.code ?? row.label} row={row} />)}</ul>}
+    {heard.length > 0 && <ul className="mt-1" aria-label="Criteria heard">{heard.map((row) => <Row key={row.code ?? row.label} row={row} />)}</ul>}
+    {rest.length > 0 && <details className="mt-2">
+      <summary className="min-h-11 cursor-pointer py-2 text-body font-semibold text-text-secondary">
+        Add a criterion speech missed ({rest.length})
+      </summary>
+      <p className="text-meta text-text-muted">Each Mark records that criterion straight away, then one tap confirms it. There is nothing to submit.</p>
+      {[...byGroup.entries()].map(([group, groupRows]) => (
+        <div key={group} className="mt-3">
+          <p className="text-meta font-semibold text-text-muted">{groupLabel(group)}</p>
+          <ul>{groupRows.map((row) => <Row key={row.code ?? row.label} row={row} />)}</ul>
+        </div>
+      ))}
+    </details>}
   </div>;
 }
