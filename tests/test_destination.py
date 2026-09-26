@@ -237,3 +237,20 @@ def test_what_depends_on_the_destination_follows_a_heard_one():
     assert ctx.relay.ed_url == "http://127.0.0.1:8201"
     client.post("/api/encounters/current/handover", json={}, headers=h)
     assert ctx.incident.handed_over_to == "Regional Medical Center of San Jose"
+
+
+def test_the_room_mic_sets_the_destination_when_the_check_step_kept_the_words():
+    # The crew is hands-free on the room microphone (owner, 2026-09-26): kept words naming one hospital set it.
+    from herald.core.schema import Provenance
+    client, ctx = client_with(Chooser("RSJ"))
+    say(ctx.incident, "Regional", role=Role.unknown, captured_by=CapturedBy.other, provenance=Provenance(checked=True))
+    assert run_match(ctx) == "set"
+    assert transport(client)["destination"]["id"] == "RSJ"
+
+
+def test_room_mic_words_the_check_step_did_not_keep_are_only_suggested():
+    client, ctx = client_with(Chooser("RSJ"))
+    say(ctx.incident, "Regional", role=Role.unknown, captured_by=CapturedBy.other)
+    assert run_match(ctx) is None
+    t = transport(client)
+    assert t["destination"] is None and t["suggestion"]["id"] == "RSJ"

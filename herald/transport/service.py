@@ -22,7 +22,8 @@ from datetime import datetime, timedelta
 from typing import Callable, Optional
 
 from ..config import load_yaml
-from ..core.schema import CapturedBy, Fact, FactIn, Status, utcnow
+from ..core.confirmation import room_mic_rules
+from ..core.schema import CapturedBy, Fact, FactIn, Role, Status, utcnow
 from .facilities import Facility, facilities
 from .resolver import DestinationResolver, _norm, exact
 from .selection import DestinationPolicy, Situation
@@ -150,8 +151,14 @@ class TransportService:
 
     @staticmethod
     def _from_crew(fact: Fact) -> bool:
-        """The crew's own mic, not held by a check: only these words set the destination without a tap."""
-        return fact.captured_by == CapturedBy.medic and not fact.provenance.hold_reason
+        """Words that set the destination without a tap: the crew's own mic, not held by a check; or the room mic
+        (the crew is hands-free there, owner's decision 2026-09-26) when the check step kept the words, room-mic facts
+        may confirm themselves (config/confirmation.yaml room_mic) and the destination is not a key that always waits."""
+        if fact.captured_by == CapturedBy.medic:
+            return not fact.provenance.hold_reason
+        room_auto, always_tap = room_mic_rules()
+        return (fact.captured_by == CapturedBy.other and fact.role == Role.unknown and room_auto
+                and KEY not in always_tap and fact.provenance.checked)
 
     def pending_matches(self, inc) -> list[str]:
         if self.resolver is None:
