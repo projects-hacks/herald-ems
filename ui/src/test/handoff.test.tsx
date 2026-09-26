@@ -37,7 +37,7 @@ describe("handoff claims", () => {
     // sources disagree in this recording, so the conflict shows at once and the rest is one tap away
     expect(screen.getByRole("region", { name: "Sources disagree · pick one" })).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Not confirmed · stays out of the report" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /^Show the other \d+ items$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Show the other (1 item|\d+ items)$/ }));
     const left = screen.getByRole("region", { name: "Not confirmed · stays out of the report" });
     expect(within(left).getByText("UNVERIFIED-COMPLAINT")).toBeTruthy();
     expect(screen.queryByText("Complete")).toBeNull();

@@ -279,7 +279,7 @@ export interface Snapshot {
   relay: RelayStatus;
   netem: "good" | "weak" | "down" | null;
   protocols?: ProtocolStatus;            // absent when protocol lookup is off
-  transport?: TransportView;             // absent on older vehicles and recorded fixtures
+  transport?: TransportView;             // absent on older vehicles and older recordings
   protocol_cues?: ProtocolCue[];         // the county passage for each situation Herald recognises (config/protocol_cues.yaml)
 }
 

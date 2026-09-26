@@ -23,7 +23,7 @@ function fact(over: Partial<F>): F {
     confidence: 1, previous_value: null, previous_ts: null, ...over } as F;
 }
 const facts = (...fs: F[]) => Object.fromEntries(fs.map((f) => [f.key, f]));
-const snap = (over: Partial<Snapshot>): Snapshot => ({ ...base, facts: {}, changed: [], timeline: [], ...over } as Snapshot);
+const snap = (over: Partial<Snapshot>): Snapshot => ({ ...base, facts: {}, changed: [], timeline: [], protocol_cues: [], ...over } as Snapshot);
 
 function openRecord(snapshot: Snapshot, tab: "Trends & scores" | "What Herald did") {
   useHerald.setState({ snapshot, source: "live", stale: false, conn: "open", ui: initialUi("") });

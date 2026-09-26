@@ -1,0 +1,437 @@
+{
+ "model": "herald-f",
+ "runs": [
+  {
+   "gold_v1": {
+    "utterances": 100,
+    "facts": 269,
+    "errors": 0,
+    "correct": 246,
+    "unclear": 4,
+    "wrong": 19,
+    "accuracy_when_answered": 0.928,
+    "correct_of_all": 0.914,
+    "unsafe": 1,
+    "not_medic_facts": 56,
+    "unsafe_rate": 0.018,
+    "medic_facts": 213,
+    "medic_recognised": 0.92,
+    "names": 0,
+    "names_found": 0,
+    "false_names": 2,
+    "confusion": {
+     "bystander->bystander": 4,
+     "bystander->family": 3,
+     "family->family": 39,
+     "family->medic": 1,
+     "family->unclear": 1,
+     "medic->family": 13,
+     "medic->medic": 196,
+     "medic->patient": 2,
+     "medic->unclear": 2,
+     "patient->patient": 7,
+     "patient->unclear": 1
+    },
+    "unsafe_examples": [
+     {
+      "id": "v1_053",
+      "key": "vitals.consciousness",
+      "gold": "family",
+      "text": "She's usually alert and chatty, but today she only opens her eyes when you pinch her."
+     }
+    ],
+    "seconds_median": 1.54
+   },
+   "gold_v2": {
+    "utterances": 100,
+    "facts": 320,
+    "errors": 0,
+    "correct": 295,
+    "unclear": 7,
+    "wrong": 18,
+    "accuracy_when_answered": 0.942,
+    "correct_of_all": 0.922,
+    "unsafe": 4,
+    "not_medic_facts": 82,
+    "unsafe_rate": 0.049,
+    "medic_facts": 238,
+    "medic_recognised": 0.92,
+    "names": 0,
+    "names_found": 0,
+    "false_names": 3,
+    "confusion": {
+     "bystander->bystander": 5,
+     "bystander->family": 1,
+     "family->family": 58,
+     "family->medic": 4,
+     "family->unclear": 1,
+     "medic->family": 7,
+     "medic->medic": 219,
+     "medic->patient": 6,
+     "medic->unclear": 6,
+     "patient->patient": 13
+    },
+    "unsafe_examples": [
+     {
+      "id": "v2_046",
+      "key": "patient.age",
+      "gold": "family",
+      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
+     },
+     {
+      "id": "v2_046",
+      "key": "complaint.chief",
+      "gold": "family",
+      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
+     },
+     {
+      "id": "v2_046",
+      "key": "symptom.onset",
+      "gold": "family",
+      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
+     },
+     {
+      "id": "v2_046",
+      "key": "allergies",
+      "gold": "family",
+      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
+     }
+    ],
+    "seconds_median": 1.98
+   },
+   "live_speaker_v1": {
+    "utterances": 37,
+    "facts": 101,
+    "errors": 0,
+    "correct": 95,
+    "unclear": 3,
+    "wrong": 3,
+    "accuracy_when_answered": 0.969,
+    "correct_of_all": 0.941,
+    "unsafe": 3,
+    "not_medic_facts": 28,
+    "unsafe_rate": 0.107,
+    "medic_facts": 73,
+    "medic_recognised": 1.0,
+    "names": 2,
+    "names_found": 2,
+    "false_names": 0,
+    "confusion": {
+     "family->family": 22,
+     "family->medic": 3,
+     "family->unclear": 3,
+     "medic->medic": 73
+    },
+    "unsafe_examples": [
+     {
+      "id": "live_14",
+      "key": "patient.age",
+      "gold": "family",
+      "text": "His name is Robert Chen. He's 62. He started having chest pain about 45 minutes ago while shoveling snow and he's sweating a lot."
+     },
+     {
+      "id": "live_14",
+      "key": "complaint.chief",
+      "gold": "family",
+      "text": "His name is Robert Chen. He's 62. He started having chest pain about 45 minutes ago while shoveling snow and he's sweating a lot."
+     },
+     {
+      "id": "live_14",
+      "key": "symptom.onset",
+      "gold": "family",
+      "text": "His name is Robert Chen. He's 62. He started having chest pain about 45 minutes ago while shoveling snow and he's sweating a lot."
+     }
+    ],
+    "seconds_median": 1.51
+   }
+  },
+  {
+   "gold_v1": {
+    "utterances": 100,
+    "facts": 269,
+    "errors": 0,
+    "correct": 246,
+    "unclear": 4,
+    "wrong": 19,
+    "accuracy_when_answered": 0.928,
+    "correct_of_all": 0.914,
+    "unsafe": 1,
+    "not_medic_facts": 56,
+    "unsafe_rate": 0.018,
+    "medic_facts": 213,
+    "medic_recognised": 0.92,
+    "names": 0,
+    "names_found": 0,
+    "false_names": 2,
+    "confusion": {
+     "bystander->bystander": 4,
+     "bystander->family": 3,
+     "family->family": 39,
+     "family->medic": 1,
+     "family->unclear": 1,
+     "medic->family": 13,
+     "medic->medic": 196,
+     "medic->patient": 2,
+     "medic->unclear": 2,
+     "patient->patient": 7,
+     "patient->unclear": 1
+    },
+    "unsafe_examples": [
+     {
+      "id": "v1_053",
+      "key": "vitals.consciousness",
+      "gold": "family",
+      "text": "She's usually alert and chatty, but today she only opens her eyes when you pinch her."
+     }
+    ],
+    "seconds_median": 1.52
+   },
+   "gold_v2": {
+    "utterances": 100,
+    "facts": 320,
+    "errors": 0,
+    "correct": 295,
+    "unclear": 7,
+    "wrong": 18,
+    "accuracy_when_answered": 0.942,
+    "correct_of_all": 0.922,
+    "unsafe": 4,
+    "not_medic_facts": 82,
+    "unsafe_rate": 0.049,
+    "medic_facts": 238,
+    "medic_recognised": 0.92,
+    "names": 0,
+    "names_found": 0,
+    "false_names": 3,
+    "confusion": {
+     "bystander->bystander": 5,
+     "bystander->family": 1,
+     "family->family": 58,
+     "family->medic": 4,
+     "family->unclear": 1,
+     "medic->family": 7,
+     "medic->medic": 219,
+     "medic->patient": 6,
+     "medic->unclear": 6,
+     "patient->patient": 13
+    },
+    "unsafe_examples": [
+     {
+      "id": "v2_046",
+      "key": "patient.age",
+      "gold": "family",
+      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
+     },
+     {
+      "id": "v2_046",
+      "key": "complaint.chief",
+      "gold": "family",
+      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
+     },
+     {
+      "id": "v2_046",
+      "key": "symptom.onset",
+      "gold": "family",
+      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
+     },
+     {
+      "id": "v2_046",
+      "key": "allergies",
+      "gold": "family",
+      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
+     }
+    ],
+    "seconds_median": 1.97
+   },
+   "live_speaker_v1": {
+    "utterances": 37,
+    "facts": 101,
+    "errors": 0,
+    "correct": 92,
+    "unclear": 6,
+    "wrong": 3,
+    "accuracy_when_answered": 0.968,
+    "correct_of_all": 0.911,
+    "unsafe": 3,
+    "not_medic_facts": 28,
+    "unsafe_rate": 0.107,
+    "medic_facts": 73,
+    "medic_recognised": 1.0,
+    "names": 2,
+    "names_found": 2,
+    "false_names": 0,
+    "confusion": {
+     "family->family": 19,
+     "family->medic": 3,
+     "family->unclear": 6,
+     "medic->medic": 73
+    },
+    "unsafe_examples": [
+     {
+      "id": "live_14",
+      "key": "patient.age",
+      "gold": "family",
+      "text": "His name is Robert Chen. He's 62. He started having chest pain about 45 minutes ago while shoveling snow and he's sweating a lot."
+     },
+     {
+      "id": "live_14",
+      "key": "complaint.chief",
+      "gold": "family",
+      "text": "His name is Robert Chen. He's 62. He started having chest pain about 45 minutes ago while shoveling snow and he's sweating a lot."
+     },
+     {
+      "id": "live_14",
+      "key": "symptom.onset",
+      "gold": "family",
+      "text": "His name is Robert Chen. He's 62. He started having chest pain about 45 minutes ago while shoveling snow and he's sweating a lot."
+     }
+    ],
+    "seconds_median": 1.44
+   }
+  },
+  {
+   "gold_v1": {
+    "utterances": 100,
+    "facts": 269,
+    "errors": 0,
+    "correct": 246,
+    "unclear": 4,
+    "wrong": 19,
+    "accuracy_when_answered": 0.928,
+    "correct_of_all": 0.914,
+    "unsafe": 1,
+    "not_medic_facts": 56,
+    "unsafe_rate": 0.018,
+    "medic_facts": 213,
+    "medic_recognised": 0.92,
+    "names": 0,
+    "names_found": 0,
+    "false_names": 2,
+    "confusion": {
+     "bystander->bystander": 4,
+     "bystander->family": 3,
+     "family->family": 39,
+     "family->medic": 1,
+     "family->unclear": 1,
+     "medic->family": 13,
+     "medic->medic": 196,
+     "medic->patient": 2,
+     "medic->unclear": 2,
+     "patient->patient": 7,
+     "patient->unclear": 1
+    },
+    "unsafe_examples": [
+     {
+      "id": "v1_053",
+      "key": "vitals.consciousness",
+      "gold": "family",
+      "text": "She's usually alert and chatty, but today she only opens her eyes when you pinch her."
+     }
+    ],
+    "seconds_median": 1.52
+   },
+   "gold_v2": {
+    "utterances": 100,
+    "facts": 320,
+    "errors": 0,
+    "correct": 295,
+    "unclear": 7,
+    "wrong": 18,
+    "accuracy_when_answered": 0.942,
+    "correct_of_all": 0.922,
+    "unsafe": 4,
+    "not_medic_facts": 82,
+    "unsafe_rate": 0.049,
+    "medic_facts": 238,
+    "medic_recognised": 0.92,
+    "names": 0,
+    "names_found": 0,
+    "false_names": 3,
+    "confusion": {
+     "bystander->bystander": 5,
+     "bystander->family": 1,
+     "family->family": 58,
+     "family->medic": 4,
+     "family->unclear": 1,
+     "medic->family": 7,
+     "medic->medic": 219,
+     "medic->patient": 6,
+     "medic->unclear": 6,
+     "patient->patient": 13
+    },
+    "unsafe_examples": [
+     {
+      "id": "v2_046",
+      "key": "patient.age",
+      "gold": "family",
+      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
+     },
+     {
+      "id": "v2_046",
+      "key": "complaint.chief",
+      "gold": "family",
+      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
+     },
+     {
+      "id": "v2_046",
+      "key": "symptom.onset",
+      "gold": "family",
+      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
+     },
+     {
+      "id": "v2_046",
+      "key": "allergies",
+      "gold": "family",
+      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
+     }
+    ],
+    "seconds_median": 1.97
+   },
+   "live_speaker_v1": {
+    "utterances": 37,
+    "facts": 101,
+    "errors": 0,
+    "correct": 92,
+    "unclear": 6,
+    "wrong": 3,
+    "accuracy_when_answered": 0.968,
+    "correct_of_all": 0.911,
+    "unsafe": 3,
+    "not_medic_facts": 28,
+    "unsafe_rate": 0.107,
+    "medic_facts": 73,
+    "medic_recognised": 1.0,
+    "names": 2,
+    "names_found": 2,
+    "false_names": 0,
+    "confusion": {
+     "family->family": 19,
+     "family->medic": 3,
+     "family->unclear": 6,
+     "medic->medic": 73
+    },
+    "unsafe_examples": [
+     {
+      "id": "live_14",
+      "key": "patient.age",
+      "gold": "family",
+      "text": "His name is Robert Chen. He's 62. He started having chest pain about 45 minutes ago while shoveling snow and he's sweating a lot."
+     },
+     {
+      "id": "live_14",
+      "key": "complaint.chief",
+      "gold": "family",
+      "text": "His name is Robert Chen. He's 62. He started having chest pain about 45 minutes ago while shoveling snow and he's sweating a lot."
+     },
+     {
+      "id": "live_14",
+      "key": "symptom.onset",
+      "gold": "family",
+      "text": "His name is Robert Chen. He's 62. He started having chest pain about 45 minutes ago while shoveling snow and he's sweating a lot."
+     }
+    ],
+    "seconds_median": 1.44
+   }
+  }
+ ]
+}

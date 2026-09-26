@@ -34,8 +34,9 @@ describe("the attention queue (one list for alerts and taps)", () => {
   it("groups the recorded call: sources disagree to choose, model facts to tap, screens to review", () => {
     const a = attention(last, {});
     expect(a.choose.map((x) => x.type)).toEqual(["contradiction"]);
-    expect(a.confirmFacts.length).toBeGreaterThan(0);
-    expect(a.positiveScreens.map((x) => x.type).sort()).toEqual(["gfast_positive", "race_positive"]);
+    // the only unconfirmed fact in the recording is the daughter's allergy, which waits in the conflict, not as a tap
+    expect(a.confirmFacts).toEqual([]);
+    expect(a.positiveScreens.map((x) => x.type).sort()).toEqual(["gfast_positive"]);   // RACE waits for its aphasia item
     expect(a.review.map((x) => x.type)).toEqual(["news2_rise"]);
     expect(a.urgent).toEqual([]);
     expect(a.count).toBe(a.positiveScreens.length + a.choose.length + a.confirmAlerts.length + a.confirmFacts.length + a.review.length);

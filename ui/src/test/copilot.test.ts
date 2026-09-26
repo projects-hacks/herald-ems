@@ -61,11 +61,14 @@ describe("copilot screen selectors", () => {
   it("builds the patient line from confirmed facts only", () => {
     const eta = { ...fact("e", "transport.eta_min", 12, { status: "confirmed" }), label: "ETA" };
     const pending = { ...fact("g", "transport.destination", 0, { status: "unconfirmed" }), value: "Regional CSC" } as FactView;
-    const line = patientLine({ ...base, facts: { ...base.facts, "transport.eta_min": eta, "transport.destination": pending } });
+    const noControl = { ...base, transport: undefined };   // a vehicle without the destination control
+    const line = patientLine({ ...noControl, facts: { ...base.facts, "transport.eta_min": eta, "transport.destination": pending } });
     expect(line).not.toContain("ETA");                    // the ETA counts down in the situation bar only: one ETA on screen
     expect(line).not.toContain("Regional CSC");            // an unconfirmed destination is not stated
     const sure = { ...pending, status: "confirmed" } as FactView;
-    expect(patientLine({ ...base, facts: { ...base.facts, "transport.destination": sure } })).toMatch(/[^·] → Regional CSC$/);
+    expect(patientLine({ ...noControl, facts: { ...base.facts, "transport.destination": sure } })).toMatch(/[^·] → Regional CSC$/);
+    // with the destination control the destination is named there, once on screen
+    expect(patientLine({ ...base, facts: { ...base.facts, "transport.destination": sure } })).not.toContain("Regional CSC");
   });
 });
 

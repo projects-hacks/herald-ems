@@ -113,7 +113,7 @@ describe("the handoff layout", () => {
     render(<HandoffPage />);
     const card = screen.getByRole("region", { name: "Who told us what" });
     const [husband, medic] = within(card).getAllByRole("listitem");
-    expect(husband.textContent).toBe(`Husband${label("stroke.lkw")}`);
+    expect(husband.textContent).toBe(`Husband${label("patient.name")}, ${label("stroke.lkw")}`);
     expect(medic.textContent).toContain("Medic");
     // the recording's report carries no clock time inside a value either
     expect(screen.getByRole("region", { name: "Handoff report" }).textContent).not.toMatch(/\(\d\d:\d\d\)/);
@@ -131,12 +131,15 @@ describe("the handoff layout", () => {
   });
 
   it("puts who, why, where and the ED status in the header card", () => {
-    useHerald.setState({ source: "fixture" });
+    // the recording has no chief complaint fact (the extractor did not state one), so the test gives the card one
+    const s = structuredClone(recorded);
+    s.facts["complaint.chief"] = { ...s.facts["patient.age"], id: "f_cc", key: "complaint.chief", label: "Chief complaint", value: "suspected stroke" };
+    useHerald.setState({ snapshot: s, source: "fixture" });
     render(<HandoffPage />);
     const header = document.querySelector<HTMLElement>(".handoff-headline")!;
-    expect(within(header).getByRole("heading", { level: 1 }).textContent).toBe("Current patient · 68 y · F");
+    expect(within(header).getByRole("heading", { level: 1 }).textContent).toBe("Margaret Wilson · 68 y · F");   // the confirmed name the husband gave
     expect(within(header).getByText("suspected stroke")).toBeTruthy();
-    expect(within(header).getByText("Regional")).toBeTruthy();
+    expect(within(header).getByText("Regional (heard “Regional”)")).toBeTruthy();   // the destination says how it was chosen
     expect(within(header).getByText("ETA")).toBeTruthy();
   });
 
