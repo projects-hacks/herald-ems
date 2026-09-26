@@ -184,6 +184,8 @@ export function patientLine(s: Snapshot): string {
   // is there too, so it is named once on screen
   const dest = s.transport ? undefined : f("transport.destination");
   if (dest) parts[parts.length - 1] += ` → ${factValue(dest)}`;
+  const name = f("patient.name");       // the medic confirmed who this is: the name leads
+  if (name) parts.unshift(factValue(name));
   return parts.join(" · ");
 }
 

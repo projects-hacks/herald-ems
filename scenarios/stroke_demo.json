@@ -28,13 +28,18 @@
    "note": "the check step read her name from the husband's words; a name always waits for the medic's tap"
   },
   {
-   "say": "Mild left facial droop, left arm and leg can't lift, eyes deviated to the right, speech is slurred, no agnosia.",
+   "say": "Mild left facial droop, left arm and leg can't lift, eyes deviated to the right, speech is slurred, she doesn't recognize her left arm.",
    "pause": 4
   },
   {
    "confirm": "exam.gfast.",
    "pause": 2,
    "note": "the medic taps the four G.F.A.S.T. items the model heard"
+  },
+  {
+   "confirm": "exam.race.",
+   "pause": 2,
+   "note": "the medic taps the RACE items the model held below the 0.8 bar (the agnosia item)"
   },
   {
    "say": "Onset was witnessed. BP 182 over 104, pulse 92, SpO2 95 on room air, respirations 18, temp 37.1, alert.",

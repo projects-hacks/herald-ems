@@ -36,7 +36,7 @@ describe("the attention queue (one list for alerts and taps)", () => {
     expect(a.choose.map((x) => x.type)).toEqual(["contradiction"]);
     // the only unconfirmed fact in the recording is the daughter's allergy, which waits in the conflict, not as a tap
     expect(a.confirmFacts).toEqual([]);
-    expect(a.positiveScreens.map((x) => x.type).sort()).toEqual(["gfast_positive"]);   // RACE waits for its aphasia item
+    expect(a.positiveScreens.map((x) => x.type).sort()).toEqual(["gfast_positive", "race_positive"]);   // both stroke screens positive
     expect(a.review.map((x) => x.type)).toEqual(["news2_rise"]);
     expect(a.urgent).toEqual([]);
     expect(a.count).toBe(a.positiveScreens.length + a.choose.length + a.confirmAlerts.length + a.confirmFacts.length + a.review.length);

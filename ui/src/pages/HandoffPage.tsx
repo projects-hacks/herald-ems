@@ -19,7 +19,8 @@ import { destinationHow } from "@/features/transport/DestinationStatus";
 import type { Snapshot } from "@/lib/types";
 import "@/features/handoff/handoff.css";
 
-/** The header card: who (confirmed identity, age and sex), why (the confirmed chief complaint), where and when (the
+/** The header card: who (confirmed identity, age and sex), why (the presenting problem: the confirmed chief complaint,
+ *  or on a stroke call the confirmed deficits, which the record keeps instead of a complaint), where and when (the
  *  destination and ETA), and what the ED has (the pre-alert status). Confirmed facts only; a gap says so. */
 function Headline({ s }: { s: Snapshot }) {
   const at = useHerald((st) => st.lastStateAt);
@@ -30,7 +31,8 @@ function Headline({ s }: { s: Snapshot }) {
   const status = preAlertStatus(s);
   const source = s.clocks.find((clock) => clock.id === "eta")?.source;
   const how = !handed && s.transport?.destination ? destinationHow(s.transport.destination) : null;
-  const complaint = s.facts["complaint.chief"]?.status === "confirmed" ? factValue(s.facts["complaint.chief"]) : null;
+  const problem = ["complaint.chief", "stroke.deficits"].map((k) => s.facts[k]).find((f) => f?.status === "confirmed");
+  const complaint = problem ? factValue(problem) : null;
   return <header className="handoff-headline">
     <div className="handoff-who">
       <p className="label-caps text-text-muted">Handoff</p>
@@ -38,7 +40,7 @@ function Headline({ s }: { s: Snapshot }) {
       {!handed && <p className="handoff-chip" data-tone={status.tone} role="status">{status.text}</p>}
     </div>
     <dl className="handoff-facts">
-      <div><dt>Chief complaint</dt><dd data-missing={!complaint || undefined}>{complaint ?? "Not yet known"}</dd></div>
+      <div><dt>Presenting problem</dt><dd data-missing={!complaint || undefined}>{complaint ?? "Not yet known"}</dd></div>
       <div><dt>Destination</dt><dd data-missing={!dest || undefined}>{dest ? `${dest}${how ? ` (${how})` : ""}` : "Not set: say the hospital"}</dd></div>
       {s.incident.arrived_at && !handed ? <div><dt>Arrived</dt><dd className="num">{hhmm(s.incident.arrived_at)}</dd></div>
         : eta !== null && <div><dt>ETA</dt><dd><span className="num">{eta > 0 ? `${Math.max(1, Math.round(eta / 60))} min` : "now"}</span>

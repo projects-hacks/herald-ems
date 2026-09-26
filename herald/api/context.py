@@ -132,11 +132,18 @@ class AppContext:
         # authorization, destination, sequence numbers and retry packet.
         cleanup = self.end_incident()
         self.relay.get_incident = self.roster.incidents
-        self.previous_calls.append(SavedCall(self.roster, self.relay))
+        if not self._blank_call():      # a case opened and left with nothing in it is not an encounter to keep
+            self.previous_calls.append(SavedCall(self.roster, self.relay))
         self.new_incident(dispatch)
         self.relay = fresh_relay(self, self.roster)
         self.persist()
         return cleanup
+
+    def _blank_call(self) -> bool:
+        """The current call holds nothing: no patient has a fact or a heard word, and no pre-alert was authorized, so
+        nothing was or will be sent ("Open Herald" starts a fresh case each time; the empty one before it is dropped)."""
+        return (not self.relay.authorized
+                and all(not inc.facts and not inc.transcripts for inc in self.roster.incidents()))
 
     def persist(self) -> None:
         if self.persistence:

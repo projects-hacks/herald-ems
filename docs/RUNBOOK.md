@@ -118,6 +118,24 @@ Warm the extractor by replaying the real scenario once; it makes more than three
   --url http://127.0.0.1:8100 --fast
 ```
 
+Re-record the public demo (`ui/public/fixtures/stroke_demo.jsonl`, the recorded call on the website) from the same
+scenario, on a throwaway app with its own data folder and its own ED receiver, so the demo patient never reaches the
+real ED screen. Run it with nothing else using the GPU, at real speed (no `--fast`), so the recording shows real
+timing:
+
+```bash
+PY=~/miniforge3/envs/zgx/bin/python
+$PY -m uvicorn ed_receiver.app:app --host 127.0.0.1 --port 8295 &
+HERALD_RUN_DIR=$PWD/data/instances/8105 HERALD_STT_PRELOAD=1 HERALD_ED_URL=http://127.0.0.1:8295 \
+  $PY -m uvicorn herald.app:app --host 127.0.0.1 --port 8105 &
+$PY scripts/record_ws.py ws://127.0.0.1:8105/ws /tmp/stroke_demo.jsonl &      # stop it with Ctrl+C / kill -INT
+(cd scripts && $PY replay.py ../scenarios/stroke_demo.json --url http://127.0.0.1:8105)
+```
+
+Check the last state (the name confirmed, the pre-alert authorized to Regional, stroke alert 6/6, G.F.A.S.T. and RACE
+positive, the husband/daughter allergy conflict), copy it over the fixture, run the UI tests, and stop both apps by
+their PIDs.
+
 Warm the vision model three times with synthetic, non-patient data:
 
 ```bash
