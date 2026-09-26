@@ -7,11 +7,13 @@ import { useContract } from "@/lib/contract";
 import { manualValue } from "@/lib/manual";
 import { useHerald } from "@/lib/store";
 
-export function ManualEntry() {
+/** `field` opens the form on one field (the handoff's "Add" for a missing item); `trigger` and `triggerLabel` replace the
+ *  default "Manual entry" button's text and accessible name. */
+export function ManualEntry({ field, trigger, triggerLabel }: { field?: string; trigger?: string; triggerLabel?: string } = {}) {
   const contract = useContract();
-  const disabled = useHerald((s) => s.source === "fixture" || s.stale || s.conn !== "open" || s.ui.heldAlerts || !!s.snapshot?.incident.ended_at || !!s.snapshot?.restored);
+  const disabled = useHerald((s) => s.source === "fixture" || s.stale || s.conn !== "open" || s.ui.heldAlerts || !!s.snapshot?.incident.ended_at || !!s.snapshot?.incident.handed_over_at || !!s.snapshot?.restored);
   const [open, setOpen] = useState(false);
-  const [key, setKey] = useState("");
+  const [key, setKey] = useState(field ?? "");
   const [raw, setRaw] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -32,7 +34,7 @@ export function ManualEntry() {
     finally { setBusy(false); }
   };
   return <>
-    <Button size="lg" disabled={disabled} onClick={() => setOpen(true)}><ClipboardPen size={18} />Manual entry</Button>
+    <Button size="lg" disabled={disabled} aria-label={triggerLabel} onClick={() => { if (field) setKey(field); setOpen(true); }}><ClipboardPen size={18} />{trigger ?? "Manual entry"}</Button>
     <Dialog open={open} onOpenChange={(value) => { if (!busy) setOpen(value); }}>
       <DialogContent>
         <DialogTitle>Enter a patient fact</DialogTitle>

@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { EncounterControls, EncounterHistory } from "@/features/cabin/EncounterControls";
+import { EncounterHistory } from "@/features/cabin/EncounterControls";
+import { HandoffPage } from "@/pages/HandoffPage";
 import { PatientRoster } from "@/components/PatientRoster";
 import { RestoredCallBanner } from "@/components/GlobalStates";
 import { CabinApp } from "@/features/cabin/CabinApp";
@@ -42,12 +43,16 @@ it.each(["restored", "finished"])("does not start either device for a %s encount
   else expect(screen.getByRole("heading", { name: "Encounter finished" })).toBeTruthy();
 });
 
-it("records transfer only on the explicit transfer button", async () => {
-  const mark = vi.spyOn(api, "encounterAction").mockResolvedValue(true);
-  render(<EncounterControls />);
+it("records transfer of care only on the confirmed Hand over, never by opening the handoff", async () => {
+  const handover = vi.spyOn(api, "handover").mockResolvedValue(true);
+  const mark = vi.spyOn(api, "encounterAction");
+  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, json: async () => ({}) })));
+  render(<HandoffPage />);
+  fireEvent.click(screen.getByRole("button", { name: /^Hand over/ }));
+  expect(handover).not.toHaveBeenCalled();
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Hand over" }));
+  await waitFor(() => expect(handover).toHaveBeenCalledOnce());
   expect(mark).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Record transfer of care now" }));
-  await waitFor(() => expect(mark).toHaveBeenCalledWith("transfer"));
 });
 
 it("read-only history does not activate a patient or change capture", async () => {

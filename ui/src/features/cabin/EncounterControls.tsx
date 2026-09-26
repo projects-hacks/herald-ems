@@ -1,37 +1,8 @@
+// Previous encounters on this vehicle, read-only. Arrival, transfer of care and finishing are one step now: Hand over
+// on the handoff (features/handoff/HandoverBar.tsx).
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
 import { useHerald } from "@/lib/store";
 import { hhmm } from "@/lib/format";
-
-export function EncounterControls() {
-  const s = useHerald((st) => st.snapshot);
-  const disabled = useHerald((st) => st.source !== "live" || st.stale || st.conn !== "open");
-  const setUi = useHerald((st) => st.setUi);
-  const [busy, setBusy] = useState(false), [error, setError] = useState("");
-  if (!s) return null;
-  const inc = s.incident;
-  async function mark(action: "arrive" | "transfer") {
-    setBusy(true); setError("");
-    if (!await api.encounterAction(action)) setError("Could not record the time. Check the encounter and retry.");
-    setBusy(false);
-  }
-  return <section className="encounter-card" aria-labelledby="care-transfer-heading">
-    <h2 id="care-transfer-heading">Care transfer</h2>
-    <p>Arrival, transfer of care and finishing this record are separate steps.</p>
-    <dl className="encounter-times">
-      <div><dt>Arrived at destination</dt><dd>{inc.arrived_at ? hhmm(inc.arrived_at) : "Not recorded"}</dd></div>
-      <div><dt>Care transferred</dt><dd>{inc.transferred_at ? hhmm(inc.transferred_at) : "Not recorded"}</dd></div>
-      {inc.ended_at && <div><dt>Encounter finished</dt><dd>{hhmm(inc.ended_at)}</dd></div>}
-    </dl>
-    {!inc.ended_at && <div className="cabin-actions">
-      <button className="cabin-button" disabled={disabled || busy || !!inc.arrived_at || !!inc.transferred_at} onClick={() => void mark("arrive")}>Record arrival now</button>
-      <button className="cabin-button" disabled={disabled || busy || !!inc.transferred_at} onClick={() => void mark("transfer")}>Record transfer of care now</button>
-      <button className="cabin-button" disabled={disabled || busy} onClick={() => setUi({ confirmEndIncident: true })}>Finish this encounter…</button>
-    </div>}
-    <p>These buttons record the time you tap. ED delivery alone does not record transfer of care.</p>
-    {error && <p role="alert">{error}</p>}
-  </section>;
-}
 
 export function EncounterHistory() {
   const rows = useHerald((st) => st.snapshot?.encounter_history);

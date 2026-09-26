@@ -16,6 +16,8 @@ import { PatientPage } from "@/pages/PatientPage";
 import { TrendsPage } from "@/pages/TrendsPage";
 import { TranscriptPage } from "@/pages/TranscriptPage";
 import { HandoffPage } from "@/pages/HandoffPage";
+import { HandedOver } from "@/features/handoff/HandedOver";
+import { HandoverHeaderButton } from "@/features/handoff/HandoverBar";
 import { MonitorWatch } from "@/features/capture/MonitorWatch";
 import { useAmbient } from "./useAmbient";
 import { useCaptureOwner } from "./captureOwner";
@@ -47,6 +49,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   const ambient = useAmbient();
   const [panel, setPanel] = useState<Panel>(null);
   const [recordView, setRecordView] = useState<RecordView>("facts");
+  const [handoffReport, setHandoffReport] = useState(false);   // opened from the done state: show the handed-over report
   const [monitor, setMonitor] = useState(monitorIdle);
   const page = useRef<HTMLElement>(null);
   const lastTrigger = useRef<HTMLElement | null>(null);
@@ -85,12 +88,13 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
     <header className="copilot-header">
       {panel ? <button className="copilot-back" onClick={close} aria-label="Back to now"><ChevronLeft size={18} />Now</button>
         : <span className="copilot-mark" aria-label="Herald"><Activity size={22} strokeWidth={2.6} aria-hidden /></span>}
-      <div className="copilot-patient"><h1>{s ? patientLine(s) : "Waiting for the vehicle"}</h1>{s && <span className="encounter-reference">{s.patients?.find((p) => p.id === s.incident.id)?.label || "Patient"} · {s.incident.id.slice(-6)} · {s.incident.ended_at ? "Finished" : s.incident.transferred_at ? "Care transferred" : s.incident.arrived_at ? "At destination" : "In ambulance"}</span>}</div>
+      <div className="copilot-patient"><h1>{s ? patientLine(s) : "Waiting for the vehicle"}</h1>{s && <span className="encounter-reference">{s.patients?.find((p) => p.id === s.incident.id)?.label || "Patient"} · {s.incident.id.slice(-6)} · {s.incident.handed_over_at ? "Handed over" : s.incident.ended_at ? "Finished" : s.incident.transferred_at ? "Care transferred" : s.incident.arrived_at ? "At destination" : "In ambulance"}</span>}</div>
       {panel && <PresencePill p={pill} paused={ui.capturePaused} disabled={isReplay || ambient.blocked}
         onToggle={() => setUi({ capturePaused: !ui.capturePaused })} />}   {/* on Now, Herald's orb is the control */}
       {isReplay && player && <ReplayBar player={player} />}
       <div className="copilot-header-actions">
         {s?.capture?.auto && <CaptureControl stopOnly />}   {/* the vehicle's connected camera: a direct stop */}
+        <HandoverHeaderButton pressed={panel === "handoff"} onOpen={() => { setHandoffReport(false); open("handoff"); }} />
         <button className="cabin-button" aria-label="Type a note" aria-pressed={panel === "notes"} onClick={() => open("notes")}><Keyboard size={19} /></button>
         <button className="cabin-button" aria-label="Record" aria-pressed={panel === "record"} onClick={() => openRecord("facts")}><FileText size={19} /><span className="patients-button-label">Record</span></button>
         {<button className="cabin-button" aria-label="Patients" onClick={() => open("patients")}><Users size={19} /><span className="patients-button-label">Patients</span></button>}
@@ -108,7 +112,8 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
           region at the top left; Herald's live view, how the patient is moving and what the ED has sit beside it;
           the county's words for this situation have their own column on wide screens. What Herald did is a record
           of the system, not of the patient, so it is on the Record page, not here. */}
-      {!panel && s?.incident.ended_at && <section className="encounter-card"><h2>Encounter finished</h2><p>Capture has stopped. The record and any authorized ED delivery remain available.</p><div className="cabin-actions"><button className="cabin-button" onClick={() => open("handoff")}>Review handoff</button><button className="cabin-button" onClick={() => open("patients")}>Patients and next encounter</button></div></section>}
+      {!panel && s?.incident.handed_over_at && <HandedOver s={s} onViewReport={() => { setHandoffReport(true); open("handoff"); }} />}
+      {!panel && s?.incident.ended_at && !s.incident.handed_over_at && <section className="encounter-card"><h2>Encounter finished</h2><p>Capture has stopped. The record and any authorized ED delivery remain available.</p><div className="cabin-actions"><button className="cabin-button" onClick={() => open("handoff")}>Review handoff</button><button className="cabin-button" onClick={() => open("patients")}>Patients and next encounter</button></div></section>}
       <div hidden={!!panel || !!s?.incident.ended_at} className="copilot-grid">
         <div className="copilot-primary"><AttentionQueue className="copilot-needs" /></div>
         <div className="copilot-rest">
@@ -117,7 +122,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
               waitingTap={!!ambient.status.waitingTap} warning={ambient.status.warning} monitor={monitor}
               onToggle={() => setUi({ capturePaused: !ui.capturePaused })} />}
             <MovementStrip onTrends={() => openRecord("trends")} />
-            <EdCard onHandoff={() => open("handoff")} />
+            <EdCard onHandoff={() => { setHandoffReport(false); open("handoff"); }} />
           </div>
           <div className="copilot-side copilot-side-protocol">{!panel && <ProtocolCues />}</div>
         </div>
@@ -137,7 +142,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
             {recordView === "transcript" && panel === "record" && <TranscriptPage onReview={() => open(null)} />}
           </div>}
           {panel === "patients" && <div className="workspace-page-surface"><h1 className="workspace-page-heading">Patients</h1><PatientRoster expanded /><EncounterHistory /></div>}
-          {panel === "handoff" && <HandoffPage />}
+          {panel === "handoff" && <HandoffPage onNotes={() => open("notes")} reportOpen={handoffReport} />}
         </>}
         {panel === "notes" && <><div className="copilot-notes-tools"><ManualEntry key={s?.incident.id} /></div><TranscriptPage onReview={() => open(null)} /><CaptureBar allowVoice={!recording && ambient.status.queued === 0} /></>}
         {/* The camera watches with the call and follows the header's pause; no screen of its own (owner, 2026-09-26). */}

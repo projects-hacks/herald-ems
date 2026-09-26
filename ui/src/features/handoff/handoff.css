@@ -1,0 +1,65 @@
+/* The handoff page: one headline, what is left, the report, and the hand over bar. Tokens only (both themes pass
+   npm run contrast); touch targets >= 48 px, the primary action 64 px; nothing wider than a phone. */
+.handoff-page { display: flex; flex-direction: column; gap: 20px; padding: 20px 24px 0; min-width: 0; }
+.workspace-page > .handoff-page { padding: 0; }
+@media (max-width: 560px) { .handoff-page { padding-inline: 16px; } }
+
+/* ---------- headline: who, where, what the ED has ---------- */
+.handoff-headline { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.handoff-headline h1 { margin: 0; font-family: var(--font-heading); font-size: 1.75rem; font-weight: 750; line-height: 1.15;
+  letter-spacing: -.02em; color: var(--text-primary); overflow-wrap: anywhere; }
+.handoff-where { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0; font-size: 1.125rem; font-weight: 600;
+  color: var(--text-secondary); }
+.handoff-chip { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; max-width: 100%; min-height: 36px; margin: 0;
+  padding: 6px 14px; border-radius: 999px; font-size: .9375rem; font-weight: 700; line-height: 1.35;
+  background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border-subtle); overflow-wrap: anywhere; }
+.handoff-chip[data-tone="ok"] { background: var(--ok-tint); color: var(--ok-fg); border-color: transparent; }
+.handoff-chip[data-tone="low"] { background: var(--low-tint); color: var(--low-fg); border-color: transparent; }
+.handoff-chip[data-tone="medium"] { background: var(--medium-tint); color: var(--medium-fg); border-color: transparent; }
+
+/* ---------- before you hand over ---------- */
+.before-handover-count { margin: 0; padding: 0 20px 10px; font-size: 1rem; color: var(--text-secondary); }
+.before-handover-count strong { color: var(--text-primary); }
+.leftover-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 20px; border-top: 1px solid var(--border-subtle); }
+.leftover-row:first-child { border-top: 0; }
+.leftover-label { flex: 1 1 12rem; min-width: 0; font-size: 1.125rem; font-weight: 600; color: var(--text-primary); overflow-wrap: anywhere; }
+.leftover-row[data-settled] .leftover-label { color: var(--text-secondary); font-weight: 500; }
+.leftover-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-left: auto; }
+
+/* ---------- the report: read aloud from arm's length ---------- */
+.handoff-report-state { padding: 20px; font-size: 1rem; }
+.handoff-report-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; padding: 18px 20px 6px; }
+.handoff-report-head h2 { margin: 0; font-size: 1.375rem; font-weight: 700; color: var(--text-primary); }
+.handoff-report-head p { margin: 2px 0 0; font-size: .875rem; color: var(--text-muted); }
+.report-formats { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; margin-left: auto; font-size: .9375rem; color: var(--text-muted); }
+.report-link { min-height: 48px; min-width: 48px; padding: 0 8px; border-radius: var(--radius-control); font-weight: 700; color: var(--accent);
+  text-decoration: underline; text-underline-offset: 3px; }
+.report-link[aria-pressed="true"] { color: var(--text-primary); text-decoration: none; cursor: default; }
+.report-link:hover:not([aria-pressed="true"]) { background: var(--accent-tint); }
+.handoff-report-body { display: flex; flex-direction: column; gap: 18px; padding: 8px 20px 22px; }
+.handoff-report-body h3 { margin: 0 0 6px; color: var(--text-muted); }
+.handoff-report-body ul { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.handoff-report-body li { font-size: 1.375rem; line-height: 1.45; font-weight: 500; color: var(--text-primary); overflow-wrap: anywhere; }
+.handoff-report-body li:not([data-status="confirmed"]) { font-size: 1.25rem; font-weight: 400; color: var(--text-muted); }
+
+/* ---------- the hand over bar: always in reach ---------- */
+.handover-bar { position: sticky; bottom: 0; z-index: var(--z-sticky, 30); display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end;
+  gap: 10px 12px; margin-top: 4px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--surface-1);
+  border: 1px solid var(--border-subtle); border-radius: 16px 16px 0 0; box-shadow: var(--shadow-3); }
+.handover-bar .handover-primary { flex: 0 1 26rem; min-width: 0; font-size: 1.125rem; white-space: normal; text-align: center; }
+@media (max-width: 560px) { .handover-bar .handover-primary { flex: 1 1 100%; order: -1; } .handover-bar > button:not(.handover-primary) { flex: 1 1 auto; } }
+
+/* ---------- done: handed over ---------- */
+.handed-over { display: flex; gap: 16px; padding: 22px; background: var(--surface-1); border: 1px solid var(--border-subtle);
+  border-left: 6px solid var(--ok-fill); border-radius: 16px; min-width: 0; }
+.handed-over-icon { flex-shrink: 0; color: var(--ok-fg); }
+.handed-over-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; flex: 1; }
+.handed-over h2 { margin: 0; font-size: 1.625rem; font-weight: 750; line-height: 1.2; color: var(--text-primary); overflow-wrap: anywhere; }
+.handed-over-note { margin: 0; font-size: .9375rem; line-height: 1.55; color: var(--text-secondary); }
+.handed-over-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+@media (max-width: 560px) { .handed-over { padding: 16px; gap: 10px; } .handed-over-icon { display: none; } .handed-over-actions > * { flex: 1 1 100%; } .handed-over-actions button { width: 100%; } }
+
+/* ---------- Now: the hand over button in the header ---------- */
+.copilot-header-actions .handover-button { gap: 8px; }
+.copilot-header-actions .handover-button.primary { min-height: 48px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+.cabin-main > .handed-over { margin-bottom: 20px; }

@@ -179,7 +179,11 @@ export interface RelayStatus {
   kept_local_pct: number; packets_acked: number; retries: number; duplicates_acked?: number; last_ack_at: string | null;
   clinician_acknowledgements?: Record<string, { at: string; status: "received" | "cath_lab_activated"; note?: string | null }[]>;
   log: RelayLogEntry[];
+  /** The final report sent at hand over: null before it; delivered_at when the ED's system acknowledged it,
+   *  received_at when a person at the ED marked it received. Absent on older vehicles and recorded fixtures. */
+  handover?: HandoverDelivery | null;
 }
+export interface HandoverDelivery { at: string; delivered_at: string | null; received_at: string | null }
 
 // ---------- protocol lookup ----------
 export interface ProtocolStatus {
@@ -215,6 +219,10 @@ export interface Snapshot {
   incident: {
     id: string; dispatch: string | null; started: string; ended_at: string | null;
     arrived_at?: string | null; transferred_at?: string | null;
+    // 2026-09-26: the one "hand over" step (POST /api/encounters/current/handover) sets handed_over_at together with
+    // transferred_at and ended_at. `not_obtained` lists the required items the medic marked "unable to obtain"
+    // (POST /api/handoff/not-obtained). Optional: older vehicles and recorded fixtures predate both.
+    handed_over_at?: string | null; not_obtained?: string[];
     media_disposal: MediaDisposal | null;
   };
   patients: PatientSummary[];
@@ -269,6 +277,17 @@ export interface MediaDisposal {
 export type NowMessage = { type: "state"; state: Snapshot } | { type: "pong"; t: string };
 
 // ---------- REST ----------
+/** GET /api/handoff (herald/reporting/handoff.py), also the reply to POST /api/handoff/not-obtained. */
+export type HandoffLineStatus = "confirmed" | "missing" | "not_obtained" | "empty";
+export interface HandoffItem { key: string; label: string }
+export interface HandoffReportData {
+  incident: { id: string }; as_of: string; text: string;
+  format: { id: string; label: string; title: string }; formats: { id: string; label: string }[];
+  sections: { id: string; label: string; say_label?: boolean; lines: { text: string; status: HandoffLineStatus | string }[] }[];
+  not_yet_known: HandoffItem[]; not_yet_confirmed: HandoffItem[];
+  not_obtained?: HandoffItem[];          // optional: a server from before 2026-09-26 does not send it
+}
+
 export interface Health {
   // *_available: the model server is actually serving that label now; llm_model names it even when it isn't
   llm_model: string | null; llm_available?: boolean; vision_model?: string | null; vision_available?: boolean;
