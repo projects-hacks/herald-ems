@@ -65,3 +65,12 @@ it("rejects an invalid region and a server-refused patient without retaining the
   await capture.start(roi); await settle();
   expect(states.at(-1)?.message).toContain("409"); expect(stop).toHaveBeenCalledTimes(2);
 });
+
+it("stops without retrying when a newer camera link takes over, and retries on any other close", async () => {
+  await capture.start(roi);
+  (Socket.instances[0].onclose as unknown as (event: { code: number }) => void)({ code: 4001 });
+  expect(states.at(-1)).toMatchObject({ active: false, error: true, retry: false, message: "Another camera took over this patient's feed" });
+  await capture.start(roi);
+  (Socket.instances[1].onclose as unknown as (event: { code: number }) => void)({ code: 1006 });
+  expect(states.at(-1)).toMatchObject({ active: false, retry: true });
+});

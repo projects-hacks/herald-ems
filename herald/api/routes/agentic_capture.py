@@ -115,6 +115,9 @@ async def resolve(fact_id: str, body: ResolveIn, c=Depends(get_ctx), h=Depends(g
     return c.incident.projector.fact_view(fact)
 
 
+REPLACED = 4001   # close code for a camera link taken over by a newer one; the page does not retry after it
+
+
 @router.websocket("/ws/frames")
 async def frames(ws: WebSocket):
     origin = ws.headers.get("origin")
@@ -126,12 +129,18 @@ async def frames(ws: WebSocket):
     if agent.source.startswith("replay:"):
         await ws.close(code=1008, reason="replay source owns capture")
         return
-    # One camera owns the frame stream per incident; mixed camera views cannot share an ROI safely.
-    if ctx.extra.get("frame_socket") is not None:
-        await ws.close(code=1008, reason="another capture camera is connected")
-        return
+    # One camera owns the frame stream per incident; mixed camera views cannot share an ROI safely. The newest link
+    # takes over: a link cut without a close (a dropped SSH tunnel, a network change) is never reported as closed,
+    # and refusing new links behind it left the camera "reconnecting" for good (live test 2026-09-26). The page that
+    # is taken over stops on REPLACED instead of retrying, so two devices cannot keep knocking each other off.
     await ws.accept()
+    previous = ctx.extra.get("frame_socket")
     ctx.extra["frame_socket"] = ws
+    if previous is not None:
+        try:
+            await previous.close(code=REPLACED, reason="another camera took over this patient's feed")
+        except Exception:   # noqa: BLE001 -- the old link is often already dead; that is why we are here
+            pass
     owner = ctx.incident.id
     last = float("-inf")
     try:

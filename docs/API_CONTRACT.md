@@ -120,7 +120,7 @@ Camera capture is off by default. `HERALD_CAPTURE_SOURCE=off|browser|replay:<fol
 
 | Boundary | Contract |
 |---|---|
-| `WS /ws/frames` | One same-origin browser source per incident. Binary JPEG, longest side ≤1280 px and encoded size ≤1 MiB. Process/reply at most `fps_in` (default 1 Hz). Reply `{accepted, gate: {sharp, changed, bright, passed, reason, usable} | null, error?: string}`. Extra frames are dropped, never queued without a bound. Patient change requires explicit reconnect. |
+| `WS /ws/frames` | One same-origin browser source per incident. Binary JPEG, longest side ≤1280 px and encoded size ≤1 MiB. Process/reply at most `fps_in` (default 1 Hz). Reply `{accepted, gate: {sharp, changed, bright, passed, reason, usable} | null, error?: string}`. A frame over the rate is answered `{accepted: false, gate: null, throttled: true}`, never dropped silently. A newer link takes over the feed: the previous one is closed with code `4001` (the page stops and does not retry); a link cut without a close is never left holding the feed. Patient change requires explicit reconnect. |
 | `GET /api/capture/status` | `CaptureStatus` below. `watching` requires recent accepted input, not merely the switch being on. |
 | `POST /api/capture/auto` | `{on: boolean}`; returns status. Off invalidates pending work/results and clears frame buffers. A submitted model call cannot be preempted, but its result is discarded. Turning on an off source selects browser input. |
 | `POST /api/capture/roi` | `{x0,y0,x1,y1,target?: "monitor"}`, finite normalized coordinates with positive area. Returns status; invalid rectangle →422. ROI changes invalidate old buffered work. |

@@ -57,7 +57,10 @@ export class MonitorCapture {
         socket.onerror = socket.onclose = () => { window.clearTimeout(timeout); reject(new Error("Camera connection unavailable; another camera may own this patient’s feed.")); };
       });
       if (token !== this.generation) return;
-      socket.onclose = () => this.stop("Camera link to the vehicle closed — reconnecting", true, true);
+      // 4001: the server handed this patient's feed to a newer camera link (another tab or device); don't fight it
+      socket.onclose = (event?: CloseEvent) => event?.code === 4001
+        ? this.stop("Another camera took over this patient's feed", true, false)
+        : this.stop("Camera link to the vehicle closed — reconnecting", true, true);
       socket.onerror = () => this.stop("Camera link to the vehicle failed — reconnecting", true, true);
       socket.onmessage = (event) => {
         this.waitingSince = 0;

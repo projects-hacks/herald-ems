@@ -138,3 +138,18 @@ def test_edit_is_explicit_and_original_evidence_is_preserved(tmp_path):
     assert original.status.value == "rejected" and original.verify.resolution == "edited"
     assert original.value == dose["value"] and original.verify.photo_id
     assert client.post(url, json={"action": "keep"}).status_code == 409
+
+
+def test_a_newer_camera_link_takes_over_and_the_old_one_is_told_why(tmp_path):
+    """A link cut without a close is never reported; refusing new links behind it kept the camera "reconnecting"."""
+    from starlette.websockets import WebSocketDisconnect
+    client, ctx = setup(tmp_path, [])
+    client.post("/api/capture/auto", json={"on": True})
+    with client.websocket_connect("/ws/frames") as old:
+        with client.websocket_connect("/ws/frames") as new:
+            with pytest.raises(WebSocketDisconnect) as closed:
+                old.receive_json()
+            assert closed.value.code == 4001
+            new.send_bytes(b"not jpeg")
+            assert new.receive_json()["accepted"] is False       # the new link is the one being answered
+            assert ctx.extra["frame_socket"] is not None
