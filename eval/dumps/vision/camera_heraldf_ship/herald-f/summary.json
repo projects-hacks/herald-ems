@@ -1,0 +1,120 @@
+{
+ "model": "herald-f",
+ "runs": 3,
+ "tasks": [
+  "photos"
+ ],
+ "inputs": {
+  "vision_prompt": "a28eb3b1a708",
+  "figure_prompt": "4af37616fd6b",
+  "rerank_prompt": "34334535cbf0",
+  "terminology": "46a4dea1bc2c",
+  "drug_classes": "9c63ed99fd7a",
+  "photo_gold": "bf96d331af1d",
+  "flowchart_key": "adbe56e8debd",
+  "qa_gold": "2afda2348082",
+  "rxnorm_index": "9ed36b1fe400"
+ },
+ "spread": {
+  "photos": {
+   "f1": {
+    "mean": 1.0,
+    "min": 1.0,
+    "max": 1.0,
+    "runs": 3
+   },
+   "precision": {
+    "mean": 1.0,
+    "min": 1.0,
+    "max": 1.0,
+    "runs": 3
+   },
+   "recall": {
+    "mean": 1.0,
+    "min": 1.0,
+    "max": 1.0,
+    "runs": 3
+   },
+   "strict_f1": {
+    "mean": 1.0,
+    "min": 1.0,
+    "max": 1.0,
+    "runs": 3
+   },
+   "in_prompt_scope_f1": {
+    "mean": 1.0,
+    "min": 1.0,
+    "max": 1.0,
+    "runs": 3
+   },
+   "exact_image_acc": {
+    "mean": 1.0,
+    "min": 1.0,
+    "max": 1.0,
+    "runs": 3
+   },
+   "false_fact_images": {
+    "mean": 0,
+    "min": 0,
+    "max": 0,
+    "runs": 3
+   },
+   "json_invalid": {
+    "mean": 0,
+    "min": 0,
+    "max": 0,
+    "runs": 3
+   },
+   "latency_ms_p50": {
+    "mean": 9233.333,
+    "min": 8775,
+    "max": 9480,
+    "runs": 3
+   },
+   "latency_ms_p95": {
+    "mean": 10736.667,
+    "min": 9475,
+    "max": 11905,
+    "runs": 3
+   },
+   "set:confident": {
+    "f1": {
+     "mean": 1.0,
+     "min": 1.0,
+     "max": 1.0,
+     "runs": 3
+    },
+    "precision": {
+     "mean": 1.0,
+     "min": 1.0,
+     "max": 1.0,
+     "runs": 3
+    },
+    "recall": {
+     "mean": 1.0,
+     "min": 1.0,
+     "max": 1.0,
+     "runs": 3
+    },
+    "strict_f1": {
+     "mean": 1.0,
+     "min": 1.0,
+     "max": 1.0,
+     "runs": 3
+    },
+    "exact_image_acc": {
+     "mean": 1.0,
+     "min": 1.0,
+     "max": 1.0,
+     "runs": 3
+    },
+    "false_fact_images": {
+     "mean": 0,
+     "min": 0,
+     "max": 0,
+     "runs": 3
+    }
+   }
+  }
+ }
+}

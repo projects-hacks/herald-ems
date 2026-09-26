@@ -1,0 +1,158 @@
+{
+ "model": "herald-f",
+ "runs": 3,
+ "tasks": [
+  "photos"
+ ],
+ "inputs": {
+  "vision_prompt": "a28eb3b1a708",
+  "figure_prompt": "4af37616fd6b",
+  "rerank_prompt": "34334535cbf0",
+  "terminology": "46a4dea1bc2c",
+  "drug_classes": "9c63ed99fd7a",
+  "photo_gold": "bf96d331af1d",
+  "flowchart_key": "adbe56e8debd",
+  "qa_gold": "2afda2348082",
+  "rxnorm_index": "9ed36b1fe400"
+ },
+ "spread": {
+  "photos": {
+   "f1": {
+    "mean": 0.722,
+    "min": 0.717,
+    "max": 0.724,
+    "runs": 3
+   },
+   "precision": {
+    "mean": 0.642,
+    "min": 0.642,
+    "max": 0.642,
+    "runs": 3
+   },
+   "recall": {
+    "mean": 0.824,
+    "min": 0.811,
+    "max": 0.83,
+    "runs": 3
+   },
+   "strict_f1": {
+    "mean": 0.722,
+    "min": 0.717,
+    "max": 0.724,
+    "runs": 3
+   },
+   "in_prompt_scope_f1": {
+    "mean": 0.722,
+    "min": 0.717,
+    "max": 0.724,
+    "runs": 3
+   },
+   "exact_image_acc": {
+    "mean": 0.601,
+    "min": 0.598,
+    "max": 0.608,
+    "runs": 3
+   },
+   "false_fact_images": {
+    "mean": 17.333,
+    "min": 17,
+    "max": 18,
+    "runs": 3
+   },
+   "json_invalid": {
+    "mean": 0.333,
+    "min": 0,
+    "max": 1,
+    "runs": 3
+   },
+   "latency_ms_p50": {
+    "mean": 2385,
+    "min": 2095,
+    "max": 2872,
+    "runs": 3
+   },
+   "latency_ms_p95": {
+    "mean": 4335.667,
+    "min": 3730,
+    "max": 4990,
+    "runs": 3
+   },
+   "set:confident": {
+    "f1": {
+     "mean": 0.783,
+     "min": 0.78,
+     "max": 0.785,
+     "runs": 3
+    },
+    "precision": {
+     "mean": 0.701,
+     "min": 0.696,
+     "max": 0.703,
+     "runs": 3
+    },
+    "recall": {
+     "mean": 0.887,
+     "min": 0.887,
+     "max": 0.887,
+     "runs": 3
+    },
+    "strict_f1": {
+     "mean": 0.783,
+     "min": 0.78,
+     "max": 0.785,
+     "runs": 3
+    },
+    "exact_image_acc": {
+     "mean": 0.671,
+     "min": 0.662,
+     "max": 0.675,
+     "runs": 3
+    },
+    "false_fact_images": {
+     "mean": 15.333,
+     "min": 15,
+     "max": 16,
+     "runs": 3
+    }
+   },
+   "set:needs_check": {
+    "f1": {
+     "mean": 0.538,
+     "min": 0.508,
+     "max": 0.557,
+     "runs": 3
+    },
+    "precision": {
+     "mean": 0.471,
+     "min": 0.455,
+     "max": 0.486,
+     "runs": 3
+    },
+    "recall": {
+     "mean": 0.628,
+     "min": 0.577,
+     "max": 0.654,
+     "runs": 3
+    },
+    "strict_f1": {
+     "mean": 0.538,
+     "min": 0.508,
+     "max": 0.557,
+     "runs": 3
+    },
+    "exact_image_acc": {
+     "mean": 0.274,
+     "min": 0.235,
+     "max": 0.294,
+     "runs": 3
+    },
+    "false_fact_images": {
+     "mean": 2,
+     "min": 2,
+     "max": 2,
+     "runs": 3
+    }
+   }
+  }
+ }
+}

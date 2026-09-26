@@ -158,7 +158,12 @@ def test_summary_fails_on_errors_retries_drift_and_growth():
     assert summary["iteration_errors"] == 0
     assert summary["relay_failures"] == 1
     assert summary["checks"]["latency_drift_within_20_pct"] is False
-    assert summary["checks"]["final_memory_growth_within_1_gib"] is False
+    # Renamed from final_memory_growth_within_1_gib when the statistic changed: with enough samples it compares the
+    # median of the last third against the first third instead of differencing two endpoints, because MemAvailable on
+    # this box is a sawtooth whose endpoints say more about where a run stopped than about what it consumed
+    # (tests/test_soak_memory.py pins that the new statistic still fails a real leak). This event list has only two
+    # samples, so it falls back to the endpoint and the expectation is unchanged: 10 GiB -> 12 GiB must fail.
+    assert summary["checks"]["memory_growth_within_1_gib"] is False
 
 
 def test_summary_rejects_a_contended_run():

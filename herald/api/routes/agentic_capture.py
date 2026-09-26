@@ -22,6 +22,8 @@ class PatientIn(BaseModel):
 
 
 def check_patient(c, expected):
+    if c.incident.ended_at or c.restored:
+        raise HTTPException(409, "Review or resume the active encounter before capturing")
     if expected is not None and expected != c.incident.id:
         raise HTTPException(409, "patient changed; review before retrying")
 
@@ -143,6 +145,9 @@ async def frames(ws: WebSocket):
             raw = message.get("bytes")
             now = time.time()
             if now - last < 1 / agent.config["fps_in"]:
+                # Answer every frame: the page sends the next one only after a reply, and one dropped in silence
+                # (a frame a few ms early over a jittery link) read as a dead camera after 10 s and restarted it.
+                await ws.send_json({"accepted": False, "gate": None, "throttled": True})
                 continue
             last = now
             try:

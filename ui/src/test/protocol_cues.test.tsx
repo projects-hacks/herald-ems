@@ -8,7 +8,7 @@ import type { ProtocolCue, Snapshot } from "@/lib/types";
 
 const base = (parseFixture(readFileSync("public/fixtures/stroke_demo.jsonl", "utf8"))[0].msg as { state: Snapshot }).state;
 const quote = "3.2. If patient has four (4) points on the G.F.A.S.T stroke screening transport the patient to a Comprehensive Stroke Center.";
-const show = (cues: ProtocolCue[]) => { useHerald.setState({ snapshot: { ...base, protocol_cues: cues } }); render(<ProtocolCues onOpen={() => {}} />); };
+const show = (cues: ProtocolCue[]) => { useHerald.setState({ snapshot: { ...base, protocol_cues: cues } }); render(<ProtocolCues />); };
 
 describe("county protocol cues", () => {
   afterEach(cleanup);
@@ -23,6 +23,17 @@ describe("county protocol cues", () => {
     expect(point.textContent).toBe(quote.replace(/^3\.2\.\s+/, ""));          // the county's sentence, numbering dropped
     expect(Array.from(point.querySelectorAll("mark"), (m) => m.textContent)).toContain("Comprehensive Stroke Center");
   });
+  it("shows a lead-in with its lettered list, never a sentence ending in a dangling 'a.'", () => {
+    show([{ id: "stroke_destination", title: "Stroke destination", query: "q", state: "found", passages: [], points: [{
+      text: "Patients meeting Comprehensive Stroke Alert Criteria shall be transported to:", cite: "602 §VI.E.1",
+      items: ["a. The closest Comprehensive Stroke Center; and", "b. That is accepting emergency ambulance patients.",
+        "c. If the transport time is greater than forty-five (45) minutes, transport to the closest Primary Stroke Center."],
+      marks: [] }] }]);
+    const items = Array.from(document.querySelectorAll(".protocol-items li"), (li) => li.textContent);
+    expect(items).toHaveLength(3);
+    expect(items[2]).toMatch(/^c\. If the transport time/);
+    expect(document.querySelector(".protocol-points li > span")!.textContent).toMatch(/transported to:$/);
+  });
   it("says when the documents do not cover it, and never shows a guess while searching", () => {
     show([{ id: "sepsis", title: "Sepsis notification", query: "q", state: "not_covered", passages: [] },
           { id: "stemi", title: "STEMI", query: "q", state: "searching", passages: [] }]);
@@ -30,9 +41,11 @@ describe("county protocol cues", () => {
     expect(screen.getByText(/Finding the county passage/)).toBeTruthy();
     expect(screen.queryByRole("blockquote")).toBeNull();
   });
-  it("renders nothing when no situation is recognised", () => {
+  it("keeps its column with a note, and quotes nothing, when no situation is recognised", () => {
     show([]);
-    expect(screen.queryByText("County protocol")).toBeNull();
+    expect(screen.getByText("County protocol")).toBeTruthy();                  // the column does not jump in later
+    expect(screen.getByText(/the county’s own rule appears here/)).toBeTruthy();
+    expect(document.querySelector("blockquote, .protocol-points")).toBeNull(); // no county words invented
   });
 });
 
@@ -45,5 +58,12 @@ describe("county passages as a quick view", () => {
     expect(marked).toContain("Comprehensive Stroke Center");
     expect(marked.some((m) => m.includes("(45) minutes"))).toBe(true);
     expect(k.cite).toBe("700-A13 §3.2.1");
+  });
+  it("without the model, a lead-in shows with its list items, and a lead-in without its list is skipped", async () => {
+    const { keyPoints } = await import("@/lib/copilot");
+    const [k] = keyPoints([{ doc: "602", section: "VI.E.1", text: "1. Patients shall be transported to:\na. The closest Comprehensive Stroke Center; and\nb. That is accepting patients." }]);
+    expect(k.segments.map((s) => s.t).join("")).toBe("Patients shall be transported to:");
+    expect(k.items.map((i) => i.map((s) => s.t).join(""))).toEqual(["a. The closest Comprehensive Stroke Center; and", "b. That is accepting patients."]);
+    expect(keyPoints([{ doc: "602", section: "VI.E", text: "1. Patients shall be transported to:" }])).toEqual([]);
   });
 });

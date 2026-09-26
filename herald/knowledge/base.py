@@ -46,7 +46,8 @@ class KnowledgeBase:
         self.county = county
         self.dir = protocols_dir / county["id"]
         self.splitter = SectionSplitter(self.cfg["heading_styles"], self.cfg["running_line_share"],
-                                        self.cfg["glyph_error_pattern"], self.cfg.get("running_line_band"))
+                                        self.cfg["glyph_error_pattern"], self.cfg.get("running_line_band"),
+                                        self.cfg.get("lead_in_children_chars", 0))
         self.sections: list[Section] = []
         self.versions: dict[str, dict] = {}
         self.missing: list[str] = []
@@ -234,7 +235,7 @@ class KnowledgeBase:
         for score, s in self.ranked(query)[: k or self.cfg["search"]["top_k"]]:
             v = self.versions.get(s.doc_id, {})
             out.append({"doc": s.doc_id, "title": v.get("title"), "section": s.number, "heading": s.title,
-                        "page": s.page, "text": s.text, "parents": s.parents, "score": round(score, 3),
+                        "page": s.page, "text": s.text + (f"\n{s.items}" if s.items else ""), "parents": s.parents, "score": round(score, 3),
                         "effective": v.get("effective_in_file") or v.get("effective_reviewed"),
                         "text_layer_uncertain": s.uncertain})
         return out
@@ -256,8 +257,22 @@ class KnowledgeBase:
 
     # ---------- versions (written by sync) ----------
     def _manifest(self) -> dict:
+        """The sync manifest, or {} if it is absent, empty or half-written.
+
+        This is read on the GET /api/state path via summary(), so a parse error here becomes a 500 on the screen the
+        medic is looking at. It existing is not enough: the file is rewritten while the protocol index builds on first
+        start, so a read can land on a truncated or zero-length file. On 2026-09-25 that produced
+        `JSONDecodeError: Expecting value: line 1 column 1 (char 0)` from /api/state during app startup -- the manifest
+        existed and was empty. A missing manifest and an unreadable one mean the same thing to every caller (no sync
+        information yet), and the fields built from it are optional, so degrade instead of failing the whole snapshot.
+        """
         p = self.dir / "manifest.json"
-        return json.loads(p.read_text()) if p.exists() else {}
+        if not p.exists():
+            return {}
+        try:
+            return json.loads(p.read_text()) or {}
+        except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+            return {}
 
     def export(self) -> list[dict]:
         return [asdict(s) for s in self.sections]

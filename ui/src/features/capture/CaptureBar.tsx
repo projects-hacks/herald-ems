@@ -6,7 +6,7 @@ import { livePatient, submitCapture } from "./client";
 import { useRecorder } from "./useRecorder";
 
 export function CaptureBar({ allowVoice = true }: { allowVoice?: boolean }) {
-  const disabled = useHerald((s) => s.source === "fixture" || s.stale || s.conn !== "open");
+  const disabled = useHerald((s) => s.source === "fixture" || s.stale || s.conn !== "open" || !!s.snapshot?.incident.ended_at || !!s.snapshot?.restored);
   const keyboard = useHerald((s) => s.ui.keyboardPtt);
   const activePatient = useHerald((s) => s.snapshot?.incident.id);
   const recorder = useRecorder(), contract = useContract();

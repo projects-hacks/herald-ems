@@ -127,21 +127,22 @@ def transcribe(a) -> None:
         clips.append(mixed)
     order = sorted(range(len(items)), key=lambda i: len(clips[i]))       # similar lengths batch together
     partial = Path(a.plan).with_name("transcripts_partial.jsonl")        # resumable: a crash keeps what is done
-    texts: dict[int, str] = {}
+    texts: dict[int, dict] = {}
     if partial.exists():
-        texts = {d["i"]: d["text"] for d in map(json.loads, open(partial))}
+        texts = {d["i"]: d for d in map(json.loads, open(partial))}
     todo = [i for i in order if i not in texts]
     with open(partial, "a") as log:
         for s in range(0, len(todo), a.chunk):
             idx = todo[s:s + a.chunk]
             res = stt.transcribe_many([clips[i] for i in idx], SR, batch_size=a.batch)
-            for i, r in zip(idx, res):
-                texts[i] = r["text"]
-                log.write(json.dumps({"i": i, "text": r["text"]}, ensure_ascii=False) + "\n")
+            for i, r in zip(idx, res):          # the production gates apply here too; a dropped clip keeps its reason
+                texts[i] = {"i": i, "text": r["text"], "dropped": r.get("dropped"), "language": r.get("language")}
+                log.write(json.dumps(texts[i], ensure_ascii=False) + "\n")
             log.flush()
             print(f"transcribed {len(texts)}/{len(order)}", flush=True)
     for i, it in enumerate(items):
-        it["whisper"] = texts[i]
+        it["whisper"] = texts[i]["text"]
+        it["stt_dropped"], it["language"] = texts[i].get("dropped"), texts[i].get("language")
     Path(a.out).write_text("".join(json.dumps(x, ensure_ascii=False) + "\n" for x in items))
     print(json.dumps({"transcribed": len(items), "out": str(a.out)}))
 
@@ -235,6 +236,8 @@ def labels_lost(row_facts: list, said: str, heard: str, g) -> str | None:
 
 def verdict(it: dict, row_facts: list, g, c: dict, prompt: str, wer: float) -> tuple[bool, str]:
     heard, raw = it["whisper"].strip(), it["raw_text"]
+    if it.get("stt_dropped"):
+        return False, f"speech gate: {it['stt_dropped']}"
     if not heard:
         return False, "empty transcript"
     pw = tokens(prompt)

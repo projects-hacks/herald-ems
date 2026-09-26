@@ -21,7 +21,15 @@ async def get_handoff(format: Optional[str] = None, c=Depends(get_ctx)):
 
 
 @router.get("/handoff/fhir")
-async def get_handoff_fhir(c=Depends(get_ctx)):
-    """The current incident's confirmed record as a FHIR R4 Bundle (Patient, vitals/score Observations,
-    MedicationAdministration, AllergyIntolerance, Condition). Confirmed facts only, exactly like /api/handoff."""
-    return c.fhir.build(c.incident)
+async def get_handoff_fhir(type: str = "document", format: Optional[str] = None, c=Depends(get_ctx)):
+    """The current incident's handoff as a FHIR R4 Bundle. `type=document` (default): a FHIR document whose
+    Composition sections are the report's MIST/SBAR sections (`format` as in /api/handoff), with Encounter, Device and
+    Provenance. `type=collection`: the resources alone. Confirmed facts only, exactly like /api/handoff."""
+    if type not in ("document", "collection"):
+        raise HTTPException(400, "type must be document or collection")
+    if type == "collection":
+        return c.fhir.build(c.incident)
+    ids = [f["id"] for f in c.handoff.formats()]
+    if format is not None and format not in ids:
+        raise HTTPException(400, f"format must be one of {', '.join(ids)}")
+    return c.fhir_document.build(c.incident, format)

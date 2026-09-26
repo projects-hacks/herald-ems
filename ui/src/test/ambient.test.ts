@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AmbientCapture, type AmbientStatus } from "@/features/cabin/ambient";
+import { Endpointer } from "@/features/cabin/endpoint";
 import { join, wav } from "@/features/cabin/pcm";
 
 describe("continuous capture", () => {
@@ -25,7 +26,9 @@ describe("continuous capture", () => {
     capture = new AmbientCapture("patient-1", (s) => states.push(s));
   });
   afterEach(() => { capture.dispose(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
-  const block = () => node.port.onmessage?.({ data: new Float32Array(128000).fill(0.1) });
+  const said = () => node.port.onmessage?.({ data: new Float32Array(16000).fill(0.1) });     // one second of speech
+  const quiet = () => node.port.onmessage?.({ data: new Float32Array(16000) });               // one second of silence
+  const block = () => { said(); quiet(); };                                                   // an utterance, ended by a pause
   const settle = async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); };
 
   it("does not capture until explicitly started", () => {
@@ -42,7 +45,7 @@ describe("continuous capture", () => {
     expect(states.at(-1)?.listening).toBe(true);
   });
   it("stops tracks and flushes a partial clip on pause", async () => {
-    await capture.start(); node.port.onmessage?.({ data: new Float32Array(16000) });
+    await capture.start(); said();
     capture.pause(); await settle();
     expect(stop).toHaveBeenCalledOnce();
     expect(fetch).toHaveBeenCalledOnce();
@@ -55,22 +58,86 @@ describe("continuous capture", () => {
     resolve({ getTracks: () => [{ stop }] } as unknown as MediaStream); await started;
     expect(stop).toHaveBeenCalledOnce(); expect(fetch).not.toHaveBeenCalled();
   });
-  it("stops with an explicit error instead of silently building an unbounded queue", async () => {
-    vi.mocked(fetch).mockReturnValue(new Promise(() => {}));
-    await capture.start(); block(); block(); block(); block();
-    expect(states.at(-1)).toMatchObject({ listening: false, error: true });
-    expect(states.at(-1)?.message).toContain("unsent clip was discarded");
-    expect(fetch).toHaveBeenCalledOnce();
+  it("keeps listening through a long outage: the queue is bounded, and the words that gave way are reported", async () => {
+    vi.mocked(fetch).mockReturnValue(new Promise(() => {}));            // the server never answers
+    await capture.start();
+    for (let i = 0; i < 12; i++) block();
+    const last = states.at(-1)!;
+    expect(last.listening).toBe(true); expect(last.error).toBe(false);
+    expect(last.queued).toBeLessThanOrEqual(9);                        // 8 waiting + 1 in flight
+    expect(last.lost).toBeGreaterThanOrEqual(1);
+    expect(last.warning).toMatch(/not processed/);
   });
-  it("does not keep recording after a server error", async () => {
+  it("retries a clip the server failed, keeps listening, and says so if it never lands", async () => {
+    vi.useFakeTimers();
     vi.mocked(fetch).mockResolvedValue({ ok: false, status: 503 } as Response);
-    await capture.start(); block(); await settle();
-    expect(states.at(-1)).toMatchObject({ listening: false, error: true });
-    expect(stop).toHaveBeenCalledOnce();
+    await capture.start(); block();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(states.at(-1)?.warning).toMatch(/Can't reach the vehicle server/);
+    await vi.advanceTimersByTimeAsync(20000);
+    expect(fetch).toHaveBeenCalledTimes(5);                            // the first try and four retries
+    expect(states.at(-1)).toMatchObject({ listening: true, error: false, lost: 1 });
+    expect(states.at(-1)?.warning).toMatch(/1 clip not processed/);
+    expect(stop).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+  it("clears the warning when the server comes back", async () => {
+    vi.useFakeTimers();
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 503 } as Response).mockResolvedValue({ ok: true, json: async () => ({}) } as Response);
+    await capture.start(); block();
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(states.at(-1)?.warning ?? null).toBeNull();
+    vi.useRealTimers();
+  });
+  it("reopens the microphone when the device drops out, instead of stopping", async () => {
+    vi.useFakeTimers();
+    const track: { stop: () => void; onended: (() => void) | null } = { stop: vi.fn(), onended: null };
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockResolvedValue({ getTracks: () => [track], getAudioTracks: () => [track] } as unknown as MediaStream);
+    await capture.start();
+    track.onended?.();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(2);
+    expect(states.at(-1)).toMatchObject({ listening: true, error: false });
+    vi.useRealTimers();
+  });
+  it("does not retry a clip the call no longer accepts", async () => {
+    vi.mocked(fetch).mockResolvedValue({ ok: false, status: 409 } as Response);
+    await capture.start(); block(); await settle(); await settle();
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(states.at(-1)?.listening).toBe(true);
   });
   it("discards unsent audio on dispose, without starting another upload", async () => {
-    await capture.start(); node.port.onmessage?.({ data: new Float32Array(16000) }); capture.dispose();
+    await capture.start(); said(); capture.dispose();
     expect(stop).toHaveBeenCalledOnce(); expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("speech endpointing", () => {
+  const rate = 16000;
+  const blocks = (seconds: number, level: number) => Array.from({ length: Math.round(seconds * 10) }, () => new Float32Array(rate / 10).fill(level));
+  const feed = (e: Endpointer, bs: Float32Array[]) => bs.map((b) => e.push(b)).filter(Boolean) as Float32Array[][];
+  it("sends nothing for silence or steady room noise", () => {
+    const e = new Endpointer(rate);
+    expect(feed(e, [...blocks(20, 0), ...blocks(20, 0.004)])).toEqual([]);
+    expect(e.end()).toBeNull();
+  });
+  it("sends one utterance when the speaker pauses, with a little audio from before it", () => {
+    const e = new Endpointer(rate);
+    const out = feed(e, [...blocks(1, 0), ...blocks(2, 0.1), ...blocks(1, 0)]);
+    expect(out).toHaveLength(1);
+    const seconds = out[0].reduce((n, b) => n + b.length, 0) / rate;
+    expect(seconds).toBeGreaterThan(2.7); expect(seconds).toBeLessThan(3.2);
+  });
+  it("does not send a cough-length burst", () => {
+    const e = new Endpointer(rate);
+    expect(feed(e, [...blocks(1, 0), ...blocks(0.2, 0.2), ...blocks(1.5, 0)])).toEqual([]);
+  });
+  it("cuts a long monologue so no clip exceeds Whisper's window", () => {
+    const e = new Endpointer(rate);
+    const out = feed(e, blocks(40, 0.1));
+    expect(out.length).toBeGreaterThanOrEqual(2);
+    for (const u of out) expect(u.reduce((n, b) => n + b.length, 0) / rate).toBeLessThanOrEqual(15.1);
   });
 });
 

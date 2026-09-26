@@ -97,7 +97,7 @@ it("mounts the roster and sends an explicit patient activation", async () => {
 it("new incident submits selected dispatch, not the previous call", async () => {
   useHerald.getState().setUi({ confirmNewIncident: true }); render(<NewIncidentDialog />);
   fireEvent.change(screen.getByLabelText("Dispatch / call type"), { target: { value: "fall" } });
-  fireEvent.click(screen.getByRole("button", { name: "Start new incident" }));
+  fireEvent.click(screen.getByRole("button", { name: "Finish and start next" }));
   await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/incident", expect.objectContaining({ body: JSON.stringify({ dispatch: "fall" }) })));
 });
 it("exposes compact model-down and ED offline status", () => {

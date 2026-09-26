@@ -23,6 +23,10 @@ export interface UiState {
   presentationMode: boolean;
   confirmNewIncident: boolean; confirmEndIncident: boolean;
   incidentPhase: IncidentPhase;
+  /** Herald listens and watches from the start (a copilot, not a recorder you remember to switch on). Off in Settings. */
+  autoCapture: boolean;
+  /** The medic paused listening and watching from the status pill. Starts paused only when autoCapture is off. */
+  capturePaused: boolean;
 }
 
 export interface FixtureState { name: string; index: number; total: number; playing: boolean; speed: number }
@@ -34,6 +38,8 @@ export interface HeraldState {
   lastMessageAt: number;            // performance.now() of the last state or pong
   lastStateAt: number;              // Date.now() of the last state (shown as "last update hh:mm:ss")
   stale: boolean;
+  /** Another Herald tab in this browser holds the microphone and camera (features/cabin/captureOwner.ts). */
+  captureElsewhere: boolean;
   source: "live" | "fixture";
   fixture: FixtureState | null;
   health: Health | null;
@@ -55,8 +61,8 @@ export interface HeraldState {
 
 // ---------- per-device preferences (localStorage can throw or be empty: never rely on it) ----------
 const PREFS = "herald.ui.v1";
-type Prefs = Pick<UiState, "theme" | "typeScale" | "reducedMotion" | "keyboardPtt" | "sidebarCollapsed">;
-const PREF_KEYS: (keyof Prefs)[] = ["theme", "typeScale", "reducedMotion", "keyboardPtt", "sidebarCollapsed"];
+type Prefs = Pick<UiState, "theme" | "typeScale" | "reducedMotion" | "keyboardPtt" | "sidebarCollapsed" | "autoCapture">;
+const PREF_KEYS: (keyof Prefs)[] = ["theme", "typeScale", "reducedMotion", "keyboardPtt", "sidebarCollapsed", "autoCapture"];
 
 function readPrefs(): Partial<Prefs> {
   try {
@@ -98,7 +104,15 @@ export function initialUi(search = typeof location === "undefined" ? "" : locati
     confirmNewIncident: false,
     incidentPhase: "scene",
     confirmEndIncident: false,
+    autoCapture: q.get("capture") === "off" ? false : (p.autoCapture ?? true),
+    capturePaused: q.get("capture") === "off" || p.autoCapture === false,
   };
+}
+
+/** Another Herald tab may own the microphone and camera (features/cabin/captureOwner.ts). Before the Web Lock answers, a tab
+ *  assumes another one captures, so it never opens the microphone for an instant. */
+export function initialCaptureElsewhere(): boolean {
+  return typeof navigator !== "undefined" && !!(navigator as Navigator & { locks?: LockManager }).locks;
 }
 
 export const useHerald = create<HeraldState>()((set, get) => ({
@@ -108,6 +122,7 @@ export const useHerald = create<HeraldState>()((set, get) => ({
   lastMessageAt: 0,
   lastStateAt: 0,
   stale: false,
+  captureElsewhere: initialCaptureElsewhere(),
   source: "live",
   fixture: null,
   health: null,
@@ -127,13 +142,13 @@ export const useHerald = create<HeraldState>()((set, get) => ({
       if (!(k in arrival)) arrival[k] = ++next;
     }
     set({ snapshot: s, pending: switched ? {} : pending, alertArrival: arrival, lastStateAt: Date.now(),
-      ...(switched ? { ui: { ...get().ui, incidentPhase: "scene", seenAlerts: {}, expanded: {}, heldAlerts: false }, holdMark: null } : {}) });
+      ...(switched ? { ui: { ...get().ui, incidentPhase: "scene", seenAlerts: {}, expanded: {}, heldAlerts: false, capturePaused: !get().ui.autoCapture, page: "overview" }, holdMark: null } : {}) });
   },
   setUi: (patch) => {
     const ui = { ...get().ui, ...patch };
     set({ ui });
     if (PREF_KEYS.some((k) => k in patch)) {
-      writePrefs({ theme: ui.theme, typeScale: ui.typeScale, reducedMotion: ui.reducedMotion, keyboardPtt: ui.keyboardPtt, sidebarCollapsed: ui.sidebarCollapsed });
+      writePrefs({ theme: ui.theme, typeScale: ui.typeScale, reducedMotion: ui.reducedMotion, keyboardPtt: ui.keyboardPtt, sidebarCollapsed: ui.sidebarCollapsed, autoCapture: ui.autoCapture });
     }
   },
   toggleExpanded: (id) => {

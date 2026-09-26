@@ -14,5 +14,6 @@ export function catOf(key: string): Cat {
 
 /** The category of each patient-picture group (lib/selectors GROUPS). */
 export const GROUP_CAT: Record<string, Cat> = {
-  Patient: "patient", History: "neuro", Vitals: "heart", Exam: "neuro", "Meds & allergies": "meds", Transport: "ed", Scene: "time", Other: "attention",
+  Safety: "attention", Patient: "patient", Presentation: "neuro", Vitals: "heart", Exam: "neuro", Injuries: "attention",
+  Assessment: "check", "Care given": "meds", Medications: "meds", Transport: "ed", Scene: "time", Other: "attention",
 };

@@ -29,7 +29,9 @@ function parseValue(raw: string, old: FactValue): FactValue {
   return raw.trim();
 }
 
-export function CorrectFactDialog({ fact, compact = false }: { fact: FactView; compact?: boolean }) {
+/** `iconOnly` is the record-row form: a 48px pencil named "Correct <field>" for screen readers, so a long list of
+ *  facts does not repeat the word "Correct" on every line. */
+export function CorrectFactDialog({ fact, compact = false, iconOnly = false }: { fact: FactView; compact?: boolean; iconOnly?: boolean }) {
   const contract = useContract();
   const unavailable = useHerald((s) => s.stale || s.conn !== "open" || s.source === "fixture");
   const currentId = useHerald((s) => s.snapshot?.facts[fact.key]?.id);
@@ -47,7 +49,10 @@ export function CorrectFactDialog({ fact, compact = false }: { fact: FactView; c
     } catch (e) { setError(e instanceof Error ? e.message : "Check this value."); }
   };
   return <>
-    <Button disabled={unavailable} size={compact ? "sm" : "md"} variant="ghost" onClick={() => setOpen(true)}><Pencil size={14} />Correct</Button>
+    {iconOnly
+      ? <Button disabled={unavailable} size="sm" variant="ghost" className="min-w-12 px-0" aria-label={`Correct ${fact.label}`} title={`Correct ${fact.label}`}
+          onClick={() => setOpen(true)}><Pencil size={16} aria-hidden /></Button>
+      : <Button disabled={unavailable} size={compact ? "sm" : "md"} variant="ghost" onClick={() => setOpen(true)}><Pencil size={14} />Correct</Button>}
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
         <DialogTitle>Correct {fact.label}</DialogTitle>

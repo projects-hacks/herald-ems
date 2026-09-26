@@ -34,7 +34,7 @@ export function PatientStrip({ patients, activePatient, onActivate, disabled = f
             </span>
             <span className="min-w-0">
               <span className="block truncate text-button font-semibold text-text-primary">{patient.label}</span>
-              <span className="block text-meta text-text-muted">{patient.readiness_done}/{patient.readiness_total} ready</span>
+              <span className="block text-meta text-text-muted">{patient.ended_at ? "Finished · review only" : `${patient.readiness_done}/${patient.readiness_total} ready`}</span>
             </span>
           </button>
         );

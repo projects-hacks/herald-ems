@@ -4,7 +4,7 @@
 // New alerts are announced politely (HIGH assertively). Seen findings fold into "Seen" at the end.
 import {
   Brain, Camera, ChevronDown, ChevronRight, CircleCheck, CircleDashed, Gauge, GitCompareArrows, Inbox, Keyboard, Mic,
-  Monitor, OctagonAlert, ShieldAlert, TrendingUp, type LucideIcon,
+  Monitor, OctagonAlert, ShieldAlert, TrendingUp, TriangleAlert, type LucideIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAttention } from "@/hooks/useAttention";
@@ -15,14 +15,14 @@ import { useHerald } from "@/lib/store";
 import { MismatchCard } from "@/features/capture/MismatchCard";
 import { TraumaCriteriaChecklist } from "./TraumaCriteriaChecklist";
 import type { Alert, FactView, NeedItem, Snapshot } from "@/lib/types";
-import { readingCards, type ReadingCard } from "@/lib/copilot";
+import { readingCards, readingText, type ReadingCard } from "@/lib/copilot";
 import { cn } from "@/lib/utils";
 import { ActionButton, ActionNote, usePendingAction } from "@/components/ActionButton";
 import { AudioEvidence } from "@/components/AudioEvidence";
 import { activeSync } from "@/lib/selectors";
 import { CorrectFactDialog } from "@/components/CorrectFactDialog";
 import { catOf } from "@/lib/categories";
-import { Badge, Button, CAT_ICON, Card, CardHeader, Count, EmptyState, IconTile, Section, type Cat } from "@/components/kit";
+import { Badge, Button, CAT_ICON, Card, CardHeader, Count, EmptyState, IconTile, Section, SeverityBadge, type Cat } from "@/components/kit";
 
 const NEWS2_SUFFIX = / \(for NEWS2\)$/;
 type Contradiction = Extract<Alert, { type: "contradiction" }>;
@@ -32,8 +32,9 @@ type CodeStatus = Extract<Alert, { type: "confirm_required" }>;
 
 /** tone paints the card's edge: high (danger), check (a decision waiting), live (Herald's own reading, one tap),
  *  info (a finding to note). Colour is never the only signal: every row also has its icon and words. */
-function Row({ icon, cat, title, badge, value, was, meta, actions, urgent, flash, tone, children }: {
+function Row({ icon, cat, title, badge, value, severity, was, meta, actions, urgent, flash, tone, children }: {
   icon?: LucideIcon; cat: Cat; title: React.ReactNode; badge?: React.ReactNode; value?: React.ReactNode; was?: string;
+  severity?: "abnormal" | "critical";
   meta?: React.ReactNode; actions?: React.ReactNode; urgent?: boolean; flash?: boolean; tone?: "high" | "check" | "live" | "info";
   children?: React.ReactNode;
 }) {
@@ -46,8 +47,11 @@ function Row({ icon, cat, title, badge, value, was, meta, actions, urgent, flash
             <span className="font-semibold text-text-primary">{title}</span>{badge}
           </p>
           {value !== undefined && (
-            <p className="mt-0.5 text-critical font-semibold leading-snug">
-              {value}{was && <span className="ml-2 text-body font-normal text-text-muted">was {was}</span>}
+            <p className={cn("mt-0.5 flex flex-wrap items-center gap-2 text-critical font-semibold leading-snug",
+              severity === "critical" ? "text-high-fg" : severity === "abnormal" ? "text-medium-fg" : undefined)}>
+              {value}
+              {severity && <SeverityBadge severity={severity} />}
+              {was && <span className="text-body font-normal text-text-muted">was {was}</span>}
             </p>
           )}
           {meta && <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-meta text-text-muted">{meta}</p>}
@@ -109,10 +113,51 @@ function ReadingRow({ c }: { c: ReadingCard }) {
 
 function TapRow({ f }: { f: FactView }) {
   return (
-    <Row cat={catOf(f.key)} title={f.label} value={factValue(f)}
+    <Row cat={catOf(f.key)} title={f.label} value={factValue(f)} severity={f.severity}
       was={f.previous_value !== null && f.previous_value !== undefined ? factValue({ value: f.previous_value, unit: f.unit }) : undefined}
       meta={<FactMeta f={f} />} actions={<ConfirmActions fact={f} />} />
   );
+}
+
+/** Several facts taken from one sentence: the words once, then each value with its own decision. "Confirm all" is
+ *  offered only when none of them is held for an individual check (the server refuses held facts in a batch too). */
+function HeardGroup({ facts }: { facts: FactView[] }) {
+  const first = facts[0];
+  const words = first.captured_by === "camera" ? null : first.provenance?.text?.trim();
+  const vitals = facts.filter((f) => f.key.startsWith("vitals."));
+  const held = facts.some((f) => f.provenance?.hold_reason || (f.verify?.status === "mismatch" && !f.verify.resolution));
+  return (
+    <Row icon={sourceIconOf(first)} cat={catOf(first.key)} title={words ? <span className="heard-quote">“{words.length > 140 ? `${words.slice(0, 139).trimEnd()}…` : words}”</span>
+        : vitals.length === facts.length ? <>Monitor reading · <span className="num">{readingText(facts)}</span></> : `${facts.length} values from one photo`}
+      meta={<FactMeta f={first} />}>
+      <ul className="heard-facts">{facts.map((f) => <li key={f.id} data-severity={f.severity}>
+        <span className="heard-what"><span className="heard-label">{f.label}</span>
+          <span className="heard-value">{factValue(f)}</span>
+          {/* A value the medic is being asked to confirm shows its clinical severity, so an out-of-range reading is
+              obvious at the point of decision. Backend-computed and scope-gated (no colour for children/pregnancy). */}
+          {f.severity && <span className="heard-severity" data-severity={f.severity}><TriangleAlert size={12} aria-hidden />{f.severity === "critical" ? "critical" : "out of range"}</span>}
+        </span>
+        <span className="heard-actions">
+          <ActionButton pendingKey={`confirm:${f.id}`} onClick={() => api.confirm(f.id)} busyText="Saving…" variant={held ? "primary" : undefined}>Confirm</ActionButton>
+          <CorrectFactDialog fact={f} />
+          <ActionButton pendingKey={`reject:${f.id}`} onClick={() => api.reject(f.id)} busyText="Saving…">Reject</ActionButton>
+        </span>
+      </li>)}</ul>
+      {!held && <div className="heard-all"><ActionButton pendingKey={`confirm-many:${facts.map((f) => f.id).sort().join(",")}`} onClick={() => api.confirmMany(facts.map((f) => f.id))}
+        busyText="Saving…" variant="primary" className="min-h-16">Confirm all {facts.length}</ActionButton></div>}
+    </Row>
+  );
+}
+
+/** Facts in the order they were heard, those from one sentence together. */
+function byUtterance(facts: FactView[]): FactView[][] {
+  const groups = new Map<string, FactView[]>();
+  for (const f of facts) {
+    const k = f.verify?.status === "mismatch" && !f.verify.resolution ? `solo:${f.id}`
+      : f.provenance?.audio_id ?? f.provenance?.photo_id ?? f.provenance?.frame_id ?? (f.provenance?.text ? `t:${f.provenance.text}` : `solo:${f.id}`);
+    groups.set(k, [...(groups.get(k) ?? []), f]);
+  }
+  return [...groups.values()];
 }
 
 function CodeStatusRow({ a }: { a: CodeStatus }) {
@@ -192,17 +237,19 @@ function FindingRow({ a, s, onSeen }: { a: Alert; s: Snapshot; onSeen?: () => vo
         title={<>STEMI Alert criteria met</>} meta={<span>{a.criteria.join(" · ")}</span>} actions={seen} />;
     case "race_positive":
       return <Row icon={Brain} cat="neuro" badge={<PriorityBadge p={p} />} title={<>RACE <span className="num">{a.score}</span> of 9: large-vessel screen positive</>}
-        meta={<span>Threshold ≥ 5. Parts and published accuracy are on the RACE tile.</span>} actions={seen} />;
+        meta={<span>Threshold ≥ 5. Parts and accuracy: Record → Trends &amp; scores.</span>} actions={seen} />;
     case "gfast_positive":
       return <Row icon={Brain} cat="neuro" badge={<PriorityBadge p={p} />} title={<>G.F.A.S.T. <span className="num">{a.score}</span> of 4: screen positive</>}
         meta={<span>{a.county_rule}</span>} actions={seen} />;
     case "significant_change": {
-      const d = a.series[a.series.length - 1] - a.series[0];
+      const d = a.series.length ? a.series[a.series.length - 1] - a.series[0] : 0;
       return <Row icon={TrendingUp} cat={catOf(a.key)} badge={<PriorityBadge p={p} />} title={<>{a.label} changed <span className="num">{a.series.join(" → ")}</span></>}
         meta={<span className="num">{d > 0 ? "+" : ""}{d} since the first reading</span>} actions={seen} />;
     }
-    default:
-      return null;
+    default: {   // an alert type added in config (config/scores/*.yaml) that this screen has no special row for
+      const x = a as { label?: string; type: string };
+      return <Row icon={ShieldAlert} cat="attention" badge={<PriorityBadge p={p} />} title={x.label ?? x.type} actions={seen} />;
+    }
   }
 }
 
@@ -225,13 +272,13 @@ function StillToCapture({ s }: { s: Snapshot }) {
   const checklist = new Set(s.readiness.flatMap((r) => r.items.map((i) => i.key)));
   const gaps = s.needs_attention.missing.filter((m) => checklist.has(m.key));
   const news2 = s.needs_attention.missing.filter((m) => !checklist.has(m.key));
-  const unknown = s.needs_attention.unknown;
+  const unknown = s.needs_attention.unknown.filter((m) => !m.pending_confirm);   // heard ones already wait above
   if (!gaps.length && !news2.length && !unknown.length) return null;
   return (
     <Section title="Missing for handoff" count={gaps.length + unknown.length + news2.length} className="border-t border-border-subtle pt-1">
       <div className="flex flex-col gap-3 px-5 pt-1 pb-4">
         {gaps.length > 0 && <div className="flex flex-col gap-1.5"><p className="text-meta text-text-muted">{s.readiness[0]?.label ?? "Pre-alert"} checklist</p><Chips items={gaps} /></div>}
-        {unknown.length > 0 && <div className="flex flex-col gap-1.5"><p className="text-meta text-text-muted">Not asked yet</p><Chips items={unknown} /></div>}
+        {unknown.length > 0 && <div className="flex flex-col gap-1.5"><p className="text-meta text-text-muted">Not heard yet</p><Chips items={unknown} /></div>}
         {news2.length > 0 && (
           <p className="text-body text-text-secondary"><span className="font-semibold text-text-primary">NEWS2 needs {news2.length} more {news2.length === 1 ? "value" : "values"}</span>
             {news2.length <= 3 ? ` · ${news2.map((m) => m.label.replace(NEWS2_SUFFIX, "")).join(" · ")}` : ""}</p>
@@ -291,8 +338,8 @@ export function AttentionQueue({ className }: { className?: string }) {
               <ul>
                 {readings.map((c) => <ReadingRow key={c.frameId} c={c} />)}
                 {a.confirmAlerts.map((al) => <CodeStatusRow key={alertKey(al)} a={al as CodeStatus} />)}
-                {a.confirmFacts.map((f) => f.verify?.status === "mismatch" && !f.verify.resolution
-                  ? <MismatchCard key={f.id} fact={f} /> : <TapRow key={f.id} f={f} />)}
+                {byUtterance(a.confirmFacts).map((g) => g.length > 1 ? <HeardGroup key={g[0].id} facts={g} />
+                  : g[0].verify?.status === "mismatch" && !g[0].verify.resolution ? <MismatchCard key={g[0].id} fact={g[0]} /> : <TapRow key={g[0].id} f={g[0]} />)}
               </ul>
             </Section>
           )}

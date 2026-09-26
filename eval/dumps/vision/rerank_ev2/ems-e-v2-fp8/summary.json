@@ -1,0 +1,70 @@
+{
+ "model": "ems-e-v2-fp8",
+ "runs": 3,
+ "tasks": [
+  "rerank"
+ ],
+ "inputs": {
+  "vision_prompt": "a28eb3b1a708",
+  "figure_prompt": "4af37616fd6b",
+  "rerank_prompt": "34334535cbf0",
+  "terminology": "de44c72d1e21",
+  "drug_classes": "9c63ed99fd7a",
+  "photo_gold": "bf96d331af1d",
+  "flowchart_key": "adbe56e8debd",
+  "qa_gold": "2afda2348082",
+  "rxnorm_index": "9ed36b1fe400"
+ },
+ "spread": {
+  "rerank": {
+   "top1": {
+    "mean": 0.692,
+    "min": 0.692,
+    "max": 0.692,
+    "runs": 3
+   },
+   "top3": {
+    "mean": 0.769,
+    "min": 0.769,
+    "max": 0.769,
+    "runs": 3
+   },
+   "shown_top1": {
+    "mean": 0.692,
+    "min": 0.692,
+    "max": 0.692,
+    "runs": 3
+   },
+   "refusal_on_unanswerable": {
+    "mean": 0.571,
+    "min": 0.571,
+    "max": 0.571,
+    "runs": 3
+   },
+   "answerable_said_true": {
+    "mean": 0.981,
+    "min": 0.981,
+    "max": 0.981,
+    "runs": 3
+   },
+   "json_invalid": {
+    "mean": 0,
+    "min": 0,
+    "max": 0,
+    "runs": 3
+   },
+   "latency_ms_p50": {
+    "mean": 653.667,
+    "min": 626,
+    "max": 707,
+    "runs": 3
+   },
+   "latency_ms_p95": {
+    "mean": 860.667,
+    "min": 834,
+    "max": 909,
+    "runs": 3
+   }
+  }
+ }
+}

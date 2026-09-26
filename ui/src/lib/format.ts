@@ -41,6 +41,9 @@ export function factValue(f: Pick<FactView, "value" | "unit">): string {
   return formatValue(f.value, f.unit);
 }
 /** "husband", "daughter", or the role when no speaker was named. */
+/** The server's label for ambient cabin speech whose speaker is not known (herald/api/capture.py AMBIENT_SPEAKER,
+ *  the same string). A fact's source chip shows it as it is; the activity feed leaves it out. */
+export const UNIDENTIFIED_SPEAKER = "Speaker not identified";
 export function sourceName(f: Pick<FactView, "speaker" | "role">): string {
   return f.speaker || f.role;
 }

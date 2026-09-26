@@ -5,8 +5,9 @@ import { MonitorCapture, monitorIdle, type MonitorRegion, type MonitorStatus } f
 
 export function MonitorWatch({ onStatus }: { onStatus: (status: MonitorStatus) => void }) {
   const patient = useHerald((s) => s.snapshot?.incident.id);
-  const blocked = useHerald((s) => s.source !== "live" || s.stale || s.conn !== "open");
+  const blocked = useHerald((s) => s.source !== "live" || s.captureElsewhere || !!s.snapshot?.incident.ended_at || !!s.snapshot?.restored);
   const capture = useHerald((s) => s.snapshot?.capture);
+  const paused = useHerald((s) => s.ui.capturePaused);
   const video = useRef<HTMLVideoElement>(null);
   const session = useRef<MonitorCapture | null>(null);
   const changed = useRef(onStatus); changed.current = onStatus;
@@ -19,13 +20,22 @@ export function MonitorWatch({ onStatus }: { onStatus: (status: MonitorStatus) =
     if (!patient || blocked || !video.current) return;
     const current = new MonitorCapture(video.current, patient, (next) => { setStatus(next); changed.current(next); });
     session.current = current;
-    const hidden = () => { if (document.hidden) current.stop("Camera paused because this browser tab is hidden."); };
-    document.addEventListener("visibilitychange", hidden);
-    return () => { document.removeEventListener("visibilitychange", hidden); current.dispose(); session.current = null; };
+    return () => { current.dispose(); session.current = null; };   // watching continues while the tab is in the background
   }, [patient, blocked]);
   useEffect(() => {
     if (capture && !capture.auto && status.active) session.current?.stop("Automatic monitoring was paused.");
   }, [capture?.auto]);
+  useEffect(() => {   // continuous: watching starts with the call and follows the pause control in the header
+    const s = session.current;
+    if (!s || blocked || !patient) return;
+    if (paused) { if (status.active || status.starting) s.stop("Paused"); }
+    else if (!status.active && !status.starting && !status.error) void s.start(roi).catch(() => {});
+  }, [paused, blocked, patient]);
+  useEffect(() => {   // a camera stopped by the server or its socket comes back on its own, every 4 s, unless paused
+    if (!status.retry || paused || blocked) return;
+    const t = window.setTimeout(() => { const s = session.current; if (s && !useHerald.getState().ui.capturePaused) void s.start(roi).catch(() => {}); }, 4000);
+    return () => window.clearTimeout(t);
+  }, [status.retry, status.message, paused, blocked]);
   return <section className="monitor-watch" aria-label="Continuous monitor watch">
     <h2>Watch the monitor through the journey</h2>
     <p>Aim at the equipment. After one start, this camera keeps sending frames while you use other care pages. The vehicle selects usable stills, reads changes, and holds proposed readings for review.</p>
@@ -47,6 +57,6 @@ export function MonitorWatch({ onStatus }: { onStatus: (status: MonitorStatus) =
       <span role={status.error ? "alert" : "status"}>{blocked ? "Connect to the live vehicle to start monitoring." : status.message}</span>
     </div>
     {error && <p role="alert">{error}</p>}
-    <p className="capture-help">No video recording. Unselected frames expire from the short memory buffer. Evidence retention follows the vehicle policy. Hiding this browser tab, changing patient or losing the connection stops capture.</p>
+    <p className="capture-help">No video recording. Unselected frames expire from the short memory buffer. Evidence retention follows the vehicle policy. Watching continues while this tab is in the background and reconnects on its own after a dropped link; pausing, changing patient or leaving the page stops it.</p>
   </section>;
 }

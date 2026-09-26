@@ -24,8 +24,7 @@ describe("medic workspace navigation", () => {
     expect(screen.getByRole("button", { name: "Start listening" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Back to now" }));
     expect(screen.getByRole("region", { name: "How the patient is moving" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Protocols" }));
-    expect(screen.getByRole("dialog", { name: "County protocols" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Protocols" })).toBeNull();   // no manual search; the copilot surfaces passages
   });
   it("switches between server-provided checklists without inventing completion", () => {
     render(<CareSummary onReview={() => {}} />);
@@ -46,7 +45,7 @@ describe("medic workspace navigation", () => {
   it("warns the medic when an unfinished call was restored", () => {
     useHerald.setState({ snapshot: { ...snapshot, restored: true } });
     render(<CabinApp />);
-    expect(screen.getByText(/Unfinished call restored/)).toBeTruthy();
+    expect(screen.getByText(/Saved encounter restored/)).toBeTruthy();
   });
 });
 

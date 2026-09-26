@@ -49,7 +49,7 @@ def test_bundle_shape_covers_every_resource_type():
     assert bundle["resourceType"] == "Bundle" and bundle["type"] == "collection"
 
     patient, = by_type(bundle, "Patient")
-    assert patient["id"] == f"patient-{inc.id}"
+    assert patient["id"] == f"patient-{inc.id}".replace("_", "-")      # FHIR ids allow no underscore
     assert patient["identifier"] == [{"value": "MRN-123"}]
     assert patient["name"] == [{"text": "Jane Doe"}]
     assert patient["gender"] == "female"
@@ -132,10 +132,10 @@ def test_get_handoff_fhir_endpoint_matches_the_incident(tmp_path):
     # and requires the medic's explicit tap, same as a real monitor reading would.
     added = client.post("/api/facts", json=[{"key": "vitals.sbp", "value": 140}]).json()
     client.post(f"/api/facts/{added[0]['id']}/confirm")
-    r = client.get("/api/handoff/fhir")
+    r = client.get("/api/handoff/fhir?type=collection")
     assert r.status_code == 200
     body = r.json()
-    assert body["resourceType"] == "Bundle"
+    assert body["resourceType"] == "Bundle" and body["type"] == "collection"
     patient, = by_type(body, "Patient")
-    assert patient["id"] == f"patient-{ctx.incident.id}"
+    assert patient["id"] == f"patient-{ctx.incident.id}".replace("_", "-")
     assert any(o["code"]["coding"][0]["code"] == "8480-6" for o in by_type(body, "Observation"))

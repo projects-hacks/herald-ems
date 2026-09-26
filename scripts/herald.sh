@@ -10,7 +10,8 @@
 #   1. checks this checkout against origin/main (warns if it is behind; `up --pull` fast-forwards first)
 #   2. one-time data: the RxNorm drug index (~10 min, network) and the Whisper + embedding weights
 #   3. the shipped model stack on ZRT :8080 -- ems-e-v2-fp8 (speech -> facts) and herald-f (photos, the monitor,
-#      figures and protocol reranking) -- served one at a time, each only if missing and only if memory allows
+#      figures and protocol reranking) -- served one at a time, each only if missing and only if memory allows.
+#      The untuned qwen3vl-fp8 is the baseline and the rollback: HERALD_VISION_MODEL=qwen3vl-fp8 switches back.
 #   4. the React UI build (npm ci / npm run build only when sources changed)
 #   5. the ED link emulator (Toxiproxy :9000 -> ED screen) and the ED screen (:8200)
 #   6. the Herald app (:8100) with Whisper preloaded, then waits until speech, extraction and vision all report ready
@@ -29,8 +30,16 @@ LINK_PORT=9000
 LLM="${HERALD_LLM_MODEL:-ems-e-v2-fp8}"
 VISION="${HERALD_VISION_MODEL:-herald-f}"          # run F: photos, the monitor, figures, protocol reranking
 ZRT_URL="http://127.0.0.1:8080/v1"
-RUN="$ROOT/runs/stack"
+# One record per app port, so two people running Herald from the same checkout (the demo on 8100, a teammate on
+# 8103) never stop or restart each other's app. An older single record is moved under the port its app serves.
+STACK="$ROOT/runs/stack"
+RUN="$STACK/$PORT"
 mkdir -p "$RUN"
+if [ -f "$STACK/app.pid" ]; then
+  legacy_port="$(tr '\0' ' ' < "/proc/$(cat "$STACK/app.pid")/cmdline" 2>/dev/null | grep -oE -- '--port [0-9]+' | awk '{print $2}')"
+  if [ -n "$legacy_port" ]; then mkdir -p "$STACK/$legacy_port"; mv "$STACK/app.pid" "$STACK/$legacy_port/app.pid"
+  else rm -f "$STACK/app.pid"; fi
+fi
 # Every Herald model repo is public. A stale token in the environment makes public downloads fail with 401.
 unset HF_TOKEN HUGGING_FACE_HUB_TOKEN
 
@@ -39,6 +48,12 @@ ok()   { printf '    \033[32mok\033[0m  %s\n' "$*"; }
 warn() { printf '    \033[33m!!\033[0m  %s\n' "$*"; }
 die()  { printf '\033[31mherald: %s\033[0m\n' "$*" >&2; exit 1; }
 listening() { ss -ltn "sport = :$1" 2>/dev/null | grep -q LISTEN; }
+# the app binds IPv4 only: a listener on another address (an SSH tunnel on [::1]:8100) does not block it
+taken_v4() {   # host, port
+  local host="$1" port="$2"
+  ss -ltn4 "sport = :$port" 2>/dev/null | awk 'NR>1 {print $4}' \
+    | grep -qE "^(${host//./\\.}|0\.0\.0\.0|\*):$port\$|^[^:]+:$port\$$( [ "$host" = 0.0.0.0 ] || echo '__none__' )"
+}
 pid_alive() { [ -f "$RUN/$1.pid" ] && kill -0 "$(cat "$RUN/$1.pid")" 2>/dev/null; }
 served() { curl -sf --max-time 5 "$ZRT_URL/models" 2>/dev/null | "$PY" -c "import json,sys; sys.exit(0 if sys.argv[1] in [m['id'] for m in json.load(sys.stdin)['data']] else 1)" "$1"; }
 mem_avail_gb() { awk '/MemAvailable/ {printf "%d", $2/1048576}' /proc/meminfo; }
@@ -95,6 +110,7 @@ EOF
 ensure_model() {   # label, serve_models.sh target, GB it needs
   local label="$1" target="$2" need="$3"
   if served "$label"; then ok "$label serving"; return; fi
+  [ -n "$target" ] || die "no serve_models.sh target known for label '$label': add it to serve_target_for()"
   local avail; avail="$(mem_avail_gb)"
   [ "$avail" -ge $((need + 16)) ] || die "$label is not served and only ${avail} GB is free (needs ~${need} GB + 16 GB headroom). Stop another model first: sg zrt -c 'zrt status'"
   warn "$label not served: starting it (${need} GB; first start can take several minutes)"
@@ -103,11 +119,38 @@ ensure_model() {   # label, serve_models.sh target, GB it needs
   die "$label did not become ready within 30 minutes: sg zrt -c 'zrt status'"
 }
 
+serve_gib_for() {      # roughly what a label needs resident; measured on this box, 2026-09-25
+  case "$1" in
+    ems-e-v2-fp8)   echo 18 ;;   # measured 17.7 GB VRAM
+    herald-f)       echo 42 ;;   # measured 40.9 GB VRAM
+    qwen3vl-fp8)    echo 44 ;;   # measured 39.9-43.1 GB VRAM
+    herald-f4b-fp8) echo 16 ;;   # measured 13.9 GB VRAM
+    omni)           echo 44 ;;
+    *)              echo 44 ;;   # unknown: assume a 30B
+  esac
+}
+
+serve_target_for() {   # the scripts/serve_models.sh target that serves a given label
+  case "$1" in
+    ems-e-v2-fp8)   echo ems ;;
+    qwen3vl-fp8)    echo vision ;;
+    herald-f)       echo herald-f ;;
+    herald-f4b-fp8) echo f4b ;;
+    omni)           echo omni ;;
+    *)              echo "" ;;
+  esac
+}
+
 ensure_models() {
   say "Models (ZRT :8080)"
   sg zrt -c "zrt status" >/dev/null 2>&1 || die "ZRT is not reachable: is the zrt service running? (sg zrt -c 'zrt status')"
-  ensure_model "$LLM" ems 18      # one at a time: never load two big models at once (memory safety)
-  case "$VISION" in herald-f) ensure_model "$VISION" herald-f 42 ;; *) ensure_model "$VISION" vision 44 ;; esac
+  # The target and the size are derived from the LABEL, not hardcoded per job. The vision job used to run
+  # `serve_models.sh vision` whatever label it wanted, and that target serves qwen3vl-fp8 -- so with
+  # HERALD_VISION_MODEL=herald-f an unserved box would quietly start the wrong 30B and then fail the readiness check
+  # against a label nobody asked for. A `case` on herald-f fixes that one label; a lookup fixes every label and stops
+  # with a clear message on one it does not know, instead of falling back to something arbitrary.
+  ensure_model "$LLM" "$(serve_target_for "$LLM")" "$(serve_gib_for "$LLM")"   # one at a time: never two big loads
+  ensure_model "$VISION" "$(serve_target_for "$VISION")" "$(serve_gib_for "$VISION")"
 }
 
 build_ui() {
@@ -125,15 +168,15 @@ build_ui() {
 
 ensure_link_and_ed() {
   say "ED screen and link"
-  if listening "$ED_PORT"; then
-    local owner; owner="$(ss -ltnpH "sport = :$ED_PORT" 2>/dev/null | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2)"
+  if taken_v4 127.0.0.1 "$ED_PORT"; then
+    local owner; owner="$(ss -ltnp4H "sport = :$ED_PORT" 2>/dev/null | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2)"
     local where; where="$( [ -n "$owner" ] && readlink "/proc/$owner/cwd" || echo unknown)"
     if [ "$where" = "$ROOT" ]; then ok "ED screen already on :$ED_PORT"
     else warn "ED screen on :$ED_PORT is running from $where (not this checkout); left as is"; fi
   else
     start_bg ed "$PY" -m uvicorn ed_receiver.app:app --host 127.0.0.1 --port "$ED_PORT"
-    for _ in $(seq 30); do listening "$ED_PORT" && break; sleep 0.5; done
-    listening "$ED_PORT" && ok "ED screen on :$ED_PORT" || die "ED screen did not start (log: $RUN/ed.log)"
+    for _ in $(seq 30); do taken_v4 127.0.0.1 "$ED_PORT" && break; sleep 0.5; done
+    taken_v4 127.0.0.1 "$ED_PORT" && ok "ED screen on :$ED_PORT" || die "ED screen did not start (log: $RUN/ed.log)"
   fi
   if ! listening 8474; then
     start_bg toxiproxy "$TOXI/toxiproxy-server" -host 127.0.0.1 -port 8474
@@ -148,7 +191,7 @@ ensure_link_and_ed() {
 start_app() {
   say "Herald app"
   if pid_alive app; then stop_pid app; fi                       # always restart ours so it runs this checkout's code
-  if listening "$PORT"; then die "port $PORT is used by a process this script did not start: HERALD_PORT=<free port> scripts/herald.sh up"; fi
+  if taken_v4 "${HERALD_BIND_HOST:-127.0.0.1}" "$PORT"; then die "port $PORT is used by a process this script did not start: HERALD_PORT=<free port> scripts/herald.sh up"; fi
   systemctl --user is-active --quiet herald-memguard.service 2>/dev/null && ok "memory guard active" || warn "memory guard not running (scripts/memguard.sh install)"
   HERALD_STT_PRELOAD=1 HERALD_LLM_MODEL="$LLM" HERALD_VISION_MODEL="$VISION" HERALD_ED_URL="http://127.0.0.1:$LINK_PORT" \
     start_bg app "$PY" -m uvicorn herald.app:app --host "${HERALD_BIND_HOST:-127.0.0.1}" --port "$PORT"

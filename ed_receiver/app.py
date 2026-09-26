@@ -110,7 +110,9 @@ async def ingest(req: Request):
             if k == "stroke.lkw":
                 inc.pop("lkw_at", None)
             inc["history"].setdefault(k, []).append({"v": v, "t": now()})
-        inc["fields"][k] = {"v": v, "seq": p["q"], "t": now()}
+            inc["fields"][k] = {"v": v, "seq": p["q"], "t": now()}
+        # an unchanged value keeps the sequence and time it first arrived with: a full sync re-sends everything, and
+        # re-stamping would reset the ETA countdown and mark every field as just updated
     for key in p.get("rm", []):
         if key == "stroke.lkw":
             inc.pop("lkw_at", None)
@@ -174,4 +176,12 @@ async def ws(ws: WebSocket):
         CLIENTS.discard(ws)
 
 
-app.mount("/", StaticFiles(directory=str(Path(__file__).parent / "web"), html=True), name="web")
+class _Revalidated(StaticFiles):
+    """The wall screen runs for days: every load revalidates (a cheap 304), so an update is never hidden by a cache."""
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+app.mount("/", _Revalidated(directory=str(Path(__file__).parent / "web"), html=True), name="web")

@@ -1,0 +1,100 @@
+{"id": "v3_001", "extractor": "llm", "label": "llm:herald-f", "ms": 3259, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_002", "extractor": "llm", "label": "llm:herald-f", "ms": 711, "tokens": 32, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_003", "extractor": "llm", "label": "llm:herald-f", "ms": 3160, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_004", "extractor": "llm", "label": "llm:herald-f", "ms": 2460, "tokens": 123, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_005", "extractor": "llm", "label": "llm:herald-f", "ms": 2055, "tokens": 98, "error": null, "pred": [["trauma.criteria", ["pedestrian or cyclist thrown or run over"], "bystander"]], "extra": [], "missed": []}
+{"id": "v3_006", "extractor": "llm", "label": "llm:herald-f", "ms": 2682, "tokens": 133, "error": null, "pred": [["trauma.criteria", ["penetrating injury head neck torso or proximal extremity"], "medic"]], "extra": [], "missed": []}
+{"id": "v3_007", "extractor": "llm", "label": "llm:herald-f", "ms": 1370, "tokens": 68, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_008", "extractor": "llm", "label": "llm:herald-f", "ms": 3124, "tokens": 156, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_009", "extractor": "llm", "label": "llm:herald-f", "ms": 1451, "tokens": 73, "error": null, "pred": [["infection.suspected", "skin", "medic"]], "extra": [], "missed": []}
+{"id": "v3_010", "extractor": "llm", "label": "llm:herald-f", "ms": 2054, "tokens": 103, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_011", "extractor": "llm", "label": "llm:herald-f", "ms": 3013, "tokens": 154, "error": null, "pred": [["infection.suspected", "respiratory", "medic"]], "extra": [], "missed": []}
+{"id": "v3_012", "extractor": "llm", "label": "llm:herald-f", "ms": 3175, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_013", "extractor": "llm", "label": "llm:herald-f", "ms": 2493, "tokens": 130, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_014", "extractor": "llm", "label": "llm:herald-f", "ms": 1694, "tokens": 87, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_015", "extractor": "llm", "label": "llm:herald-f", "ms": 1129, "tokens": 56, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_016", "extractor": "llm", "label": "llm:herald-f", "ms": 3096, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_017", "extractor": "llm", "label": "llm:herald-f", "ms": 3105, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_018", "extractor": "llm", "label": "llm:herald-f", "ms": 2635, "tokens": 137, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_019", "extractor": "llm", "label": "llm:herald-f", "ms": 2554, "tokens": 129, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_020", "extractor": "llm", "label": "llm:herald-f", "ms": 2259, "tokens": 111, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_021", "extractor": "llm", "label": "llm:herald-f", "ms": 2756, "tokens": 136, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_022", "extractor": "llm", "label": "llm:herald-f", "ms": 1568, "tokens": 77, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_023", "extractor": "llm", "label": "llm:herald-f", "ms": 2147, "tokens": 109, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_024", "extractor": "llm", "label": "llm:herald-f", "ms": 2933, "tokens": 150, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_025", "extractor": "llm", "label": "llm:herald-f", "ms": 1782, "tokens": 91, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_026", "extractor": "llm", "label": "llm:herald-f", "ms": 1456, "tokens": 74, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_027", "extractor": "llm", "label": "llm:herald-f", "ms": 3182, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_028", "extractor": "llm", "label": "llm:herald-f", "ms": 937, "tokens": 47, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_029", "extractor": "llm", "label": "llm:herald-f", "ms": 2307, "tokens": 117, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_030", "extractor": "llm", "label": "llm:herald-f", "ms": 3209, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_031", "extractor": "llm", "label": "llm:herald-f", "ms": 2767, "tokens": 139, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_032", "extractor": "llm", "label": "llm:herald-f", "ms": 2516, "tokens": 127, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_033", "extractor": "llm", "label": "llm:herald-f", "ms": 1524, "tokens": 76, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_034", "extractor": "llm", "label": "llm:herald-f", "ms": 3109, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_035", "extractor": "llm", "label": "llm:herald-f", "ms": 1401, "tokens": 71, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_036", "extractor": "llm", "label": "llm:herald-f", "ms": 1106, "tokens": 56, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_037", "extractor": "llm", "label": "llm:herald-f", "ms": 2817, "tokens": 144, "error": null, "pred": [["trauma.criteria", ["rider separated with significant impact"], "medic"]], "extra": [], "missed": []}
+{"id": "v3_038", "extractor": "llm", "label": "llm:herald-f", "ms": 1641, "tokens": 84, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_039", "extractor": "llm", "label": "llm:herald-f", "ms": 2294, "tokens": 119, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_040", "extractor": "llm", "label": "llm:herald-f", "ms": 1603, "tokens": 82, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_041", "extractor": "llm", "label": "llm:herald-f", "ms": 3107, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_042", "extractor": "llm", "label": "llm:herald-f", "ms": 2613, "tokens": 136, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_043", "extractor": "llm", "label": "llm:herald-f", "ms": 2576, "tokens": 135, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_044", "extractor": "llm", "label": "llm:herald-f", "ms": 607, "tokens": 30, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_045", "extractor": "llm", "label": "llm:herald-f", "ms": 3059, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_046", "extractor": "llm", "label": "llm:herald-f", "ms": 148, "tokens": 5, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_047", "extractor": "llm", "label": "llm:herald-f", "ms": 1839, "tokens": 95, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_048", "extractor": "llm", "label": "llm:herald-f", "ms": 2995, "tokens": 155, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_049", "extractor": "llm", "label": "llm:herald-f", "ms": 1910, "tokens": 99, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_050", "extractor": "llm", "label": "llm:herald-f", "ms": 2237, "tokens": 116, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_051", "extractor": "llm", "label": "llm:herald-f", "ms": 1718, "tokens": 89, "error": null, "pred": [["infection.suspected", "urinary", "family"]], "extra": [], "missed": []}
+{"id": "v3_052", "extractor": "llm", "label": "llm:herald-f", "ms": 3079, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_053", "extractor": "llm", "label": "llm:herald-f", "ms": 2517, "tokens": 130, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_054", "extractor": "llm", "label": "llm:herald-f", "ms": 3037, "tokens": 158, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_055", "extractor": "llm", "label": "llm:herald-f", "ms": 540, "tokens": 26, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_056", "extractor": "llm", "label": "llm:herald-f", "ms": 1534, "tokens": 79, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_057", "extractor": "llm", "label": "llm:herald-f", "ms": 2462, "tokens": 129, "error": null, "pred": [["infection.suspected", "urinary", "medic"]], "extra": [], "missed": []}
+{"id": "v3_058", "extractor": "llm", "label": "llm:herald-f", "ms": 3069, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_059", "extractor": "llm", "label": "llm:herald-f", "ms": 1060, "tokens": 53, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_060", "extractor": "llm", "label": "llm:herald-f", "ms": 738, "tokens": 37, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_061", "extractor": "llm", "label": "llm:herald-f", "ms": 1498, "tokens": 77, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_062", "extractor": "llm", "label": "llm:herald-f", "ms": 2990, "tokens": 157, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_063", "extractor": "llm", "label": "llm:herald-f", "ms": 3089, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_064", "extractor": "llm", "label": "llm:herald-f", "ms": 1421, "tokens": 72, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_065", "extractor": "llm", "label": "llm:herald-f", "ms": 2551, "tokens": 131, "error": null, "pred": [["infection.suspected", "respiratory", "family"]], "extra": [], "missed": []}
+{"id": "v3_066", "extractor": "llm", "label": "llm:herald-f", "ms": 2755, "tokens": 141, "error": null, "pred": [["infection.suspected", "respiratory", "family"]], "extra": [], "missed": []}
+{"id": "v3_067", "extractor": "llm", "label": "llm:herald-f", "ms": 454, "tokens": 20, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_068", "extractor": "llm", "label": "llm:herald-f", "ms": 3150, "tokens": 154, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_069", "extractor": "llm", "label": "llm:herald-f", "ms": 1508, "tokens": 77, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_070", "extractor": "llm", "label": "llm:herald-f", "ms": 3072, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_071", "extractor": "llm", "label": "llm:herald-f", "ms": 2877, "tokens": 151, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_072", "extractor": "llm", "label": "llm:herald-f", "ms": 2205, "tokens": 114, "error": null, "pred": [["trauma.criteria", ["spinal injury with new motor or sensory loss"], "medic"]], "extra": [], "missed": []}
+{"id": "v3_073", "extractor": "llm", "label": "llm:herald-f", "ms": 2120, "tokens": 110, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_074", "extractor": "llm", "label": "llm:herald-f", "ms": 1958, "tokens": 100, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_075", "extractor": "llm", "label": "llm:herald-f", "ms": 2124, "tokens": 109, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_076", "extractor": "llm", "label": "llm:herald-f", "ms": 1988, "tokens": 102, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_077", "extractor": "llm", "label": "llm:herald-f", "ms": 2687, "tokens": 138, "error": null, "pred": [["trauma.criteria", ["penetrating injury head neck torso or proximal extremity"], "medic"]], "extra": [], "missed": []}
+{"id": "v3_078", "extractor": "llm", "label": "llm:herald-f", "ms": 2833, "tokens": 149, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_079", "extractor": "llm", "label": "llm:herald-f", "ms": 3075, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_080", "extractor": "llm", "label": "llm:herald-f", "ms": 1576, "tokens": 81, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_081", "extractor": "llm", "label": "llm:herald-f", "ms": 1974, "tokens": 101, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_082", "extractor": "llm", "label": "llm:herald-f", "ms": 1476, "tokens": 69, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_083", "extractor": "llm", "label": "llm:herald-f", "ms": 3211, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_084", "extractor": "llm", "label": "llm:herald-f", "ms": 3160, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_085", "extractor": "llm", "label": "llm:herald-f", "ms": 3260, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_086", "extractor": "llm", "label": "llm:herald-f", "ms": 2221, "tokens": 111, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_087", "extractor": "llm", "label": "llm:herald-f", "ms": 2438, "tokens": 124, "error": null, "pred": [["infection.suspected", "unknown", "medic"]], "extra": [], "missed": []}
+{"id": "v3_088", "extractor": "llm", "label": "llm:herald-f", "ms": 2528, "tokens": 129, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_089", "extractor": "llm", "label": "llm:herald-f", "ms": 3185, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_090", "extractor": "llm", "label": "llm:herald-f", "ms": 3001, "tokens": 154, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_091", "extractor": "llm", "label": "llm:herald-f", "ms": 2144, "tokens": 109, "error": null, "pred": [["infection.suspected", "skin", "medic"]], "extra": [], "missed": []}
+{"id": "v3_092", "extractor": "llm", "label": "llm:herald-f", "ms": 3093, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_093", "extractor": "llm", "label": "llm:herald-f", "ms": 2282, "tokens": 117, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_094", "extractor": "llm", "label": "llm:herald-f", "ms": 1969, "tokens": 103, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_095", "extractor": "llm", "label": "llm:herald-f", "ms": 2049, "tokens": 104, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_096", "extractor": "llm", "label": "llm:herald-f", "ms": 1560, "tokens": 80, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_097", "extractor": "llm", "label": "llm:herald-f", "ms": 175, "tokens": 5, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_098", "extractor": "llm", "label": "llm:herald-f", "ms": 2095, "tokens": 109, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_099", "extractor": "llm", "label": "llm:herald-f", "ms": 1642, "tokens": 79, "error": null, "pred": [], "extra": [], "missed": []}
+{"id": "v3_100", "extractor": "llm", "label": "llm:herald-f", "ms": 3189, "tokens": 160, "error": null, "pred": [], "extra": [], "missed": []}

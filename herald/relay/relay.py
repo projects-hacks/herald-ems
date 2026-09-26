@@ -280,7 +280,7 @@ class Relay:
             r.raise_for_status()
             return r.json()
 
-    async def tick(self) -> Optional[dict]:
+    async def tick(self, before_send: Optional[Callable] = None) -> Optional[dict]:
         """One relay step. Returns the log entry, or None if nothing to do."""
         if not (self.configured and self.authorized):
             return None
@@ -298,6 +298,8 @@ class Relay:
         else:
             self.retries += 1
         pkt = self.inflight
+        if before_send:
+            before_send()  # persist the allocated sequence and retry packet before it can reach the ED
         wire_len = len(_compact({k: v for k, v in pkt.items() if not k.startswith("_")}))
         t0 = time.perf_counter()
         entry = {"ts": utcnow().isoformat(), "seq": pkt["q"], "patient": pkt["i"],

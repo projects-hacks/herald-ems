@@ -84,7 +84,8 @@ def test_unchanged_monitor_values_do_not_add_duplicates(tmp_path):
     ctx.capture_agent.last_input = float("-inf")
     run_frame(client, ctx, monitor=True, manual=True)
     assert len(ctx.incident.facts) == before
-    assert ctx.incident.transcripts[-1]["reason"] == "unchanged"
+    assert ctx.capture_agent.status()["last"]["reason"] == "unchanged"   # counted, not written into the record
+    assert all(t.get("reason") != "unchanged" for t in ctx.incident.transcripts)
 
 
 def test_bad_roi_and_frames_and_patient_change(tmp_path):
@@ -99,6 +100,17 @@ def test_bad_roi_and_frames_and_patient_change(tmp_path):
     client.post("/api/incident", json={"dispatch": "new patient"})
     status = client.get("/api/capture/status").json()
     assert status["roi"] is None and status["auto"] is False
+
+
+def test_every_frame_gets_a_reply_even_when_early(tmp_path):
+    """The page waits for a reply before sending again; a frame dropped in silence looked like a dead camera."""
+    client, ctx = setup(tmp_path, [])
+    client.post("/api/capture/auto", json={"on": True})
+    with client.websocket_connect("/ws/frames") as ws:
+        ws.send_bytes(b"not jpeg")
+        assert ws.receive_json()["accepted"] is False
+        ws.send_bytes(b"not jpeg")                  # well inside one second of the first: over the input rate
+        assert ws.receive_json() == {"accepted": False, "gate": None, "throttled": True}
 
 
 def test_stale_controls_cannot_change_new_patient(tmp_path):

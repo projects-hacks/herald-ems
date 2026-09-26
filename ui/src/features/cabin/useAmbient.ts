@@ -4,7 +4,9 @@ import { AmbientCapture, initialAmbient } from "./ambient";
 
 export function useAmbient() {
   const incident = useHerald((s) => s.snapshot?.incident.id);
-  const blocked = useHerald((s) => s.source !== "live" || s.stale || s.conn !== "open");
+  // Capture belongs to one reviewed, open patient in one tab. Feed blips do not tear down uploads, which retry independently.
+  const blocked = useHerald((s) => s.source !== "live" || s.captureElsewhere || !!s.snapshot?.incident.ended_at || !!s.snapshot?.restored);
+  const paused = useHerald((s) => s.ui.capturePaused);
   const [status, setStatus] = useState(initialAmbient);
   const capture = useRef<AmbientCapture | null>(null);
   useEffect(() => {
@@ -13,9 +15,11 @@ export function useAmbient() {
       : "Microphone off · start listening for this patient" });
     if (!incident || blocked) return;
     const session = new AmbientCapture(incident, setStatus); capture.current = session;
-    const hidden = () => { if (document.hidden) session.pause(); };
-    document.addEventListener("visibilitychange", hidden);
-    return () => { document.removeEventListener("visibilitychange", hidden); session.dispose(); capture.current = null; };
+    if (!useHerald.getState().ui.capturePaused) void session.start();   // continuous: listening starts with the call
+    // Listening continues while the tab is in the background (the browser shows its own recording indicator); only
+    // the medic's pause, a new call or leaving the page ends it.
+    return () => { session.dispose(); capture.current = null; };
   }, [incident, blocked]);
+  useEffect(() => { const s = capture.current; if (!s) return; if (paused) s.pause(); else void s.start(); }, [paused]);
   return { status, blocked: blocked || !incident, start: () => capture.current?.start(), pause: () => capture.current?.pause() };
 }

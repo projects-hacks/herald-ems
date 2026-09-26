@@ -66,3 +66,14 @@ it("falls back to the alert's own met-criteria list when the score's contract ro
   // TraumaCriteriaChecklist renders the alert's own already-met list instead of an empty panel.
   expect(traumaCriteriaRows(snapshot, undefined, "trauma_605")).toEqual([]);
 });
+
+it("leads with what is met or heard and folds the rest of the county list, with no form to submit", () => {
+  render(<AttentionQueue />);
+  const heard = screen.getByRole("list", { name: "Criteria heard" });
+  expect(within(heard).getByText(/heard, not confirmed/)).toBeTruthy();
+  const folded = screen.getByText(/Add a criterion speech missed/).closest("details")!;
+  expect(folded.open).toBe(false);
+  expect(within(folded).getByText(/B\. Skull deformity/)).toBeTruthy();
+  expect(within(folded).getByText(/There is nothing to submit/)).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /submit/i })).toBeNull();
+});

@@ -12,6 +12,16 @@ The authoritative snapshot types are in `ui/src/lib/types.ts`; HTTP and WebSocke
 - Clinical change precedes positive stroke screens, contradictions and routine confirmation in the review queue. Source disagreements require an explicit choice, with nothing preselected. Model availability failure is a prominent urgent state.
 - Transcript rows update in place; new entries wait behind an explicit jump while older entries are being read. Provenance describes recorded evidence, not model reasoning.
 
+### Encounter lifecycle (2026-09-26)
+
+- `Snapshot.incident` adds nullable `arrived_at` and `transferred_at` ISO timestamps. These are explicit medic tap times, distinct from `started` and `ended_at`; finishing never implies transfer. Patient roster rows add `ended_at`.
+- `POST /api/encounters/current/arrive|transfer|finish` requires `X-Herald-Patient` matching the active patient, otherwise 409. Milestone taps are idempotent; arrival cannot follow recorded transfer. Finish closes only this patient, disposes registered media and stops capture; no name/DOB is required. Closed records reject clinical writes.
+- `POST /api/encounters/resume` requires the same patient header and an open encounter. It clears `restored`; recovered browser and vehicle capture stay off until this review action. Capture continues through feed blips during an open, reviewed encounter.
+- `POST /api/patients` adds a separate patient at the current scene; no other patient is ended. The UI supplies a temporary label when none is entered. `POST /api/incident` finishes the current scene and starts a fresh roster; 409 if another patient at the scene is still open. Existing incident/patient/relay authorization endpoints reject a supplied stale patient header. The legacy `/api/incident/end` closes every patient in the current roster.
+- Finishing or replacing an encounter retains its structured record. `Snapshot.encounter_history` lists prior-scene patients with `started`, `ended_at`, label, summary, destination, authorization and `delivery_pending`. `history_persisted` states whether recovery is enabled. `GET /api/encounters` returns this list and `persisted`; `GET /api/encounters/{id}` returns the retained incident, label, confirmed handoff and relay status, without activating it. Current-scene completed patients remain in the roster for review.
+- Encrypted recovery format v2 retains the current roster and prior calls, each with its own authorization, ED URL, sequence, in-flight packet, acknowledged fields, full-sync progress and clinician receipts. v1 is still readable. Sequence allocation and retry packets are saved before network delivery. Pending authorized updates continue to their original receiver after a new call; the fresh relay has no authorization. Unconfirmed facts and raw media do not leave the vehicle. With persistence off, history is memory-only.
+- Contextual protocol results are scoped to county, patient and situation. A standalone spoken protocol request is recorded as a request, not extracted as a clinical observation. Mixed utterances containing clinical clauses still go through extraction. Retrieved passages are labeled as excerpts rather than full protocols.
+
 ### Continuous workspace and journey contract (2026-09-25)
 
 The medic workspace's **Camera → Monitor watch** uses the existing S9 endpoints below, always with the active `incident_id`. It remains mounted across internal care-page navigation. It requests camera access only on Start, allows at most one unacknowledged JPEG, and stops on tab hide, patient change, disconnect or explicit Stop. `/capture.html` remains the standalone option.
@@ -33,6 +43,21 @@ Integration with ambient capture and patient roster: both `X-Herald-Patient` and
 - Trauma/sepsis alerts carry `{type:"trauma_alert_criteria"|"sepsis_prenotification", label:string, level:string, score:string, criteria:string[], county_rule?:string[], county?:string}`. Red trauma is HIGH; other listed criteria alerts are CHECK. Criteria and county text are displayed verbatim.
 - Vehicle read-aloud view uses existing `/api/handoff?format=<id>`; results are invalidated on patient change and hidden while stale. It is available independently of relay authorization.
 - **ED receiver only:** `GET /api/meta` returns `{keys: Record<string,{label:string,unit?:string}>, display:{critical_keys:string[],critical_px:number,body_px:number,highlight_ms:number,report_county:string,report_timezone:string}}` from reviewed vocabulary/scores and `config/ed_display.yaml`. `GET /api/handoff/{patient_id}?format=<id>` returns the existing report shape plus `scope:string`, computed solely from received confirmed fields/timeline. Missing patient →404; unknown format →400. It is explicitly a received-data projection, not the vehicle's full report; vehicle dispatch/county/timezone are not inferred. The receiver uses generic published scales and UTC, explicitly labeled, with no guessed county-local rule. Neither endpoint starts models or reaches the vehicle.
+
+### Record tabs: per-point confirmation and level-valued severity (2026-09-26)
+
+- `Snapshot.changed[]` gains optional `confirmed: boolean[]`, one per point in `series`: whether that reading is confirmed. The Trends & scores tab draws a waiting point hollow and labels it "to confirm", and never shows it as the vital's value. Additive; older snapshots omit it and every point is drawn as before.
+- `severity` (config/vital_ranges.yaml) now also covers `vitals.gcs_total`, `vitals.gcs_motor` and the level-valued `vitals.consciousness` (ACVPU). A band may match levels with `{in: [...], severity}` instead of numeric bounds. The shape is unchanged: `severity` is still `"abnormal" | "critical"` or absent.
+
+### Speech clips the speech model says are not speech (backend, 2026-09-25)
+
+`POST /api/audio` passes every clip through three gates read from Whisper's own signals before any words reach the record (`herald/models/stt_gates.py`; thresholds and the allowed languages are content in `config/stt.yaml`, citing openai-whisper's `transcribe()` defaults and the measurements in `docs/MODEL_PLAN.md` §0k "Speech gates"): the probability of `<|nospeech|>` at the first decoder step, the language that step hears (English and Spanish are read; the clip is also dropped when the probability mass on those two languages is below the configured minimum, which is how large-v3-turbo tells noise from speech since it never predicts `<|nospeech|>`), and the zlib compression ratio of the decoded text (a repetition loop). Live on 2026-09-25 a silent ambient clip came back as an echo of the priming prompt's example values and a blood pressure nobody said was extracted; the prompt is now vocabulary only.
+
+- A dropped clip returns `200 {"transcript": null, "facts": [], "stt": {"text": "", "chunks": [], "seconds", "ms", "language": "ru" | …, "dropped": "no speech" | "language" | "repetition loop", "signals": {"no_speech_prob", "language_prob", "read_language_prob", "compression_ratio"}}}`: no transcript entry, no extraction call, no activity line. The recording is kept as evidence like any other clip. `signals` is an API field for diagnosis; it is never put on a transcript entry or the medic's screen.
+- A kept clip's transcript entry `stt` (and `trace.heard.stt`) gains `language: string | null`, the language the clip was heard in, as Whisper names it (ISO 639-1).
+- `GET /api/telemetry` gains `stt_dropped: {reason: count}` for the session (the dropped clips' audio still counts in `calls.stt` and `stt_audio_min`).
+- The ambient speaker label is `"Speaker not identified"` (was `"Ambient audio · speaker unverified"`; `herald/api/capture.py` `AMBIENT_SPEAKER`, `ui/src/lib/format.ts` `UNIDENTIFIED_SPEAKER`). A fact's source chip shows it as it is; the activity feed's heard line omits it: `Heard “…”`, never `Heard Speaker not identified: “…”`.
+
 ### S9 agentic capture contract (2026-09-25)
 
 Camera capture is off by default. `HERALD_CAPTURE_SOURCE=off|browser|replay:<folder>` and `HERALD_CAPTURE_AUTO=0|1` configure initial state; `HERALD_CAPTURE_CONFIG` names reviewed content under `config/`. USB/local camera support remains optional and is not enabled. The policy, gate, intervals, storage limits and trigger keys live in `config/capture.yaml`.
@@ -434,7 +459,7 @@ export interface HandoffReport {
   formats: { id: string; label: string }[];
   selected_by: string;                           // "checklist:trauma" | "default" | "request"
   incident: { id: string; dispatch: string | null; started: string; ended_at: string | null;
-              media_disposal: MediaDisposal | null };
+              arrived_at: string | null; transferred_at: string | null; media_disposal: MediaDisposal | null };
   county: { id: string; name: string };
   as_of: string;                                 // time of the last fact (ISO)
   open_checklists: ChecklistId[];
@@ -467,7 +492,7 @@ export interface HandoffSummary {                // snapshot.handoff
 
 | Resource | From | Notes |
 |---|---|---|
-| `Patient` (one, id `patient-<incident id>`) | `patient.name`, `patient.identifier`, `patient.sex` | `gender` mapped to the FHIR value set; no `birthDate` (only a spoken age is known) |
+| `Patient` (one, id `patient-<incident id>` with `_` → `-`) | `patient.name`, `patient.identifier`, `patient.sex` | `gender` mapped to the FHIR value set; no `birthDate` (only a spoken age is known) |
 | `Observation` (vital-signs) | every confirmed reading of `vitals.*` in `config/fhir_codes.yaml` `vitals` | one Observation **per confirmed reading**, not just the latest — the trend, like the NOW screen's movement view |
 | `Observation` (social-history) | `patient.age` | LOINC 30525-0 "Age"; one per confirmed reading |
 | `Observation` (survey) | `snapshot()["scores"]`, i.e. computed from confirmed facts only | one per score once it's `complete` (`relay_text` non-null, the same gate the relay uses); `valueString` is that same line |
@@ -479,4 +504,36 @@ export interface HandoffSummary {                // snapshot.handoff
 
 **Test:** `tests/test_fhir_export.py` — full bundle shape across every resource type, unconfirmed facts (camera-sourced, low-confidence, and a rejected fact) proven absent, existing RxNorm/ICD-10-CM coding passed through unchanged, and the live endpoint.
 
+### The handoff as a FHIR document (2026-09-25; changes the default of `GET /api/handoff/fhir`)
+`GET /api/handoff/fhir?type=document|collection&format=<id>`. **`type=document` is now the default**; `type=collection` returns the resources above unchanged (the previous default). `format` is the same override as `/api/handoff` (e.g. `mist`, `medical`); unknown `type` or `format` → 400. The NOW screen's "Export (FHIR)" link therefore downloads the document.
+
+The document is a FHIR R4 `Bundle` of `type: "document"` (https://hl7.org/fhir/R4/documents.html): `identifier` `{system: http://herald.local/fhir/handoff-document, value: "<incident id>/<report as_of>"}`, `timestamp` (assembly time), every entry with a `fullUrl` `http://herald.local/fhir/<Type>/<id>`, and every `reference` resolving inside the bundle. Engine: `herald/reporting/fhir_document.py` (`FhirDocument`, over `HandoffBuilder` + `FhirExport.sourced`); codes and wording: `config/fhir_codes.yaml` `document`.
+
+| Entry | Contents |
+|---|---|
+| `Composition` (first) | `type` LOINC 34133-9 "Summary of episode note" (`text` = the report title, e.g. "Medical handover (SBAR)"); `status: preliminary` and no `attester` (assembled from confirmed facts, not signed by the crew); `subject`, `encounter`, `date` = report `as_of`, `author` = the Device. `section`: "How this document was assembled" (with the format's citation), then **the report's own sections in order** (`title` = section label, e.g. "S: Situation"; `text` = XHTML list of the report lines plus the section's source, with `<b>` on a line that states a confirmed value of a `document.emphasis` key (vitals, allergies, anticoagulant) or an emphasis score that is positive/met (never on a "not yet known" line, a trend, or an incomplete/negative score); `entry` = the resources behind those lines, scores via their `@<score>` keys), then "Not yet known" and "Not yet confirmed, left out of this report" (names only, never values) when non-empty |
+| the collection's resources | exactly `FhirExport.sourced()` — the same confirmed-only resources as `type=collection` |
+| `Encounter` | `class` v3-ActCode `FLD` "field"; `status` `in-progress` until the incident is ended, then `finished` with `period.end`; `type[0].text` "EMS response: <dispatch>"; `hospitalization.destination.display` = the confirmed `transport.destination` |
+| `Device` | "Herald", `note` "Herald on <HERALD_UNIT_ID>" |
+| `Provenance` (one per resource built from facts) | `target` the resource; `recorded` its latest fact time; `agent`: `assembler` = the Device, `informant` = who said it (`"<speaker> (<role>)"`), `verifier` = who tapped confirm, from the incident audit log (absent when the policy confirmed the medic's own speech on ingest: no tap is claimed); `entity` `source` = "audio clip <id>" / "photo <id>" (ids only, never media) |
+
+**Resource ids are now valid FHIR ids** (`[A-Za-z0-9.-]{1,64}`) in both types: Herald's underscores become hyphens, e.g. `patient-inc-03f1ac7a3c` (was `patient-inc_03f1ac7a3c`, which FHIR rejects).
+
+**Codes checked 2026-09-25** against loinc.org/34133-9, the FHIR R4 ActEncounterCode value set and the R4 provenance participant type value set (citations in the config). LOINC 67796-3 (NEMSIS v3 patient care report) was deliberately not used: this document is not a NEMSIS PCR. Not yet checked with the official HL7 FHIR validator.
+
+**Test:** `tests/test_fhir_document.py` — document rules (identifier, timestamp, Composition first, unique fullUrls, valid ids), every reference resolves, Composition sections equal the report's (SBAR and MIST), waiting facts named but never valued, Provenance informant/verifier/source, Encounter and Device, and the endpoint's `type`/`format` handling.
+
 **What the report can't represent yet.** The five gaps listed in the first version (time of injury, before arrival, airway status, primary impression, 12-lead territory) were closed by the keys approved on 2026-09-24 (table above). They reach the report only once the extraction model emits them; until then they show as "not yet known" where required.
+
+## Overheard speech: the check step and what is kept (2026-09-25)
+- A transcript entry's `trace.model.discarded` lists the facts the extraction model proposed from room-microphone
+  speech (`captured_by: other`, role unknown) that the check step (`herald/extraction/verify.py`, prompt
+  `config/prompts/fact_verify.md`, the knowledge model) found the words do not state about the patient:
+  `[{key, value, why}]`, or `[{error}]` when the check could not run (every proposal then stays, unconfirmed).
+- Overheard speech that leaves no fact and asked for no protocol is removed from `transcripts` once extraction
+  finishes, and its audio is deleted; it is counted in `/api/telemetry` `stt_dropped["nothing clinical"]`.
+  The medic's own and typed words are always kept.
+- A monitor-camera frame that gives no new reading no longer adds a transcript entry; it is counted in
+  `capture.last` and `capture.counts`.
+- A transcript entry carries `asked: true` when its words asked for a county protocol.
+

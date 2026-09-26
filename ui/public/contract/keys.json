@@ -207,6 +207,16 @@
     "type": "bool",
     "kind": "measure"
   },
+  "patient.spo2_scale": {
+    "label": "SpO2 target scale (NEWS2)",
+    "type": "int",
+    "kind": "history",
+    "range": [
+      1,
+      2
+    ],
+    "require_tap": true
+  },
   "vitals.consciousness": {
     "label": "Consciousness (ACVPU)",
     "type": "str",

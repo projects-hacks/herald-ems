@@ -6,8 +6,41 @@ confidence:
   measure: joint                   # joint | value | order_free (herald/extraction/confidence.py); a threshold only
                                    # means something for the measure it was calibrated with
   top_logprobs: 5                  # alternatives per token (order_free needs them)
+# HISTORICAL, not a live setting: `herald-f` does not ship (docs/RUN_F_REPORT.md §9 — it failed the blocking
+# reranking gate). The live threshold is the 0.8 above, calibrated for the shipping `ems-e-v2-fp8`, which admits 1
+# wrong auto-confirmed fact on held-out gold_v2. The run F numbers are kept for whoever tunes the next 30B run.
+#
+# CORRECTED 2026-09-25, and the correction matters more than the numbers. The first herald-f calibration was run
+# WITHOUT `--extra-gold eval/gold_v2_broad.jsonl`, so it reported 15 wrong auto-confirms at 0.8 and the conclusion
+# "no threshold reaches <= 1, so auto-confirm must be off for herald-f". Both were artefacts.
+# Why it broke: 11 keys have their gold ONLY in gold_v*_broad.jsonl (meds.given, procedures.done, vitals.pain,
+# vitals.gcs_*, ecg.*, trauma.*) and 4 only in gold_v*_gfast.jsonl. Unlike bench_extract.score(), which EXCLUDES
+# grouped keys from the headline, calibrate_confidence.correct() judges each fact against the gold it was given and
+# returns False when the key is absent -- so every CORRECTLY extracted broad fact was counted as a wrong
+# auto-confirm. The run_e_v2 entry below had recorded "judged with the every-call gold too" all along; the flag was
+# simply not carried over to the run F gate. config/gates.yaml now passes it and tests/test_run_gates.py pins it.
+# Re-derived from the same dumps with the broad gold, held out, at threshold 0.8:
+#   ems-e-v2-fp8  1 wrong of 172 auto-confirmed (52.6% coverage, auroc 0.795)   <- ships, meets the <= 1 bar
+#   herald-f      3 wrong of 206 auto-confirmed (59.2% coverage, auroc 0.773)
+#   run F 4B      2 wrong of 161 auto-confirmed (50.9% coverage, auroc 0.846)
+# So herald-f still misses the §6 bar of <= 1 at the shipping threshold, and it reaches 1 only at 0.97 with 26%
+# coverage -- but by 3 against 1, not 11 against 1, and auto-confirm would NOT have had to be switched off. The ship
+# decision does not rest on this line: herald-f failed the blocking reranking gate and loses the stroke screen.
 calibration:
   model: ems-e-v2-fp8              # recalibrate when the extraction model changes (eval/calibrate_confidence.py)
+  run_f_30b:                       # herald-f, measured 2026-09-25 (MODEL_PLAN §0l). Model does not ship.
+    # dev_gold_v1 is NOT listed: the only dev sweep was run with the flawed scoring above, and it cannot be
+    # re-derived because calibration_fit saved no dump at the time and herald-f is no longer served (re-serving is a
+    # 58 GB download plus a model swap). Recording a number we know to be wrong would be worse than recording none.
+    heldout_gold_v2: {facts: 348, wrong_facts: 24, auroc: 0.773,
+                      at_0_8: {auto_confirmed: 206, wrong: 3, coverage: 0.592},
+                      at_0_9: {auto_confirmed: 161, wrong: 2, coverage: 0.463},
+                      at_0_97: {auto_confirmed: 91, wrong: 1, coverage: 0.261},
+                      scored_with: [eval/gold_v2_gfast.jsonl, eval/gold_v2_broad.jsonl]}
+  run_f_4b:                        # herald-f4b-fp8, same re-derivation. Model does not ship.
+    heldout_gold_v2: {facts: 316, wrong_facts: 37, auroc: 0.846,
+                      at_0_8: {auto_confirmed: 161, wrong: 2, coverage: 0.509},
+                      scored_with: [eval/gold_v2_gfast.jsonl, eval/gold_v2_broad.jsonl]}
   run_e_v2:                        # live from 2026-09-24 (team lead's decision); MODEL_PLAN §0i. Judged with the
                                    # every-call gold too (--extra-gold eval/gold_v*_broad.jsonl)
     dev_gold_v1: {facts: 286, wrong_facts: 6, auroc: 0.958, at_0_8: {auto_confirmed: 193, wrong: 0, coverage: 0.675}}

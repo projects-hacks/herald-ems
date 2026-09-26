@@ -7,6 +7,7 @@ import numpy as np
 from herald.config import load_text
 from herald.extraction.grounding import default_grounding
 from herald.models.stt import WhisperSTT
+from herald.models.stt_gates import ClipSignals
 from scripts import asr_layer
 from scripts.cabin_noise import SR, mix
 
@@ -84,6 +85,7 @@ class _Pipe:
 def test_transcribe_many_batches_short_clips_and_sends_long_ones_alone_with_the_same_cleanup():
     stt = WhisperSTT("unused")
     stt._pipe = _Pipe()
+    stt._signals = lambda clips: [ClipSignals(0.01, "en", 0.99, 0.99) for _ in clips]     # speech: the gates pass
     clips = [np.zeros(16000 * s, np.float32) for s in (3, 40, 5)]
     out = stt.transcribe_many(clips, 16000, batch_size=8)
     assert [o["text"] for o in out] == ["clip of 3 s", "long clip of 40 s", "clip of 5 s"]   # order kept, echo cut

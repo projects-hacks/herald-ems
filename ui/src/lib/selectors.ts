@@ -27,6 +27,7 @@ export function alertKey(a: Alert): string {
     case "news2_high": return `${a.type}:${a.score}`;
     case "race_positive": case "gfast_positive": return `${a.type}:${a.score}`;
     case "stemi_alert": return `${a.type}:${a.score}`;
+    default: { const x = a as { type: string; label?: string }; return `${x.type}:${x.label ?? ""}`; }   // a score added in config
   }
 }
 /** The composed title the queue rows show for an alert, as plain text (the cabin banner headline reuses it). */
@@ -112,7 +113,7 @@ export function allFacts(s: Snapshot): FactView[] {
   return [...new Map([...Object.values(s.facts), ...Object.values(s.events ?? {}).flat()].map((f) => [f.id, f])).values()];
 }
 export function activeSync(s: Snapshot) {
-  return s.relay.authorized ? s.relay.patients?.[s.active_patient ?? s.incident.id]?.sync ?? s.relay.sync : {};
+  return (s.relay.authorized ? s.relay.patients?.[s.active_patient ?? s.incident.id]?.sync ?? s.relay.sync : undefined) ?? {};
 }
 export function patientPacket(s: Snapshot, patient?: string) { return !patient || patient === (s.active_patient ?? s.incident.id); }
 export interface ErRow { key: string; state: ErRowState; seq: number | null; why: string; held: "tap" | "disagree" | null }
@@ -158,12 +159,19 @@ export function reconciledDuplicates(s: Snapshot): number | null {
 }
 
 // ---------- patient picture groups (§3.1.9) ----------
+// The patient record, in the order a receiving clinician reads it. Safety facts lead (an allergy or an anticoagulant
+// must never be at the bottom of a column); then who the patient is, what happened, the vitals and exam, injuries,
+// the working assessment, the care already given, the medication history, transport and scene. First match wins.
 export const GROUPS: [string, (key: string) => boolean][] = [
+  ["Safety", (k) => k === "allergies" || k === "meds.anticoagulant" || k === "code_status"],
   ["Patient", (k) => k.startsWith("patient.") || k === "complaint.chief"],
-  ["History", (k) => k.startsWith("stroke.") || k.startsWith("symptom.") || k === "code_status"],
+  ["Presentation", (k) => k.startsWith("stroke.") || k.startsWith("symptom.")],
   ["Vitals", (k) => k.startsWith("vitals.")],
-  ["Exam", (k) => k.startsWith("exam.") || k.startsWith("ecg.")],
-  ["Meds & allergies", (k) => k.startsWith("meds.") || k === "allergies"],
+  ["Exam", (k) => k.startsWith("exam.") || k.startsWith("ecg.") || k === "airway.status"],
+  ["Injuries", (k) => k.startsWith("trauma.")],
+  ["Assessment", (k) => k === "impression.primary" || k === "infection.suspected" || k === "triage.category"],
+  ["Care given", (k) => k === "meds.given" || k === "procedures.done"],
+  ["Medications", (k) => k.startsWith("meds.")],
   ["Transport", (k) => k.startsWith("transport.")],
   ["Scene", (k) => k.startsWith("scene.")],
 ];

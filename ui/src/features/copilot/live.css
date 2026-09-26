@@ -1,0 +1,102 @@
+/* Herald, live: the one place the screen feels alive. The orb breathes while listening and swells with the cabin's
+   sound (--level, 0..1), turns while it is understanding, greys when paused, and is red with words when something
+   stopped. Motion carries meaning only; reduced motion keeps every state readable without it. */
+.herald-live { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 22px;
+  padding: 18px 22px; margin-bottom: 20px; border-radius: 22px; overflow: hidden; isolation: isolate;
+  background: var(--surface-1); border: 1px solid var(--glass-border-hi); box-shadow: var(--glass-edge), var(--glass-shadow); }
+.herald-live::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .9;
+  background: radial-gradient(420px 180px at 60px 50%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%),
+              radial-gradient(520px 200px at 100% 0%, color-mix(in srgb, var(--low-fg) 10%, transparent), transparent 70%); }
+.herald-live[data-state="paused"]::before, .herald-live[data-state="replay"]::before { opacity: .35; }
+.herald-live[data-state="down"] { border-color: color-mix(in srgb, var(--high-fg) 60%, transparent); }
+.herald-live[data-state="down"]::before { background: radial-gradient(420px 180px at 60px 50%, color-mix(in srgb, var(--high-fg) 18%, transparent), transparent 70%); }
+
+/* ---------- the orb ---------- */
+.live-orb { position: relative; width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; }
+.live-orb:disabled { cursor: default; }
+.live-orb:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+.orb-core { position: relative; z-index: 1; display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%; color: #fff;
+  background: radial-gradient(circle at 34% 30%, #ecfeff 0 6%, var(--accent) 38%, #2563eb 78%, #1e3a8a 100%);
+  box-shadow: 0 0 calc(18px + var(--level, 0) * 40px) color-mix(in srgb, var(--accent) 55%, transparent),
+              inset 0 -6px 14px rgba(15, 23, 42, .35);
+  transform: scale(calc(1 + var(--level, 0) * .22)); transition: transform 90ms linear, box-shadow 90ms linear, filter .4s; }
+.orb-halo { position: absolute; inset: 0; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); opacity: 0; }
+.herald-live[data-state="listening"] .orb-core { animation: orb-breathe 3.2s var(--ease-standard) infinite; }
+.herald-live[data-state="listening"] .orb-halo { animation: orb-ripple 2.4s var(--ease-emphasized-decelerate) infinite; }
+.herald-live[data-state="thinking"] .orb-core {
+  background: conic-gradient(from var(--spin, 0deg), var(--accent), #6366f1, #2563eb, var(--accent));
+  animation: orb-spin 1.6s linear infinite; }
+.herald-live[data-state="thinking"] .orb-halo { opacity: 1; border-style: dashed; animation: orb-turn 6s linear infinite; }
+.herald-live[data-state="paused"] .orb-core, .herald-live[data-state="replay"] .orb-core { filter: grayscale(1) brightness(.75); box-shadow: none; }
+.herald-live[data-state="waiting"] .orb-core { animation: orb-breathe 1.4s var(--ease-standard) infinite; filter: saturate(.6); }
+.herald-live[data-state="down"] .orb-core { background: radial-gradient(circle at 34% 30%, #fee2e2 0 6%, var(--high-fg) 45%, #7f1d1d 100%);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--high-fg) 50%, transparent); }
+@property --spin { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes orb-spin { to { --spin: 360deg; } }
+@keyframes orb-turn { to { transform: rotate(360deg); } }
+@keyframes orb-breathe { 50% { filter: brightness(1.12); } }
+@keyframes orb-ripple { 0% { transform: scale(.72); opacity: .8; } 100% { transform: scale(1.18); opacity: 0; } }
+
+/* ---------- what it heard ---------- */
+.live-body { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.live-status { margin: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: .9375rem; color: var(--text-secondary); font-weight: 600; }
+.live-status b { font-size: .8125rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+.herald-live[data-state="down"] .live-status { color: var(--high-fg); font-size: 1.0625rem; font-weight: 700; }
+.herald-live[data-state="down"] .live-status b { color: var(--high-fg); }
+.herald-live[data-state="thinking"] .live-status span { background: linear-gradient(90deg, var(--text-secondary) 0 40%, var(--accent) 50%, var(--text-secondary) 60% 100%);
+  background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shimmer 1.6s linear infinite; }
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -150% 0; } }
+.live-heard { margin: 0; animation: heard-in .45s var(--ease-emphasized-decelerate) both; }
+.live-heard blockquote { margin: 0; font-size: 1.3125rem; line-height: 1.35; font-weight: 600; color: var(--text-primary); letter-spacing: -.01em;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.live-heard mark { color: var(--text-primary); background: color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 5px; padding: 0 3px;
+  box-shadow: inset 0 -2px 0 var(--accent); }
+.live-heard figcaption { margin-top: 3px; font-size: .875rem; color: var(--text-muted); }
+.live-hint { margin: 0; font-size: 1.0625rem; color: var(--text-secondary); }
+@keyframes heard-in { from { transform: translateY(6px); color: var(--accent); } to { transform: none; } }
+
+.live-chips { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.live-chips li { display: inline-flex; align-items: baseline; gap: 7px; min-height: 36px; padding: 6px 12px; border-radius: 10px; font-size: .9375rem;
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--text-secondary); animation: chip-in .38s var(--ease-emphasized-decelerate) backwards; }
+.live-chips li b { color: var(--text-primary); font-weight: 700; }
+.live-chips li small { font-size: .8125rem; font-weight: 700; color: var(--medium-fg); }
+.live-chips li[data-status="unconfirmed"] { border-style: dashed; }
+.live-chips li[data-status="confirmed"] { border-color: color-mix(in srgb, var(--ok-fg) 50%, transparent); }
+.live-chips .chip-effect { background: color-mix(in srgb, var(--low-fg) 12%, var(--surface-2)); border-color: color-mix(in srgb, var(--low-fg) 45%, transparent);
+  color: var(--text-primary); font-weight: 700; }
+.live-chips .chip-skeleton { width: 150px; background: linear-gradient(90deg, var(--surface-2) 0 30%, color-mix(in srgb, var(--accent) 18%, var(--surface-2)) 50%, var(--surface-2) 70% 100%);
+  background-size: 250% 100%; animation: shimmer 1.3s linear infinite; border-color: transparent; }
+.live-chips .chip-skeleton + .chip-skeleton { width: 110px; }
+@keyframes chip-in { from { transform: translateY(8px) scale(.96); } to { transform: none; } }
+
+/* ---------- the eye ---------- */
+.live-eye { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 16px; text-align: left; min-height: 48px;
+  background: var(--surface-2); border: 1px solid var(--border-subtle); max-width: 330px; }
+.eye-view { position: relative; display: grid; place-items: center; width: 120px; aspect-ratio: 4 / 3; max-width: 100%; border-radius: 11px; overflow: hidden; flex-shrink: 0;
+  background: color-mix(in srgb, var(--text-primary) 6%, var(--surface-1)); color: var(--text-muted); }
+.eye-view video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.live-eye:not([data-on]) video { display: none; }
+.eye-scan { position: absolute; inset: 0; border: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); border-radius: 11px;
+  background: linear-gradient(180deg, transparent 0 45%, color-mix(in srgb, var(--accent) 35%, transparent) 50%, transparent 55% 100%);
+  background-size: 100% 220%; animation: scan 2.6s ease-in-out infinite; }
+@keyframes scan { from { background-position: 0 100%; } to { background-position: 0 -120%; } }
+.eye-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.eye-text b { display: inline-flex; align-items: center; gap: 6px; font-size: .9375rem; color: var(--text-primary); }
+.live-eye[data-on] .eye-text b { color: var(--accent); }
+.eye-text span { font-size: .875rem; color: var(--text-secondary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; line-height: 1.35; }
+
+@media (max-width: 1100px) {
+  .herald-live { grid-template-columns: auto minmax(0, 1fr); gap: 16px; padding: 14px 16px; }
+  .live-eye { grid-column: 1 / -1; max-width: none; }
+  .live-orb { width: 68px; height: 68px; } .orb-core { width: 50px; height: 50px; }
+  .live-heard blockquote { font-size: 1.1875rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .herald-live *, .herald-live *::before { animation: none !important; transition: none !important; }
+}
+[data-reduced-motion="true"] .herald-live *, [data-reduced-motion="true"] .herald-live *::before { animation: none !important; }
+.live-eye[data-failed] { border-color: color-mix(in srgb, var(--high-fg) 55%, transparent); } .live-eye[data-failed] .eye-text b { color: var(--high-fg); }
+/* capture goes on, but something needs saying: clips held while the server is unreachable, speech that was skipped */
+.live-warning { flex-basis: 100%; font-style: normal; font-weight: 700; font-size: .9375rem; color: var(--medium-fg); }
+.herald-live[data-warn] { border-color: color-mix(in srgb, var(--medium-fg) 55%, transparent); }

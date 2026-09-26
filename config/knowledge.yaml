@@ -23,6 +23,10 @@ heading_styles:
 # 302 table column headers; headers sit in the first 4 lines and footers and side tabs in the last 12 of every page
 # in all 32 indexed documents. A numbered section line is never a running line.
 running_line_share: 0.6
+# A section whose text ends in a lead-in colon ("... shall be transported to:", 602 §VI.E.1) says nothing without the
+# items listed under it, which the outline makes their own sections. Such a section also carries the text of its
+# sub-items, up to this many characters, so a quote or a search hit on it holds the rule. The sub-items stay citable.
+lead_in_children_chars: 1200
 running_line_band: [5, 13]
 # Text-layer damage: the section is marked "text layer uncertain" and the page image is offered instead of trusting
 # the words. Words glued by a broken font (ligatures lost, e.g. "Abnormali.es" in 700-A13); a Symbol-font "≥"/"≤"
