@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAttention } from "@/hooks/useAttention";
 import { api } from "@/lib/api";
 import { factValue, formatValue, hhmm, sourceName } from "@/lib/format";
-import { alertKey, alertPriority, type Priority } from "@/lib/selectors";
+import { alertKey, alertPriority, type Attention, type Priority } from "@/lib/selectors";
 import { useHerald } from "@/lib/store";
 import { MismatchCard } from "@/features/capture/MismatchCard";
 import { TraumaCriteriaChecklist } from "./TraumaCriteriaChecklist";
@@ -25,7 +25,7 @@ import { catOf } from "@/lib/categories";
 import { Badge, Button, CAT_ICON, Card, CardHeader, Count, EmptyState, IconTile, Section, SeverityBadge, type Cat } from "@/components/kit";
 
 const NEWS2_SUFFIX = / \(for NEWS2\)$/;
-type Contradiction = Extract<Alert, { type: "contradiction" }>;
+export type Contradiction = Extract<Alert, { type: "contradiction" }>;
 type CodeStatus = Extract<Alert, { type: "confirm_required" }>;
 
 // ---------- one row: an iOS list row, with the separator inset past the tile ----------
@@ -193,7 +193,7 @@ function Choice({ f, a, sentToEd }: { f: FactView; a: Contradiction; sentToEd: b
   );
 }
 
-function ContradictionRow({ a, s }: { a: Contradiction; s: Snapshot }) {
+export function ContradictionRow({ a, s }: { a: Contradiction; s: Snapshot }) {
   const [older, newer] = a.facts;
   const sentToEd = older?.status === "confirmed" && activeSync(s)[a.key] === "sent";
   return (
@@ -288,6 +288,18 @@ function StillToCapture({ s }: { s: Snapshot }) {
   );
 }
 
+/** Everything captured that waits for a tap (one monitor frame at a time, code status, heard facts by sentence), as
+ *  list rows. The queue and the handoff's "Before you hand over" both render these, so a fact is confirmed,
+ *  corrected or rejected the same way everywhere. */
+export function ConfirmRows({ s, a }: { s: Snapshot; a: Attention }) {
+  return <>
+    {readingCards(s).map((c) => <ReadingRow key={c.frameId} c={c} />)}
+    {a.confirmAlerts.map((al) => <CodeStatusRow key={alertKey(al)} a={al as CodeStatus} />)}
+    {byUtterance(a.confirmFacts).map((g) => g.length > 1 ? <HeardGroup key={g[0].id} facts={g} />
+      : g[0].verify?.status === "mismatch" && !g[0].verify.resolution ? <MismatchCard key={g[0].id} fact={g[0]} /> : <TapRow key={g[0].id} f={g[0]} />)}
+  </>;
+}
+
 // ---------- the card ----------
 
 export function AttentionQueue({ className }: { className?: string }) {
@@ -335,12 +347,7 @@ export function AttentionQueue({ className }: { className?: string }) {
           )}
           {confirmCount > 0 && (
             <Section title="Confirm what Herald captured" count={confirmCount}>
-              <ul>
-                {readings.map((c) => <ReadingRow key={c.frameId} c={c} />)}
-                {a.confirmAlerts.map((al) => <CodeStatusRow key={alertKey(al)} a={al as CodeStatus} />)}
-                {byUtterance(a.confirmFacts).map((g) => g.length > 1 ? <HeardGroup key={g[0].id} facts={g} />
-                  : g[0].verify?.status === "mismatch" && !g[0].verify.resolution ? <MismatchCard key={g[0].id} fact={g[0]} /> : <TapRow key={g[0].id} f={g[0]} />)}
-              </ul>
+              <ul><ConfirmRows s={s} a={a} /></ul>
             </Section>
           )}
           {a.review.length > 0 && (

@@ -3,14 +3,26 @@
 // In fixture mode every action is off.
 import { authHeaders } from "./authToken";
 import { useHerald } from "./store";
+import type { HandoffReportData } from "./types";
 
 export async function act(key: string, url: string, body?: unknown, failCopy = "The Herald server didn't answer. Try again.") {
+  return (await send(key, url, body, failCopy, false)).ok;
+}
+
+/** Like act(), for an endpoint whose reply the screen needs (POST /api/handoff/not-obtained returns the report).
+ *  null when the action was not sent or failed; the failure shows under the button like any other action. */
+export async function actJson<T>(key: string, url: string, body?: unknown, failCopy = "The Herald server didn't answer. Try again."): Promise<T | null> {
+  const r = await send(key, url, body, failCopy, true);
+  return r.ok ? (r.data as T) : null;
+}
+
+async function send(key: string, url: string, body: unknown, failCopy: string, readReply: boolean): Promise<{ ok: boolean; data?: unknown }> {
   const st = useHerald.getState();
   if (st.source === "fixture" || st.stale || st.conn !== "open") {
     st.showToast(st.source === "fixture" ? "Replay: actions are off" : "Vehicle connection unavailable. Action not sent.");
-    return false;
+    return { ok: false };
   }
-  if (st.pending[key] === "pending" || st.pending[key] === "sent") return false;   // one request per double tap
+  if (st.pending[key] === "pending" || st.pending[key] === "sent") return { ok: false };   // one request per double tap
   useHerald.setState({ pending: { ...useHerald.getState().pending, [key]: "pending" } });
   try {
     const r = await fetch(url, {
@@ -21,6 +33,7 @@ export async function act(key: string, url: string, body?: unknown, failCopy = "
       signal: AbortSignal.timeout(5000),
     });
     if (!r.ok) throw new Error(String(r.status));
+    const data = readReply ? await r.json() : undefined;
     // The broadcast can arrive before the HTTP response. Re-fetch once so a successful
     // action never waits forever for a snapshot that already arrived.
     const state = await fetch("/api/state", { signal: AbortSignal.timeout(5000) });
@@ -29,10 +42,10 @@ export async function act(key: string, url: string, body?: unknown, failCopy = "
     const pending = { ...useHerald.getState().pending };
     delete pending[key];
     useHerald.setState({ pending });
-    return true;
+    return { ok: true, data };
   } catch {
     useHerald.setState({ pending: { ...useHerald.getState().pending, [key]: { error: failCopy } } });
-    return false;
+    return { ok: false };
   }
 }
 
@@ -64,4 +77,11 @@ export const api = {
   endIncident: () => act("end-incident", "/api/incident/end", undefined,
     "Couldn't end the call. Media has not been confirmed deleted; try again."),
   newIncident: (dispatch: string | null) => act("incident", "/api/incident", { dispatch }),
+  // Hand over: one step that records transfer of care, sends the final confirmed report, stops capture and deletes
+  // this patient's audio and photos (the server does all of it; docs/API_CONTRACT.md).
+  handover: (destination: string | null) => act("handover", "/api/encounters/current/handover", { destination },
+    "Couldn't hand over. Nothing was changed; check the connection and try again."),
+  /** A required item the crew could not obtain (on: true), or undo that (on: false). Replies with the report. */
+  notObtained: (key: string, on: boolean) => actJson<HandoffReportData>(`not-obtained:${key}`, "/api/handoff/not-obtained", { key, on },
+    "Couldn't save that. The Herald server didn't answer. Try again."),
 };

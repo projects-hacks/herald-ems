@@ -1,123 +1,83 @@
-// Clinician-first handoff: the report and unresolved patient information lead; transport plumbing is secondary.
-import { EncounterControls } from "@/features/cabin/EncounterControls";
-import { AlertCircle, CheckCircle2, ChevronDown, ClipboardList, Download, ListOrdered, Radio, Send, UserCheck } from "lucide-react";
-import { factValue, patientLabel, hhmm } from "@/lib/format";
-import { HandoffReport as StructuredHandoffReport } from "@/features/handoff/HandoffReport";
-import { allFacts, clinicianReceipt, reconciled, reconciledDuplicates } from "@/lib/selectors";
+// The handoff, built around one moment: handing the patient over. Top to bottom: who, where, and what the ED has
+// (one line); what is left to decide (never blocking); the report as the receiving team hears it; and the hand over
+// action, always in reach. After the hand over, the page says so and offers the next patient.
+// Delivery plumbing (per-field status, packets) is only in the detailed application view.
+import { useState } from "react";
+import { ChevronDown, ListOrdered, Radio } from "lucide-react";
+import { Badge, Card, CardHeader, Count } from "@/components/kit";
+import { reconciled, reconciledDuplicates } from "@/lib/selectors";
+import { BeforeHandover } from "@/features/handoff/BeforeHandover";
+import { HandedOver } from "@/features/handoff/HandedOver";
+import { HandoffReportView, useHandoffReport } from "@/features/handoff/HandoffReport";
+import { HandoverBar } from "@/features/handoff/HandoverBar";
+import { PacketLog, SyncTable, useHandoff } from "@/features/handoff/handoff";
+import { useNow } from "@/hooks/useNow";
+import { hhmm } from "@/lib/format";
+import { etaSeconds, handoverDestination, patientIdentity, preAlertStatus } from "@/lib/handover";
 import { useHerald } from "@/lib/store";
-import type { FactView, Snapshot } from "@/lib/types";
-import { Badge, Button, Card, CardHeader, Count, EmptyState, PageHeader } from "@/components/kit";
-import { AuthorizeForm, LinkDownNote, PacketLog, SyncTable, useHandoff } from "@/features/handoff/handoff";
+import type { Snapshot } from "@/lib/types";
+import "@/features/handoff/handoff.css";
 
-function confirmed(s: Snapshot, key: string) {
-  const fact = s.facts[key];
-  return fact?.status === "confirmed" ? fact : undefined;
+function Headline({ s }: { s: Snapshot }) {
+  const at = useHerald((st) => st.lastStateAt);
+  const now = useNow();
+  const dest = handoverDestination(s);
+  const handed = !!s.incident.handed_over_at;
+  const eta = handed || s.incident.arrived_at ? null : etaSeconds(s, at, now);
+  const status = preAlertStatus(s);
+  const where = [dest ? `To ${dest}` : "Destination not confirmed",
+    eta === null ? null : eta > 0 ? `ETA ${Math.max(1, Math.round(eta / 60))} min` : "ETA now"].filter(Boolean).join(" · ");
+  return <header className="handoff-headline">
+    <p className="label-caps text-text-muted">Handoff</p>
+    <h1>{patientIdentity(s)}</h1>
+    <p className="handoff-where">{where}{s.incident.arrived_at && !handed && <span className="handoff-chip" data-tone="neutral">Arrived {hhmm(s.incident.arrived_at)}</span>}</p>
+    {!handed && <p className="handoff-chip" data-tone={status.tone} role="status">{status.text}</p>}
+  </header>;
 }
 
-function joinFacts(facts: (FactView | undefined)[]) {
-  return facts.filter(Boolean).map((fact) => `${fact!.label}: ${factValue(fact!)} (${hhmm(fact!.ts)})`).join(" · ");
-}
-
-function HandoffReport({ s }: { s: Snapshot }) {
-  const patient = joinFacts([confirmed(s, "patient.name"), confirmed(s, "patient.identifier"), confirmed(s, "patient.age"), confirmed(s, "patient.sex")]);
-  const problem = joinFacts([confirmed(s, "complaint.chief"), confirmed(s, "symptom.onset"), confirmed(s, "stroke.lkw")]);
-  const findings = joinFacts([confirmed(s, "stroke.deficits"), confirmed(s, "scene.notes"), confirmed(s, "code_status")]);
-  const vitals = joinFacts(["vitals.sbp", "vitals.dbp", "vitals.hr", "vitals.rr", "vitals.spo2", "vitals.glucose", "vitals.temp", "vitals.consciousness"].map((key) => confirmed(s, key)));
-  const history = joinFacts([confirmed(s, "allergies"), confirmed(s, "meds.anticoagulant"), confirmed(s, "meds.list")]);
-  const transport = joinFacts([confirmed(s, "transport.destination"), confirmed(s, "transport.eta_min")]);
-  const treatments = joinFacts(allFacts(s).filter((f) => ["meds.given", "procedures.done"].includes(f.key) && f.status === "confirmed"));
-  const rows = [
-    ["Patient", patient || `${patientLabel(s)} · identity not confirmed · started ${hhmm(s.incident.started)}`],
-    ["Problem", problem || "Chief complaint not captured"],
-    ["Findings", findings || "No confirmed findings captured"],
-    ["Latest vitals", vitals || "No confirmed vitals captured"],
-    ["History", history || "Allergies and medications not captured"],
-    ["Transport", transport || "Destination and ETA not captured"],
-    ["Documented events", treatments || "No confirmed medications or procedures captured"],
-  ];
-  const missing = s.needs_attention.missing.length + s.needs_attention.unknown.length;
-  const unresolved = allFacts(s).filter((fact) => fact.status === "unconfirmed");
-  const gaps = [...s.needs_attention.missing, ...s.needs_attention.unknown];
-  const download = () => {
-    const report = ["HERALD HANDOFF DRAFT — review before use", `Incident: ${s.incident.id}`,
-      `Prepared: ${new Date().toISOString()}`, "Times are capture times, not necessarily measurement or administration times. This is a snapshot summary, not the full MIST/SBAR report.",
-      ...rows.map(([label, value]) => `${label}: ${value}`),
-      `Unverified fields (excluded): ${unresolved.map((fact) => fact.label).join(", ") || "None"}`,
-      `Missing fields: ${gaps.map((item) => item.label).join(", ") || "None in active checklists"}`,
-      `Clinician acknowledgment: ${clinicianReceipt(s)}. This draft is not a complete incident archive.`].join("\n\n");
-    const url = URL.createObjectURL(new Blob([report], { type: "text/plain;charset=utf-8" }));
-    const link = document.createElement("a"); link.href = url; link.download = `herald-${s.incident.id}-draft.txt`;
-    link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
-  return <Card aria-labelledby="report-h">
-    <CardHeader icon={ClipboardList} cat="ed" title="Read-aloud handoff" id="report-h"
-      subtitle="Snapshot summary · confirmed facts and events · times show capture, not measurement or administration"
-      actions={missing ? <Badge tone="medium" icon={AlertCircle}>{missing} gaps</Badge> : <Badge icon={CheckCircle2}>Review draft</Badge>} />
-    <dl className="px-5 pb-5">
-      {rows.map(([label, value]) => <div key={label} className="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 border-t border-border-subtle py-3 first:border-t-0">
-        <dt className="text-meta font-semibold text-text-muted">{label}</dt>
-        <dd className="text-body font-medium text-text-primary">{value}</dd>
-      </div>)}
-    </dl>
-    <div className="flex flex-col gap-3 border-t border-border-subtle px-5 py-4">
-      {unresolved.length > 0 && <p className="text-body text-medium-fg">Needs verification: {unresolved.map((fact) => fact.label).join(" · ")}. These values are excluded from the draft.</p>}
-      {gaps.length > 0 && <p className="text-body text-text-muted">Still missing: {gaps.map((item) => item.label).join(" · ")}</p>}
-      <div><Button onClick={download}><Download size={17} />Download handoff draft</Button></div>
-    </div>
-  </Card>;
-}
-
-function ReceiptStatus({ s }: { s: Snapshot }) {
-  const r = s.relay;
-  const clinician = r.clinician_acknowledgements?.[s.incident.id]?.at(-1);
-  const held = allFacts(s).filter((fact) => fact.status === "unconfirmed").length;
-  const technical = reconciled(s);
-  const dupes = reconciledDuplicates(s);
-  return <Card className="p-5" aria-label="Handoff receipt">
-    <div className="flex items-start gap-3">
-      <UserCheck size={22} className="mt-0.5 shrink-0 text-cat-ed-fg" />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2"><h2 className="text-title font-semibold">Receipt</h2>
-          <Badge tone={technical && !held ? "ok" : r.link === "down" ? "low" : "medium"}>{technical ? held ? `${held} facts still need verification` : "Confirmed updates delivered" : r.link === "down" ? "Waiting for link" : "Sending updates"}</Badge>
-          {technical && dupes !== null && <Badge tone="neutral">reconciled · {dupes} duplicate{dupes === 1 ? "" : "s"}</Badge>}
-        </div>
-        <p className="mt-1 text-body text-text-muted">{clinician
-          ? `Receiving team: ${clinician.status === "cath_lab_activated" ? "Cath lab activated" : "Received"}${clinician.note ? ` · ${clinician.note}` : ""}`
-          : "Human acknowledgment is not recorded. Technical delivery does not mean a clinician has viewed the handoff."}</p>
-      </div>
-    </div>
-  </Card>;
-}
-
-export function HandoffPage() {
-  const s = useHerald((st) => st.snapshot);
-  const isReplay = useHerald((st) => st.source === "fixture");
+/** Per-field delivery and the packet log: the detailed application view only, never on the medic's screen. */
+function DeliveryDetails({ s }: { s: Snapshot }) {
   const h = useHandoff(s);
-  if (!s) return null;
-  const r = s.relay;
-  const header = <PageHeader title="Handoff" description={r.authorized ? `Preparing handoff to ${r.authorized.destination}` : "Review the patient story, resolve missing information, then authorize the pre-alert."} />;
-  const wrap = (body: React.ReactNode) => <div className="flex flex-col gap-5 px-6 pt-5 pb-6">{header}{body}</div>;
-  // A replay has no /api/handoff to fetch: lead with the snapshot summary, expanded, instead of the empty fetched card.
-  const report = <>{isReplay ? <HandoffReport s={s} />
-    : <><StructuredHandoffReport /><details><summary className="min-h-12 p-3">Snapshot summary and text export</summary><HandoffReport s={s} /></details></>}
-    <EncounterControls key={s.incident.id} /></>;
-  if (!r.configured) return wrap(<>{report}<Card><EmptyState icon={Send} cat="ed" title="The receiving link is not set up">The read-aloud report remains available. Ask your system administrator to connect the receiving department.</EmptyState></Card></>);
-  if (!r.authorized) return wrap(<>{report}<Card className="max-w-lg p-5"><AuthorizeForm s={s} /></Card></>);
-  return wrap(<>
-    {report}
-    {r.link === "down" && <LinkDownNote />}
-    <ReceiptStatus s={s} />
+  if (!s.relay.authorized) return null;
+  const dupes = reconciledDuplicates(s);
+  return <>
     <Card aria-labelledby="fields-h">
-      <CardHeader icon={ListOrdered} cat="ed" title="Delivery status" id="fields-h" subtitle="Sent to the receiving system, queued, or held for verification" actions={<Count n={h.rows.length} />} />
+      <CardHeader icon={ListOrdered} cat="ed" title="Delivery status" id="fields-h" subtitle="Sent to the receiving system, queued, or held for verification"
+        actions={<>{reconciled(s) && dupes !== null && <Badge tone="neutral">reconciled · {dupes} duplicate{dupes === 1 ? "" : "s"}</Badge>}<Count n={h.rows.length} /></>} />
       <SyncTable s={s} rows={h.rows} />
     </Card>
     <details className="card group">
       <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-5 text-title font-semibold text-text-secondary">
         <Radio size={17} className="text-text-muted" />Technical diagnostics
-        <span className="ml-auto text-meta font-normal text-text-muted">{r.packets_acked} packets · {r.retries} retries</span>
+        <span className="ml-auto text-meta font-normal text-text-muted">{s.relay.packets_acked} packets · {s.relay.retries} retries</span>
         <ChevronDown size={17} className="transition-transform group-open:rotate-180" />
       </summary>
       <div className="border-t border-border-subtle"><PacketLog s={s} /></div>
     </details>
-  </>);
+  </>;
+}
+
+/** `onNotes` opens typing (the Now screen passes its notes panel); `reportOpen` shows the handed-over report at once. */
+export function HandoffPage({ onNotes, reportOpen = false }: { onNotes?: () => void; reportOpen?: boolean } = {}) {
+  const s = useHerald((st) => st.snapshot);
+  const explain = useHerald((st) => st.ui.mode === "explain");
+  const setUi = useHerald((st) => st.setUi);
+  const h = useHandoffReport();
+  const [showReport, setShowReport] = useState(reportOpen);
+  if (!s) return null;
+  const handed = !!s.incident.handed_over_at;
+  const obtained = new Set(s.incident.not_obtained ?? []);
+  const missing = (h.report?.not_yet_known ?? []).filter((m) => !obtained.has(m.key)).length;
+  return <div className="handoff-page" data-handed-over={handed || undefined}>
+    <Headline s={s} />
+    {handed ? <>
+      <HandedOver s={s} reportOpen={showReport} onViewReport={() => setShowReport(!showReport)} />
+      {showReport && <HandoffReportView h={h} />}
+    </> : <>
+      <BeforeHandover s={s} report={h.report} onReport={h.accept} onNotes={onNotes ?? (() => setUi({ page: "transcript" }))} />
+      <HandoffReportView h={h} />
+    </>}
+    {explain && <DeliveryDetails s={s} />}
+    {!handed && <HandoverBar s={s} report={h.report} missing={missing} />}
+  </div>;
 }
