@@ -9,7 +9,7 @@ import { cuePoints, edHas, keyPoints, patientKnown, SAFETY_KEYS, type Presence }
 import { GROUPS } from "@/lib/selectors";
 import { clockSeconds, factValue, hhmmss } from "@/lib/format";
 import { useNow } from "@/hooks/useNow";
-import { useContract } from "@/lib/contract";
+import { label as keyLabel, useContract } from "@/lib/contract";
 import { hhmm } from "@/lib/format";
 import { useHerald } from "@/lib/store";
 import { Sparkline } from "@/components/Sparkline";
@@ -89,7 +89,7 @@ export function EdCard({ onHandoff }: { onHandoff: () => void }) {
   const s = useHerald((st) => st.snapshot);
   const contract = useContract();
   if (!s) return null;
-  const ed = edHas(s, (k) => contract?.keys[k]?.label ?? k);
+  const ed = edHas(s, (k) => keyLabel(contract, k));   // derived keys too: "ETA (road route)", never "transport.eta_at"
   const destFact = s.facts["transport.destination"];
   const dest = ed.destination ?? (destFact?.status === "confirmed" ? String(destFact.value) : null);
   return <section className="copilot-ed" aria-labelledby="ed-h">

@@ -32,3 +32,10 @@ describe("drug codes", () => {
     expect(container.textContent).toBe("");
   });
 });
+
+describe("key labels", () => {
+  it("name a derived relay key by its label, never its key", async () => {
+    const { label } = await import("@/lib/contract");
+    expect(label({ keys: {}, derivedLabels: { "transport.eta_at": "ETA (road route)" } } as never, "transport.eta_at")).toBe("ETA (road route)");
+  });
+});

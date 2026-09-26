@@ -5,7 +5,7 @@
 import { AudioLines, BookOpenCheck, CircleCheck, CircleX, PencilLine, Send, ShieldCheck } from "lucide-react";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { activity, setAside } from "@/lib/copilot";
-import { useContract } from "@/lib/contract";
+import { useContract, label } from "@/lib/contract";
 import { factValue, hhmm } from "@/lib/format";
 import type { FactView, Snapshot, TranscriptEntry } from "@/lib/types";
 import { useHerald } from "@/lib/store";
@@ -77,7 +77,7 @@ function Timeline({ onReview }: { onReview?: () => void }) {
   const concise = useHerald((st) => st.ui.mode === "medic");
   const contract = useContract();
   const [filter, setFilter] = useState<Filter>("all");
-  const all = useMemo(() => (s ? items(s, (k) => contract?.keys[k]?.label ?? k.split(".").at(-1)!.replace(/_/g, " ")) : []), [s, contract]);
+  const all = useMemo(() => (s ? items(s, (k) => { const l = label(contract, k); return l !== k ? l : k.split(".").at(-1)!.replace(/_/g, " "); }) : []), [s, contract]);
   // New CAPTURES wait behind an explicit "show latest", so the evidence being read is not pushed down mid-read; a
   // capture already shown still updates in place. The medic's own decisions and Herald's found/sent events appear at
   // once -- hiding a confirmation the medic just made would look as if it had not happened.
