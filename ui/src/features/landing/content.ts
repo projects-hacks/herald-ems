@@ -7,9 +7,10 @@ import {
   RadioTower, ScanSearch, ShieldAlert, type LucideIcon,
 } from "lucide-react";
 
-// The landing page is the homepage ("/"); the medic's app lives at /app/, the recorded stroke call replays there.
+// The landing page is the homepage ("/"). Open Herald / Try now start a fresh patient case (/app/new, then /app/);
+// the recorded stroke call replays at /app/?fixture=.
 export const LINKS = {
-  app: "/app/",
+  app: "/app/new",
   replay: "/app/?fixture=stroke_demo",
   source: "https://github.com/projects-hacks/herald-ems",
 } as const;

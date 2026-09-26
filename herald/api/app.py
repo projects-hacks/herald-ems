@@ -153,6 +153,16 @@ def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
         @app.get("/app/", include_in_schema=False)
         async def dashboard():
             return FileResponse(ui_dist / "index.html")
+
+        @app.get("/app/new", include_in_schema=False)
+        async def new_case(dispatch: Optional[str] = None):
+            # The landing page's "Open Herald" / "Try now": a fresh patient case, then the dashboard. The previous
+            # call is kept (encounter history, its ED queue keeps delivering); another open patient at the same
+            # scene is never ended from a link, so then this just opens the dashboard.
+            if not any(inc.id != ctx.incident.id and inc.ended_at is None for inc in ctx.roster.incidents()):
+                ctx.advance_incident((dispatch or "").strip() or None)
+                await hub.broadcast()
+            return RedirectResponse("/app/", status_code=303)
     app.mount("/classic", StaticFiles(directory=str(root / "web"), html=True), name="classic")
     app.mount("/", StaticFiles(directory=str(ui_dist if use_new_ui else root / "web"), html=True), name="web")
     return app

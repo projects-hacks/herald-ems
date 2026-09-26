@@ -26,14 +26,14 @@ describe("landing page", () => {
   });
 
   it("links Try now and Open Herald to the app, and Watch the demo to the recorded call", () => {
-    expect(LINKS.app).toBe("/app/");
+    expect(LINKS.app).toBe("/app/new");                       // a fresh patient case, then the dashboard
     expect(LINKS.replay).toBe("/app/?fixture=stroke_demo");
     render(<LandingApp />);
     const links = screen.getAllByRole("link");
     const hrefOf = (name: RegExp) => links.filter((a) => name.test(a.textContent ?? "")).map((a) => a.getAttribute("href"));
-    expect(hrefOf(/Try now/)).toContain("/app/");
+    expect(hrefOf(/Try now/)).toContain("/app/new");
     expect(hrefOf(/Watch the demo/)).toContain("/app/?fixture=stroke_demo");
-    expect(hrefOf(/Open Herald/)).toEqual(["/app/"]);
+    expect(hrefOf(/Open Herald/)).toEqual(["/app/new"]);
     expect(hrefOf(/Source/)[0]).toBe(LINKS.source);
     // the two hero buttons sit side by side, primary first
     const hero = document.getElementById("top")!;
