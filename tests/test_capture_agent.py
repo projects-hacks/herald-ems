@@ -30,7 +30,9 @@ def run_frame(client, ctx, *, monitor=False, manual=False):
     asyncio.run(run())
 
 
-def test_monitor_http_controls_unconfirmed_facts_and_trace_contract(tmp_path):
+def test_monitor_http_controls_device_reading_facts_and_trace_contract(tmp_path):
+    """A monitor-watch reading is the monitor's own measurement: recorded confirmed (config/confirmation.yaml
+    `monitor_readings`), attributed to the device, with its evidence (frame, ROI, stored still) kept."""
     client, ctx = setup(tmp_path, [FactIn(key="vitals.hr", value=95)])
     assert client.get("/api/capture/status").json()["sees"] == "off"
     assert client.post("/api/capture/auto", json={"on": True}).status_code == 200
@@ -38,8 +40,12 @@ def test_monitor_http_controls_unconfirmed_facts_and_trace_contract(tmp_path):
     run_frame(client, ctx, monitor=True)
     state = client.get("/api/state").json()
     fact = state["facts"]["vitals.hr"]
-    assert fact["status"] == "unconfirmed" and fact["captured_by"] == "camera"
+    assert fact["status"] == "confirmed" and fact["captured_by"] == "camera"
+    assert fact["role"] == "device" and fact["speaker"] == "monitor"
     assert fact["provenance"]["trigger"] == "monitor_changed"
+    assert fact["provenance"]["frame_id"] and fact["provenance"]["crop"] == [0, 0, 1, 1]
+    assert fact["provenance"]["photo_id"] and not fact["provenance"]["hold_reason"]
+    assert state["capture_groups"] == []           # nothing for the medic to confirm
     assert state["capture"]["counts"] == {"frames": 2, "gated": 2, "captured": 1, "stored": 1}
     trace = state["transcripts"][-1]
     assert trace["trigger"] == "monitor_changed" and trace["frame_id"]

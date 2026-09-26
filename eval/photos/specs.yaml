@@ -53,8 +53,7 @@ items:
   - id: monitor_03_defib_glare
     device: defib_monitor
     mode: monitor
-    values: {vitals.hr: 58, vitals.spo2: 99, vitals.sbp: 188, vitals.dbp: 104, vitals.rr: 14}
-    etco2: 35
+    values: {vitals.hr: 58, vitals.spo2: 99, vitals.sbp: 188, vitals.dbp: 104, vitals.rr: 14, vitals.etco2: 35}
     degrade: [{kind: glare, at: [0.30, 0.25], size: 0.28, strength: 0.75}]
   - id: monitor_04_dark_blur
     device: bedside_monitor
@@ -72,8 +71,7 @@ items:
   - id: monitor_06_defib_thumb
     device: defib_monitor
     mode: monitor
-    values: {vitals.hr: 44, vitals.spo2: 93, vitals.sbp: 82, vitals.dbp: 48, vitals.rr: 10}
-    etco2: 41
+    values: {vitals.hr: 44, vitals.spo2: 93, vitals.sbp: 82, vitals.dbp: 48, vitals.rr: 10, vitals.etco2: 41}
     degrade: [{kind: occlusion, field: vitals.rr}]
   - id: monitor_07_dark_rotated_f
     device: bedside_monitor

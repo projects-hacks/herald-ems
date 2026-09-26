@@ -18,6 +18,19 @@ def room_mic_rules() -> tuple[bool, frozenset[str]]:
     return bool(c.get("auto_confirm", False)), frozenset(c.get("always_tap") or ())
 
 
+def monitor_auto_confirm() -> bool:
+    """Whether a reading the camera takes from the patient monitor goes into the record confirmed (config/confirmation.yaml
+    `monitor_readings`, the owner's decision of 2026-09-26). Absent means no: nothing confirms itself by default."""
+    return bool((load_yaml("confirmation.yaml").get("monitor_readings") or {}).get("auto_confirm", False))
+
+
+def monitor_reading(f: FactIn) -> bool:
+    """A value the camera read off the patient monitor: the device's measurement, captured by the camera. Only the
+    capture agent's monitor-mode read of the framed monitor region produces this pair (herald/capture/reading.py); a
+    one-shot photo is role=photo, a structured device feed is captured_by=device."""
+    return f.captured_by == CapturedBy.camera and f.role == Role.device
+
+
 def confidence_measure() -> tuple[str, int]:
     """(measure, top alternatives per token) the threshold was calibrated with (herald/extraction/confidence.py)."""
     c = load_yaml("confirmation.yaml").get("confidence") or {}
@@ -25,16 +38,20 @@ def confidence_measure() -> tuple[str, int]:
 
 
 class ConfirmationPolicy:
-    """A fact starts unconfirmed (the medic taps) when it requires a tap by vocabulary (code status), came from a
-    photo or another speaker, is held (said together with a command to the system: `provenance.hold_reason`, whatever
-    its confidence), contradicts an earlier value of a contradiction key, or is below the auto-confirm
-    confidence (the model's token-probability confidence, threshold calibrated in config/confirmation.yaml).
-    Everything else from the medic's own mic that the model was sure of is confirmed."""
+    """A fact starts unconfirmed (the medic taps) when it requires a tap by vocabulary (code status), is held
+    (`provenance.hold_reason`: said together with a command to the system, or a monitor reading the capture agent's
+    jump check did not trust), contradicts an earlier value of a contradiction key, came from a photo or another
+    speaker, or is below the auto-confirm confidence (the model's token-probability confidence, threshold calibrated
+    in config/confirmation.yaml). A reading the camera took from the patient monitor (`monitor_reading`) is a device
+    reading: it is confirmed when config/confirmation.yaml `monitor_readings.auto_confirm` says so, with no
+    confidence bar (the vision model's confidence is not calibrated; the rails are the plausibility ranges and the
+    jump check). Everything else from the medic's own mic that the model was sure of is confirmed."""
 
     def __init__(self, vocabulary: Vocabulary, auto_confirm: Optional[float] = None,
-                 room_mic: Optional[tuple[bool, frozenset[str]]] = None):
+                 monitor_confirms: Optional[bool] = None, room_mic: Optional[tuple[bool, frozenset[str]]] = None):
         self.vocab = vocabulary
         self.auto_confirm = auto_confirm if auto_confirm is not None else calibrated_threshold()
+        self.monitor_confirms = monitor_confirms if monitor_confirms is not None else monitor_auto_confirm()
         self.room_auto, self.room_always_tap = room_mic if room_mic is not None else room_mic_rules()
 
     def room_mic_may_confirm(self, fin: FactIn) -> bool:
@@ -46,12 +63,14 @@ class ConfirmationPolicy:
     def initial_status(self, fin: FactIn, prev: Optional[Fact], value: Any) -> Status:
         if self.vocab.meta(fin.key).get("require_tap"):
             return Status.unconfirmed
-        if fin.captured_by == CapturedBy.camera or (fin.captured_by == CapturedBy.other
-                                                    and not self.room_mic_may_confirm(fin)):
-            return Status.unconfirmed
         if fin.provenance is not None and fin.provenance.hold_reason:
             return Status.unconfirmed
         if (fin.key in self.vocab.contradiction_keys and prev is not None
                 and norm_value(prev.value) != norm_value(value)):
+            return Status.unconfirmed
+        if monitor_reading(fin):
+            return Status.confirmed if self.monitor_confirms else Status.unconfirmed
+        if fin.captured_by == CapturedBy.camera or (fin.captured_by == CapturedBy.other
+                                                    and not self.room_mic_may_confirm(fin)):
             return Status.unconfirmed
         return Status.confirmed if fin.confidence >= self.auto_confirm else Status.unconfirmed

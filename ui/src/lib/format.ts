@@ -44,6 +44,10 @@ export function factValue(f: Pick<FactView, "value" | "unit">): string {
 /** The server's label for ambient cabin speech whose speaker is not known (herald/api/capture.py AMBIENT_SPEAKER,
  *  the same string). A fact's source chip shows it as it is; the activity feed leaves it out. */
 export const UNIDENTIFIED_SPEAKER = "Speaker not identified";
+/** Read off the patient monitor: by the camera watching it (a device reading, role "device") or from a monitor feed. */
+export function fromMonitor(f: Pick<FactView, "captured_by" | "role">): boolean {
+  return f.captured_by === "device" || (f.captured_by === "camera" && f.role === "device");
+}
 export function sourceName(f: Pick<FactView, "speaker" | "role">): string {
   return f.speaker || f.role;
 }

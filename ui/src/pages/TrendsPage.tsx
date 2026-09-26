@@ -4,7 +4,7 @@
 // readings, the change, a chart and every reading with its time. A newer reading still waiting for a tap is shown
 // apart from the confirmed value, never in its place. This replaces a "latest readings" strip that repeated every
 // vital a second time above the trend cards.
-import { ArrowDown, ArrowRight, ArrowUp, ChartLine, Gauge, Info, TriangleAlert } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUp, ChartLine, Gauge, Info, Monitor, TriangleAlert } from "lucide-react";
 import { api } from "@/lib/api";
 import { catOf, type Cat } from "@/lib/categories";
 import { useContract } from "@/lib/contract";
@@ -78,6 +78,15 @@ export function vitalCards(s: Snapshot): VitalCard[] {
   });
 }
 
+/** Where a trend's readings came from, when the monitor supplied any: "All from the monitor" or "8 of 10 from the
+ *  monitor". Nothing when none did, so a spoken-only trend is not labelled. */
+export function monitorShare(trend?: Changed): string | null {
+  const marks = trend?.from_monitor ?? [];
+  const n = marks.filter(Boolean).length;
+  if (!n) return null;
+  return n === marks.length ? "All from the monitor" : `${n} of ${marks.length} from the monitor`;
+}
+
 /** The value as a clinician writes it: 162/96 for blood pressure, "9 (E2 V2 M5)" for GCS, the plain value otherwise. */
 function shownValue(card: VitalCard): { value: string; unit?: string; detail?: string } {
   const f = card.latest;
@@ -130,19 +139,23 @@ function Card1({ card, rule }: { card: VitalCard; rule?: string }) {
         {(v.detail || latest) && <p className="flex flex-wrap items-center gap-x-1.5 text-meta text-text-muted">
           {v.detail && <span className="font-semibold text-text-secondary">{v.detail}</span>}
           {v.detail && latest && <span aria-hidden>·</span>}
-          {latest && <><SourceIcon capturedBy={latest.captured_by} hasAudio={!!latest.provenance.audio_id} />{sourceName(latest)} · <span className="num">{hhmm(latest.ts)}</span></>}
+          {latest && <><SourceIcon capturedBy={latest.captured_by} role={latest.role} hasAudio={!!latest.provenance.audio_id} />{sourceName(latest)} · <span className="num">{hhmm(latest.ts)}</span></>}
         </p>}
         {waiting && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-medium-fg/50 px-3 py-2 text-meta">
           <span className="font-semibold text-medium-fg">Newer reading {factValue(waiting)} waiting for your tap</span>
           <span className="text-text-muted">· not used in scores or sent</span>
+          {waiting.provenance.hold_reason && <span className="basis-full text-text-secondary">{waiting.provenance.hold_reason}</span>}
           <span className="ml-auto"><ActionButton pendingKey={`confirm:${waiting.id}`} onClick={() => api.confirm(waiting.id)} busyText="Confirming…" size="sm">Confirm</ActionButton></span>
         </div>}
         {series && series.length > 1 ? <>
           <TrendChart values={series} cat={cat} label={`${card.label}: ${series.join(" to ")}`} floor={trend?.floor} confirmed={trend?.confirmed} />
           <ul className="flex flex-wrap gap-x-4 gap-y-1 text-meta text-text-secondary" aria-label="Timestamped readings">
-            {series.map((value, i) => <li key={i} className={cn("num", trend?.confirmed?.[i] === false && "italic text-text-muted")}>
+            {series.map((value, i) => <li key={i} className={cn("num", trend?.confirmed?.[i] === false && "italic text-text-muted")}
+              data-source={trend?.from_monitor?.[i] ? "monitor" : undefined}>
               {trend?.times[i] ? hhmm(trend.times[i]) : "time unknown"} <b className="font-semibold text-text-primary">{value}</b>{trend?.confirmed?.[i] === false ? " (to confirm)" : ""}</li>)}
           </ul>
+          {monitorShare(trend) && <p className="flex items-center gap-1.5 text-meta text-text-muted" data-testid="trend-source">
+            <Monitor size={13} aria-hidden />{monitorShare(trend)}</p>}
           {trend?.significant && rule && <p className="text-meta text-text-muted">Flagged: {rule}</p>}
         </> : latest && <p className="text-meta text-text-muted">One reading so far · the trend appears with the next</p>}
       </div>

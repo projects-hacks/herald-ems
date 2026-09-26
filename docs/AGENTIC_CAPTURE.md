@@ -1,6 +1,6 @@
 # Agentic capture: setup and rehearsal
 
-S9 is opt-in. The medic remains responsible for confirming every camera reading and resolving label mismatches. A matching ingredient label does **not** establish the dose, route, patient, or administration. The feature provides no treatment recommendation.
+S9 is opt-in. Readings the camera takes from the patient monitor are device readings and are recorded confirmed (owner's decision 2026-09-26, `config/confirmation.yaml` `monitor_readings`), except one the jump check holds (`config/capture.yaml` `monitor.jump`); the medic confirms every other camera reading, can correct any value, and resolves label mismatches. A matching ingredient label does **not** establish the dose, route, patient, or administration. The feature provides no treatment recommendation.
 
 ## Current verification boundary
 
@@ -20,7 +20,7 @@ npm test
 npm run build
 ```
 
-The replay integration test exercises monitor changes, unconfirmed readings, a mismatching vial without adding home medications, manual capture while auto is off, and used-frame retention. Separate tests exercise the fake speech extractor, gates, rate/speech priority, matching/ambiguous codes, explicit edits, stale patient controls, and redaction failures.
+The replay integration test exercises monitor changes recorded as confirmed device readings, a mismatching vial without adding home medications, manual capture while auto is off, and used-frame retention. Separate tests exercise the fake speech extractor, gates, rate/speech priority, matching/ambiguous codes, explicit edits, stale patient controls, and redaction failures.
 
 Latest workflow checkpoint, 2026-09-25: full Python suite **884 passed**; UI **128 passed**; TypeScript/production build passed. Isolated Chromium checked 30 screens across desktop/tablet/phone and both themes with no page errors, horizontal overflow, visible workspace buttons below 48 px or visible text below 13 px. Synthetic browser media verified capture across care-page navigation and track release on Stop. These are functional regression results, not inference-performance measurements or physical-camera acceptance.
 

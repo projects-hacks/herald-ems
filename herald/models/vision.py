@@ -1,7 +1,8 @@
 """Photo -> facts with the local vision-language model (prompts and ranges: config/prompts/vision.yaml).
 
-Every fact from a photo starts unconfirmed; the medic taps to confirm. Reading only: no ECG interpretation, no
-advice. Readings outside the (tighter) photo plausibility ranges are dropped, and an SBP at or below its DBP
+Every fact from a photo starts unconfirmed; the medic taps to confirm. (A monitor-watch read of the framed patient
+monitor is re-attributed to the device by herald/capture/reading.py and confirmed by config/confirmation.yaml
+`monitor_readings`.) Reading only: no ECG interpretation, no advice. Readings outside the (tighter) photo plausibility ranges are dropped, and an SBP at or below its DBP
 drops the pair. Drug names on a label are normalized to RxNorm by the injected `FactCoder`."""
 from __future__ import annotations
 

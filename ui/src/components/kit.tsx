@@ -163,13 +163,14 @@ export function SeverityBadge({ severity, className }: { severity: "abnormal" | 
 /** Where a value came from, as a small labelled glyph: camera (a photo), monitor (a device feed), voice, or typed.
  *  Shown wherever a value appears, not only in the full Facts tab, so a photo-read vital is never mistaken for a
  *  spoken one on the tiles. `aria-label` carries the word for screen readers. */
-export function SourceIcon({ capturedBy, hasAudio, className }: {
-  capturedBy: "medic" | "other" | "device" | "camera"; hasAudio?: boolean; className?: string;
+export function SourceIcon({ capturedBy, role, hasAudio, className }: {
+  capturedBy: "medic" | "other" | "device" | "camera"; role?: string; hasAudio?: boolean; className?: string;
 }) {
-  // camera -> a photo, device -> a monitor feed, an audio clip -> spoken, otherwise typed. A spoken value is
-  // captured_by "medic"/"other" with an audio_id, not a distinct source value, so voice is keyed off hasAudio.
-  const [Icon, label] = capturedBy === "camera" ? [Camera, "photo"]
-    : capturedBy === "device" ? [Monitor, "monitor"]
+  // device (a monitor feed) or the camera reading the patient monitor (role "device") -> the monitor, any other
+  // camera read -> a photo, an audio clip -> spoken, otherwise typed. A spoken value is captured_by "medic"/"other"
+  // with an audio_id, not a distinct source value, so voice is keyed off hasAudio.
+  const [Icon, label] = capturedBy === "device" || (capturedBy === "camera" && role === "device") ? [Monitor, "monitor"]
+    : capturedBy === "camera" ? [Camera, "photo"]
     : hasAudio ? [Mic, "voice"] : [Keyboard, "typed"];
   return <Icon size={13} aria-label={label} className={cn("shrink-0 text-text-muted", className)} />;
 }

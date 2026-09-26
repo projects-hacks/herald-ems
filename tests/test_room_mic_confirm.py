@@ -6,7 +6,7 @@ from herald.core.schema import CapturedBy, FactIn, Provenance, Role, Status
 from herald.core.vocabulary import default_vocabulary
 from herald.extraction.verify import FactVerifier
 
-POLICY = ConfirmationPolicy(default_vocabulary(), 0.8, (True, frozenset({"allergies", "meds.given", "patient.name"})))
+POLICY = ConfirmationPolicy(default_vocabulary(), 0.8, room_mic=(True, frozenset({"allergies", "meds.given", "patient.name"})))
 
 
 def heard(key, value, *, checked=True, confidence=0.95, hold=None, role=Role.unknown, by=CapturedBy.other):
@@ -37,7 +37,7 @@ def test_unchecked_unsure_held_or_attributed_facts_still_wait():
 
 
 def test_off_by_config_keeps_every_room_mic_fact_for_a_tap():
-    off = ConfirmationPolicy(default_vocabulary(), 0.8, (False, frozenset()))
+    off = ConfirmationPolicy(default_vocabulary(), 0.8, room_mic=(False, frozenset()))
     assert off.initial_status(heard("vitals.hr", 96), None, 96) == Status.unconfirmed
 
 

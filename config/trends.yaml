@@ -7,13 +7,19 @@ change_rules:
   vitals.spo2: {falls_by: 3, falls_below: 92, text: "SpO2 fell by 3 points or more, or dropped below 92%"}
   vitals.rr: {abs_change: 6, text: "RR changed by 6/min or more"}
   vitals.glucose: {abs_change: 50, text: "Glucose changed by 50 mg/dL or more"}
+  # Trended for display only: the camera reads EtCO2 off the patient monitor (config/prompts/vision.yaml), so its
+  # readings get a series like the other monitor vitals. No significant-change threshold has been reviewed for it, so
+  # it has none: it never raises a change alert and never adds a handoff trend line (herald/core/trends.py
+  # `significant` is false with no threshold field).
+  vitals.etco2: {text: "EtCO2 trend (display only: no change rule reviewed)"}
 
 # Which facts a trend point may come from.
 #
 # Confirmed facts always count. A reading that is still waiting for the medic's tap counts too when it came from one
 # of these sources, so the camera watching the patient monitor produces a trend point and can raise a
-# significant_change alert immediately, instead of staying silent until somebody taps. A camera fact is born
-# unconfirmed by design (herald/core/confirmation.py), so without this the whole monitor-watch loop was invisible.
+# significant_change alert immediately, instead of staying silent until somebody taps. Since 2026-09-26 a camera read
+# of the patient monitor is recorded confirmed (config/confirmation.yaml `monitor_readings`), so this matters for the
+# readings still waiting: one the capture agent's jump check held, a one-shot photo, or a structured device feed.
 #
 # Nothing here changes what leaves the vehicle. The relay (herald/relay/relay.py) and the handoff report
 # (herald/reporting/view.py) read `confirmed_only=True` and are untouched: an unconfirmed reading can raise an alert

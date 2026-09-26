@@ -62,7 +62,8 @@ def test_synthetic_rehearsal_through_capture_api(tmp_path):
     assert client.get("/api/state").json()["facts"]["vitals.hr"]["value"] == 95
     now[0] += capture_config()["monitor"]["min_interval_s"] + 1; feed(1, stable=True)  # past the configured spacing
     assert client.get("/api/state").json()["facts"]["vitals.hr"]["value"] == 110
-    assert all(f.status.value == "unconfirmed" for f in ctx.incident.facts)
+    # Monitor-watch readings are device readings: recorded confirmed, attributed to the monitor.
+    assert all(f.status.value == "confirmed" and f.role.value == "device" for f in ctx.incident.facts)
     client.delete("/api/capture/roi")
     now[0] += 11
     client.post("/api/facts", json=[{"key": "meds.given", "value": {"drug": "Narcan", "dose": .4, "unit": "mg", "by": "crew"}}])

@@ -116,7 +116,7 @@ def defib_monitor(spec: dict, cfg: dict, rng: random.Random):
     text(d, (420, 16), "SpO2 %", "sans_bold", 34, (70, 200, 255))
     f["vitals.spo2"] = text(d, (420, 60), str(v["vitals.spo2"]), "sans_bold", 150, (70, 200, 255))
     text(d, (780, 16), "EtCO2 mmHg", "sans_bold", 30, (250, 220, 60))
-    text(d, (780, 60), str(spec.get("etco2", 38)), "sans_bold", 96, (250, 220, 60))
+    f["vitals.etco2"] = text(d, (780, 60), str(v["vitals.etco2"]), "sans_bold", 96, (250, 220, 60))   # a monitor key
     text(d, (780, 190), "RR", "sans_bold", 30, (250, 220, 60))
     f["vitals.rr"] = text(d, (860, 180), str(v["vitals.rr"]), "sans_bold", 80, (250, 220, 60))
     _wave(d, (20, 300, W - 20, 440), "ecg", v["vitals.hr"], (60, 230, 90))
