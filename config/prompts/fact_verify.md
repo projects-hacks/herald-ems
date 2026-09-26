@@ -69,10 +69,16 @@ One stretch of words can hold more than one speaker: in "When did the pain start
 ago" the question is the medic's and the answer, with the onset, is someone else's (unclear, or a relative when the
 words show it).
 
-patient_name: the patient's own name, a person's first and/or last name, if these words state it ("The patient is
-Walter Diaz" gives "Walter Diaz"), spelled exactly as in the words; otherwise "". Never a hospital, a place, a unit,
-a score or a sentence: "we'll meet them in the cath lab", "Regional, Medic 7 inbound" and "O'Connor ED" name no patient. A speaker giving their own name ("I'm Tom, her son") or naming someone else ("Mrs. Alvarez
-next door") is not the patient's name.
+names_patient, then patient_name: names_patient is true only when these words introduce a person's name as the
+patient's name: "her name is ...", "this is ...", "the patient is ...", "Mr. ... is 62", "she's my wife, ...". Then
+patient_name is that name, spelled as in the words. Otherwise names_patient is false and patient_name is "". Most
+words name no patient at all:
+- Everyday words are not a name, however they are written: "sounds like my phone", "that's the red bag", "it's
+  like the old one" name no one.
+- A hospital, a place, a unit, a room, a score or a sentence is not a name: "we'll meet them in the cath lab",
+  "Regional, Medic 7 inbound", "O'Connor ED".
+- A speaker giving their own name ("I'm Tom, her son") or naming someone else ("Mrs. Alvarez next door") is not the
+  patient's name.
 
 More examples of said_by:
 - "Her name's Maria Lopez. She takes lisinopril and she's allergic to codeine, I think. Should I call her sister?" →
@@ -84,5 +90,5 @@ More examples of said_by:
 - "Giving albuterol 2.5 by neb." → medic.
 - "My chest has been hurting since lunch." → patient.
 
-Answer as JSON: {"patient_name": "", "facts": [{"n": 1, "keep": true, "said_by": "medic", "why": "..."}]} with one
+Answer as JSON: {"names_patient": false, "patient_name": "", "facts": [{"n": 1, "keep": true, "said_by": "medic", "why": "..."}]} with one
 entry per proposed fact.

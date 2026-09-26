@@ -41,7 +41,9 @@ def said_by_choices(vocab: Vocabulary) -> list[str]:
 def schema_for(n: int, said_by: Optional[list[str]] = None) -> dict:
     """Exactly one verdict per proposed fact: an empty answer would otherwise read as "keep everything". With no
     facts the model is asked only for the name (an empty array of verdicts is not a schema the server accepts)."""
-    props: dict = {"patient_name": {"type": "string", "pattern": NAME_PATTERN}}
+    # first whether the words introduce the patient's name at all, then the name: asked for the name alone, the model
+    # gave "Regional" for "transporting to Regional" and "CT" for "they'll meet us in CT"
+    props: dict = {"names_patient": {"type": "boolean"}, "patient_name": {"type": "string", "pattern": NAME_PATTERN}}
     if n:
         item = {"n": {"type": "integer", "minimum": 1, "maximum": n}, "keep": {"type": "boolean"}}
         if said_by:
@@ -53,8 +55,8 @@ def schema_for(n: int, said_by: Optional[list[str]] = None) -> dict:
 
 
 def _words(text: str) -> str:
-    """The words with punctuation dropped and letter case kept."""
-    return re.sub(r"[^\w]+", " ", text).strip()
+    """The words, lowercase, punctuation dropped: speech to text does not capitalise names reliably."""
+    return re.sub(r"[^\w]+", " ", text.lower()).strip()
 
 
 @dataclass
@@ -92,7 +94,7 @@ class FactVerifier:
         data = self.model.chat_json(self.system, user, schema=schema_for(len(facts), self.said_by),
                                     max_tokens=max(MAX_TOKENS, 64 + TOKENS_PER_FACT * len(facts)))
         verdict = {a["n"]: a for a in data.get("facts", []) if isinstance(a.get("n"), int)}
-        result = CheckResult([], [], self._name(data.get("patient_name"), words))
+        result = CheckResult([], [], self._name(data.get("patient_name"), words) if data.get("names_patient") is True else None)
         for i, f in enumerate(facts, start=1):
             a = verdict.get(i)
             if a is not None and a.get("keep") is False:
@@ -109,9 +111,8 @@ class FactVerifier:
 
     @staticmethod
     def _name(name, words: str) -> Optional[str]:
-        """The model's name for the patient, only if those words are in what was said, spelled and capitalised as
-        said: it reads a name, never invents one. Speech to text writes a name capitalised, so "it's like my band"
-        is not the name "My Band" (room mic, 2026-09-26)."""
+        """The model's name for the patient, only if those words are in what was said: it reads a name, never
+        invents one. Whether the words name the patient at all is the model's call (config/prompts/fact_verify.md)."""
         name = " ".join(str(name or "").split())
         # a name is a few words; a whole clause here is the model copying the sentence, not reading a name
         if not name or not _words(name) or len(name.split()) > MAX_NAME_WORDS or f" {_words(name)} " not in f" {_words(words)} ":

@@ -25,7 +25,7 @@ class _Judge:
 
     def chat_json(self, system, user, *, schema=None, **_):
         self.seen.append((system, user, schema))
-        return {"patient_name": self.name,
+        return {"names_patient": bool(self.name), "patient_name": self.name,
                 "facts": [{"n": n, "keep": True, "said_by": w, "why": "scripted"} for n, w in self.said_by.items()]}
 
 
@@ -41,9 +41,9 @@ def test_the_answer_is_limited_to_the_vocabulary_words_and_a_name():
     s = schema_for(2, FactVerifier(_Judge({}), VOCAB).said_by)
     said_by = s["properties"]["facts"]["items"]["properties"]["said_by"]["enum"]
     assert {"medic", "patient", "husband", "neighbor", "relative", "unclear"} <= set(said_by)
-    assert list(s["properties"]) == ["patient_name", "facts"]                 # the name before the facts
+    assert list(s["properties"]) == ["names_patient", "patient_name", "facts"]   # whether, then the name, then facts
     assert list(s["properties"]["facts"]["items"]["properties"]) == ["n", "keep", "said_by", "why"]
-    assert list(schema_for(0, said_by)["properties"]) == ["patient_name"]     # no facts: asked only for the name
+    assert list(schema_for(0, said_by)["properties"]) == ["names_patient", "patient_name"]   # no facts: only the name
 
 
 def test_a_name_is_read_from_the_words_never_invented():
@@ -52,7 +52,7 @@ def test_a_name_is_read_from_the_words_never_invented():
     assert read("Robert Chen", "He's 62 and his chest hurts.") is None                  # not in the words
     assert read("RACE of six, screens positive for LVO", "RACE of six, screens positive for LVO.") is None
     assert read("", "Clearing St. Luke's.") is None
-    assert read("My Band", "It's like my band.") is None                               # not a name as said
+    assert read("Linda Chen", "yeah she is my wife linda chen") == "Linda Chen"        # speech to text in lowercase
 
 
 def heard(key, value, heard_as, role, *, confidence=0.95):
@@ -130,3 +130,10 @@ def test_a_new_alert_is_named_by_its_label_not_its_key():
     after = {**before, "alerts": {("confirm_required", "patient.name")},
              "alert_labels": {("confirm_required", "patient.name"): alert["label"]}}
     assert TraceRecorder.diff(before, after)["alerts_new"] == [{"type": "confirm_required", "label": "Patient name (reported)"}]
+
+
+def test_a_name_counts_only_when_the_words_introduce_it_as_the_patients():
+    class Says:
+        def chat_json(self, *a, **k):
+            return {"names_patient": False, "patient_name": "Regional"}   # a name-shaped answer, but not the patient's
+    assert FactVerifier(Says(), VOCAB).read("Transporting to Regional, ETA 12 minutes.", []).patient_name is None

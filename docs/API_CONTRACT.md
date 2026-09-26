@@ -327,9 +327,10 @@ GET /api/telemetry  →  200
 The room microphone cannot tell voices apart, so the check step (`herald/extraction/verify.py`, prompt
 `config/prompts/fact_verify.md`, model `herald-f`) reads it from the words. For every utterance, including one with no
 proposed facts, it answers per fact `said_by`: `medic`, `patient`, a word from `config/vocabulary.yaml` `people` for
-who someone is to the patient (`husband`, `neighbor`, `relative`...), or `unclear`; and `patient_name` when the words
-state the patient's name (grammar-limited to up to four capitalised words, and kept only if those words are in what
-was said).
+who someone is to the patient (`husband`, `neighbor`, `relative`...), or `unclear`; then `names_patient` (do these
+words introduce a person's name as the patient's?) and `patient_name`. The name is kept only when `names_patient` is
+true and the name's words are in what was said (letter case ignored: speech to text does not capitalise names
+reliably); it is grammar-limited to a name's shape, up to four words.
 
 - **Fact provenance:** `provenance.heard_as` is the check step's answer for a kept fact (absent when unclear or not
   checked). A room-mic fact then carries `role` (`medic`/`patient`/`family`/`bystander`) and `speaker` (`"husband"`);

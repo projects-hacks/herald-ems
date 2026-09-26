@@ -12,11 +12,13 @@ its answer per fact against the labeled role:
               medic's own report may confirm itself (config/confirmation.yaml room_mic)
 
 Sets: gold_v1 and gold_v2 (100 utterances each, roles labeled by two annotators; mostly the medic's report, with
-family, patient and bystander attributions), and live_speaker_v1 (our own room-microphone demo runs, 2026-09-26,
+family, patient and bystander attributions), live_names_v1 (every distinct room-microphone clip from our runs, 43,
+labeled with the patient name each states or none; it scores names and false names only), and live_speaker_v1
+(our own room-microphone demo runs, 2026-09-26,
 labeled by hand; garbled clips left out). The patient's name is scored on every utterance: found when the words state
 it, and a false name when they don't.
 
-    python eval/bench_speaker.py [--runs 3] [--sets gold_v1 gold_v2 live_speaker_v1] [--out eval/dumps/bench_speaker.json]
+    python eval/bench_speaker.py [--runs 3] [--sets gold_v1 gold_v2 live_speaker_v1 live_names_v1] [--out eval/dumps/bench_speaker.json]
 """
 from __future__ import annotations
 
@@ -106,7 +108,7 @@ def score_set(name: str, verifier: FactVerifier, vocab) -> dict:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--sets", nargs="+", default=["gold_v1", "gold_v2", "live_speaker_v1"])
+    ap.add_argument("--sets", nargs="+", default=["gold_v1", "gold_v2", "live_speaker_v1", "live_names_v1"])
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--model", default="herald-f")
     ap.add_argument("--url", default="http://127.0.0.1:8080/v1")

@@ -6,29 +6,28 @@
     "utterances": 100,
     "facts": 269,
     "errors": 0,
-    "correct": 246,
-    "unclear": 4,
-    "wrong": 19,
-    "accuracy_when_answered": 0.928,
-    "correct_of_all": 0.914,
+    "correct": 251,
+    "unclear": 2,
+    "wrong": 16,
+    "accuracy_when_answered": 0.94,
+    "correct_of_all": 0.933,
     "unsafe": 1,
     "not_medic_facts": 56,
     "unsafe_rate": 0.018,
     "medic_facts": 213,
-    "medic_recognised": 0.92,
+    "medic_recognised": 0.944,
     "names": 0,
     "names_found": 0,
-    "false_names": 2,
+    "false_names": 0,
     "confusion": {
      "bystander->bystander": 4,
      "bystander->family": 3,
      "family->family": 39,
      "family->medic": 1,
      "family->unclear": 1,
-     "medic->family": 13,
-     "medic->medic": 196,
-     "medic->patient": 2,
-     "medic->unclear": 2,
+     "medic->family": 11,
+     "medic->medic": 201,
+     "medic->patient": 1,
      "patient->patient": 7,
      "patient->unclear": 1
     },
@@ -40,74 +39,56 @@
       "text": "She's usually alert and chatty, but today she only opens her eyes when you pinch her."
      }
     ],
-    "seconds_median": 1.54
+    "seconds_median": 1.72
    },
    "gold_v2": {
     "utterances": 100,
     "facts": 320,
     "errors": 0,
-    "correct": 295,
+    "correct": 297,
     "unclear": 7,
-    "wrong": 18,
-    "accuracy_when_answered": 0.942,
-    "correct_of_all": 0.922,
-    "unsafe": 4,
+    "wrong": 16,
+    "accuracy_when_answered": 0.949,
+    "correct_of_all": 0.928,
+    "unsafe": 1,
     "not_medic_facts": 82,
-    "unsafe_rate": 0.049,
+    "unsafe_rate": 0.012,
     "medic_facts": 238,
-    "medic_recognised": 0.92,
+    "medic_recognised": 0.924,
     "names": 0,
     "names_found": 0,
-    "false_names": 3,
+    "false_names": 0,
     "confusion": {
-     "bystander->bystander": 5,
-     "bystander->family": 1,
-     "family->family": 58,
-     "family->medic": 4,
+     "bystander->bystander": 2,
+     "bystander->family": 3,
+     "bystander->medic": 1,
+     "family->family": 62,
      "family->unclear": 1,
-     "medic->family": 7,
-     "medic->medic": 219,
+     "medic->family": 6,
+     "medic->medic": 220,
      "medic->patient": 6,
      "medic->unclear": 6,
      "patient->patient": 13
     },
     "unsafe_examples": [
      {
-      "id": "v2_046",
-      "key": "patient.age",
-      "gold": "family",
-      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
-     },
-     {
-      "id": "v2_046",
+      "id": "v2_068",
       "key": "complaint.chief",
-      "gold": "family",
-      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
-     },
-     {
-      "id": "v2_046",
-      "key": "symptom.onset",
-      "gold": "family",
-      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
-     },
-     {
-      "id": "v2_046",
-      "key": "allergies",
-      "gold": "family",
-      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
+      "gold": "bystander",
+      "text": "Collapsed at the checkout line about twenty minutes ago per the store manager, witnessed. Gaze is deviated left, right arm's flaccid, and he"
      }
     ],
-    "seconds_median": 1.98
+    "seconds_median": 2.15
    },
    "live_speaker_v1": {
     "utterances": 37,
     "facts": 101,
     "errors": 0,
-    "correct": 95,
+    "correct": 93,
     "unclear": 3,
-    "wrong": 3,
-    "accuracy_when_answered": 0.969,
-    "correct_of_all": 0.941,
+    "wrong": 5,
+    "accuracy_when_answered": 0.949,
+    "correct_of_all": 0.921,
     "unsafe": 3,
     "not_medic_facts": 28,
     "unsafe_rate": 0.107,
@@ -117,8 +98,9 @@
     "names_found": 2,
     "false_names": 0,
     "confusion": {
-     "family->family": 22,
+     "family->family": 20,
      "family->medic": 3,
+     "family->patient": 2,
      "family->unclear": 3,
      "medic->medic": 73
     },
@@ -142,7 +124,28 @@
       "text": "His name is Robert Chen. He's 62. He started having chest pain about 45 minutes ago while shoveling snow and he's sweating a lot."
      }
     ],
-    "seconds_median": 1.51
+    "seconds_median": 1.77
+   },
+   "live_names_v1": {
+    "utterances": 43,
+    "facts": 0,
+    "errors": 0,
+    "correct": 0,
+    "unclear": 0,
+    "wrong": 0,
+    "accuracy_when_answered": 0.0,
+    "correct_of_all": 0.0,
+    "unsafe": 0,
+    "not_medic_facts": 0,
+    "unsafe_rate": 0.0,
+    "medic_facts": 0,
+    "medic_recognised": 0.0,
+    "names": 3,
+    "names_found": 3,
+    "false_names": 0,
+    "confusion": {},
+    "unsafe_examples": [],
+    "seconds_median": 0.34
    }
   },
   {
@@ -150,29 +153,29 @@
     "utterances": 100,
     "facts": 269,
     "errors": 0,
-    "correct": 246,
-    "unclear": 4,
-    "wrong": 19,
-    "accuracy_when_answered": 0.928,
-    "correct_of_all": 0.914,
+    "correct": 252,
+    "unclear": 2,
+    "wrong": 15,
+    "accuracy_when_answered": 0.944,
+    "correct_of_all": 0.937,
     "unsafe": 1,
     "not_medic_facts": 56,
     "unsafe_rate": 0.018,
     "medic_facts": 213,
-    "medic_recognised": 0.92,
+    "medic_recognised": 0.948,
     "names": 0,
     "names_found": 0,
-    "false_names": 2,
+    "false_names": 0,
     "confusion": {
-     "bystander->bystander": 4,
-     "bystander->family": 3,
-     "family->family": 39,
+     "bystander->bystander": 5,
+     "bystander->family": 2,
+     "family->family": 38,
      "family->medic": 1,
+     "family->patient": 1,
      "family->unclear": 1,
-     "medic->family": 13,
-     "medic->medic": 196,
-     "medic->patient": 2,
-     "medic->unclear": 2,
+     "medic->family": 8,
+     "medic->medic": 202,
+     "medic->patient": 3,
      "patient->patient": 7,
      "patient->unclear": 1
     },
@@ -184,77 +187,59 @@
       "text": "She's usually alert and chatty, but today she only opens her eyes when you pinch her."
      }
     ],
-    "seconds_median": 1.52
+    "seconds_median": 1.64
    },
    "gold_v2": {
     "utterances": 100,
     "facts": 320,
     "errors": 0,
-    "correct": 295,
-    "unclear": 7,
-    "wrong": 18,
-    "accuracy_when_answered": 0.942,
-    "correct_of_all": 0.922,
-    "unsafe": 4,
+    "correct": 297,
+    "unclear": 9,
+    "wrong": 14,
+    "accuracy_when_answered": 0.955,
+    "correct_of_all": 0.928,
+    "unsafe": 1,
     "not_medic_facts": 82,
-    "unsafe_rate": 0.049,
+    "unsafe_rate": 0.012,
     "medic_facts": 238,
-    "medic_recognised": 0.92,
+    "medic_recognised": 0.929,
     "names": 0,
     "names_found": 0,
-    "false_names": 3,
+    "false_names": 0,
     "confusion": {
-     "bystander->bystander": 5,
-     "bystander->family": 1,
-     "family->family": 58,
-     "family->medic": 4,
-     "family->unclear": 1,
-     "medic->family": 7,
-     "medic->medic": 219,
+     "bystander->bystander": 2,
+     "bystander->family": 3,
+     "bystander->medic": 1,
+     "family->family": 61,
+     "family->unclear": 2,
+     "medic->family": 4,
+     "medic->medic": 221,
      "medic->patient": 6,
-     "medic->unclear": 6,
+     "medic->unclear": 7,
      "patient->patient": 13
     },
     "unsafe_examples": [
      {
-      "id": "v2_046",
-      "key": "patient.age",
-      "gold": "family",
-      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
-     },
-     {
-      "id": "v2_046",
+      "id": "v2_068",
       "key": "complaint.chief",
-      "gold": "family",
-      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
-     },
-     {
-      "id": "v2_046",
-      "key": "symptom.onset",
-      "gold": "family",
-      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
-     },
-     {
-      "id": "v2_046",
-      "key": "allergies",
-      "gold": "family",
-      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
+      "gold": "bystander",
+      "text": "Collapsed at the checkout line about twenty minutes ago per the store manager, witnessed. Gaze is deviated left, right arm's flaccid, and he"
      }
     ],
-    "seconds_median": 1.97
+    "seconds_median": 2.12
    },
    "live_speaker_v1": {
     "utterances": 37,
     "facts": 101,
     "errors": 0,
     "correct": 92,
-    "unclear": 6,
-    "wrong": 3,
-    "accuracy_when_answered": 0.968,
+    "unclear": 2,
+    "wrong": 7,
+    "accuracy_when_answered": 0.929,
     "correct_of_all": 0.911,
-    "unsafe": 3,
+    "unsafe": 5,
     "not_medic_facts": 28,
-    "unsafe_rate": 0.107,
+    "unsafe_rate": 0.179,
     "medic_facts": 73,
     "medic_recognised": 1.0,
     "names": 2,
@@ -262,8 +247,9 @@
     "false_names": 0,
     "confusion": {
      "family->family": 19,
-     "family->medic": 3,
-     "family->unclear": 6,
+     "family->medic": 5,
+     "family->patient": 2,
+     "family->unclear": 2,
      "medic->medic": 73
     },
     "unsafe_examples": [
@@ -284,9 +270,42 @@
       "key": "symptom.onset",
       "gold": "family",
       "text": "His name is Robert Chen. He's 62. He started having chest pain about 45 minutes ago while shoveling snow and he's sweating a lot."
+     },
+     {
+      "id": "live_33",
+      "key": "symptom.onset",
+      "gold": "family",
+      "text": "When did the pain start? She started having chest pain about like 40 minutes ago."
+     },
+     {
+      "id": "live_33",
+      "key": "complaint.chief",
+      "gold": "family",
+      "text": "When did the pain start? She started having chest pain about like 40 minutes ago."
      }
     ],
-    "seconds_median": 1.44
+    "seconds_median": 1.75
+   },
+   "live_names_v1": {
+    "utterances": 43,
+    "facts": 0,
+    "errors": 0,
+    "correct": 0,
+    "unclear": 0,
+    "wrong": 0,
+    "accuracy_when_answered": 0.0,
+    "correct_of_all": 0.0,
+    "unsafe": 0,
+    "not_medic_facts": 0,
+    "unsafe_rate": 0.0,
+    "medic_facts": 0,
+    "medic_recognised": 0.0,
+    "names": 3,
+    "names_found": 3,
+    "false_names": 0,
+    "confusion": {},
+    "unsafe_examples": [],
+    "seconds_median": 0.32
    }
   },
   {
@@ -294,29 +313,29 @@
     "utterances": 100,
     "facts": 269,
     "errors": 0,
-    "correct": 246,
-    "unclear": 4,
-    "wrong": 19,
-    "accuracy_when_answered": 0.928,
-    "correct_of_all": 0.914,
+    "correct": 252,
+    "unclear": 2,
+    "wrong": 15,
+    "accuracy_when_answered": 0.944,
+    "correct_of_all": 0.937,
     "unsafe": 1,
     "not_medic_facts": 56,
     "unsafe_rate": 0.018,
     "medic_facts": 213,
-    "medic_recognised": 0.92,
+    "medic_recognised": 0.948,
     "names": 0,
     "names_found": 0,
-    "false_names": 2,
+    "false_names": 0,
     "confusion": {
-     "bystander->bystander": 4,
-     "bystander->family": 3,
-     "family->family": 39,
+     "bystander->bystander": 5,
+     "bystander->family": 2,
+     "family->family": 38,
      "family->medic": 1,
+     "family->patient": 1,
      "family->unclear": 1,
-     "medic->family": 13,
-     "medic->medic": 196,
-     "medic->patient": 2,
-     "medic->unclear": 2,
+     "medic->family": 8,
+     "medic->medic": 202,
+     "medic->patient": 3,
      "patient->patient": 7,
      "patient->unclear": 1
     },
@@ -328,77 +347,59 @@
       "text": "She's usually alert and chatty, but today she only opens her eyes when you pinch her."
      }
     ],
-    "seconds_median": 1.52
+    "seconds_median": 1.64
    },
    "gold_v2": {
     "utterances": 100,
     "facts": 320,
     "errors": 0,
-    "correct": 295,
-    "unclear": 7,
-    "wrong": 18,
-    "accuracy_when_answered": 0.942,
-    "correct_of_all": 0.922,
-    "unsafe": 4,
+    "correct": 297,
+    "unclear": 9,
+    "wrong": 14,
+    "accuracy_when_answered": 0.955,
+    "correct_of_all": 0.928,
+    "unsafe": 1,
     "not_medic_facts": 82,
-    "unsafe_rate": 0.049,
+    "unsafe_rate": 0.012,
     "medic_facts": 238,
-    "medic_recognised": 0.92,
+    "medic_recognised": 0.929,
     "names": 0,
     "names_found": 0,
-    "false_names": 3,
+    "false_names": 0,
     "confusion": {
-     "bystander->bystander": 5,
-     "bystander->family": 1,
-     "family->family": 58,
-     "family->medic": 4,
-     "family->unclear": 1,
-     "medic->family": 7,
-     "medic->medic": 219,
+     "bystander->bystander": 2,
+     "bystander->family": 3,
+     "bystander->medic": 1,
+     "family->family": 61,
+     "family->unclear": 2,
+     "medic->family": 4,
+     "medic->medic": 221,
      "medic->patient": 6,
-     "medic->unclear": 6,
+     "medic->unclear": 7,
      "patient->patient": 13
     },
     "unsafe_examples": [
      {
-      "id": "v2_046",
-      "key": "patient.age",
-      "gold": "family",
-      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
-     },
-     {
-      "id": "v2_046",
+      "id": "v2_068",
       "key": "complaint.chief",
-      "gold": "family",
-      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
-     },
-     {
-      "id": "v2_046",
-      "key": "symptom.onset",
-      "gold": "family",
-      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
-     },
-     {
-      "id": "v2_046",
-      "key": "allergies",
-      "gold": "family",
-      "text": "He's three. The barky cough started last night around eleven, and he's never had anything like this. No allergies."
+      "gold": "bystander",
+      "text": "Collapsed at the checkout line about twenty minutes ago per the store manager, witnessed. Gaze is deviated left, right arm's flaccid, and he"
      }
     ],
-    "seconds_median": 1.97
+    "seconds_median": 2.12
    },
    "live_speaker_v1": {
     "utterances": 37,
     "facts": 101,
     "errors": 0,
     "correct": 92,
-    "unclear": 6,
-    "wrong": 3,
-    "accuracy_when_answered": 0.968,
+    "unclear": 2,
+    "wrong": 7,
+    "accuracy_when_answered": 0.929,
     "correct_of_all": 0.911,
-    "unsafe": 3,
+    "unsafe": 5,
     "not_medic_facts": 28,
-    "unsafe_rate": 0.107,
+    "unsafe_rate": 0.179,
     "medic_facts": 73,
     "medic_recognised": 1.0,
     "names": 2,
@@ -406,8 +407,9 @@
     "false_names": 0,
     "confusion": {
      "family->family": 19,
-     "family->medic": 3,
-     "family->unclear": 6,
+     "family->medic": 5,
+     "family->patient": 2,
+     "family->unclear": 2,
      "medic->medic": 73
     },
     "unsafe_examples": [
@@ -428,9 +430,42 @@
       "key": "symptom.onset",
       "gold": "family",
       "text": "His name is Robert Chen. He's 62. He started having chest pain about 45 minutes ago while shoveling snow and he's sweating a lot."
+     },
+     {
+      "id": "live_33",
+      "key": "symptom.onset",
+      "gold": "family",
+      "text": "When did the pain start? She started having chest pain about like 40 minutes ago."
+     },
+     {
+      "id": "live_33",
+      "key": "complaint.chief",
+      "gold": "family",
+      "text": "When did the pain start? She started having chest pain about like 40 minutes ago."
      }
     ],
-    "seconds_median": 1.44
+    "seconds_median": 1.75
+   },
+   "live_names_v1": {
+    "utterances": 43,
+    "facts": 0,
+    "errors": 0,
+    "correct": 0,
+    "unclear": 0,
+    "wrong": 0,
+    "accuracy_when_answered": 0.0,
+    "correct_of_all": 0.0,
+    "unsafe": 0,
+    "not_medic_facts": 0,
+    "unsafe_rate": 0.0,
+    "medic_facts": 0,
+    "medic_recognised": 0.0,
+    "names": 3,
+    "names_found": 3,
+    "false_names": 0,
+    "confusion": {},
+    "unsafe_examples": [],
+    "seconds_median": 0.32
    }
   }
  ]
