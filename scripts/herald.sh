@@ -258,10 +258,11 @@ print_urls() {
 Herald is up.  From your laptop:
     ssh -L $PORT:localhost:$PORT -L $ED_PORT:localhost:$ED_PORT $(whoami)@$ip
 then open
-    medic screen      http://localhost:$PORT
+    home page         http://localhost:$PORT
+    medic screen      http://localhost:$PORT/app/
     ED screen         http://localhost:$ED_PORT
     monitor to film   http://localhost:$PORT/monitor.html
-    recorded call     http://localhost:$PORT/?fixture=stroke_demo
+    recorded call     http://localhost:$PORT/app/?fixture=stroke_demo
 (the SSH tunnel makes the page "localhost", which the browser requires for the microphone and camera)
 Logs: scripts/herald.sh logs      Stop: scripts/herald.sh down
 EOF

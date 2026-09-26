@@ -10,9 +10,9 @@ import time
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, Request, WebSocket
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 from .auth import DeviceTokenMiddleware
 from .context import AppContext, build_context, wire_capture
@@ -138,6 +138,21 @@ def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
         return FileResponse(root / "web" / "capture.html")
     ui_dist = root / "ui" / "dist"
     use_new_ui = ctx.settings.ui == "new" and (ui_dist / "index.html").exists()
+    landing = ui_dist / "landing" / "index.html"
+    if use_new_ui and landing.exists():
+        # The landing page is the homepage; the medic dashboard lives at /app/ (its ?fixture= replay links too).
+        @app.get("/", include_in_schema=False)
+        async def home():
+            return FileResponse(landing)
+
+        @app.get("/app", include_in_schema=False)
+        async def dashboard_slash(request: Request):
+            query = request.url.query
+            return RedirectResponse("/app/" + (f"?{query}" if query else ""), status_code=307)
+
+        @app.get("/app/", include_in_schema=False)
+        async def dashboard():
+            return FileResponse(ui_dist / "index.html")
     app.mount("/classic", StaticFiles(directory=str(root / "web"), html=True), name="classic")
     app.mount("/", StaticFiles(directory=str(ui_dist if use_new_ui else root / "web"), html=True), name="web")
     return app
