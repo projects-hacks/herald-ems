@@ -41,32 +41,51 @@ A paramedic treats, remembers and reports at the same time.
 | **One-tap handover** | A spoken MIST / SBAR report from confirmed facts, frozen and sent at hand over, with a FHIR R4 export; the next patient starts clean. |
 | **The medic decides** | Herald never recommends treatment. Scores, checklists and what gets sent are plain, tested code; protocol text is the county's own. |
 
-## Measured results (held-out test set, 3 runs each)
+## Metrics: what we measured, how, and why
 
-| Extractor (speech → facts) | F1 | Precision | Recall | Who said it | Latency p50 / p95 |
-|---|---|---|---|---|---|
-| Nemotron-3-Nano-Omni 30B-A3B, prompted | 0.661 | 0.69 | 0.63 | 0.84 | 0.95 / 1.9 s |
-| **Qwen3-4B fine-tuned on this box, FP8 (live)** | **0.950** | **0.96** | **0.94** | **0.97** | 1.1-1.5 / 2.4-3.1 s |
+Every number below was measured on the HP ZGX Nano, on data the models never saw during training, and each is
+repeated 3 times unless stated. The scripts are in `eval/` and write their results to `eval/results.jsonl`.
 
-- **99.4%** of the medic's facts that confirmed themselves were correct (160 of 161 on the held-out set).
-- **0 facts lost, 0 duplicates** across 20 seeds at 50% packet loss with 420-byte packets.
-- **1,746** numbered protocol sections recovered from 32 county documents, none spurious; with local reranking the
-  right passage is first for 41 of 52 questions.
-- **Drug names to RxNorm on the box:** precision 0.933 → 0.956, nothing lost across 42 runs.
-- **0 cloud AI calls:** every model loads from local folders; a running server makes no outbound connection except
-  the ED relay and the protocol sync, both through one egress policy.
+### The test data
 
-### Why these metrics
+- **Speech to facts:** a held-out gold set of 100 EMS utterances with 320 facts (`eval/gold_v2.jsonl`), plus a
+  100-utterance every-call set covering drugs given, procedures, GCS, EtCO2, trauma and 12-lead findings. Each set
+  was written and labeled by two independent annotators who never saw the extractors or the training data; they
+  agreed at F1 0.979 before adjudication (`eval/agreement.py`).
+- **Protocols:** Santa Clara County's 32 current EMS documents, with an answer key built by CPU tools only, and 52
+  in-scope plus 7 out-of-scope questions.
+- **Relay:** a fixed, confirmed stroke record sent through the real relay, so the result measures the link and not
+  the model.
 
-- **F1** counts both wrong and missed facts; each hurts a patient in a different way.
-- **Who said it**: a family member's words are not the medic's finding.
-- **Latency**: the medic is working live; the record has to keep up with speech.
-- **Self-confirmed accuracy**: those facts skip the medic's tap, so they carry the strictest bar.
-- **Packet loss**: ambulances lose signal; nothing confirmed may be lost or duplicated on the way to the ED.
-- **Protocol recovery and retrieval**: a quoted rule is only useful if it is the county's exact text.
+### Results
 
-Gold sets were written and labeled by two independent annotators (agreement F1 0.979) who never saw the extractors
-or training data. Method and every run: [`docs/MODEL_PLAN.md`](docs/MODEL_PLAN.md).
+| Metric | What it measures | How we measured it | Result | Why we chose it |
+|---|---|---|---|---|
+| **F1, speech to facts** | How many facts are right, counting both wrong and missed facts | Gold v2 text through the served extractor; each fact scored as (key, normalized value), list items one by one (`eval/bench_extract.py`) | **0.950** fine-tuned Qwen3-4B vs **0.661** prompted 30B model (Nemotron-3-Nano-Omni) | A wrong fact and a missed fact both hurt a patient; F1 penalises both |
+| **Precision / recall** | Share of recorded facts that are correct / share of said facts that are recorded | Same run | **0.96 / 0.94** | Shows the balance: few invented facts, few missed ones |
+| **Who said it** | Whether each correct fact is credited to the right person (medic, patient, family) | Role accuracy on matched facts, same run | **0.97** | A family member's words are not the medic's finding |
+| **Latency** | Time from words to facts | Per-utterance wall time on the box, p50 / p95, FP8 serving | **1.1 to 1.5 s / 2.4 to 3.1 s**; Whisper transcribes a 10 s clip in about 0.3 s | The medic works live; the record must keep up with speech |
+| **Self-confirmed accuracy** | Of the medic's facts that entered the record without a tap, how many were right | Confidence threshold 0.8 calibrated on a dev set, applied to the held-out set (`eval/calibrate_confidence.py`) | **99.4%** (160 of 161 correct) | These facts skip the medic's check, so they need the strictest bar |
+| **Every call type** | Drugs given, procedures, GCS, EtCO2, trauma and 12-lead findings | Every-call set, same scoring | **F1 0.84** | Herald has to work on every call, not only stroke |
+| **Drug names** | Brands, misspellings and combinations mapped to RxNorm on the box | Same predictions scored with and without coding, 42 saved runs | Precision **0.933 to 0.956**, nothing lost | A drug recorded under the wrong name is a safety risk |
+| **Relay under packet loss** | Whether confirmed facts arrive exactly once when half the sends fail | 20 seeds, 50% of sends failing, 420-byte packets (`tests/test_relay.py`) | **0 lost, 0 duplicates** | Ambulances lose signal; nothing may be lost or sent twice |
+| **Relay on a weak link** | Speed of the first critical update over a throttled real link | Real HTTP through the link emulator at 1 KB/s and 800 ms latency, 3 runs (`eval/bench_relay.py`, `docs/RELAY_BENCHMARK.md`) | First critical packet **409 B**, acknowledged in **1.43 s**; 13% of the full record | The ED needs the critical facts first, even on one bar |
+| **Protocol recovery** | Whether every numbered section of the county documents is found, and nothing invented | Against the CPU-built answer key (`eval/bench_protocols.py`) | **1,746 of 1,746** sections, none spurious; Table B's 168 cells exact | A quoted rule is only useful if it is the county's exact text |
+| **Protocol retrieval** | Whether the right passage comes first for a question | 52 questions; keyword and embedding search, then the local model reranks | Right passage first **41 of 52**, top 3 **43 of 52**; 4 of 7 out-of-scope questions refused | The medic asks by voice and reads one answer |
+| **Cloud calls** | Whether anything calls a cloud AI service | Every outbound request passes one egress policy that logs and counts it (`GET /api/egress`) | **0** | Privacy, and working with no signal |
+
+### How to reproduce
+
+```bash
+python eval/bench_extract.py --extractor llm --model ems-e-v2-fp8 --gold eval/gold_v2.jsonl   # F1, roles, latency
+python eval/calibrate_confidence.py                                                          # self-confirmed accuracy
+python eval/bench_protocols.py                                                               # protocol recovery and retrieval
+python -m pytest -q tests/test_relay.py                                                      # relay at 50% loss
+python eval/bench_relay.py --runs 3                                                          # weak-link relay (see docs/RELAY_BENCHMARK.md)
+```
+
+The fact numbers are measured from transcripts (gold text through the extractor); speech to text is measured
+separately. The full method and every run are in [`docs/MODEL_PLAN.md`](docs/MODEL_PLAN.md).
 
 ## Demo and links
 

@@ -70,9 +70,9 @@ describe("landing page", () => {
     for (const c of COMPARISON) expect(readme).toContain(c.f1.toFixed(3));
     expect(COMPARISON.find((c) => c.ours)?.f1).toBe(0.95);
     expect(COMPARISON.find((c) => !c.ours)?.f1).toBe(0.661);
-    expect(readme).toContain("0 facts lost, 0 duplicates** across 20 seeds at 50% packet loss");
+    expect(readme).toContain("**0 lost, 0 duplicates**");
     // 99.4% = 160 of the 161 self-confirmed medic facts, as README.md states it
-    expect(readme).toContain("(160 of 161 on the held-out set)");
+    expect(readme).toContain("(160 of 161 correct)");
     expect(((160 / 161) * 100).toFixed(1)).toBe("99.4");
     expect(STATS.map((s) => s.value)).toContain("0");
     render(<LandingApp />);
