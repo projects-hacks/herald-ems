@@ -18,6 +18,7 @@ export default defineConfig({
       input: {
         now: resolve(import.meta.dirname, "index.html"),
         deck: resolve(import.meta.dirname, "deck.html"),
+        landing: resolve(import.meta.dirname, "landing/index.html"),
       },
     },
   },

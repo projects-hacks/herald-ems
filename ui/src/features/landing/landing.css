@@ -1,0 +1,168 @@
+/* Landing page (landing/index.html). Built only from the Herald tokens in styles/tokens.css, so both themes hold. */
+/* In the components layer, so Tailwind utilities on the same element (max-lg:hidden, pt-8, ...) still win. */
+@layer components {
+
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+.lp-root {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text-primary);
+  overflow-x: clip;
+}
+
+.lp-container { width: 100%; max-width: 1200px; margin-inline: auto; padding-inline: 16px; }
+@media (min-width: 640px) { .lp-container { padding-inline: 24px; } }
+
+.lp-section { position: relative; padding-block: 112px; }
+@media (max-width: 640px) { .lp-section { padding-block: 80px; } }
+
+.lp-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: .8125rem; font-weight: 650; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--accent);
+}
+.lp-h2 {
+  margin-top: 14px;
+  font-size: clamp(1.875rem, 3.6vw, 2.75rem); line-height: 1.1; font-weight: 700; letter-spacing: -.035em;
+  text-wrap: balance;
+}
+.lp-lede { max-width: 38rem; font-size: 1.0625rem; line-height: 1.65; color: var(--text-secondary); text-wrap: pretty; }
+
+/* ── Navigation ───────────────────────────────────────────────────────────── */
+.lp-nav {
+  position: sticky; top: 0; z-index: 40;
+  border-bottom: 1px solid transparent;
+  transition: background-color .25s ease, border-color .25s ease, backdrop-filter .25s ease;
+}
+.lp-nav[data-scrolled="true"] {
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  border-bottom-color: var(--border-subtle);
+  backdrop-filter: saturate(160%) blur(14px);
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
+}
+.lp-navlink { font-size: .875rem; font-weight: 500; color: var(--text-secondary); transition: color .15s ease; }
+.lp-navlink:hover { color: var(--text-primary); }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.lp-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 44px; padding-inline: 20px; border-radius: 999px;
+  font-size: .9375rem; font-weight: 600; white-space: nowrap;
+  transition: transform .15s ease, background-color .15s ease, box-shadow .2s ease, border-color .15s ease;
+}
+.lp-btn:active { transform: translateY(1px); }
+.lp-btn-primary {
+  background: var(--accent-fill); color: var(--on-accent-fill);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent), 0 10px 30px -10px var(--accent);
+}
+.lp-btn-primary:hover { box-shadow: 0 0 0 1px var(--accent), 0 14px 40px -10px var(--accent); }
+.lp-btn-ghost { color: var(--text-primary); background: var(--surface-1); border: 1px solid var(--glass-border-hi); }
+.lp-btn-ghost:hover { background: var(--surface-2); }
+.lp-btn-sm { height: 36px; padding-inline: 14px; font-size: .875rem; }
+
+/* ── Hero ────────────────────────────────────────────────────────────────── */
+.lp-hero { position: relative; padding-top: 72px; padding-bottom: 40px; isolation: isolate; }
+@media (max-width: 640px) { .lp-hero { padding-top: 48px; } }
+.lp-hero-glow {
+  position: absolute; inset: -140px 0 auto; height: 900px; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(42% 38% at 50% 18%, var(--orb-a), transparent 70%),
+    radial-gradient(34% 30% at 78% 34%, var(--orb-b), transparent 70%),
+    radial-gradient(30% 28% at 20% 40%, var(--orb-b), transparent 70%);
+}
+.lp-hero-grid {
+  position: absolute; inset: -80px 0 auto; height: 760px; z-index: -1; pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--border-subtle) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border-subtle) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 60% 55% at 50% 30%, #000 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 60% 55% at 50% 30%, #000 30%, transparent 75%);
+}
+.lp-pill {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 6px 14px 6px 8px; border-radius: 999px;
+  font-size: .8125rem; font-weight: 550; color: var(--text-secondary);
+  background: color-mix(in srgb, var(--surface-1) 80%, transparent);
+  border: 1px solid var(--glass-border-hi);
+  backdrop-filter: blur(8px);
+}
+.lp-pill-dot { position: relative; width: 8px; height: 8px; border-radius: 999px; background: var(--ok-fg); }
+.lp-pill-dot::after {
+  content: ""; position: absolute; inset: -4px; border-radius: inherit; background: var(--ok-fg); opacity: .35;
+  animation: lp-ping 2.2s cubic-bezier(0, 0, .2, 1) infinite;
+}
+@keyframes lp-ping { 75%, 100% { transform: scale(2.2); opacity: 0; } }
+
+.lp-h1 {
+  font-size: clamp(2.5rem, 6.4vw, 4.75rem); line-height: 1.02; font-weight: 750; letter-spacing: -.045em;
+  text-wrap: balance;
+}
+.lp-gradient-text {
+  background: linear-gradient(100deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 45%, var(--low-fg)) 55%, var(--low-fg) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* the ECG trace under the headline: one heartbeat drawn, then it keeps pulsing */
+.lp-ecg path {
+  stroke-dasharray: 1400; stroke-dashoffset: 1400;
+  animation: lp-draw 2.4s .3s cubic-bezier(.65, 0, .35, 1) forwards, lp-glow 3.2s 2.7s ease-in-out infinite;
+}
+@keyframes lp-draw { to { stroke-dashoffset: 0; } }
+@keyframes lp-glow { 50% { opacity: .45; } }
+
+.lp-shot {
+  position: relative; border-radius: 20px; padding: 8px;
+  background: linear-gradient(180deg, var(--glass-border-hi), transparent 60%);
+  box-shadow: 0 40px 120px -40px color-mix(in srgb, var(--accent) 45%, transparent), var(--shadow-3);
+}
+.lp-shot-inner { overflow: hidden; border-radius: 14px; border: 1px solid var(--glass-border); background: var(--surface-1); }
+.lp-shot-bar { display: flex; align-items: center; gap: 6px; height: 34px; padding-inline: 14px; border-bottom: 1px solid var(--glass-border); background: var(--surface-1); }
+.lp-shot-bar i { width: 10px; height: 10px; border-radius: 999px; background: var(--surface-3); }
+.lp-shot-fade { position: absolute; inset: auto 0 -2px; height: 38%; pointer-events: none; background: linear-gradient(to bottom, transparent, var(--bg) 92%); }
+
+.lp-float {
+  position: absolute; z-index: 2;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: 14px;
+  background: var(--glass-3); border: 1px solid var(--glass-border-hi); box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(12px);
+  animation: lp-bob 6s ease-in-out infinite;
+}
+.lp-float:nth-of-type(2) { animation-delay: -3s; }
+@keyframes lp-bob { 50% { transform: translateY(-8px); } }
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+.lp-card {
+  position: relative; border-radius: 20px;
+  background: linear-gradient(180deg, var(--surface-1), color-mix(in srgb, var(--surface-1) 60%, var(--bg)));
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--glass-edge);
+  transition: border-color .2s ease, transform .2s ease, background-color .2s ease;
+}
+.lp-card-hover:hover { border-color: color-mix(in srgb, var(--accent) 30%, var(--border-subtle)); transform: translateY(-2px); }
+.lp-icon {
+  display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px;
+  color: var(--accent); background: var(--accent-tint);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.lp-divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border-subtle) 20%, var(--border-subtle) 80%, transparent); }
+
+/* ── Scroll reveal ───────────────────────────────────────────────────────── */
+.lp-reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s cubic-bezier(.2, .7, .2, 1), transform .7s cubic-bezier(.2, .7, .2, 1); }
+.lp-reveal.is-shown { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-reveal { opacity: 1; transform: none; transition: none; }
+  .lp-ecg path { animation: none; stroke-dashoffset: 0; }
+  .lp-float, .lp-pill-dot::after { animation: none; }
+}
+/* The app's own reduced-motion switch (also set by ?still, for screenshots and print captures) */
+[data-reduced-motion="true"] .lp-reveal { opacity: 1; transform: none; transition: none; }
+[data-reduced-motion="true"] .lp-ecg path { animation: none; stroke-dashoffset: 0; }
+[data-reduced-motion="true"] .lp-root *, [data-reduced-motion="true"] .lp-root *::after { animation: none !important; transition: none !important; }
+@media print { .lp-reveal { opacity: 1; transform: none; } .lp-nav { position: static; } }
+}
