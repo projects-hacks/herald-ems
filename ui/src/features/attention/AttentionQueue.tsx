@@ -18,6 +18,7 @@ import type { Alert, FactView, NeedItem, Snapshot } from "@/lib/types";
 import { readingCards, readingText, type ReadingCard } from "@/lib/copilot";
 import { cn } from "@/lib/utils";
 import { ActionButton, ActionNote, usePendingAction } from "@/components/ActionButton";
+import { DrugCodes } from "@/components/DrugCodes";
 import { AudioEvidence } from "@/components/AudioEvidence";
 import { activeSync } from "@/lib/selectors";
 import { CorrectFactDialog } from "@/components/CorrectFactDialog";
@@ -113,7 +114,7 @@ function ReadingRow({ c }: { c: ReadingCard }) {
 
 function TapRow({ f }: { f: FactView }) {
   return (
-    <Row cat={catOf(f.key)} title={f.label} value={factValue(f)} severity={f.severity}
+    <Row cat={catOf(f.key)} title={f.label} value={<>{factValue(f)}<DrugCodes f={f} /></>} severity={f.severity}
       was={f.previous_value !== null && f.previous_value !== undefined ? factValue({ value: f.previous_value, unit: f.unit }) : undefined}
       meta={<FactMeta f={f} />} actions={<ConfirmActions fact={f} />} />
   );
@@ -133,6 +134,7 @@ function HeardGroup({ facts }: { facts: FactView[] }) {
       <ul className="heard-facts">{facts.map((f) => <li key={f.id} data-severity={f.severity}>
         <span className="heard-what"><span className="heard-label">{f.label}</span>
           <span className="heard-value">{factValue(f)}</span>
+          <DrugCodes f={f} />
           {/* A value the medic is being asked to confirm shows its clinical severity, so an out-of-range reading is
               obvious at the point of decision. Backend-computed and scope-gated (no colour for children/pregnancy). */}
           {f.severity && <span className="heard-severity" data-severity={f.severity}><TriangleAlert size={12} aria-hidden />{f.severity === "critical" ? "critical" : "out of range"}</span>}

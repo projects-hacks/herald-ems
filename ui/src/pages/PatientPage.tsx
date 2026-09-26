@@ -8,6 +8,7 @@ import { GROUP_CAT } from "@/lib/categories";
 import { factValue, formatValue, hhmm, sourceName } from "@/lib/format";
 import { allFacts, groupFacts } from "@/lib/selectors";
 import { AudioEvidence } from "@/components/AudioEvidence";
+import { DrugCodes } from "@/components/DrugCodes";
 import { useHerald } from "@/lib/store";
 import type { FactView } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -32,8 +33,9 @@ function FactRow({ f }: { f: FactView }) {
           <span className={cn("text-body font-semibold", sev && TEXT[sev.tone])}>{factValue(f)}</span>
           {f.severity && <SeverityBadge severity={f.severity} />}
         </span>
+        <DrugCodes f={f} className="mt-1" />
         <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-meta text-text-muted">
-          <SourceIcon capturedBy={f.captured_by} role={f.role} hasAudio={!!f.provenance.audio_id} />{sourceName(f)}{f.provenance.heard_as ? " (from the words)" : ""} · <span className="num">{hhmm(f.ts)}</span>
+          <SourceIcon capturedBy={f.captured_by} role={f.role} hasAudio={!!f.provenance.audio_id} />{sourceName(f)}{f.provenance.heard_as && f.captured_by === "other" ? " (from the words)" : ""} · <span className="num">{hhmm(f.ts)}</span>
           {f.previous_value !== null && f.previous_value !== undefined && <span>· was {formatValue(f.previous_value)}</span>}
           {f.verify?.status === "match" && <span>· label seen ✓ (ingredient only)</span>}
         </span>

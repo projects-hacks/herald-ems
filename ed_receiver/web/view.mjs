@@ -35,7 +35,7 @@ export function alertBadges(fields, alerts, keys = {}) {
     const met = score !== undefined && score.v !== keys[alert.score]?.not_met;
     if (!list && !met) return [];
     const detail = [met ? 'criteria met' : null, list ? `pre-alert ${list.done}/${list.total}${list.ready ? ' ready' : ''}` : null];
-    return [{ text: alert.text, tone: alert.tone ?? 'critical', detail: detail.filter(Boolean).join(' · ') }];
+    return [{ text: alert.text, tone: alert.tone ?? 'critical', detail: detail.filter(Boolean).join(' · '), activate: alert.activate ?? null }];
   });
 }
 

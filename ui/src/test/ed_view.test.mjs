@@ -47,7 +47,11 @@ it('shows an alert badge only for an open checklist or a met criteria score the 
   const open = alertBadges({ 'alert.readiness': { v: 'STEMI alert 5/5 ready' } }, alerts, scoreKeys);
   expect(open.map((b) => b.text)).toEqual(['STEMI ALERT']); expect(open[0].detail).toBe('pre-alert 5/5 ready');
   const met = alertBadges({ 'score.stemi_700a08': { v: 'met (STEMI interpretation documented)' }, 'score.sepsis_700a04': { v: 'not met' } }, alerts, scoreKeys);
-  expect(met).toEqual([{ text: 'STEMI ALERT', tone: 'critical', detail: 'criteria met' }]);
+  expect(met).toEqual([{ text: 'STEMI ALERT', tone: 'critical', detail: 'criteria met', activate: null }]);
+  // an alert configured to ask the ED to act carries its action to the board
+  const act = { ack: 'cath_lab_activated', label: 'Activate cath lab', done: 'Cath lab activated' };
+  const withAct = alertBadges({ 'alert.readiness': { v: 'STEMI alert 5/5 ready' } }, alerts.map((x) => (x.checklist === 'stemi' ? { ...x, activate: act } : x)), scoreKeys);
+  expect(withAct[0].activate).toEqual(act);
 });
 it('writes age and sex from received fields only', () => {
   const header = { age: 'patient.age', sex: 'patient.sex' };

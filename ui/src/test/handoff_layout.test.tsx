@@ -153,9 +153,13 @@ describe("the record's evidence line", () => {
   afterEach(() => cleanup());
   it("says when the speaker was read from the words", () => {
     const s = structuredClone(recorded);
-    s.facts["stroke.lkw"].provenance = { ...s.facts["stroke.lkw"].provenance, heard_as: "husband" };
+    // the room microphone: the check step read the speaker from the words
+    s.facts["stroke.lkw"] = { ...s.facts["stroke.lkw"], captured_by: "other", role: "family", speaker: "husband",
+      provenance: { ...s.facts["stroke.lkw"].provenance, heard_as: "husband" } };
     useHerald.setState({ snapshot: s, source: "fixture", ui: initialUi("") });
     render(<PatientPage />);
     expect(screen.getAllByText(/husband \(from the words\)/)).toHaveLength(1);
+    // the medic's own mic already says who spoke: no "from the words" there
+    expect(screen.queryByText(/medic \(from the words\)/)).toBeNull();
   });
 });

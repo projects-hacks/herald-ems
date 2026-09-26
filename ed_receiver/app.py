@@ -197,6 +197,15 @@ async def reset():
     return {"ok": True}
 
 
+@app.post("/board/clear")
+async def clear_board():
+    """The ED team clears its own screen between patients. Only this screen forgets; every vehicle keeps its record,
+    and a new call arrives in full."""
+    INCIDENTS.clear()
+    await push()
+    return {"ok": True}
+
+
 @app.post("/incidents/{incident_id}/acknowledgements")
 async def acknowledge(incident_id: str, body: Acknowledgement):
     if body.status not in {"received", "cath_lab_activated"}:

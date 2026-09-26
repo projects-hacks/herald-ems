@@ -1,11 +1,16 @@
 # Display order and type scale for the ED wall (read from 2-3 m); no clinical decision rules.
 # The board shows only what the ambulance sent: every slot below that has no received value reads "not received".
 highlight_ms: 2000
+# Every incoming patient opens with a pre-alert banner across the board until the team acknowledges it; the
+# acknowledgement goes back to the ambulance (ed_receiver/app.py acknowledgements). `pre_alert` is the banner's default
+# action; an alert with its own `activate` (the cath lab for a STEMI) replaces it while that alert is live.
+pre_alert: {ack: received, label: Acknowledge pre-alert, done: Pre-alert acknowledged}
 # Header badges. A badge shows when the vehicle's open pre-alert checklist names it (the relayed `alert.readiness`
 # line; `checklist` is the id in config/checklists.yaml, whose label the server looks up) or when its published
 # criteria score arrived met (anything but that score's `relay_text_not_met`). tone: critical (red) | warning (amber).
 alerts:
-  - {checklist: stemi, text: STEMI ALERT, tone: critical, score: score.stemi_700a08}
+  - {checklist: stemi, text: STEMI ALERT, tone: critical, score: score.stemi_700a08,
+     activate: {ack: cath_lab_activated, label: Activate cath lab, done: Cath lab activated}}
   - {checklist: stroke, text: STROKE ALERT, tone: critical}
   - {checklist: trauma, text: TRAUMA ALERT, tone: critical, score: score.trauma_605}
   - {checklist: sepsis, text: SEPSIS ALERT, tone: warning, score: score.sepsis_700a04}

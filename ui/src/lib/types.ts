@@ -26,7 +26,8 @@ export interface Provenance {
   audio_id: string | null; t_start: number | null; t_end: number | null; text: string | null;
   photo_id: string | null; crop: [number, number, number, number] | null; extractor: string | null;
   hold_reason: string | null;       // why this fact waits for the medic's tap
-  normalized?: { said: string; coded: string; method: string }[];   // drug names as said → coded (§5.9d)
+  // drug and allergy names as said → coded (§5.9d): RxNorm or ICD-10-CM; a destination match uses "county-facility"
+  normalized?: { said: string; value?: string | null; system?: string | null; code?: string | null; method: string; score?: number | null }[];
   // Room-microphone speech: whose information the check step read this as, from the words alone ("medic", "patient",
   // "husband"); `role` and `speaker` are set from it. Absent on older snapshots and on every other source.
   heard_as?: string | null;

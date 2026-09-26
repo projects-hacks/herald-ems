@@ -90,3 +90,20 @@ def test_final_packet_keeps_who_told_us_and_the_board_renders_it():
         assert ".handover-who" in client.get("/screen.css").text
     finally:
         INCIDENTS.clear(); LINK["last_contact_at"] = None
+
+
+def test_the_team_can_clear_its_own_board_and_a_stemi_alert_asks_for_the_cath_lab():
+    client = _client()
+    client.post("/ingest", json={"i": "inc_a", "q": 1, "f": {"patient.age": 62}})
+    assert client.get("/state").json()["incidents"]
+    assert client.post("/board/clear").json() == {"ok": True}
+    assert client.get("/state").json()["incidents"] == {}                 # only the screen forgets
+    stemi = next(a for a in client.get("/api/meta").json()["display"]["alerts"] if a["checklist"] == "stemi")
+    assert stemi["activate"] == {"ack": "cath_lab_activated", "label": "Activate cath lab", "done": "Cath lab activated"}
+    page = client.get("/").text
+    assert 'id="clear-board"' in page
+
+
+def test_every_incoming_patient_opens_with_a_pre_alert_the_team_acknowledges():
+    display = _client().get("/api/meta").json()["display"]
+    assert display["pre_alert"] == {"ack": "received", "label": "Acknowledge pre-alert", "done": "Pre-alert acknowledged"}

@@ -50,8 +50,30 @@ const countdown = (arrival) => {
   return s >= 60 ? `${Math.floor(s / 60)} min` : s > 0 ? '<1 min' : `due +${Math.floor(-s / 60)} min`;
 };
 
+// ---------- the pre-alert banner ----------
+/** Every patient on the way opens with one banner across the board: who, where, when, and one action. The action is
+ *  the pre-alert acknowledgement (config/ed_display.yaml `pre_alert`), or, while an alert that asks the ED to act is
+ *  live, that alert's own (`activate`: the cath lab for a STEMI). The acknowledgement goes back to the crew. */
+function activation(incident, badges) {
+  if (incident.handover || incident.fields['encounter.disposition']) return null;
+  const badge = badges.find((b) => b.activate), act = badge?.activate ?? display?.pre_alert;
+  if (!act) return null;
+  const done = (incident.acknowledgements ?? []).filter((a) => a.status === act.ack).at(-1);
+  const lead = badge ?? badges[0], title = lead ? lead.text : 'Incoming ambulance', detail = lead?.detail ?? '';
+  const hdr = display?.header ?? {}, demo = ageSex(incident.fields, hdr), arrival = arrivalOf(incident);
+  const dest = incident.dest || incident.fields[hdr.destination ?? 'transport.destination']?.v;
+  const html = `<section class="activate ${done ? 'done' : ''}" aria-live="assertive">
+    <div class="act-text"><small>${done ? 'Pre-alert acknowledged' : 'New pre-alert · incoming ambulance'}</small>
+      <b>${esc(title)} · ${esc(incident.label || selected)}${demo ? ` · ${esc(demo)}` : ''}</b>
+      <span>${dest ? `to ${esc(formatValue(dest))}` : 'destination not received'}${arrival ? ` · ETA <b data-arrival="${arrival.at}">${countdown(arrival.at)}</b>` : ''}${detail ? ` · ${esc(detail)}` : ''}</span></div>
+    ${done ? `<p class="act-done"><b>✓ ${esc(act.done)} ${esc(hhmm(done.at))}</b><span>The ambulance crew sees this</span></p>`
+      : `<button id="ack-activate" class="act-btn" type="button">${esc(act.label)}</button>`}
+  </section>`;
+  return { html, ack: act.ack };
+}
+
 // ---------- sections ----------
-function header(incident, badges) {
+function header(incident, badges, act = null) {
   const f = incident.fields, hdr = display?.header ?? {};
   const what = f['impression.primary']?.v ?? f['complaint.chief']?.v;
   const destKey = hdr.destination ?? 'transport.destination';
@@ -77,8 +99,8 @@ function header(incident, badges) {
       ${badgeHtml ? `<div class="badges">${badgeHtml}</div>` : ''}
     </div>
     <div class="side"><div class="eta">${eta}</div>
-      <div class="actions"><button id="ack-received" class="${received ? 'done' : ''}">${received ? `✓ Received ${esc(hhmm(received.at))}` : 'Mark received'}</button>
-      <button id="ack-cath" class="cath ${cath ? 'done' : ''}">${cath ? `✓ Cath lab ${esc(hhmm(cath.at))}` : 'Cath lab activated'}</button></div></div>
+      <div class="actions">${act?.ack === 'received' ? '' : `<button id="ack-received" class="${received ? 'done' : ''}">${received ? `✓ Received ${esc(hhmm(received.at))}` : 'Mark received'}</button>`}
+      ${act?.ack === 'cath_lab_activated' || !badges.some((b) => b.activate?.ack === 'cath_lab_activated') ? '' : `<button id="ack-cath" class="cath ${cath ? 'done' : ''}">${cath ? `✓ Cath lab ${esc(hhmm(cath.at))}` : 'Cath lab activated'}</button>`}</div></div>
   </section>`;
 }
 
@@ -191,11 +213,14 @@ function render(view) {
     'impression.primary', ...(display?.safety ?? []), ...(display?.vitals ?? []).flatMap((v) => v.keys), ...(display?.findings ?? []),
     ...(display?.scores ?? []), ...(display?.care ?? [])]);
   const open = new Set([...$('root').querySelectorAll('details[open]')].map((d) => d.className));   // survive a re-render
-  $('root').innerHTML = `${header(incident, badges)}${changed(incident, max)}${renderHandover(incident)}${safety(incident, recent)}${vitals(incident, recent)}
+  const act = activation(incident, badges);
+  $('root').innerHTML = `${act ? act.html : ''}${header(incident, badges, act)}${changed(incident, max)}${renderHandover(incident)}${safety(incident, recent)}${vitals(incident, recent)}
     <div class="columns">${findings(incident, recent)}${treatments(incident)}</div>${others(incident, recent, used)}${history(incident)}${link(incident)}`;
   $('root').querySelectorAll('details').forEach((d) => { if (open.has(d.className)) d.open = true; });
-  $('ack-received').onclick = () => acknowledge(selected, 'received');
-  $('ack-cath').onclick = () => acknowledge(selected, 'cath_lab_activated');
+  if ($('ack-received')) $('ack-received').onclick = () => acknowledge(selected, 'received');
+  if ($('ack-cath')) $('ack-cath').onclick = () => acknowledge(selected, 'cath_lab_activated');
+  const actButton = $('ack-activate');
+  if (act && actButton) actButton.onclick = () => { actButton.disabled = true; void acknowledge(selected, act.ack, false).finally(() => { actButton.disabled = false; }); };
   const handoverAck = $('ack-handover');
   if (handoverAck) handoverAck.onclick = () => { handoverAck.disabled = true; void acknowledge(selected, 'received', false).finally(() => { handoverAck.disabled = false; }); };
   seen[selected] = max;
@@ -224,4 +249,13 @@ function tickClocks() {
   });
 }
 setInterval(() => { contact(); tickClocks(); if (lastView && selected && highlights[selected]?.until <= Date.now()) { delete highlights[selected]; render(lastView); } }, 1000);
+// Clearing the board takes two presses: the first asks, the second clears (it resets after a few seconds).
+let clearArmed = null;
+$('clear-board').onclick = async () => {
+  const b = $('clear-board');
+  if (!clearArmed) { b.textContent = 'Press again to clear every patient'; b.classList.add('armed'); clearArmed = setTimeout(() => { clearArmed = null; b.textContent = 'Clear board'; b.classList.remove('armed'); }, 4000); return; }
+  clearTimeout(clearArmed); clearArmed = null; b.textContent = 'Clear board'; b.classList.remove('armed');
+  manualSelection = false;
+  try { const r = await fetch('/board/clear', { method: 'POST' }); if (!r.ok) throw new Error(); } catch { window.alert('The board was not cleared. Check the ED receiver.'); }
+};
 connect();
