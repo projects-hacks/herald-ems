@@ -263,3 +263,13 @@ def test_ed_receiver_stores_the_final_packet_and_the_received_tap():
         assert client.get("/api/state").json()["relay"]["handover"]["received_at"] == ack.json()["at"]
     finally:
         INCIDENTS.clear(); LINK["last_contact_at"] = None
+
+
+def test_handover_records_who_took_the_patient_and_keeps_it_across_a_restore(tmp_path):
+    client, ctx = make_client()
+    row = client.post("/api/encounters/current/handover", headers=headers(ctx),
+                      json={"destination": "Valley Medical Center"}).json()["incident"]
+    assert row["handed_over_to"] == "Valley Medical Center"
+    from herald.api.encounters import decode_call, encode_call
+    saved = decode_call(ctx, encode_call(ctx.roster, ctx.relay))
+    assert saved.roster.incidents()[0].handed_over_to == "Valley Medical Center"

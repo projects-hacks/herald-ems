@@ -46,14 +46,16 @@ def hand_over(context, destination: Optional[str] = None) -> None:
         inc.arrived_at = inc.arrived_at or now
         inc.transferred_at = inc.transferred_at or now
         inc.handed_over_at = now
+        relay = context.relay
+        fact = inc.latest("transport.destination", confirmed_only=True)
+        where = destination or (str(fact.value) if fact and fact.value else None) or (
+            (relay.authorized or {}).get("destination") if isinstance(relay.authorized, dict) else None)
+        inc.handed_over_to = where
         report = context.handoff.build(inc)
         inc.handoff_final = {**report, "at": now.isoformat()}
         inc.audit_log.append({"at": now.isoformat(), "action": "handover", "actor": "medic",
                               "unconfirmed": len(report.get("not_yet_confirmed", []))})
-        relay = context.relay
         if relay.configured and not relay.authorized:
-            fact = inc.latest("transport.destination", confirmed_only=True)
-            where = destination or (str(fact.value) if fact and fact.value else None)
             if where:
                 label, alert_ids = context.pre_alert_scope()
                 relay.authorize(where, label, alert_ids)
@@ -70,7 +72,7 @@ def encode_call(roster, relay) -> dict:
             patients.append({"id": inc.id, "label": inc.patient_label, "dispatch": inc.dispatch,
                              **{key: getattr(inc, key).isoformat() if getattr(inc, key) else None
                                 for key in TIMES},
-                             "handoff_final": inc.handoff_final,
+                             "handoff_final": inc.handoff_final, "handed_over_to": inc.handed_over_to,
                              "facts": [f.model_dump(mode="json") for f in inc.facts],
                              "transcripts": inc.transcripts, "audit": inc.audit_log,
                              "news2": inc.news2_history, "media_disposal": inc.media_disposal,
@@ -87,7 +89,7 @@ def decode_call(context, payload: dict) -> SavedCall:
         inc.id, inc.patient_label, inc.dispatch = row["id"], row.get("label"), row.get("dispatch")
         for key in TIMES:
             setattr(inc, key, datetime.fromisoformat(row[key]) if row.get(key) else None)
-        inc.handoff_final = row.get("handoff_final")
+        inc.handoff_final, inc.handed_over_to = row.get("handoff_final"), row.get("handed_over_to")
         inc.facts = [Fact.model_validate(fact) for fact in row.get("facts", [])]
         inc.transcripts, inc.audit_log = row.get("transcripts", []), row.get("audit", [])
         inc.news2_history, inc.media_disposal = row.get("news2", []), row.get("media_disposal")

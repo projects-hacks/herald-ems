@@ -9,8 +9,10 @@ export interface HandoverStatus { tone: StatusTone; text: string }
 
 const confirmed = (s: Snapshot, key: string) => (s.facts[key]?.status === "confirmed" ? s.facts[key] : undefined);
 
-/** Where the patient is handed over: the authorized receiving ED, else the confirmed destination, else unknown. */
+/** Where the patient is handed over: once handed over, who took them (the server records it); before, the authorized
+ * receiving ED, else the confirmed destination, else unknown. */
 export function handoverDestination(s: Snapshot): string | null {
+  if (s.incident.handed_over_to) return s.incident.handed_over_to;
   const dest = confirmed(s, "transport.destination");
   return s.relay.authorized?.destination ?? (dest ? factValue(dest) : null);
 }

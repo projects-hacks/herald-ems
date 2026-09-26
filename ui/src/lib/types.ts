@@ -222,7 +222,7 @@ export interface Snapshot {
     // 2026-09-26: the one "hand over" step (POST /api/encounters/current/handover) sets handed_over_at together with
     // transferred_at and ended_at. `not_obtained` lists the required items the medic marked "unable to obtain"
     // (POST /api/handoff/not-obtained). Optional: older vehicles and recorded fixtures predate both.
-    handed_over_at?: string | null; not_obtained?: string[];
+    handed_over_at?: string | null; handed_over_to?: string | null; not_obtained?: string[];
     media_disposal: MediaDisposal | null;
   };
   patients: PatientSummary[];
