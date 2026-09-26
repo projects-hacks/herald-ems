@@ -128,6 +128,9 @@ class FhirDocument:
         if report["not_yet_known"]:
             sections.append({"title": hwords["missing_heading"],
                              "text": _narrative([g["text"] for g in report["not_yet_known"]])})
+        apart = [x["label"] for x in report.get("not_obtained", []) if not x.get("inline")]
+        if apart:
+            sections.append({"title": hwords["not_obtained_heading"], "text": _narrative(apart)})
         if report["not_yet_confirmed"]:
             sections.append({"title": hwords["unconfirmed_heading"],
                              "text": _narrative([u["label"] + (f" ({hwords['differs']})" if u["differs"] else "")

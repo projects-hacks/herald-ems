@@ -45,7 +45,7 @@ def test_camera_to_confirmed_trend_and_handoff_without_image_retention(tmp_path)
     assert any(alert["type"] == "significant_change" for alert in state["alerts"])
     report = client.get("/api/handoff").json()
     line = next(line for section in report["sections"] for line in section["lines"] if line["kind"] == "trend")
-    assert "132 mmHg at " in line["text"] and "88 mmHg at " in line["text"]
+    assert line["text"] == "SBP falling, 132 → 88"          # spoken handover: no seconds, time kept in sources
     assert line["sources"][0]["frame_id"] == "frame-0"
     assert line["sources"][0]["observed_at"] == first_time.isoformat()
     assert all(source["photo_id"] is None for source in line["sources"])
@@ -60,7 +60,7 @@ def test_camera_to_confirmed_trend_and_handoff_without_image_retention(tmp_path)
     assert packet["tl"][0]["o"] == first_time.isoformat()
     received = received_report(ctx.incident.id, {"first_at": first_time.isoformat(), "timeline": packet["tl"], "fields": {}})
     line = next(line for section in received["sections"] for line in section["lines"] if line["kind"] == "trend")
-    assert "132 mmHg at 17:00:00" in line["text"] and "88 mmHg at 17:02:00" in line["text"]
+    assert line["text"] == "SBP falling, 132 → 88" and line["sources"][0]["observed_at"] == first_time.isoformat()
 
 
 def test_received_lkw_elapsed_metadata_is_invalidated_on_change_or_withdrawal():

@@ -1,14 +1,14 @@
 """The handoff formats as reviewed content (config/handoff.yaml), loaded and checked once at startup."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any, Iterable
 
 from ..config import load_yaml
 
 REQUIRED_WORDS = ("missing", "empty_list", "arrow", "list_separator", "line_separator", "missing_heading",
-                  "unconfirmed_heading", "differs", "unit_no_space")
+                  "unconfirmed_heading", "differs", "unit_no_space", "not_obtained", "not_obtained_heading")
 
 
 def _flatten(lines: Iterable) -> list[dict]:
@@ -28,6 +28,8 @@ class HandoffConfig:
     value_text: dict[str, dict[str, str]]
     score_text: dict[str, dict[str, str]]
     time_format: str
+    # score id -> criterion id -> spoken templates (the first whose placeholders all have confirmed values)
+    criteria_say: dict[str, dict[str, list[str]]] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, d: dict) -> "HandoffConfig":
@@ -36,8 +38,10 @@ class HandoffConfig:
             sections = [{**s, "lines": _flatten(s.get("lines", []))} for s in f["sections"]]
             formats[fid] = {**f, "id": fid, "sections": sections}
         value_text = {k: {str(w).strip().lower(): str(t) for w, t in m.items()} for k, m in d["value_text"].items()}
+        say = {sid: {str(cid): [t] if isinstance(t, str) else list(t) for cid, t in (m or {}).items()}
+               for sid, m in (d.get("criteria_say") or {}).items()}
         return cls(formats, list(d.get("select", [])), d["default"], dict(d["words"]), value_text,
-                   d["score_text"], d["time_format"])
+                   d["score_text"], d["time_format"], say)
 
     @classmethod
     def from_config(cls, rel: str = "handoff.yaml") -> "HandoffConfig":
@@ -49,8 +53,9 @@ class HandoffConfig:
                 for spec in s["lines"]:
                     yield fid, s["id"], spec
 
-    def problems(self, vocabulary, scales, kinds: dict, checklist_ids: Iterable[str]) -> list[str]:
-        """Everything wrong with the content against the loaded vocabulary, scores, line kinds and checklists."""
+    def problems(self, vocabulary, scales, kinds: dict, checklist_ids: Iterable[str], trends=None) -> list[str]:
+        """Everything wrong with the content against the loaded vocabulary, scores, line kinds, checklists and (when
+        given) the trend change rules."""
         errs = [f"words: missing {w}" for w in REQUIRED_WORDS if w not in self.words]
         checklists = set(checklist_ids)
         known_formats = set(self.formats)
@@ -73,11 +78,12 @@ class HandoffConfig:
             if kind is None:
                 errs.append(f"{where}: unknown line kind {spec.get('kind')!r}")
                 continue
-            errs += [f"{where}: {e}" for e in kind.problems(spec, vocabulary, scales, self)]
+            errs += [f"{where}: {e}" for e in kind.problems(spec, vocabulary, scales, self, trends=trends)]
             gates = list(spec.get("when_checklists", []))
             if isinstance(spec.get("required"), list):
                 gates += spec["required"]
             errs += [f"{where}: unknown checklist {c!r}" for c in gates if c not in checklists]
+        errs += [f"criteria_say: unknown score {sid!r}" for sid in self.criteria_say if sid not in scales]
         for key in self.value_text:
             base = key if key in vocabulary else key.rsplit(".", 1)[0]
             if base not in vocabulary:

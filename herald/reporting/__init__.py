@@ -7,7 +7,8 @@ from .config import HandoffConfig, default_handoff_config
 from .fhir import FhirExport
 from .fhir_document import FhirDocument
 from .handoff import HandoffBuilder
-from .lines import LINE_KINDS, Line
+from .kinds import LINE_KINDS
+from .lines import Line
 
 __all__ = ["FhirDocument", "FhirExport", "HandoffBuilder", "HandoffConfig", "LINE_KINDS", "Line",
            "default_handoff_config"]

@@ -197,12 +197,14 @@ class AppContext:
 
 
 def build_handoff(config: HandoffConfig, vocab: Vocabulary, scales: ScaleRegistry, checklists: ChecklistEngine,
-                  settings: Settings) -> HandoffBuilder:
-    """The handoff report builder; refuses to start on content that doesn't match the vocabulary or scores."""
-    problems = config.problems(vocab, scales, LINE_KINDS, checklists.ids())
+                  settings: Settings, trends: Optional[TrendRules] = None) -> HandoffBuilder:
+    """The handoff report builder; refuses to start on content that doesn't match the vocabulary, scores or trend
+    rules."""
+    trends = trends or TrendRules.from_config()
+    problems = config.problems(vocab, scales, LINE_KINDS, checklists.ids(), trends)
     if problems:
         raise ValueError("config/handoff.yaml: " + "; ".join(problems))
-    return HandoffBuilder(config, vocab, scales, ZoneInfo(settings.timezone), settings.unit_id)
+    return HandoffBuilder(config, vocab, scales, ZoneInfo(settings.timezone), settings.unit_id, trends=trends)
 
 
 def build_context(settings: Optional[Settings] = None, *, text_model: Optional[TextModel] = None,
@@ -224,7 +226,7 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
         raise ValueError("config/corroboration.yaml: " + "; ".join(problems))
     batch = BatchConfirmation(vocab, corroboration)
     fhir = FhirExport.from_config(vocab, scales)
-    handoff = build_handoff(default_handoff_config(), vocab, scales, checklists, s)
+    handoff = build_handoff(default_handoff_config(), vocab, scales, checklists, s, trends)
     fhir_document = FhirDocument.from_config(fhir, handoff, s.unit_id)
     fhir_problems = fhir.problems() + fhir_document.problems()
     if fhir_problems:
