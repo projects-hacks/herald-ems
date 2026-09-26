@@ -71,7 +71,7 @@ class AppContext:
     relay: Optional[Relay] = None
     knowledge: Optional[KnowledgeService] = None
     cues: Optional[ProtocolCues] = None           # the county passage for the situation Herald recognises
-    fact_verifier: Optional[FactVerifier] = None   # keeps only what overheard words say about the patient
+    fact_verifier: Optional[FactVerifier] = None   # keeps only what the words say about the patient
     fhir: Optional[FhirExport] = None
     fhir_document: Optional[FhirDocument] = None
     roster: Optional[PatientRoster] = None
@@ -255,7 +255,7 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
     ctx.relay = Relay(lambda: ctx.roster.incidents(), s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir,
                       egress=egress, ed_token=s.ed_token)
     ctx.restored = ctx.restore()
-    if text_model is None:                                  # real deployment: the local model checks overheard facts
+    if text_model is None:                                  # real deployment: the local model checks spoken facts
         ctx.fact_verifier = FactVerifier(knowing)
     if s.knowledge:
         if embedder is None and text_model is None:        # real deployment; tests pass their own (or none)

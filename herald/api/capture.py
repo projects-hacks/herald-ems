@@ -205,8 +205,10 @@ class CaptureService:
             facts_in = await run_in_threadpool(partial(ctx.model_extractor.extract, dispatch=self.inc.dispatch),
                                                text, captured_by, default_role, speaker, audio_id)
             discarded: list = []
-            if overheard and facts_in and ctx.fact_verifier is not None:
-                try:                        # a second read: do these overheard words say this about the patient?
+            # Every utterance, the medic's own included: from "history of diabetes, hypertension" the extractor
+            # listed metformin, insulin and lisinopril as the patient's medications (8103 test, 2026-09-26).
+            if facts_in and ctx.fact_verifier is not None:
+                try:                        # a second read: do these words say this about the patient?
                     facts_in, discarded = await run_in_threadpool(ctx.fact_verifier.check, text, facts_in, self.inc.dispatch)
                 except Exception as e:      # not checked: every proposal stays, unconfirmed, and the trace says why
                     discarded = [{"error": f"not checked: {str(e)[:120]}"}]
