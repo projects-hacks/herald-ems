@@ -66,7 +66,9 @@ outcome is an explicit medic choice.
   a non-transport outcome after arrival or transfer was recorded. `POST /api/incident` takes `disposition` for the
   still-open current encounter (same rules). `Snapshot.incident.disposition` and `encounter_history[].disposition`
   carry it; it is audited and persisted. Arrive/transfer are refused after a non-transport outcome. The legacy
-  `/api/incident/end` leaves it unrecorded.
+  `/api/incident/end` leaves it unrecorded. `POST /api/encounters/current/handover` records `transported` itself
+  (handing over at a hospital is transport by this unit) and, when it authorizes the relay, uses that hospital's
+  receiver. On the Handoff page, **Not transported…** (shown until arrival is recorded) opens the outcome dialog.
 - **What the ED gets.** Two derived relay keys (`config/relay.yaml`, labels in `derived_labels`):
   `transport.eta_at` (tier 4, arrival logistics: the route arrival time, whole minutes, while this unit transports)
   and `encounter.disposition` (tier 1: the outcome's label when the encounter ended without transport by this unit,

@@ -5,7 +5,7 @@ import { AmbientCapture, initialAmbient } from "./ambient";
 export function useAmbient() {
   const incident = useHerald((s) => s.snapshot?.incident.id);
   // Capture belongs to one reviewed, open patient in one tab. Feed blips do not tear down uploads, which retry independently.
-  const blocked = useHerald((s) => s.source !== "live" || s.captureElsewhere || !!s.snapshot?.incident.ended_at || !!s.snapshot?.restored);
+  const blocked = useHerald((s) => s.source !== "live" || s.captureElsewhere || !!s.snapshot?.incident.ended_at || !!s.snapshot?.incident.handed_over_at || !!s.snapshot?.restored);
   const paused = useHerald((s) => s.ui.capturePaused);
   const [status, setStatus] = useState(initialAmbient);
   const capture = useRef<AmbientCapture | null>(null);

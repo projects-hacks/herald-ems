@@ -33,10 +33,14 @@ class Incident:
         self.arrived_at = None
         self.transferred_at = None
         self.disposition: Optional[str] = None   # config/dispositions.yaml id, chosen when finishing
+        self.handed_over_at = None                 # the one-tap hand over at the hospital (arrive + transfer + end)
+        self.handed_over_to: Optional[str] = None  # who took the patient: the destination named at hand over
+        self.handoff_final: Optional[dict] = None  # the handoff report frozen at that moment, with its "at"
         self.media_ids: dict[str, set[str]] = {"audio": set(), "photo": set(), "evidence": set()}
         self.media_disposal: Optional[dict] = None
         self.news2_history: list[dict] = []   # score history, recorded once per utterance by the projector
         self.ed_sync: dict[str, dict] = {}
+        self.not_obtained: list[str] = []     # required items marked "unable to obtain" (core/not_obtained.py)
         self.lock = threading.RLock()
 
     # ---------- ingest ----------

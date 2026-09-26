@@ -63,6 +63,15 @@ button{cursor:pointer}button[aria-pressed=true]{outline:3px solid var(--blue)}bu
 #report li{margin:14px 0;font-size:30px}details>summary{min-height:64px;padding:12px;cursor:pointer;font-weight:700}
 .journey-trend ol{display:flex;flex-wrap:wrap;gap:20px;list-style:none;padding:0}.journey-trend li{display:grid;gap:4px;padding:10px 20px;border-left:3px solid var(--blue)}
 .journey strong{font-size:var(--body-size,32px);font-family:var(--mono)}.journey time{font-size:22px;color:var(--muted)}.journey>ol>li{margin:14px 0}
+/* the vehicle's final packet: handed over, with the frozen report and one Received tap */
+.handover{border-color:rgb(52 211 153 / .55);background:linear-gradient(120deg,rgb(52 211 153 / .12),var(--glass))}
+.handover-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px}
+.handover-head h2{color:var(--ok);margin:0}
+.handover-ack{min-width:220px;font-weight:700;border:2px solid var(--ok);background:rgb(52 211 153 / .16)}
+.handover-received{margin:0;font-size:30px;font-weight:700;color:var(--ok)}
+.handover li{margin:10px 0;font-size:var(--body-size,32px)}
+#incoming.handed-over{border-color:rgb(52 211 153 / .55);background:linear-gradient(120deg,rgb(52 211 153 / .20),rgb(14 20 28 / .55))}
+#incoming.handed-over .kicker,#incoming.handed-over .eta b{color:var(--ok)}
 @media(max-width:1000px){.grid{grid-template-columns:1fr}:root{font-size:20px}#incoming .who{font-size:44px}#incoming .eta b{font-size:60px}header,main{padding:14px}}
 @media(prefers-reduced-motion:no-preference){.tile.new,.changed{animation:arrive .6s cubic-bezier(.05,.7,.1,1) backwards}}
 @keyframes arrive{from{transform:translateY(8px);box-shadow:0 0 0 6px rgb(34 211 238 / .35)}to{transform:none}}

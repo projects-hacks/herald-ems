@@ -1,4 +1,4 @@
-"""The check step on overheard speech (herald/extraction/verify.py): the extraction model proposes, a second model read
+"""The check step on speech (herald/extraction/verify.py): the extraction model proposes, a second model read
 keeps only what the words say about the patient, and overheard words with nothing clinical leave the record."""
 import io
 import time
@@ -32,7 +32,7 @@ def test_the_verifier_discards_what_it_rejects_and_keeps_the_rest():
     assert [f.key for f in kept] == ["vitals.hr"]
     assert gone == [{"key": "stroke.deficits", "value": ["model calls me ja"], "why": "scripted"}]
     system, user = judge.seen[0]
-    assert "overheard" in system.lower() and "model calls me ja" in user and "[2] vitals.hr = 95" in user
+    assert "paramedic's own report" in system and "overheard" in user.lower() and "model calls me ja" in user and "[2] vitals.hr = 95" in user
 
 
 def test_a_fact_the_model_did_not_answer_for_is_kept_for_a_tap():
@@ -96,13 +96,28 @@ def test_when_the_check_cannot_run_every_proposal_stays_unconfirmed(tmp_path):
     assert "not checked" in ctx.incident.transcripts[-1]["trace"]["model"]["discarded"][0]["error"]
 
 
-def test_the_medics_own_words_are_never_second_guessed_or_forgotten(tmp_path):
-    client, ctx = make_client(model=FakeModel(rows=[]))
-    judge = _Judge({1: False})
+def _medic_says(words, rows, judge):
+    client, ctx = make_client(model=FakeModel(rows=rows))
     ctx.fact_verifier = FactVerifier(judge)
     with client:
-        client.post("/api/transcript", json={"text": "Let me check the other arm.", "captured_by": "medic"})
+        client.post("/api/transcript", json={"text": words, "captured_by": "medic"})
         deadline = time.monotonic() + 2
         while ctx.speech_in_flight and time.monotonic() < deadline:
             time.sleep(.01)
-    assert len(ctx.incident.transcripts) == 1 and not judge.seen
+    return ctx
+
+
+def test_the_medics_own_words_are_checked_too(tmp_path):
+    # 8103 test, 2026-09-26: from "history of diabetes, hypertension" the extractor listed medications never said
+    judge = _Judge({1: False, 2: True})
+    ctx = _medic_says("History of diabetes, pulse 95.", [["meds.list", ["metformin"], "m"], ["vitals.hr", 95, "m"]], judge)
+    assert judge.seen and [f.key for f in ctx.incident.facts] == ["vitals.hr"]
+    assert [d["key"] for d in ctx.incident.transcripts[-1]["trace"]["model"]["discarded"]] == ["meds.list"]
+
+
+def test_the_medics_own_words_are_never_forgotten(tmp_path):
+    judge = _Judge({1: False})
+    ctx = _medic_says("Let me check the other arm.", [], judge)
+    assert len(ctx.incident.transcripts) == 1 and not judge.seen          # nothing proposed: nothing to check
+    ctx = _medic_says("History of diabetes.", [["meds.list", ["metformin"], "m"]], judge)
+    assert not ctx.incident.facts and len(ctx.incident.transcripts) == 1  # all discarded, the words stay

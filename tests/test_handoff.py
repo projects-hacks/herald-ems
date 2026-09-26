@@ -115,26 +115,30 @@ def test_trauma_call_gets_mist_in_order(santa_clara_county):
     assert texts(r, "mechanism") == ["fall 15 feet from a ladder"]
     inj = texts(r, "injuries")
     assert inj[0] == "Injuries found: not yet known"
-    assert any(t.startswith("Policy 605 Red N.3") and "SBP 84, age 72" in t for t in inj)
-    assert any(t.startswith("Policy 605 Yellow W.") for t in inj)
+    assert "Trauma alert: low systolic for age (84, age 72)" in inj          # spoken, with the deciding values
+    assert "Trauma alert: fall over 10 feet" in inj
+    n3 = next(ln for ln in section(r, "injuries")["lines"] if ln.get("criterion", {}).get("code") == "N.1-N.3")
+    assert n3["criterion"]["cite"] == "Policy 605 N.1-N.3" and "SBP 84, age 72" in n3["criterion"]["text"]
+    assert not any("Policy 605" in t for t in inj)                         # the citation is kept off the spoken line
     signs = texts(r, "signs")
     assert signs[:4] == ["BP 84/50 mmHg", "HR 118/min", "Respiratory rate: not yet known", "SpO2 91% on room air"]
     assert "GCS 14" in signs and "12-lead reads STEMI, transmitted" in signs
     assert texts(r, "treatment") == ["naloxone 2 mg IN, by fire", "aspirin 324 mg PO at 14:05, by crew",
                                      "IV access 18 g left AC"]
     opening = texts(r, "opening")
-    assert opening[0] == "Trauma Alert criteria (Policy 605) met"          # 501 §IV.D: the alert first
+    assert opening[0] == "Trauma alert"                                    # 501 §IV.D: the alert first
     assert "72-year-old female" in opening and "Chief complaint: chest pain" in opening
     text = r["text"]
-    order = [text.index(x) for x in ("met;", "M: Mechanism", "I: Injuries", "S: Signs", "T: Treatment")]
+    order = [text.index(x) for x in ("Trauma alert;", "M: Mechanism", "I: Injuries", "S: Signs", "T: Treatment")]
     assert order == sorted(order)
 
 
 def test_generic_county_mist_uses_the_national_field_triage(generic_county):
     r = builder().build(trauma_call())
     assert r["format"]["id"] == "mist"
-    assert any(t.startswith("Field triage 2021 Red SBP 84 < 110") for t in texts(r, "injuries"))
-    assert "Field triage (2021) met" in texts(r, "opening")
+    assert "Field triage red: low systolic for age (84, age 72)" in texts(r, "injuries")
+    assert "Field triage yellow: on anticoagulant (apixaban)" in texts(r, "injuries")
+    assert "Field triage criteria met" in texts(r, "opening")
 
 
 def test_medical_call_gets_sbar_and_shows_what_is_missing(santa_clara_county):
@@ -218,18 +222,20 @@ def test_score_lines_carry_their_source_and_facts(santa_clara_county):
         said(inc, k, v)
     r = builder().build(inc)
     news2 = next(ln for ln in section(r, "signs")["lines"] if ln["text"].startswith("NEWS2"))
-    assert news2["text"].endswith("risk (RCP 2017)") and "Royal College of Physicians" in news2["source"]
+    assert news2["text"] == "NEWS2 10, high risk" and "Royal College of Physicians" in news2["source"]
     by_id = {f.id: f.key for f in inc.facts}
     assert {by_id[i] for i in news2["fact_ids"]} <= default_scales()["news2"].input_keys()
-    n3 = next(ln for ln in section(r, "injuries")["lines"] if "N.3" in ln["text"])
+    n3 = next(ln for ln in section(r, "injuries")["lines"] if ln.get("criterion", {}).get("code") == "N.1-N.3")
     assert {"vitals.sbp", "patient.age"} <= {by_id[i] for i in n3["fact_ids"]}
     assert "Policy 605" in n3["source"]
 
 
-def test_an_incomplete_score_shows_no_partial_total(santa_clara_county):
+def test_an_incomplete_score_is_not_read_aloud(santa_clara_county):
+    """Score bookkeeping never reaches the report: no partial total and no "incomplete" note; the missing inputs
+    that are required read "not yet known" in their own place."""
     r = builder().build(trauma_call())
-    news2 = next(t for t in texts(r, "signs") if t.startswith("NEWS2"))
-    assert news2 == "NEWS2 incomplete: Respiratory rate, Consciousness, Temperature not yet known (RCP 2017)"
+    assert not any("NEWS2" in t for t in texts(r, "signs")) and "incomplete" not in r["text"]
+    assert "Respiratory rate: not yet known" in texts(r, "signs")
 
 
 def test_record_items_are_never_listed_as_missing(santa_clara_county):
@@ -326,7 +332,9 @@ def test_territory_is_read_with_the_stemi_reading(santa_clara_county):
     inc = trauma_call()
     said(inc, "ecg.territory", ["inferior", "lateral"])
     r = builder().build(inc)
-    assert "12-lead reads STEMI, inferior, lateral (700-A08 §3.2)" in texts(r, "opening")
+    assert "12-lead reads STEMI, inferior, lateral" in texts(r, "opening")
+    stemi = next(ln for ln in section(r, "opening")["lines"] if ln["text"].startswith("12-lead"))
+    assert stemi["source"] == "700-A08 §3.2"                                # the citation stays in the JSON
     assert "12-lead reads STEMI, inferior, lateral, transmitted" in texts(r, "signs")
     alone = Incident("chest pain")
     said(alone, "ecg.territory", ["inferior"])

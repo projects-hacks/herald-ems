@@ -239,3 +239,12 @@ def test_the_outcome_survives_a_restart(tmp_path):
     client.post("/api/encounters/current/finish", json={"disposition": "not_transported"}, headers=h)
     again, ctx2 = make_client(data_dir=tmp_path / "data", state_key_file=tmp_path / "k" / "key", persistence=True)
     assert ctx2.incident.disposition == "not_transported"
+
+
+def test_hand_over_is_a_transport_by_this_unit():
+    client, ctx = make_client()
+    h = {"X-Herald-Patient": ctx.incident.id}
+    inc = ctx.incident
+    client.post("/api/encounters/current/handover", json={"destination": "Good Samaritan Hospital"}, headers=h)
+    assert inc.disposition == "transported" and inc.handed_over_at
+    assert "encounter.disposition" not in ctx.relay.critical_values(inc)

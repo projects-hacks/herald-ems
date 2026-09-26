@@ -74,7 +74,7 @@ class AppContext:
     relay: Optional[Relay] = None
     knowledge: Optional[KnowledgeService] = None
     cues: Optional[ProtocolCues] = None           # the county passage for the situation Herald recognises
-    fact_verifier: Optional[FactVerifier] = None   # keeps only what overheard words say about the patient
+    fact_verifier: Optional[FactVerifier] = None   # keeps only what the words say about the patient
     fhir: Optional[FhirExport] = None
     fhir_document: Optional[FhirDocument] = None
     roster: Optional[PatientRoster] = None
@@ -162,6 +162,8 @@ class AppContext:
             for inc, row in zip(call.roster.incidents(), call.roster.summaries()):
                 full_pending = sum(f.status.value == "confirmed" for f in inc.facts) != call.relay.full_synced_facts.get(inc.id, 0)
                 rows.append({**row, "started": inc.started.isoformat(),
+                             "handed_over_at": inc.handed_over_at.isoformat() if inc.handed_over_at else None,
+                             "handover": call.relay.handover_status(inc),
                              "destination": (call.relay.authorized or {}).get("destination"),
                              "delivery_pending": inc.id in pending_ids or full_pending,
                              "authorized": bool(call.relay.authorized), "disposition": inc.disposition})
@@ -212,6 +214,7 @@ class AppContext:
         snap["handoff"] = self.handoff.summary(self.handoff.build(self.incident, snapshot=snap))
         rs = self.relay.status()
         active_relay = rs["patients"].get(self.incident.id, {})
+        rs["handover"] = self.relay.handover_status(self.incident)
         snap["relay"], snap["ed_sync"], snap["netem"] = rs, active_relay.get("sync", {}), self.netem_mode
         if self.capture_agent is not None:
             self.capture_agent.patient_changed()
@@ -229,12 +232,14 @@ class AppContext:
 
 
 def build_handoff(config: HandoffConfig, vocab: Vocabulary, scales: ScaleRegistry, checklists: ChecklistEngine,
-                  settings: Settings) -> HandoffBuilder:
-    """The handoff report builder; refuses to start on content that doesn't match the vocabulary or scores."""
-    problems = config.problems(vocab, scales, LINE_KINDS, checklists.ids())
+                  settings: Settings, trends: Optional[TrendRules] = None) -> HandoffBuilder:
+    """The handoff report builder; refuses to start on content that doesn't match the vocabulary, scores or trend
+    rules."""
+    trends = trends or TrendRules.from_config()
+    problems = config.problems(vocab, scales, LINE_KINDS, checklists.ids(), trends)
     if problems:
         raise ValueError("config/handoff.yaml: " + "; ".join(problems))
-    return HandoffBuilder(config, vocab, scales, ZoneInfo(settings.timezone), settings.unit_id)
+    return HandoffBuilder(config, vocab, scales, ZoneInfo(settings.timezone), settings.unit_id, trends=trends)
 
 
 def build_context(settings: Optional[Settings] = None, *, text_model: Optional[TextModel] = None,
@@ -257,7 +262,7 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
         raise ValueError("config/corroboration.yaml: " + "; ".join(problems))
     batch = BatchConfirmation(vocab, corroboration)
     fhir = FhirExport.from_config(vocab, scales)
-    handoff = build_handoff(default_handoff_config(), vocab, scales, checklists, s)
+    handoff = build_handoff(default_handoff_config(), vocab, scales, checklists, s, trends)
     fhir_document = FhirDocument.from_config(fhir, handoff, s.unit_id)
     fhir_problems = fhir.problems() + fhir_document.problems()
     if fhir_problems:
@@ -296,7 +301,7 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
     ctx.relay = Relay(lambda: ctx.roster.incidents(), s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir,
                       egress=egress, ed_token=s.ed_token, derived=ctx.derived_for_ed)
     ctx.restored = ctx.restore()
-    if text_model is None:                                  # real deployment: the local model checks overheard facts
+    if text_model is None:                                  # real deployment: the local model checks spoken facts
         ctx.fact_verifier = FactVerifier(knowing)
     if s.knowledge:
         if embedder is None and text_model is None:        # real deployment; tests pass their own (or none)

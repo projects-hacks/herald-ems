@@ -5,7 +5,7 @@ import { MonitorCapture, monitorIdle, type MonitorRegion, type MonitorStatus } f
 
 export function MonitorWatch({ onStatus }: { onStatus: (status: MonitorStatus) => void }) {
   const patient = useHerald((s) => s.snapshot?.incident.id);
-  const blocked = useHerald((s) => s.source !== "live" || s.captureElsewhere || !!s.snapshot?.incident.ended_at || !!s.snapshot?.restored);
+  const blocked = useHerald((s) => s.source !== "live" || s.captureElsewhere || !!s.snapshot?.incident.ended_at || !!s.snapshot?.incident.handed_over_at || !!s.snapshot?.restored);
   const capture = useHerald((s) => s.snapshot?.capture);
   const paused = useHerald((s) => s.ui.capturePaused);
   const video = useRef<HTMLVideoElement>(null);

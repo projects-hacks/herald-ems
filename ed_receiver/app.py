@@ -124,6 +124,10 @@ async def ingest(req: Request):
     if "tl" in p:
         inc["timeline"] = p["tl"]
         inc["lkw_at"] = p.get("lkw_at")
+    if p.get("tier") == "handover" and isinstance(p.get("ho"), dict):
+        # The vehicle's final packet: the handoff report frozen when the medic handed the patient over. `arrived_at`
+        # is this screen's own clock, so a "received" acknowledgement is compared on one clock.
+        inc["handover"] = {**p["ho"], "seq": p["q"], "arrived_at": now()}
     inc["applied"].append(p["q"])
     inc["bytes"] += len(raw)
     inc["queued_on_rig"] = p.get("x", 0)

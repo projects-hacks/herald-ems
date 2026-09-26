@@ -102,6 +102,17 @@ def test_bad_roi_and_frames_and_patient_change(tmp_path):
     assert status["roi"] is None and status["auto"] is False
 
 
+def test_every_frame_gets_a_reply_even_when_early(tmp_path):
+    """The page waits for a reply before sending again; a frame dropped in silence looked like a dead camera."""
+    client, ctx = setup(tmp_path, [])
+    client.post("/api/capture/auto", json={"on": True})
+    with client.websocket_connect("/ws/frames") as ws:
+        ws.send_bytes(b"not jpeg")
+        assert ws.receive_json()["accepted"] is False
+        ws.send_bytes(b"not jpeg")                  # well inside one second of the first: over the input rate
+        assert ws.receive_json() == {"accepted": False, "gate": None, "throttled": True}
+
+
 def test_stale_controls_cannot_change_new_patient(tmp_path):
     client, ctx = setup(tmp_path, [])
     old = ctx.incident.id

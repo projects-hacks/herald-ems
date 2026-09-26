@@ -14,6 +14,7 @@ import { hhmm } from "@/lib/format";
 import { useHerald } from "@/lib/store";
 import { Sparkline } from "@/components/Sparkline";
 import { ActionButton, ActionNote, usePendingAction } from "@/components/ActionButton";
+import { AuthorizeForm } from "@/features/handoff/handoff";
 
 /** The whole system status, and the one capture control: tap to pause or resume listening and watching. */
 export function PresencePill({ p, paused, disabled, onToggle }: { p: Presence; paused: boolean; disabled?: boolean; onToggle: () => void }) {
@@ -92,9 +93,12 @@ export function EdCard({ onHandoff }: { onHandoff: () => void }) {
     {ed.lastAck && <p className="ed-meta">Last delivered {hhmm(ed.lastAck)} (system acknowledgement)</p>}
     {ed.authorized && s.relay.link === "down" && <p className="ed-link-down" role="status">Link to the ED is down — updates are held on this vehicle</p>}
     {ed.waiting > 0 && <p className="ed-meta">{ed.waiting} captured {ed.waiting === 1 ? "fact waits" : "facts wait"} for your confirmation before sending</p>}
+    {/* The pre-alert is authorized here, where the medic sees what the ED has; with no confirmed destination the
+        form asks for one rather than sending to an unnamed ED. */}
+    {ed.configured && !ed.authorized && !dest && <AuthorizeForm s={s} />}
     <div className="ed-actions">
-      {ed.configured && !ed.authorized && <ActionButton pendingKey="authorize" variant="primary" className="min-h-16"
-        busyText="Sharing…" onClick={() => api.authorize(dest ?? "Receiving ED")}><Share2 size={19} />Share with {dest ?? "the ED"}</ActionButton>}
+      {ed.configured && !ed.authorized && dest && <ActionButton pendingKey="authorize" variant="primary" className="min-h-16"
+        busyText="Sharing…" onClick={() => api.authorize(dest)}><Share2 size={19} />Share with {dest}</ActionButton>}
       <button className="cabin-button" onClick={onHandoff}><FileText size={19} />Handoff report</button>
       <a className="cabin-button" href="/api/handoff/fhir" download={`herald-${s.incident.id}.fhir.json`}><Download size={19} />Export (FHIR)</a>
     </div>

@@ -17,6 +17,9 @@ def render_text(report: dict, words: dict) -> str:
             out.append(body if not s.get("say_label", True) else f"{s['label']}: {body}")
     if report["not_yet_known"]:
         out.append(f"{words['missing_heading']}: " + _sentence([g["text"] for g in report["not_yet_known"]], sep))
+    apart = [x["label"] for x in report.get("not_obtained", []) if not x.get("inline")]
+    if apart:                     # a line already saying "unable to obtain" is not repeated here
+        out.append(f"{words['not_obtained_heading']}: " + _sentence(apart, sep))
     if report["not_yet_confirmed"]:
         names = [u["label"] + (f" ({words['differs']})" if u["differs"] else "") for u in report["not_yet_confirmed"]]
         out.append(f"{words['unconfirmed_heading']}: " + _sentence(names, sep))

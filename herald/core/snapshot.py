@@ -15,6 +15,7 @@ from ..checklists import ChecklistEngine
 from ..config import get_settings
 from ..config.county import SCALE_IDS, CountyRegistry
 from ..scoring import ScaleRegistry, default_scales
+from . import not_obtained as unobtainable
 from .clock import parse_clock
 from .corroboration import BatchConfirmation, CorroborationRules
 from .schema import Fact, Status, utcnow
@@ -78,7 +79,9 @@ class Projector:
             started = {s.id for s in self.scales.item_scales() if any(k.startswith(s.key_prefix) for k in all_vals)}
             alert_ids = self.checklists.active(inc.dispatch, complaint, all_vals, results_all)
             readiness, items = self._readiness(alert_ids, vals, all_vals, results, results_all, started)
-            missing, unknown = self._needs_attention(readiness, items, alert_ids, vals, all_vals, results)
+            marks = unobtainable.effective(inc, vals)
+            missing, unknown = self._needs_attention(readiness, items, alert_ids, vals, all_vals, results,
+                                                     unobtainable.atomic(marks))
             vitals_applicable = self._vitals_applicable(results_all)
             # NEWS2 SpO2 scale: 2 only when the medic has CONFIRMED it (RCP: Scale 2 under clinician direction only;
             # patient.spo2_scale is require_tap). Anything else, including an unconfirmed proposal, is Scale 1.
@@ -99,7 +102,11 @@ class Projector:
                              "arrived_at": inc.arrived_at.isoformat() if inc.arrived_at else None,
                              "transferred_at": inc.transferred_at.isoformat() if inc.transferred_at else None,
                              "disposition": inc.disposition,
-                             "media_disposal": inc.media_disposal},
+                             "handed_over_at": inc.handed_over_at.isoformat() if inc.handed_over_at else None,
+                             "handed_over_to": inc.handed_over_to,
+                             "media_disposal": inc.media_disposal,
+                             # required items the medic marked "unable to obtain" and still without a value
+                             "not_obtained": marks},
                 "summary": summary + (f" · {complaint}" if complaint else ""),
                 "readiness": readiness,
                 "needs_attention": {"missing": missing, "unknown": unknown},
@@ -141,11 +148,12 @@ class Projector:
                         "done": done, "total": len(rows), "ready": done == len(rows), "items": rows})
         return out, parsed
 
-    def _needs_attention(self, readiness, items, alert_ids, vals, all_vals, results):
+    def _needs_attention(self, readiness, items, alert_ids, vals, all_vals, results, not_obtained=frozenset()):
+        """What the medic still needs to find out; an item marked "unable to obtain" is no longer asked for."""
         missing, unknown, seen = [], [], set()
 
         def add(key: str, label: str, pending: bool, note=None, kind_key=None):
-            if key in seen or key in vals:
+            if key in seen or key in vals or unobtainable.covers(not_obtained, [key]):
                 return
             seen.add(key)
             kind = self.vocab.meta(kind_key).get("kind", "measure") if kind_key else "measure"

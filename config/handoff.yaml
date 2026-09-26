@@ -31,19 +31,27 @@
 #
 # Line kinds
 #   fact    templates (first whose placeholders all have confirmed values); `when` a criteria rule
-#           (herald/scoring/rules.py) over confirmed values; `keys` extra keys the line depends on
+#           (herald/scoring/rules.py) over confirmed values; `keys` extra keys the line depends on; `source` the
+#           citation kept on the line's JSON, not read aloud; `omit_if_same_as: <key>` drops the line when its value
+#           is the same as that key's confirmed value (the report says each thing once)
 #   events  every confirmed event of a record key (meds.given, procedures.done), in order; `parts` are joined and a
 #           part is kept only when every field it names is recorded; `where` / `where_not` keep or drop records by
 #           field values (a field not recorded matches nothing)
 #   score   a score from the snapshot (`score`: an id, or a list: the first one the active county has). With
-#           `only_if` (met | positive) it renders `template` only when that result field is true; otherwise the
-#           engine's own wording below (`score_text`). `cite` is the short citation read aloud
-#   trends  every listed key with two or more confirmed readings: the readings in order
+#           `only_if` (met | positive) it renders `template` (once, or per score id) only when that result field
+#           is true; otherwise the engine's own wording below (`score_text`). `name` is the spoken name and `cite`
+#           the short citation (each once, or per score id); the citation and the score's source stay on the line's
+#           JSON (`source`, `criterion`), never in the spoken text. A met criterion is said with `criteria_say`
+#           (below). `cover_incomplete: true`: an incomplete score also accounts for its checklist item, so the item
+#           is not listed as "not yet known" (its inputs are listed where they are required)
+#   trends  every listed key whose confirmed readings changed in a clinically meaningful way by its rule in
+#           config/trends.yaml (some earlier reading against a later one): "<label> <direction>, <series>"
 # A list inside `lines` is spliced in (the shared lists below are YAML anchors).
 # Placeholders: {key} value, {key:unit} value with the vocabulary unit, {key:label} the vocabulary label, {key:time}
 #   when it was recorded (local time); {$unit} the vehicle's unit ID (HERALD_UNIT_ID).
 # Gates on any line: `when_checklists` (listed only while one of these checklists is open); `required` (true, or a
-#   list of checklists: a missing value is shown as "not yet known"); `label` names it when missing.
+#   list of checklists: a missing value is shown as "not yet known", or "unable to obtain" once the medic marked it
+#   so with POST /api/handoff/not-obtained); `label` names it when missing. A section with no lines is left out.
 
 time_format: "%H:%M"
 words:
@@ -56,6 +64,8 @@ words:
   unconfirmed_heading: Not yet confirmed, left out of this report
   differs: differs from the value in this report
   unit_no_space: ["%", "/"]
+  not_obtained: unable to obtain                 # a required item the medic marked as not obtainable
+  not_obtained_heading: Unable to obtain
 # How a value reads in a sentence (lowercase keys; booleans are "true"/"false"). Record fields as "<key>.<field>".
 value_text:
   patient.sex: {f: female, female: female, m: male, male: male}
@@ -65,18 +75,20 @@ value_text:
   ecg.attached: {"true": attached, "false": not attached}
   stroke.onset_witnessed: {"true": witnessed, "false": not witnessed}
 # Wording for a score line, by engine kind (herald/scoring/). Fields: {name} {score} {band} {max} {level}
-# {missing} {cite}; criteria hits add {group} {text}. An incomplete score shows no partial total.
+# {missing} {cite}; criteria hits add {group}, {say} (criteria_say) and {text} (the source's own words). An empty
+# wording says nothing: score bookkeeping (an incomplete or undecided score) is never read aloud, and never shows a
+# partial total; the missing inputs are listed where they are required.
 score_text:
   banded:
-    complete: "{name} {score}, {band} risk ({cite})"
-    incomplete: "{name} incomplete: {missing} not yet known ({cite})"
+    complete: "{name} {score}, {band} risk"
+    incomplete: ""
   item_sum:
-    complete: "{name} {score} of {max} ({cite})"
-    incomplete: "{name} incomplete: {missing} not yet known ({cite})"
+    complete: "{name} {score} of {max}"
+    incomplete: ""
   criteria:
-    hit: "{cite} {group} {text}"
-    not_met: "{name}: no criterion met ({cite})"
-    undecided: "{name}: undecided, {missing} not yet known ({cite})"
+    hit: "{group}: {say}"
+    not_met: "{name}: none met"
+    undecided: ""
 # Which format a call gets: the first rule with an open checklist (snapshot `readiness[].id`); otherwise `default`.
 # The trauma checklist opens on the dispatch or chief-complaint words, on trauma facts, or on the county's trauma
 # criteria (config/checklists.yaml, config/counties/*.json).
@@ -89,13 +101,15 @@ shared:
   # 501 §IV.D: a specialty report starts with the alert type. The medic declares the alert; Herald states which
   # county criteria or readings are met, from confirmed facts, so the medic can say it.
   alert_statements: &alert_statements
-  - {kind: score, score: [trauma_605, field_triage], only_if: met, template: "{name} met"}
+  - {kind: score, score: [trauma_605, field_triage], only_if: met,
+     template: {trauma_605: Trauma alert, field_triage: Field triage criteria met}}
   - kind: fact
-    templates: ["12-lead {ecg.stemi_reading}, {ecg.territory} (700-A08 §3.2)", "12-lead {ecg.stemi_reading} (700-A08 §3.2)"]
+    templates: ["12-lead {ecg.stemi_reading}, {ecg.territory}", "12-lead {ecg.stemi_reading}"]
     when: {type: present, key: ecg.stemi_reading, unless: ["false"]}
+    source: "700-A08 §3.2"
   - {kind: score, score: gfast, only_if: positive, template: "{name} {score} of {max}"}
   - {kind: score, score: race, only_if: positive, template: "{name} {score} of {max}"}
-  - {kind: score, score: sepsis_700a04, only_if: met, template: "Sepsis pre-notification criteria met (700-A04 §1.4)"}
+  - {kind: score, score: sepsis_700a04, only_if: met, template: "Sepsis alert: pre-notification criteria met"}
   # SALT category (mass-casualty mode): the medic's call, always tapped (require_tap), shown once confirmed
   triage: &triage
   - {kind: fact, templates: ["Triage: {triage.category} (SALT)"]}
@@ -146,12 +160,16 @@ shared:
                 "12-lead {ecg.stemi_reading}", "12-lead territory {ecg.territory}, {ecg.transmitted}",
                 "12-lead territory {ecg.territory}", "12-lead {ecg.transmitted}"]
   - {kind: fact, templates: ["First 12-lead at {ecg.twelve_lead_time}"]}
-  - {kind: score, score: news2, cite: RCP 2017}
+  - {kind: score, score: news2, cite: RCP 2017, cover_incomplete: true}
+  # A trend is read only when it moved by its config/trends.yaml rule; first and latest reading (and the one
+  # furthest from the first, when there are more), no clock times.
   - kind: trends
-    keys: [vitals.sbp, vitals.hr, vitals.rr, vitals.spo2, vitals.gcs_total, vitals.pain, vitals.etco2,
-           vitals.glucose, vitals.temp]
-    template: "{label} {series}"
-    point_template: "{value} at {time}"
+    keys: [vitals.sbp, vitals.hr, vitals.rr, vitals.spo2, vitals.glucose]
+    labels: {vitals.sbp: SBP, vitals.hr: HR, vitals.rr: RR, vitals.spo2: SpO2, vitals.glucose: Glucose}
+    template: "{label} {direction}, {series}"
+    point_template: "{value}"
+    directions: {up: rising, down: falling, flat: changing}
+    max_points: 3
   # 501 §III.A.5: drugs given and procedures completed, every confirmed event in the order it was recorded. What was
   # given before this crew arrived (`before_arrival`, NEMSIS eMedications.02 / eProcedures.02 "prior to this unit's
   # EMS care") is its own section, never mixed into the crew's treatment.
@@ -189,7 +207,11 @@ formats:
       source: >-
         501 §IV.D (alert type first); SALT triage category when tapped; §III.A.1 (unit, ETA, age, sex); ATMIST T
         (time of injury); §III.A.2 (primary impression, chief complaint)
-      lines: [*alert_statements, *triage, *unit_eta, *age_sex, *injury_time, *impression, *complaint]
+      lines:
+      - [*alert_statements, *triage, *unit_eta, *age_sex, *injury_time, *impression]
+      # the chief complaint is not repeated when it only restates the mechanism (said under M)
+      - {kind: fact, templates: ["Chief complaint: {complaint.chief}"], required: true, label: Chief complaint,
+         omit_if_same_as: trauma.mechanism}
     - id: mechanism
       label: "M: Mechanism"
       source: "501 §IV.E.1 (mechanism of injury per Policy 605); MIST"
@@ -203,8 +225,11 @@ formats:
       - {kind: fact, templates: ["{trauma.injuries}"], required: true, label: Injuries found}
       - kind: score
         score: [trauma_605, field_triage]
+        name: {trauma_605: Trauma alert criteria, field_triage: Field triage criteria}
         cite: {trauma_605: Policy 605, field_triage: Field triage 2021}
-        group_names: {red: Red, yellow: Yellow, consider: Consider, burn: Burn}
+        group_names:
+          trauma_605: {red: Trauma alert, yellow: Trauma alert, consider: Consider, burn: Burn}
+          field_triage: {red: Field triage red, yellow: Field triage yellow}
     - id: signs
       label: "S: Signs"
       source: "501 §III.A.4; MIST"
@@ -253,7 +278,7 @@ formats:
       - {kind: fact, templates: ["Deficits: {stroke.deficits}"], when_checklists: [stroke]}
       - {kind: fact, templates: ["Suspected infection: {infection.suspected}"], required: [sepsis],
          label: Suspected infection (source)}
-      - {kind: fact, templates: ["Mechanism: {trauma.mechanism}"]}
+      - {kind: fact, templates: ["Mechanism: {trauma.mechanism}"], omit_if_same_as: complaint.chief}
       - {kind: fact, templates: ["Injured at {trauma.injury_time}"]}
       - {kind: fact, templates: ["Injuries: {trauma.injuries}"]}
     - id: background
@@ -267,7 +292,7 @@ formats:
       - *vitals
       - {kind: score, score: gfast, when_checklists: [stroke], cite: 700-A13 §2.3}
       - {kind: score, score: race, when_checklists: [stroke], cite: Pérez de la Ossa 2014}
-      - {kind: score, score: sepsis_700a04, when_checklists: [sepsis], cite: 700-A04, group_names: {notify: ""}}
+      - {kind: score, score: sepsis_700a04, when_checklists: [sepsis], cite: 700-A04, group_names: {notify: Sepsis}}
     - id: treatment
       label: "T: Treatment given"
       source: "501 §III.A.5 (in place of SBAR's Recommendation: Herald never recommends)"
@@ -281,3 +306,50 @@ formats:
       label: Other
       source: "IMIST-AMBO (O)"
       lines: [*other]
+
+# ---------- how a met criterion is said (score line `criteria_say`) ----------
+# A short spoken phrase per criterion, in place of the source's wording, with the values that decided it. Keyed by
+# score id, then criterion `code` (or "<group>.<n>", 1-based, for a source that does not letter its criteria). A
+# list is tried in order: the first whose placeholders ({key}, {key:unit}, as in the lines above) all have confirmed
+# values. The source's own words stay on the line's JSON (`criterion.text`, `criterion.cite`), never read aloud.
+# Every criterion of a score read in a report must have one (checked at startup).
+criteria_say:
+  trauma_605:       # Santa Clara Policy 605 §II.B (config/scores/trauma_605.yaml)
+    A: penetrating injury to head, neck, torso or proximal limb
+    B: suspected skull fracture
+    C: spinal injury with new motor or sensory loss
+    D: chest wall instability
+    E: suspected pelvic fracture
+    F: two or more proximal long bone fractures
+    G: crushed, degloved, mangled or pulseless limb
+    H: amputation above wrist or ankle
+    I: bleeding needing tourniquet or packing
+    J: ["not following commands (motor {vitals.gcs_motor})", "not following commands (GCS {vitals.gcs_total})",
+        not following commands]
+    K: ["RR {vitals.rr}", RR out of range]
+    L: respiratory distress or needing ventilation support
+    M: ["SpO2 {vitals.spo2:unit} on room air", SpO2 below 90% on room air]
+    N.1-N.3: ["low systolic for age ({vitals.sbp}, age {patient.age})", low systolic for age]
+    N.4: ["HR above systolic ({vitals.hr} over {vitals.sbp})", HR above systolic]
+    O: ejection
+    P: intrusion or extrication
+    Q: death in same compartment
+    R: ["unrestrained child, age {patient.age}", unrestrained child]
+    T: rider thrown, significant impact
+    U: rollover, unrestrained
+    V: pedestrian or cyclist thrown or run over
+    W: fall over 10 feet
+    X.1: ["on anticoagulant ({meds.anticoagulant})", on anticoagulant]
+    X.2: time-sensitive limb injury
+    X.6: low fall with head strike
+    X.7: pregnant over 20 weeks, in cardiac arrest
+    III.A: major burn
+  field_triage:     # 2021 National Guideline (config/scores/field_triage.yaml)
+    red.1: ["not following commands (motor {vitals.gcs_motor})", not following commands]
+    red.2: ["RR {vitals.rr}", RR out of range]
+    red.3: ["SpO2 {vitals.spo2:unit} on room air", SpO2 below 90% on room air]
+    red.4: ["low systolic for age ({vitals.sbp}, age {patient.age})", low systolic for age]
+    red.5: ["HR above systolic ({vitals.hr} over {vitals.sbp})", HR above systolic]
+    yellow.1: ["on anticoagulant ({meds.anticoagulant})", on anticoagulant]
+  sepsis_700a04:    # Santa Clara 700-A04 §1.3-1.4 (config/scores/sepsis_700a04.yaml)
+    "1.4": suspected infection with two or more SIRS criteria

@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
+from ..core import not_obtained as unobtainable
 from ..core.clock import parse_clock
 from ..core.schema import Fact, Status
 from ..core.vocabulary import Vocabulary, norm_value
@@ -34,6 +35,9 @@ class ConfirmedView:
                  context: Optional[dict] = None):
         self.inc, self.vocab, self.cfg, self.tz = incident, vocabulary, config, tz
         self.values = incident.values(confirmed_only=True)
+        # keys the medic marked "unable to obtain" that still have no confirmed value (a confirmed fact wins)
+        self.not_obtained_marks = unobtainable.effective(incident, self.values)
+        self.not_obtained = unobtainable.atomic(self.not_obtained_marks)
         self.context = {k: v for k, v in (context or {}).items() if v not in (None, "")}
 
     # ---------- facts ----------
