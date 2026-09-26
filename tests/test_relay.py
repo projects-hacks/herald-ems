@@ -148,7 +148,8 @@ def test_weak_link_sends_critical_first_in_small_packets():
     asyncio.run(r.tick())
     first = json.loads(json.dumps(ed.fields))
     assert "meds.anticoagulant" in first and "stroke.lkw" in first
-    assert "patient.age" not in first                          # demographics wait
+    assert "patient.age" in first                              # Policy 501 §III.A: the report opens with age and sex
+    assert "vitals.temp" not in first                          # context still waits
     assert ed.bytes[0] <= 420
 
 
@@ -267,7 +268,8 @@ def test_authorized_scope_restricts_relay_to_its_tier_ceiling():
     r.authorize("Valley Medical", "Stroke alert pre-alert set", ("stroke",))
     scoped = r.critical_values(inc)
     assert "stroke.lkw" in scoped and "vitals.sbp" in scoped          # tiers 1 and 3: in a stroke pre-alert's ceiling
-    assert "transport.eta_min" not in scoped and "patient.age" not in scoped  # tiers 4-5: not part of that consent
+    assert "transport.eta_min" in scoped and "patient.age" in scoped   # ETA (tier 4) and age (tier 1): Policy 501
+    assert "vitals.temp" not in scoped                                # tier 5: not part of that consent
     assert {k for _, _, _, k, _, _ in r.pending()} == set(scoped)
 
     r.authorize("Valley Medical", "patient update set", ())

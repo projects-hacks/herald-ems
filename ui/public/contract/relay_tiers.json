@@ -11,6 +11,14 @@
     "tier": 1,
     "why": "the receiving team needs this before arrival"
   },
+  "patient.age": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
+  "patient.sex": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
   "code_status": {
     "tier": 1,
     "why": "the receiving team needs this before arrival"
@@ -167,6 +175,10 @@
     "tier": 3,
     "why": "latest vitals and exam"
   },
+  "meds.list": {
+    "tier": 3,
+    "why": "latest vitals and exam"
+  },
   "transport.eta_at": {
     "tier": 4,
     "why": "arrival logistics"
@@ -179,14 +191,6 @@
     "tier": 4,
     "why": "arrival logistics"
   },
-  "patient.age": {
-    "tier": 5,
-    "why": "demographics and context"
-  },
-  "patient.sex": {
-    "tier": 5,
-    "why": "demographics and context"
-  },
   "stroke.onset_witnessed": {
     "tier": 5,
     "why": "demographics and context"
@@ -196,10 +200,6 @@
     "why": "demographics and context"
   },
   "vitals.on_oxygen": {
-    "tier": 5,
-    "why": "demographics and context"
-  },
-  "meds.list": {
     "tier": 5,
     "why": "demographics and context"
   },

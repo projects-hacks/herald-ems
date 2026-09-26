@@ -7,17 +7,17 @@
 # score.sepsis_700a04 is tier 1: it is the reason for the 700-A04 §1.4 advance notification.
 tiers:
   - {tier: 1, why: the receiving team needs this before arrival,
-     keys: [encounter.disposition, alert.readiness, triage.category, code_status, meds.anticoagulant, allergies, stroke.lkw, complaint.chief, meds.given,
+     keys: [encounter.disposition, alert.readiness, triage.category, patient.age, patient.sex, code_status, meds.anticoagulant, allergies, stroke.lkw, complaint.chief, meds.given,
             impression.primary, trauma.mechanism, trauma.injury_time, trauma.injuries, infection.suspected, patient.pregnancy_weeks,
             score.trauma_605, score.sepsis_700a04, score.stemi_700a08,
             ecg.stemi_reading, ecg.transmitted, ecg.twelve_lead_time, symptom.onset]}
   - {tier: 2, why: deterioration / published score changed, keys: [score.news2, score.race, score.gfast]}
   - {tier: 3, why: latest vitals and exam,
      keys: [vitals.sbp, vitals.dbp, vitals.hr, vitals.spo2, vitals.rr, vitals.glucose, vitals.consciousness, stroke.deficits,
-            vitals.gcs_total, vitals.gcs_eye, vitals.gcs_verbal, vitals.gcs_motor, vitals.etco2, vitals.pain, airway.status, ecg.territory, procedures.done]}
+            vitals.gcs_total, vitals.gcs_eye, vitals.gcs_verbal, vitals.gcs_motor, vitals.etco2, vitals.pain, airway.status, ecg.territory, procedures.done, meds.list]}
   - {tier: 4, why: arrival logistics, keys: [transport.eta_at, transport.eta_min, transport.destination]}
   - {tier: 5, why: demographics and context,
-     keys: [patient.age, patient.sex, stroke.onset_witnessed, vitals.temp, vitals.on_oxygen, meds.list, scene.notes]}
+     keys: [stroke.onset_witnessed, vitals.temp, vitals.on_oxygen, scene.notes]}
 # Labels for the derived keys that are not vocabulary facts (the ED screen and the medic's delivery table).
 derived_labels:
   alert.readiness: Pre-alert readiness
@@ -35,10 +35,13 @@ triage_rank: {immediate: 0, delayed: 1, minimal: 2, expectant: 3, dead: 4, unkno
 # exam (tiers 1-3) -- not the whole record. Arrival logistics and demographics (tiers 4-5) are not part of that
 # consent; they flow once no specific alert checklist is open and the broader `default_scope` authorization is in
 # force instead, which is today's unrestricted, every-tier send.
+# 2026-09-26 (owner, after a live run where the ED got a STEMI with no age, sex, destination or ETA): Santa Clara
+# Policy 501 §III.A's radio report opens with the unit, ETA, age and sex, so age and sex are tier 1, the patient's
+# own medications ride with the exam (tier 3), and an alert pre-alert also carries arrival logistics (tier 4).
 scopes:
-  stroke: {ceiling: [1, 2, 3]}
-  trauma: {ceiling: [1, 2, 3]}
-  sepsis: {ceiling: [1, 2, 3]}
-  stemi: {ceiling: [1, 2, 3]}
+  stroke: {ceiling: [1, 2, 3, 4]}
+  trauma: {ceiling: [1, 2, 3, 4]}
+  sepsis: {ceiling: [1, 2, 3, 4]}
+  stemi: {ceiling: [1, 2, 3, 4]}
   patient_update: {ceiling: [1, 2, 3, 4, 5]}
 default_scope: patient_update

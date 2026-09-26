@@ -675,3 +675,5 @@ The document is a FHIR R4 `Bundle` of `type: "document"` (https://hl7.org/fhir/R
 - A transcript entry carries `asked: true` when its words asked for a county protocol.
 
 **Patient label** (2026-09-26): `patients[].label`, the ED packet's `patient` and encounter history use the confirmed `patient.name` once there is one, else the scene slot; `patients[].slot` keeps the slot ("Patient 1"). A reported, unconfirmed name never becomes the label. Record keys merged `each` (`meds.given`, `procedures.done`) carry no `previous_value`: each is its own event.
+
+**Pre-alert content** (2026-09-26): `patient.age` and `patient.sex` are relay tier 1 and `meds.list` tier 3; the stroke, trauma, sepsis and STEMI alert scopes send tiers 1-4, so the ED gets age, sex, destination and ETA (`transport.eta_at`, `transport.eta_min`, `transport.destination`) with the alert, as Santa Clara Policy 501 §III.A's radio report does. Tier 5 (temperature, on oxygen, onset witnessed, scene notes) still waits for the unrestricted patient-update scope.

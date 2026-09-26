@@ -170,7 +170,7 @@ def test_the_router_must_be_on_this_box():
 
 
 # ---------- what the ED gets ----------
-def test_ed_gets_the_route_arrival_time_only_where_arrival_logistics_are_authorized():
+def test_ed_gets_the_route_arrival_time_with_an_alert_pre_alert_too():
     client, ctx = make_client()
     ctx.transport.router = FakeRouter()
     confirmed(ctx.incident, "transport.destination", "Good Samaritan Hospital")
@@ -179,7 +179,8 @@ def test_ed_gets_the_route_arrival_time_only_where_arrival_logistics_are_authori
     values = ctx.relay.critical_values(ctx.incident)
     assert values["transport.eta_at"].endswith(":00+00:00")                  # whole minutes: no resend every fix
     ctx.relay.authorize("Good Samaritan Hospital", "Stroke alert pre-alert set", ("stroke",))
-    assert "transport.eta_at" not in ctx.relay.critical_values(ctx.incident)   # config/relay.yaml consent ceiling
+    # an alert pre-alert carries arrival logistics (Policy 501 §III.A radio report: ETA; config/relay.yaml, 2026-09-26)
+    assert "transport.eta_at" in ctx.relay.critical_values(ctx.incident)
 
 
 def test_each_hospital_can_have_its_own_receiver():
