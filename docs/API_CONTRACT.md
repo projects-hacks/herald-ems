@@ -24,36 +24,71 @@ The authoritative snapshot types are in `ui/src/lib/types.ts`; HTTP and WebSocke
 
 ### Destination, road ETA and how an encounter ended (2026-09-26)
 
-Herald runs on the vehicle, so it cannot see hospital diversion status or a dispatch system. Destination is the
-medic's choice from the county's own list, drive times come from a road router on the box, and every non-transport
-outcome is an explicit medic choice.
+Herald runs on the vehicle, so it cannot see hospital diversion status or a dispatch system. The destination is set
+by voice or by one tap, never picked from a dropdown in the main flow (owner decision, 2026-09-26): the crew's words
+that name one county hospital set it, and while none is set Herald suggests ONE hospital from the county's own
+destination rules. Drive times come from a road router on the box, and every non-transport outcome is an explicit
+medic choice.
 
 - **County hospitals.** `config/counties/<id>.json` `destinations.facilities` (Santa Clara: Policy 602 Table B) now
   carries `destinations.locations`: `{lat, lon, point, osm}` per facility, where `point` is `"emergency entrance"`
   (a tagged OSM ED entrance) or `"campus"` (the mapped hospital area's centre), with the OSM element for spot checks.
-  Designations (Comprehensive / Primary Stroke Center) come from the same config's lists, not from code.
+  Designations come from the same config's lists, not from code: `comprehensive_stroke`, `primary_stroke`, `stemi`,
+  `adult_trauma`, `pediatric_trauma` (each a Table B row, listed in `destinations.audit.services`, so the protocol
+  index's Table B audit checks every one) and `trauma_nicu` (602 §VI.C.4 names the two in its text).
 - **`Snapshot.transport`** (absent on older vehicles and recorded fixtures): `{routing, router_error, position,
-  options, destination, eta}`. `options` is every county hospital `{id, name, designations, point, minutes, km}`,
-  nearest by road first while the vehicle's position is fresh (`minutes`/`km` are null otherwise). `destination` is
-  the latest non-rejected `transport.destination` fact `{fact_id, value, status, id, suggested, matching}`: `id` is
-  the facility when the value is a listed name; for a heard value that is not, `suggested` is the facility the local
-  model matched it to (or null) and `matching` says a match is still running. `eta` is `{source: "route"|"crew",
-  until}`.
+  options, destination, heard, suggestion, eta}`. `options` is every county hospital `{id, name, designations, point,
+  minutes, km}`, nearest by road first while the vehicle's position is fresh (`minutes`/`km` are null otherwise).
+  - `destination` is the latest **confirmed** `transport.destination` `{fact_id, value, id, how, said, at}`: `id` is
+    the facility when the value is a listed name; `how` is `"heard"` (set from speech), `"suggested"` (Herald's
+    suggestion, accepted) or `"chosen"` (the county list or a typed correction); `said` is the words heard when
+    Herald matched them. (Changed from `{fact_id, value, status, id, suggested, matching}`.)
+  - `heard` is the newest destination words that are not the destination `{fact_id, value, role, state, id}`:
+    `state` `"matching"` (the model is running), `"unmatched"` (they name no single county hospital: shown as
+    "Heard: … — not matched to a county hospital") or `"matched"` (another speaker named `id`, offered as the
+    suggestion). Null when the latest destination fact is the destination.
+  - `suggestion` is the ONE hospital to accept, or null: `{id, name, designations, minutes, km, nearest_known, basis,
+    rule, situation, service, cite, quote, note}`. `basis` `"heard"`: another speaker named a county hospital that is
+    not the destination. `basis` `"policy"`: no destination is set, and the first rule in
+    `destinations.selection.rules` whose conditions hold picked the lists (`alert`: a checklist id open for this call;
+    `scores`: `[{id, field, equals}]` on the snapshot's computed scores; `facts`: a criterion rule over confirmed
+    values). The closest listed hospital by road wins; with no road time for any (no fresh position, router down) it
+    is the first in the county list's order and `nearest_known` is false. A rule's `over_minutes` switches lists past
+    a drive time (700-A13 §3.2.1: over 45 minutes to the closest Comprehensive Stroke Center, the closest Primary
+    Stroke Center). `situation`, `service`, `cite` and `quote` are the county's words from the config. Santa Clara's
+    rules, in order: pregnant trauma alert over 20 weeks (602 §VI.C.4), pediatric trauma alert (§VI.C.3), trauma
+    alert (§VI.C.2), STEMI alert (§VI.F.1), stroke with G.F.A.S.T. 4 of 4 (§VI.E.1, 700-A13 §3.2), stroke call
+    (§VI.E.2, 700-A13 §3.3), routine (§III.C.1). None after arrival, transfer or an outcome.
+  - `eta` is `{source: "route"|"crew", until}`.
 - **ETA clock.** With `Snapshot.transport` present, the `eta` clock in `Snapshot.clocks` gains `source`. It is the
   road-route arrival at the confirmed destination while the position is fresh (`config/transport.yaml`
   `position_stale_s`, 120 s), otherwise the crew's `transport.eta_min` as before. No clock after arrival or transfer.
-- **`POST /api/transport/position`** `{lat, lon, accuracy_m?, at?}` from the tablet (or a vehicle GPS). Kept in
-  memory for routing only: never persisted, never sent to the ED. A fix less precise than `max_accuracy_m` is kept
-  but not routed; the router is re-asked after moving `recompute_moved_m` or every `recompute_every_s`. 422 out of
-  range; broadcasts only when a drive time changes.
-- **`POST /api/transport/destination`** `{facility}` (requires `X-Herald-Patient`): the medic's tap. Writes
-  `transport.destination` = the facility's official name, confirmed; an existing value (heard or earlier) is replaced
-  through the normal correction path, so it stays in the audit trail as rejected. 404 unknown facility, 409 stale
-  patient or closed encounter.
-- **Spoken destinations** are matched off the request path (a 2 s background loop): an exact official name or id
-  matches directly; anything else goes to the knowledge model with the listed ids plus `"none"` as a JSON-schema
-  enum (`config/prompts/destination_match.md`). The result is only `destination.suggested`; nothing is confirmed
-  without the tap.
+- **`POST /api/transport/position`** `{lat, lon, accuracy_m?, at?, age_s?}` from the tablet (or a vehicle GPS).
+  `age_s` (new) is the fix's age measured on the device and wins over `at`, so a device clock that differs from the
+  vehicle server's cannot make a new fix look stale. The tablet re-reads its position every 15 s as well as on
+  movement (a device that is not moving gets no new watchPosition callback, which let the one fix of a call go stale
+  and kept the ETA on the crew's estimate: live report 2026-09-26). Kept in memory for routing only: never
+  persisted, never sent to the ED. A fix less precise than `max_accuracy_m` is kept but not routed; the router is
+  re-asked after moving `recompute_moved_m` or every `recompute_every_s`. 422 out of range; broadcasts only when a
+  drive time changes.
+- **Spoken destinations** are matched off the request path (a 2 s background loop). An exact official name or id
+  matches directly; anything else goes to the knowledge model, which lists every listed id the words could name
+  (JSON schema: an array of the listed ids; `config/prompts/destination_match.md`). Only exactly one id is a match:
+  none or several (a brand two campuses share, "Kaiser", "El Camino") is no match. When the words came from the
+  crew's own mic and are not held by a check, a match is written at once as `transport.destination` = the official
+  name, **confirmed**, provenance `extractor: "transport:heard"` with the audio/transcript of the words and
+  `normalized: [{said, value, system: "county-facility", code: <facility id>, method: "exact"|"model"}]`; the heard
+  fact stays as rejected and the audit log gets `fact_settled` (`actor: "herald"`, `replaces`, `replaced_value`).
+  A later hospital replaces it the same way (latest wins). Words that name no single county hospital are never the
+  destination: a confirmed value is held (`unconfirmed`, `hold_reason` "Not matched to a county hospital") once; if
+  the medic then confirms it as said, it stands. Another speaker's words only ever become the `suggestion`.
+- **`POST /api/transport/destination`** `{facility, via?}` (requires `X-Herald-Patient`): the medic's tap. `via`
+  (new) is `"suggestion"` (Accept on Herald's suggestion) or `"list"` (default: the "Other hospital…" list). Writes
+  `transport.destination` = the facility's official name, confirmed, provenance `extractor`
+  `"medic:destination-suggestion"` or `"medic:destination-list"`; an existing latest value (heard or earlier) is
+  kept as rejected, audited as `fact_settled` with `actor: "medic"`. 404 unknown facility, 409 stale patient or
+  closed encounter. Saying the suggested hospital is the voice accept (it goes through the spoken path above); a
+  bare "yes, take her there" is not a fact the extraction model produces, so it does not accept.
 - **Receivers per hospital.** `HERALD_ED_RECEIVERS="GSH=http://...,RSJ=http://..."` maps facility ids to receiving
   URLs (allow-listed by the egress policy like `HERALD_ED_URL`). `POST /api/relay/authorize` points the relay at the
   destination's receiver when one is set, else keeps `HERALD_ED_URL`.
@@ -322,7 +357,7 @@ GET /api/telemetry  →  200
 
 ## County alert checklists and criteria scores (backend, 2026-09-24)
 
-Herald keeps a checklist and the county's own criteria for trauma, sepsis and STEMI calls, the same way it does for strokes. Every criterion and checklist item quotes its source; the research behind them is `docs/research/county_protocols_2026-09.md` (§5 trauma, §6 sepsis, §7 STEMI, §9 proposed checklists), and every county quote was re-read from the archived PDFs on 2026-09-24. Herald shows criteria and what is missing. It never recommends a treatment or a destination; the only destination text it shows is the county's own rule, quoted with its section.
+Herald keeps a checklist and the county's own criteria for trauma, sepsis and STEMI calls, the same way it does for strokes. Every criterion and checklist item quotes its source; the research behind them is `docs/research/county_protocols_2026-09.md` (§5 trauma, §6 sepsis, §7 STEMI, §9 proposed checklists), and every county quote was re-read from the archived PDFs on 2026-09-24. Herald shows criteria and what is missing. It never recommends a treatment. Its one destination suggestion (see "Destination, road ETA" above) is the county's own destination rule applied to the county's own list, shown with the rule's section, and is set only by the medic's tap or spoken hospital.
 
 **Where it lives**
 

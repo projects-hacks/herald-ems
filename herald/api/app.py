@@ -88,12 +88,26 @@ def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
         match_task = None
         if ctx.transport is not None and ctx.transport.resolver is not None:
             async def match_loop():
-                # a spoken destination is matched to the county list off the request path, then offered to the medic
+                # a spoken destination is matched to the county list off the request path; the crew's words that
+                # name one county hospital become the destination (herald/transport/service.py `settle`)
                 loop = asyncio.get_running_loop()
                 while True:
                     await asyncio.sleep(2)
-                    for heard in ctx.transport.pending_matches(ctx.incident):
+                    inc = ctx.incident
+                    if inc.ended_at:
+                        continue
+                    matched = False
+                    for heard in ctx.transport.pending_matches(inc):
                         await loop.run_in_executor(None, ctx.transport.match, heard)
+                        matched = True
+                    try:
+                        settled = ctx.transport.settle(inc) if inc is ctx.incident else None
+                    except Exception as e:     # ended or changed meanwhile (IncidentEnded, a newer value): next pass
+                        log.info("destination not settled: %s", e)
+                        settled = None
+                    if settled:
+                        ctx.persist()
+                    if matched or settled:
                         await hub.broadcast()
             match_task = asyncio.create_task(match_loop())
         yield

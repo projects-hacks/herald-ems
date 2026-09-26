@@ -147,7 +147,8 @@ def test_table_b_matches_the_168_cell_key():
 
 def test_reviewed_destinations_match_policy_602(kb):
     audit = kb.audit_destinations()
-    assert {a["service"] for a in audit} == {"Comprehensive Stroke Center", "Primary Stroke Center"}
+    assert {a["service"] for a in audit} == {"Comprehensive Stroke Center", "Primary Stroke Center", "STEMI Center",
+                                            "Adult Trauma Center", "Pediatric Trauma Center"}
     assert all(a["match"] for a in audit)
 
 

@@ -304,7 +304,10 @@
       "table": "Table B",
       "services": {
         "comprehensive_stroke": "Comprehensive Stroke Center",
-        "primary_stroke": "Primary Stroke Center"
+        "primary_stroke": "Primary Stroke Center",
+        "stemi": "STEMI Center",
+        "adult_trauma": "Adult Trauma Center",
+        "pediatric_trauma": "Pediatric Trauma Center"
       }
     },
     "facilities": {
@@ -335,6 +338,30 @@
       "RSJ",
       "SLH",
       "STH",
+      "SUH",
+      "VMC"
+    ],
+    "stemi": [
+      "ECH",
+      "GSH",
+      "KSC",
+      "OCH",
+      "RSJ",
+      "STH",
+      "SUH",
+      "VMC"
+    ],
+    "adult_trauma": [
+      "RSJ",
+      "SUH",
+      "VMC"
+    ],
+    "pediatric_trauma": [
+      "SUH",
+      "VMC"
+    ],
+    "trauma_nicu_source": "Policy 602 §VI.C.4 names these two in its text (not a Table B row)",
+    "trauma_nicu": [
       "SUH",
       "VMC"
     ],
@@ -400,6 +427,151 @@
         "point": "campus",
         "osm": "way/609630707"
       }
+    },
+    "selection": {
+      "about": "The ONE hospital Herald suggests while no destination is set (herald/transport/selection.py). The first rule whose conditions hold picks the lists; the closest listed hospital by road wins, or the first in list order when the vehicle's position is not known. Herald cannot see which hospitals are accepting patients (602 §VI.B.3), so a suggestion is only set by the medic's tap or by saying the hospital.",
+      "source": "Policy 602 §III.C, §VI.B-F (effective 2025-04-01, in AO 2025-005); 700-A13 §3.2-3.3 (effective 2026-01-01)",
+      "rules": [
+        {
+          "id": "trauma_pregnant",
+          "situation": "Trauma Alert, pregnant over 20 weeks",
+          "when": {
+            "scores": [
+              {
+                "id": "trauma_605",
+                "field": "met",
+                "equals": true
+              }
+            ],
+            "facts": {
+              "type": "above",
+              "key": "patient.pregnancy_weeks",
+              "value": 20
+            }
+          },
+          "lists": [
+            "trauma_nicu"
+          ],
+          "service": "Trauma center with a Level III NICU",
+          "cite": "602 §VI.C.4",
+          "quote": "Pregnant trauma alert patients more than twenty (20) weeks gestation are to be transported to the closest trauma center with an approved Level III Neonatal ICU (Stanford Hospital or Santa Clara Valley Medical Center)."
+        },
+        {
+          "id": "trauma_pediatric",
+          "situation": "Pediatric Trauma Alert",
+          "when": {
+            "scores": [
+              {
+                "id": "trauma_605",
+                "field": "met",
+                "equals": true
+              }
+            ],
+            "facts": {
+              "type": "below",
+              "key": "patient.age",
+              "value": 15
+            }
+          },
+          "lists": [
+            "pediatric_trauma"
+          ],
+          "service": "Pediatric Trauma Center",
+          "cite": "602 §VI.C.3",
+          "quote": "Pediatric Trauma Alert Patients shall be transported to the closest open Pediatric Trauma Center, identified in Table B: Approved In-County Services, determined by distance or time of travel."
+        },
+        {
+          "id": "trauma_adult",
+          "situation": "Trauma Alert",
+          "when": {
+            "scores": [
+              {
+                "id": "trauma_605",
+                "field": "met",
+                "equals": true
+              }
+            ]
+          },
+          "lists": [
+            "adult_trauma"
+          ],
+          "service": "Adult Trauma Center",
+          "cite": "602 §VI.C.2",
+          "quote": "Adult Trauma Alert Patients shall be transported to the closest open Adult Trauma Center, identified in Table B: Approved In-County Services, determined by distance or time of travel."
+        },
+        {
+          "id": "stemi",
+          "situation": "STEMI Alert",
+          "when": {
+            "scores": [
+              {
+                "id": "stemi_700a08",
+                "field": "met",
+                "equals": true
+              }
+            ]
+          },
+          "lists": [
+            "stemi"
+          ],
+          "service": "STEMI Receiving Center",
+          "cite": "602 §VI.F.1",
+          "quote": "The closest STEMI Receiving Center identified in Table B: Approved In-County Services to the incident location as determined by total emergency ambulance transport time"
+        },
+        {
+          "id": "stroke_comprehensive",
+          "situation": "Stroke Alert, G.F.A.S.T. 4 of 4",
+          "when": {
+            "alert": "stroke",
+            "scores": [
+              {
+                "id": "gfast",
+                "field": "positive",
+                "equals": true
+              }
+            ]
+          },
+          "lists": [
+            "comprehensive_stroke"
+          ],
+          "service": "Comprehensive Stroke Center",
+          "cite": "602 §VI.E.1.a; 700-A13 §3.2",
+          "quote": "The closest Comprehensive Stroke Center identified in Table B: Approved In-County Services to the incident location as determined by total emergency ambulance transport time",
+          "over_minutes": {
+            "minutes": 45,
+            "lists": [
+              "primary_stroke"
+            ],
+            "service": "Primary Stroke Center",
+            "cite": "602 §VI.E.1.c; 700-A13 §3.2.1",
+            "quote": "If the transport time to the closest Comprehensive Stroke Center is greater than forty-five (45) minutes, transport to the closest Primary Stroke Center"
+          }
+        },
+        {
+          "id": "stroke",
+          "situation": "Stroke call",
+          "when": {
+            "alert": "stroke"
+          },
+          "lists": [
+            "comprehensive_stroke",
+            "primary_stroke"
+          ],
+          "service": "Stroke Center",
+          "cite": "602 §VI.E.2.a; 700-A13 §3.3",
+          "quote": "The closest Stroke Center identified in Table B: Approved In-County Services to the incident location as determined by total emergency ambulance transport time",
+          "note": "G.F.A.S.T. 4 of 4 goes to a Comprehensive Stroke Center (700-A13 §3.2)"
+        },
+        {
+          "id": "routine",
+          "situation": "Routine transport",
+          "when": {},
+          "lists": [],
+          "service": "Emergency department",
+          "cite": "602 §III.C.1",
+          "quote": "The closest hospital to the incident location as determined by the total emergency ambulance transport time"
+        }
+      ]
     }
   },
   "pre_alert": {

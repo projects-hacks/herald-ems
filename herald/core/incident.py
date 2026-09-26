@@ -174,6 +174,26 @@ class Incident:
             self.commit()
             return corrected
 
+    def settle(self, fact_id: Optional[str], fin: FactIn, actor: str) -> Fact:
+        """Write `fin` confirmed in place of the current fact `fact_id` (kept, rejected, like a correction), or as
+        the first value when there is none: a value settled against a reviewed list, e.g. a spoken destination
+        matched to one county hospital (actor "herald") or the medic's pick of one (actor "medic"). Audited with
+        what it replaced."""
+        with self.lock:
+            self.ensure_open()
+            old = next((f for f in self.facts if f.id == fact_id), None) if fact_id else None
+            if fact_id and (old is None or self.latest(old.key) is not old):
+                raise RuntimeError("This field changed. Review its current value before changing it.")
+            fact = self.ingest(fin, record=False)
+            if old is not None:
+                old.status = Status.rejected
+            fact.status = Status.confirmed
+            self.audit_log.append({"at": utcnow().isoformat(), "action": "fact_settled", "actor": actor,
+                                   "fact_id": fact.id, "key": fact.key, "value": fact.value, "replaces": fact_id,
+                                   "replaced_value": old.value if old is not None else None})
+            self.commit()
+            return fact
+
     # ---------- queries ----------
     def history(self, key: str, confirmed_only: bool = False) -> list[Fact]:
         return [f for f in self.facts if f.key == key and f.status != Status.rejected

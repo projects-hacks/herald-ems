@@ -4,7 +4,6 @@
 import { ChevronDown, ChevronRight, CircleCheck, Hourglass, Lock, RefreshCw, WifiOff } from "lucide-react";
 import { useState } from "react";
 import { api } from "@/lib/api";
-import { useHerald } from "@/lib/store";
 import { label, useContract } from "@/lib/contract";
 import { clockTime, factValue } from "@/lib/format";
 import { activeSync, clinicianReceipt, erRows, reconciled, type ErRow } from "@/lib/selectors";
@@ -15,15 +14,15 @@ import { Badge } from "@/components/kit";
 
 export function AuthorizeForm({ s }: { s: Snapshot }) {
   const [dest, setDest] = useState("");
-  const setUi = useHerald((st) => st.setUi);
   const value = s.facts["transport.destination"];
   const known = value?.status === "confirmed" ? value : undefined;
   const target = known ? String(known.value) : dest.trim();
-  const listed = !!s.transport?.options.length;   // the county's hospitals: choose one, never type a name
+  // the county's hospitals: the destination is said or Herald's suggestion accepted (situation bar), never typed
+  const listed = !!s.transport?.options.length;
   return (
     <div className="flex flex-col gap-3">
-      {listed && <button type="button" className="cabin-button" onClick={() => setUi({ destinationOpen: true })}>
-        {known ? `Destination: ${String(known.value)} · change` : "Choose destination"}</button>}
+      {listed && <p className="text-body text-text-secondary">{known ? `Destination: ${String(known.value)}`
+        : "No destination yet. Say the hospital, or accept Herald’s suggestion above."}</p>}
       {!known && !listed && (
         <label className="flex flex-col gap-1.5 text-meta font-medium text-text-secondary">Destination
           <input value={dest} onChange={(e) => setDest(e.target.value)} placeholder="e.g. Regional"

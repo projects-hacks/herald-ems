@@ -49,13 +49,6 @@ def service(router=None, resolver=None, clock=None):
     return TransportService(lambda: COUNTY, router, resolver, CFG, clock or Clock())
 
 
-def heard(inc, value):
-    """A destination overheard in the cabin: it waits for the medic."""
-    fact = inc.ingest(FactIn(key="transport.destination", value=value, role=Role.family, captured_by=CapturedBy.other))
-    assert fact.status == Status.unconfirmed
-    return fact
-
-
 def confirmed(inc, key, value):
     return inc.set_status(inc.ingest(FactIn(key=key, value=value)).id, Status.confirmed)
 
@@ -65,47 +58,13 @@ def test_every_santa_clara_hospital_has_a_route_point_and_its_policy_designation
     rows = {f.id: f for f in facilities(COUNTY)}
     assert len(rows) == 10 and all(f.routable for f in rows.values())
     assert "Comprehensive Stroke Center" in rows["GSH"].designations
-    assert rows["VMC"].designations == ("Primary Stroke Center",)
+    assert rows["VMC"].designations == ("Primary Stroke Center", "STEMI Center", "Adult Trauma Center",
+                                        "Pediatric Trauma Center")                 # 602 Table B
     assert rows["SUH"].point == "emergency entrance"
     assert facilities(CountyRegistry("generic").active) == []
 
 
-# ---------- a spoken destination ----------
-def test_official_name_matches_without_the_model_and_the_model_only_chooses_listed_ids():
-    options = facilities(COUNTY)
-    model = Chooser({"id": "GSH"})
-    r = DestinationResolver(model)
-    assert r.resolve("good samaritan hospital", options) == "GSH" and not model.calls
-    assert r.resolve("Good Sam", options) == "GSH"
-    assert model.calls[0][1]["properties"]["id"]["enum"][-1] == "none"      # it may always say none
-    assert DestinationResolver(Chooser({"id": "none"})).resolve("Kaiser", options) is None
-    assert DestinationResolver(Chooser({"id": "MADE-UP"})).resolve("somewhere", options) is None
-
-
-def test_heard_destination_is_matched_off_the_request_path_and_only_suggested():
-    client, ctx = make_client()
-    ctx.transport.resolver = DestinationResolver(Chooser({"id": "GSH"}))
-    heard(ctx.incident, "Good Sam")
-    [text] = ctx.transport.pending_matches(ctx.incident)
-    assert ctx.transport.pending_matches(ctx.incident) == []                   # one lookup at a time
-    ctx.transport.match(text)
-    d = client.get("/api/state").json()["transport"]["destination"]
-    assert d == {**d, "status": "unconfirmed", "id": None, "suggested": "GSH", "value": "Good Sam"}
-    assert ctx.incident.latest("transport.destination", confirmed_only=True) is None
-
-
-# ---------- the medic's tap ----------
-def test_tapping_a_hospital_confirms_it_and_retires_the_heard_value():
-    client, ctx = make_client()
-    said = heard(ctx.incident, "Good Sam")
-    h = {"X-Herald-Patient": ctx.incident.id}
-    assert client.post("/api/transport/destination", json={"facility": "GSH"}, headers=h).status_code == 200
-    now = ctx.incident.latest("transport.destination")
-    assert now.value == "Good Samaritan Hospital" and now.status == Status.confirmed
-    assert next(f for f in ctx.incident.facts if f.id == said.id).status == Status.rejected   # kept, not deleted
-    assert client.post("/api/transport/destination", json={"facility": "XYZ"}, headers=h).status_code == 404
-    stale = {"X-Herald-Patient": "someone-else"}
-    assert client.post("/api/transport/destination", json={"facility": "RSJ"}, headers=stale).status_code == 409
+# (a spoken destination, Herald's suggestion and the medic's tap: tests/test_destination.py)
 
 
 # ---------- position and road ETA ----------
@@ -151,6 +110,8 @@ def test_a_router_failure_is_reported_and_leaves_the_crew_estimate():
 
 
 class _Inc:
+    arrived_at = transferred_at = ended_at = disposition = None
+
     def latest(self, key, confirmed_only=False):
         return None
 
@@ -164,6 +125,34 @@ def test_position_endpoint_and_snapshot_eta_clock_say_their_source():
     snap = client.get("/api/state").json()
     [eta] = [c for c in snap["clocks"] if c["id"] == "eta"]
     assert eta["source"] == "route" and snap["transport"]["destination"]["id"] == "GSH"
+
+
+def test_a_destination_set_after_the_tablet_went_quiet_gets_the_road_eta_when_the_tablet_reports_again():
+    """Live report (2026-09-26, :8100): "I selected location but the ETA was not reflected." The laptop's
+    watchPosition sent one fix at the start of the call and none after (a stationary device gets no new callback);
+    the destination was set minutes later, so that fix was past position_stale_s and the ETA stayed the crew's. The
+    tablet now re-reads its position on a timer and sends the fix's age measured on the device."""
+    client, ctx = make_client()
+    clock = Clock()
+    ctx.transport = TransportService(lambda: COUNTY, FakeRouter(), None, CFG, clock)
+    here = {"lat": DOWNTOWN[0], "lon": DOWNTOWN[1], "accuracy_m": 35}
+    assert client.post("/api/transport/position", json={**here, "age_s": 0}).json() == {"ok": True}
+    clock.now += timedelta(minutes=4)                                          # no new fix since
+    confirmed(ctx.incident, "transport.eta_min", 12)
+    h = {"X-Herald-Patient": ctx.incident.id}
+    assert client.post("/api/transport/destination", json={"facility": "RSJ"}, headers=h).status_code == 200
+    t = client.get("/api/state").json()["transport"]
+    assert t["destination"]["id"] == "RSJ" and not t["position"]["fresh"] and t["eta"]["source"] == "crew"
+    # the next timed fix; the tablet's clock runs 5 minutes behind this box, and its age wins over its timestamp
+    late = (clock.now - timedelta(minutes=5)).isoformat()
+    client.post("/api/transport/position", json={**here, "at": late, "age_s": 1.0})
+    snap = client.get("/api/state").json()
+    rsj = next(o for o in snap["transport"]["options"] if o["id"] == "RSJ")
+    assert snap["transport"]["position"]["fresh"] and snap["transport"]["eta"]["source"] == "route"
+    [eta] = [c for c in snap["clocks"] if c["id"] == "eta"]
+    assert eta["source"] == "route" and eta["until"] == (clock.now + timedelta(minutes=rsj["minutes"])).isoformat()
+    client.post("/api/transport/position", json={**here, "at": late})         # a timestamp alone: 5 minutes old
+    assert client.get("/api/state").json()["transport"]["eta"]["source"] == "crew"
 
 
 def test_osrm_adapter_reads_the_table_response():

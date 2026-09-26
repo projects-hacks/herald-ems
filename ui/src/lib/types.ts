@@ -131,8 +131,20 @@ export interface TransportView {
   routing: boolean; router_error: string | null;
   position: { at: string; accuracy_m: number | null; fresh: boolean } | null;
   options: TransportOption[];            // the county's receiving hospitals, nearest first when the position is fresh
-  destination: { fact_id: string; value: string; status: FactStatus; id: string | null; suggested: string | null; matching: boolean } | null;
+  /** The confirmed destination and how it was set: from the crew's words, Herald's suggestion accepted, or chosen. */
+  destination: { fact_id: string; value: string; id: string | null; how: "heard" | "suggested" | "chosen"; said: string | null; at: string } | null;
+  /** Destination words that are not the destination: still matching, naming no single county hospital, or another
+   *  speaker's (then `id` is the hospital they named, offered as the suggestion). */
+  heard: { fact_id: string; value: string; role: string; state: "matching" | "matched" | "unmatched"; id: string | null } | null;
+  suggestion: TransportSuggestion | null;
   eta: { source: "route" | "crew"; until: string } | null;
+}
+/** The ONE hospital Herald suggests (herald/transport/selection.py): the county's rule for this situation, or the
+ *  hospital another speaker named. Accepted with a tap or by saying the hospital. */
+export interface TransportSuggestion {
+  id: string; name: string; designations: string[]; minutes: number | null; km: number | null; nearest_known: boolean;
+  basis: "policy" | "heard"; rule: string | null; situation: string; service: string | null; cite: string | null;
+  quote: string | null; note: string | null;
 }
 
 // ---------- trace (api/trace.py, api/capture.py) ----------

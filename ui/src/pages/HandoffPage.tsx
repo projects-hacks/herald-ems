@@ -15,24 +15,26 @@ import { useNow } from "@/hooks/useNow";
 import { hhmm } from "@/lib/format";
 import { etaSeconds, handoverDestination, patientIdentity, preAlertStatus } from "@/lib/handover";
 import { useHerald } from "@/lib/store";
+import { destinationHow } from "@/features/transport/DestinationStatus";
 import type { Snapshot } from "@/lib/types";
 import "@/features/handoff/handoff.css";
 
 function Headline({ s }: { s: Snapshot }) {
   const at = useHerald((st) => st.lastStateAt);
-  const setUi = useHerald((st) => st.setUi);
   const now = useNow();
   const dest = handoverDestination(s);
   const handed = !!s.incident.handed_over_at;
   const eta = handed || s.incident.arrived_at ? null : etaSeconds(s, at, now);
   const status = preAlertStatus(s);
-  const where = [dest ? `To ${dest}` : "Destination not confirmed",
-    eta === null ? null : eta > 0 ? `ETA ${Math.max(1, Math.round(eta / 60))} min` : "ETA now"].filter(Boolean).join(" · ");
+  const source = s.clocks.find((c) => c.id === "eta")?.source;
+  const how = !handed && s.transport?.destination ? destinationHow(s.transport.destination) : null;
+  const where = [dest ? `To ${dest}${how ? ` (${how})` : ""}` : "Destination not set: say the hospital",
+    eta === null ? null : `${eta > 0 ? `ETA ${Math.max(1, Math.round(eta / 60))} min` : "ETA now"}${source === "route" ? " by road route" : source === "crew" ? " (crew estimate)" : ""}`]
+    .filter(Boolean).join(" · ");
   return <header className="handoff-headline">
     <p className="label-caps text-text-muted">Handoff</p>
     <h1>{patientIdentity(s)}</h1>
-    <p className="handoff-where">{s.transport && !handed && !s.incident.arrived_at
-      ? <button type="button" className="handoff-where-button" onClick={() => setUi({ destinationOpen: true })}>{where}</button> : where}{s.incident.arrived_at && !handed && <span className="handoff-chip" data-tone="neutral">Arrived {hhmm(s.incident.arrived_at)}</span>}</p>
+    <p className="handoff-where">{where}{s.incident.arrived_at && !handed && <span className="handoff-chip" data-tone="neutral">Arrived {hhmm(s.incident.arrived_at)}</span>}</p>
     {!handed && <p className="handoff-chip" data-tone={status.tone} role="status">{status.text}</p>}
   </header>;
 }
