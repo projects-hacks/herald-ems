@@ -204,7 +204,7 @@ class AppContext:
         snap["history_persisted"] = self.persistence is not None
         if self.transport is not None:
             crew = next((clock for clock in snap["clocks"] if clock["id"] == "eta"), None)
-            snap["transport"] = self.transport.view(self.incident, crew)
+            snap["transport"] = self.transport.view(self.incident, crew, snapshot=snap)
             snap["clocks"] = [clock for clock in snap["clocks"] if clock["id"] != "eta"]
             eta = snap["transport"]["eta"]
             if eta and not (self.incident.arrived_at or self.incident.transferred_at):

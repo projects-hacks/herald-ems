@@ -54,7 +54,7 @@ export const api = {
   encounterAction: (action: "arrive" | "transfer") => act(`encounter:${action}`, `/api/encounters/current/${action}`),
   finishEncounter: (disposition: string) => act("encounter:finish", "/api/encounters/current/finish", { disposition }),
   // the medic's tap on a county hospital: written confirmed, replacing a heard value
-  setDestination: (facility: string) => act(`destination:${facility}`, "/api/transport/destination", { facility },
+  setDestination: (facility: string, via: "suggestion" | "list" = "list") => act(`destination:${facility}`, "/api/transport/destination", { facility, via },
     "Couldn't set the destination. The Herald server didn't answer. Try again."),
   activatePatient: (id: string) => act(`patient:${id}`, `/api/patients/${encodeURIComponent(id)}/activate`),
   addPatient: (label: string) => act("patient:add", "/api/patients", { label }),

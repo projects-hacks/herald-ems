@@ -15,6 +15,7 @@ import { useHerald } from "@/lib/store";
 import { Sparkline } from "@/components/Sparkline";
 import { ActionButton, ActionNote, usePendingAction } from "@/components/ActionButton";
 import { AuthorizeForm } from "@/features/handoff/handoff";
+import { DestinationStatus } from "@/features/transport/DestinationStatus";
 
 /** The whole system status, and the one capture control: tap to pause or resume listening and watching. */
 export function PresencePill({ p, paused, disabled, onToggle }: { p: Presence; paused: boolean; disabled?: boolean; onToggle: () => void }) {
@@ -220,21 +221,11 @@ export function SituationBar() {
   const s = useHerald((st) => st.snapshot);
   const at = useHerald((st) => st.lastStateAt);
   const now = useNow();
-  const setUi = useHerald((st) => st.setUi);
   if (!s || s.incident.ended_at || (!s.readiness.length && !s.transport && !s.clocks.some((c) => c.id !== "scene"))) return null;
   const clock = (id: string) => s.clocks.find((c) => c.id === id);
   const lkw = clock("lkw"), eta = clock("eta"), due = clock("reassess");
-  const d = s.transport?.destination, transports = !s.incident.disposition;
-  const chosen = d?.status === "confirmed" ? s.transport?.options.find((o) => o.id === d.id) : undefined;
   return <div className="situation-bar" role="group" aria-label="Situation">
-    {s.transport && transports && !s.incident.arrived_at && !s.incident.transferred_at &&
-      <button type="button" className="sit-clock sit-dest" data-unconfirmed={(d && d.status !== "confirmed") || undefined}
-        aria-label={d?.status === "confirmed" ? `Destination ${d.value}${chosen?.minutes != null ? `, ${chosen.minutes} minutes by road` : ""}. Change`
-          : d ? `Heard destination ${d.value}. Confirm` : "Set destination"}
-        onClick={() => setUi({ destinationOpen: true })}>
-        <b>To</b>{d?.status === "confirmed" ? <span>{d.value}{chosen?.minutes != null ? <span className="num"> · {chosen.minutes} min</span> : null}</span>
-          : d ? <span>heard “{d.value}” · <em>confirm</em></span> : <span>set destination</span>}
-      </button>}
+    <DestinationStatus s={s} />
     {s.readiness.map((r) => {
       const missing = r.items.filter((i) => i.state === "missing").map((i) => i.label);
       const toConfirm = r.items.filter((i) => i.state === "pending").length;

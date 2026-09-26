@@ -130,10 +130,15 @@ For continuous observation, choose **Start listening** and **Camera → Start mo
 - **Destination and road ETA:** `scripts/herald.sh up` starts a local OSRM road router on :5100 (one-time map
   data: `scripts/routing_setup.sh`, the Santa Clara County OpenStreetMap extract, ~75 MB, prepared in seconds;
   map data (c) OpenStreetMap contributors, ODbL). The medic tablet shares its location with the vehicle server
-  (Settings; the browser asks once, over the same localhost/HTTPS rule as the microphone); the destination list then
-  shows every county hospital nearest by road with its stroke designations, and the ETA follows the road route to the
-  confirmed destination. Without the router or a fresh location the ETA is the crew's spoken estimate. Drive times
-  are normal driving without traffic or lights and siren. Live diversion status is not available on the vehicle.
+  (Settings; the browser asks once, over the same localhost/HTTPS rule as the microphone, and re-reads the position
+  every 15 s). The destination is set by voice or one tap, never from a dropdown: saying a county hospital
+  ("Transporting to Regional") sets it once the local model matches the words to exactly one hospital on the county
+  list, and while none is set Herald suggests ONE hospital from the county's own destination rules (Policy 602,
+  700-A13: a stroke with G.F.A.S.T. 4 of 4 goes to the closest Comprehensive Stroke Center, a STEMI alert to the
+  closest STEMI Receiving Center, a trauma alert to the closest trauma center, otherwise the closest emergency
+  department) with a single Accept. The ETA follows the road route to the destination. Without the router or a fresh
+  location the ETA is the crew's spoken estimate. Drive times are normal driving without traffic or lights and siren.
+  Live diversion status is not available on the vehicle.
   Finishing an encounter asks how it ended (NEMSIS dispositions); a refusal or non-transport tells an already-alerted
   ED the patient is not coming.
 - **Relay demo:** `scripts/link.sh start 127.0.0.1:8200`, then run `ed_receiver` on port 8200 and set `HERALD_ED_URL=http://127.0.0.1:9000`. Shift+G/W/D switch the emulated link.
