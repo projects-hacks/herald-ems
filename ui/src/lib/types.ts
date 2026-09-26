@@ -185,7 +185,7 @@ export interface TranscriptEntry {
 export type TriageCategory = "immediate" | "delayed" | "minimal" | "expectant" | "dead";
 export interface PatientSummary {
   ended_at?: string | null;
-  id: string; label: string; triage: TriageCategory | null; summary: string;
+  id: string; label: string; slot?: string; triage: TriageCategory | null; summary: string;
   readiness_done: number; readiness_total: number;
 }
 

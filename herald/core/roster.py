@@ -51,7 +51,8 @@ class PatientRoster:
             readiness = snapshot["readiness"][0] if snapshot["readiness"] else None
             rows.append({
                 "id": patient_id,
-                "label": self._labels[patient_id],
+                "label": getattr(incident, "display_label", None) or self._labels[patient_id],   # confirmed name, else slot
+                "slot": self._labels[patient_id],
                 "ended_at": incident.ended_at.isoformat() if incident.ended_at else None,
                 "triage": triage.value if triage else None,
                 "summary": snapshot["summary"],

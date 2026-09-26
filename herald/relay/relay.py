@@ -203,7 +203,7 @@ class Relay:
             else:
                 trial[key] = value
             body = {"i": inc.id, "q": self.seq + 1, "tier": "critical", "f": trial,
-                    "patient": inc.patient_label, "dest": (self.authorized or {}).get("destination"),
+                    "patient": inc.display_label, "dest": (self.authorized or {}).get("destination"),
                     "x": len(rows) - len(trial) - len(trial_removed)}
             if trial_removed:
                 body["rm"] = trial_removed
@@ -216,7 +216,7 @@ class Relay:
                 break
         self.seq += 1
         packet = {"i": inc.id, "q": self.seq, "tier": "critical", "f": fields,
-                  "patient": inc.patient_label, "dest": (self.authorized or {}).get("destination"),
+                  "patient": inc.display_label, "dest": (self.authorized or {}).get("destination"),
                   "x": len(rows) - len(fields) - len(removed), "_why": why}
         if removed:
             packet["rm"] = removed
@@ -239,7 +239,7 @@ class Relay:
                     if clock["id"] == "lkw" and clock.get("confirmed")), None)
         return {"i": inc.id, "q": self.seq, "tier": "full", "f": self.critical_values(inc), "tl": timeline,
                 **({"lkw_at": lkw} if lkw else {}),
-                "patient": inc.patient_label, "dest": (self.authorized or {}).get("destination"), "x": 0,
+                "patient": inc.display_label, "dest": (self.authorized or {}).get("destination"), "x": 0,
                 "_why": ["full record on a good link"],
                 "_n": len(confirmed)}
 
@@ -251,7 +251,7 @@ class Relay:
             return None
         self.seq += 1
         return {"i": inc.id, "q": self.seq, "tier": "handover", "f": {}, "ho": final_report_body(inc),
-                "patient": inc.patient_label, "dest": (self.authorized or {}).get("destination"), "x": 0,
+                "patient": inc.display_label, "dest": (self.authorized or {}).get("destination"), "x": 0,
                 "_why": ["final handoff report at hand over"]}
 
     def handover_status(self, inc) -> Optional[dict]:

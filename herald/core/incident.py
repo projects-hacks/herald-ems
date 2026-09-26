@@ -65,8 +65,11 @@ class Incident:
             prev = self.latest(fin.key)
             data = fin.model_dump()
             data["value"] = value
+            # A record key merged "each" (a drug given, a procedure done) lists separate events: the newer one is not a
+            # change of the older, so it carries no "was" (the record page showed saline "was epinephrine").
+            was = None if self.vocab.meta(fin.key).get("merge") == "each" else prev
             fact = Fact(**data, id=new_id("f"), ts=utcnow(), status=self.policy.initial_status(fin, prev, value),
-                        previous_value=prev.value if prev else None, previous_ts=prev.ts if prev else None)
+                        previous_value=was.value if was else None, previous_ts=was.ts if was else None)
             self.facts.append(fact)
             if record:
                 self.commit()
@@ -198,6 +201,13 @@ class Incident:
     def history(self, key: str, confirmed_only: bool = False) -> list[Fact]:
         return [f for f in self.facts if f.key == key and f.status != Status.rejected
                 and (not confirmed_only or f.status == Status.confirmed)]
+
+    @property
+    def display_label(self) -> Optional[str]:
+        """What to call this patient on every screen and in every ED packet: the confirmed name once there is one,
+        else the scene slot ("Patient 1"). A reported name that is not yet confirmed never becomes the label."""
+        name = self.latest("patient.name", confirmed_only=True)
+        return str(name.value).strip() if name is not None and str(name.value).strip() else self.patient_label
 
     def latest(self, key: str, confirmed_only: bool = False) -> Optional[Fact]:
         h = self.history(key, confirmed_only)

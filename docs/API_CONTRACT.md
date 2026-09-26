@@ -674,3 +674,4 @@ The document is a FHIR R4 `Bundle` of `type: "document"` (https://hl7.org/fhir/R
   `capture.last` and `capture.counts`.
 - A transcript entry carries `asked: true` when its words asked for a county protocol.
 
+**Patient label** (2026-09-26): `patients[].label`, the ED packet's `patient` and encounter history use the confirmed `patient.name` once there is one, else the scene slot; `patients[].slot` keeps the slot ("Patient 1"). A reported, unconfirmed name never becomes the label. Record keys merged `each` (`meds.given`, `procedures.done`) carry no `previous_value`: each is its own event.

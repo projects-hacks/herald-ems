@@ -39,9 +39,9 @@ def test_roster_add_activate_and_summaries():
     assert roster.active() is passenger
     assert roster.activate(driver.id) is driver
     assert roster.summaries() == [
-        {"id": "inc-driver", "label": "Driver", "ended_at": None, "triage": "immediate", "summary": "Driver",
+        {"id": "inc-driver", "label": "Driver", "slot": "Driver", "ended_at": None, "triage": "immediate", "summary": "Driver",
          "readiness_done": 2, "readiness_total": 6},
-        {"id": "inc-passenger", "label": "Passenger", "ended_at": None, "triage": "minimal", "summary": "Passenger",
+        {"id": "inc-passenger", "label": "Passenger", "slot": "Passenger", "ended_at": None, "triage": "minimal", "summary": "Passenger",
          "readiness_done": 0, "readiness_total": 0},
     ]
 
@@ -72,7 +72,7 @@ def test_patient_routes_create_activate_and_publish_snapshot_contract():
     initial = client.get("/api/state").json()
     driver_id = initial["active_patient"]
     assert initial["patients"] == [{
-        "id": driver_id, "label": "Patient 1", "ended_at": None, "triage": None, "summary": "",
+        "id": driver_id, "label": "Patient 1", "slot": "Patient 1", "ended_at": None, "triage": None, "summary": "",
         "readiness_done": 0, "readiness_total": 6,
     }]
 

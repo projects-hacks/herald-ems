@@ -97,7 +97,7 @@ async def retained(patient_id: str, c=Depends(get_ctx)):
     for roster, relay in [(c.roster, c.relay), *((call.roster, call.relay) for call in c.previous_calls)]:
         for inc in roster.incidents():
             if inc.id == patient_id:
-                return {"incident": inc.snapshot()["incident"], "label": inc.patient_label,
+                return {"incident": inc.snapshot()["incident"], "label": inc.display_label,
                         "handoff": inc.handoff_final or c.handoff.build(inc), "frozen": inc.handoff_final is not None,
                         "handover": relay.handover_status(inc), "relay": relay.status()}
     raise HTTPException(404, "Retained encounter not found")
