@@ -35,7 +35,7 @@ def stroke_call():
     inc = Incident("possible stroke")
     for k, v in [("patient.age", 68), ("patient.sex", "F"), ("complaint.chief", "left-sided weakness"),
                  ("impression.primary", "stroke"), ("vitals.sbp", 182), ("vitals.dbp", 104), ("vitals.hr", 92),
-                 ("vitals.hr", 104), ("vitals.spo2", 95), ("meds.anticoagulant", "warfarin"),
+                 ("vitals.hr", 116), ("vitals.spo2", 95), ("meds.anticoagulant", "warfarin"),
                  ("transport.destination", "Regional"), ("transport.eta_min", 12)]:
         said(inc, k, v)
     said(inc, "allergies", "none", speaker="husband", role=Role.family)            # coerced to [] (no allergies)
@@ -182,7 +182,7 @@ def test_important_values_are_bold_and_gaps_are_not():
     assert "<b>BP 84/50 mmHg</b>" in divs["S: Signs"]
     assert "<b>HR 118/min</b>" in divs["S: Signs"]
     assert "<b>Anticoagulant: apixaban</b>" in divs["Allergies, medications, history"]
-    assert "<b>Trauma Alert criteria (Policy 605) met</b>" in divs["Alert and patient"]       # met alert
+    assert "<b>Trauma alert</b>" in divs["Alert and patient"]                                 # met alert
     assert "<li>RR: not yet known</li>" in divs["S: Signs"] or "<li>Respiratory rate: not yet known</li>" in \
         divs["S: Signs"]                                                                       # a gap stays plain
     assert "<b>NEWS2" not in divs["S: Signs"]                                                  # not in emphasis

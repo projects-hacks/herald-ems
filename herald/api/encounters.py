@@ -76,7 +76,8 @@ def encode_call(roster, relay) -> dict:
                              "facts": [f.model_dump(mode="json") for f in inc.facts],
                              "transcripts": inc.transcripts, "audit": inc.audit_log,
                              "news2": inc.news2_history, "media_disposal": inc.media_disposal,
-                             "media_ids": {k: sorted(v) for k, v in inc.media_ids.items()}})
+                             "media_ids": {k: sorted(v) for k, v in inc.media_ids.items()},
+                             "not_obtained": list(inc.not_obtained)})
     return {"active": roster.active_id, "patients": patients,
             "relay": {key: getattr(relay, key) for key in RELAY_FIELDS}}
 
@@ -95,6 +96,7 @@ def decode_call(context, payload: dict) -> SavedCall:
         inc.news2_history, inc.media_disposal = row.get("news2", []), row.get("media_disposal")
         inc.media_ids = {"audio": set(), "photo": set(), "evidence": set()} | {
             kind: set(ids) for kind, ids in row.get("media_ids", {}).items()}
+        inc.not_obtained = list(row.get("not_obtained", []))
         roster._incidents[inc.id], roster._labels[inc.id] = inc, inc.patient_label
     roster.active_id = payload.get("active") if payload.get("active") in roster._incidents else next(iter(roster._incidents))
     relay = fresh_relay(context, roster)

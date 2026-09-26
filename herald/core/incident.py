@@ -39,6 +39,7 @@ class Incident:
         self.media_disposal: Optional[dict] = None
         self.news2_history: list[dict] = []   # score history, recorded once per utterance by the projector
         self.ed_sync: dict[str, dict] = {}
+        self.not_obtained: list[str] = []     # required items marked "unable to obtain" (core/not_obtained.py)
         self.lock = threading.RLock()
 
     # ---------- ingest ----------
