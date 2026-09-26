@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm ci",
+  "redirects": [
+    { "source": "/app/new", "destination": "/app/?fixture=stroke_demo", "permanent": false },
+    { "source": "/app/", "missing": [{ "type": "query", "key": "fixture" }], "destination": "/app/?fixture=stroke_demo", "permanent": false }
+  ],
+  "rewrites": [
+    { "source": "/", "destination": "/landing/index.html" },
+    { "source": "/app", "destination": "/index.html" },
+    { "source": "/app/", "destination": "/index.html" }
+  ]
+}
