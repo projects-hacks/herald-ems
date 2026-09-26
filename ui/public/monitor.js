@@ -3,15 +3,20 @@ const play = document.getElementById("play");
 let index = 0, timer = null;
 try {
   // Which journey to play: fixtures/monitor_scenarios.json lists them; ?scenario=<id> picks one (the default otherwise),
-  // so the page can be bookmarked per demo. Changing the picker reloads the page on the new journey.
+  // so the page can be bookmarked per demo. One button per scenario: pressing one loads it fresh from the start
+  // (pressing the one already playing restarts it).
   const listing = await fetch("/fixtures/monitor_scenarios.json");
   if (!listing.ok) throw new Error("Synthetic scenario list unavailable");
   const { default: fallback, scenarios } = await listing.json();
   const wanted = new URLSearchParams(location.search).get("scenario");
   const chosen = scenarios.find((s) => s.id === wanted) ?? scenarios.find((s) => s.id === fallback) ?? scenarios[0];
-  const pick = document.getElementById("pick");
-  for (const s of scenarios) pick.append(new Option(s.label, s.id, false, s.id === chosen.id));
-  pick.onchange = () => { const url = new URL(location.href); url.searchParams.set("scenario", pick.value); location.assign(url); };
+  const picks = document.getElementById("picks");
+  for (const s of scenarios) {
+    const button = document.createElement("button");
+    button.type = "button"; button.textContent = s.label; button.setAttribute("aria-pressed", String(s.id === chosen.id));
+    button.onclick = () => { const url = new URL(location.href); url.searchParams.set("scenario", s.id); location.assign(url); };
+    picks.append(button);
+  }
   const response = await fetch(chosen.file);
   if (!response.ok) throw new Error("Synthetic scenario unavailable");
   const scenario = await response.json();
