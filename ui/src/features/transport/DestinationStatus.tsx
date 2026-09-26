@@ -17,12 +17,12 @@ export function destinationHow(d: NonNullable<TransportView["destination"]>): st
   return HOW[d.how] ?? d.how;
 }
 
-/** "Comprehensive Stroke Center, 9 min by road" / "… · no location — nearest not known". */
+/** "Comprehensive Stroke Center, 9 min by road" / "… · no location, nearest not known". */
 export function suggestionDetail(sg: TransportSuggestion, t: TransportView): string {
   const what = sg.basis === "heard" ? sg.situation : sg.service ?? "";
   if (sg.minutes !== null) return `${what}, ${sg.minutes} min by road`;
   const why = !t.position || !t.position.fresh ? "no location" : "no road route";
-  return `${what} · ${why} — nearest not known`;
+  return `${what} · ${why}, nearest not known`;
 }
 
 export function Suggestion({ s }: { s: Snapshot }) {
@@ -31,7 +31,7 @@ export function Suggestion({ s }: { s: Snapshot }) {
   return <div className="sit-suggestion" role="group" aria-label="Herald's destination suggestion">
     <Sparkles size={18} aria-hidden className="sit-suggestion-icon" />
     <div className="sit-suggestion-text">
-      <p>Herald suggests <b>{sg.name}</b> — {suggestionDetail(sg, t)}</p>
+      <p>Herald suggests <b>{sg.name}</b>, {suggestionDetail(sg, t)}</p>
       {sg.basis === "policy" && <small>{sg.situation} · {sg.cite}{sg.note ? ` · ${sg.note}` : ""} · diversion status not known</small>}
       <small>Accept, or say the hospital</small>
     </div>
@@ -54,7 +54,7 @@ export function DestinationStatus({ s }: { s: Snapshot }) {
       <small className="sit-source">{destinationHow(d)}</small>
     </span> : !t.suggestion && !unmatched && <span className="sit-clock" data-unconfirmed><b>To</b><span>say the hospital</span></span>}
     {unmatched && <span className="sit-clock sit-heard" data-unconfirmed role="status">
-      <b>Heard</b><span>“{h.value}”{h.state === "matching" ? " · matching to the county list…" : " — not matched to a county hospital"}</span>
+      <b>Heard</b><span>“{h.value}”{h.state === "matching" ? " · matching to the county list…" : ", not matched to a county hospital"}</span>
     </span>}
     {t.options.length > 0 && <button type="button" className="sit-other" onClick={() => setUi({ destinationOpen: true })}>Other hospital…</button>}
     <Suggestion s={s} />

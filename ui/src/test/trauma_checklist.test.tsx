@@ -30,7 +30,7 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 it("shows every county criterion, not only the ones speech caught, with an honest confirmed-count label", () => {
   render(<AttentionQueue />);
-  expect(screen.getByText(/Based on 0 confirmed criteria — not a complete screen/)).toBeTruthy();
+  expect(screen.getByText(/Based on 0 confirmed criteria, not a complete screen/)).toBeTruthy();
   // B (skull deformity) was never mentioned: still listed, tappable.
   expect(screen.getByText(/B\. Skull deformity/)).toBeTruthy();
   // X.6 was heard by speech but is unconfirmed in the fixture: shown distinctly from an unmarked criterion.

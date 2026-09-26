@@ -52,6 +52,7 @@ def test_a_name_is_read_from_the_words_never_invented():
     assert read("Robert Chen", "He's 62 and his chest hurts.") is None                  # not in the words
     assert read("RACE of six, screens positive for LVO", "RACE of six, screens positive for LVO.") is None
     assert read("", "Clearing St. Luke's.") is None
+    assert read("My Band", "It's like my band.") is None                               # not a name as said
 
 
 def heard(key, value, heard_as, role, *, confidence=0.95):
@@ -120,3 +121,12 @@ def test_the_report_says_who_told_us_what():
     assert informants_sentence(rows, words, "; ", ", ") == (
         "Who told us: husband: allergies, medications; patient monitor: heart rate; medic: the rest; "
         "speaker not identified: chief complaint.")
+
+
+def test_a_new_alert_is_named_by_its_label_not_its_key():
+    from herald.api.trace import TraceRecorder
+    alert = {"type": "confirm_required", "key": "patient.name", "label": "Patient name (reported)"}
+    before = {"readiness": {}, "alerts": set(), "alert_labels": {}, "scores": {}, "missing": set()}
+    after = {**before, "alerts": {("confirm_required", "patient.name")},
+             "alert_labels": {("confirm_required", "patient.name"): alert["label"]}}
+    assert TraceRecorder.diff(before, after)["alerts_new"] == [{"type": "confirm_required", "label": "Patient name (reported)"}]

@@ -46,7 +46,7 @@ export class MonitorCapture {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: "environment" } } });
       if (token !== this.generation) { stream.getTracks().forEach((track) => track.stop()); return; }
       this.stream = stream; this.video.srcObject = stream;
-      stream.getTracks().forEach((track) => { track.onended = () => this.stop("Camera disconnected — reconnecting", true, true); });
+      stream.getTracks().forEach((track) => { track.onended = () => this.stop("Camera disconnected, reconnecting", true, true); });
       await this.video.play();
       if (token !== this.generation) return;
       const socket = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/frames`);
@@ -60,8 +60,8 @@ export class MonitorCapture {
       // 4001: the server handed this patient's feed to a newer camera link (another tab or device); don't fight it
       socket.onclose = (event?: CloseEvent) => event?.code === 4001
         ? this.stop("Another camera took over this patient's feed", true, false)
-        : this.stop("Camera link to the vehicle closed — reconnecting", true, true);
-      socket.onerror = () => this.stop("Camera link to the vehicle failed — reconnecting", true, true);
+        : this.stop("Camera link to the vehicle closed, reconnecting", true, true);
+      socket.onerror = () => this.stop("Camera link to the vehicle failed, reconnecting", true, true);
       socket.onmessage = (event) => {
         this.waitingSince = 0;
         try {

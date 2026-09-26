@@ -90,7 +90,7 @@ describe("component-focused ambulance view", () => {
     render(<CabinApp />);
     expect(screen.getByRole("button", { name: "Stop auto capture" })).toBeTruthy();
     // one honest line for the whole system: disconnected, showing the last known state
-    expect(screen.getByText(/Offline — vehicle server disconnected, showing last state/)).toBeTruthy();
+    expect(screen.getByText(/Offline: vehicle server disconnected, showing last state/)).toBeTruthy();
   });
   it("does not claim the camera is watching when its status is absent", () => {
     render(<CabinApp />);

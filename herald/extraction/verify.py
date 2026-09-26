@@ -52,8 +52,9 @@ def schema_for(n: int, said_by: Optional[list[str]] = None) -> dict:
     return {"type": "object", "additionalProperties": False, "required": list(props), "properties": props}
 
 
-def _norm(text: str) -> str:
-    return re.sub(r"[^\w]+", " ", text.lower()).strip()
+def _words(text: str) -> str:
+    """The words with punctuation dropped and letter case kept."""
+    return re.sub(r"[^\w]+", " ", text).strip()
 
 
 @dataclass
@@ -108,10 +109,11 @@ class FactVerifier:
 
     @staticmethod
     def _name(name, words: str) -> Optional[str]:
-        """The model's name for the patient, only if those words are in what was said: it reads a name, never
-        invents one."""
+        """The model's name for the patient, only if those words are in what was said, spelled and capitalised as
+        said: it reads a name, never invents one. Speech to text writes a name capitalised, so "it's like my band"
+        is not the name "My Band" (room mic, 2026-09-26)."""
         name = " ".join(str(name or "").split())
         # a name is a few words; a whole clause here is the model copying the sentence, not reading a name
-        if not name or not _norm(name) or len(name.split()) > MAX_NAME_WORDS or f" {_norm(name)} " not in f" {_norm(words)} ":
+        if not name or not _words(name) or len(name.split()) > MAX_NAME_WORDS or f" {_words(name)} " not in f" {_words(words)} ":
             return None
         return name

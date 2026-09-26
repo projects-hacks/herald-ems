@@ -49,7 +49,7 @@ const DECK_DATA = {
     measured: false as boolean,
     speakers: 0,
     speakersTarget: 5,
-    note: "Numbers here are from synthetic clips and replay. Real-voice field recordings are not collected yet — the recording station and scorer are built and merged (C4.9), but no consenting speakers have been recorded.",
+    note: "Numbers here are from synthetic clips and replay. Real-voice field recordings are not collected yet. The recording station and scorer are built and merged (C4.9), but no consenting speakers have been recorded.",
   },
 };
 

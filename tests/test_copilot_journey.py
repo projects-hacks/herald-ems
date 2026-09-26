@@ -35,7 +35,7 @@ def test_camera_to_confirmed_trend_and_handoff_without_image_retention(tmp_path)
     waiting = client.get("/api/state").json()
     pending_trend = next(c for c in waiting["changed"] if c["key"] == "vitals.sbp")
     assert pending_trend["unconfirmed"] and pending_trend["unconfirmed_fact_ids"] == [second]
-    assert "confirm the reading" in pending_trend["message"]
+    assert "Confirm the reading" in pending_trend["message"]
     assert "88" not in client.get("/api/handoff").json()["text"]
     assert client.post("/api/facts/confirm", json={"ids": [second]}).status_code == 200
     state = client.get("/api/state").json()

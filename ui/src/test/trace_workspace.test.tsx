@@ -33,8 +33,8 @@ it("discloses technical processing only on expansion while retaining source evid
 
 it.each([
   ["running", "Processing captured information…", "status"],
-  ["error", "Could not extract facts — review this capture", "alert"],
-  ["unavailable", "Extraction unavailable — captured words retained, no new facts extracted", "alert"],
+  ["error", "Could not extract facts; review this capture", "alert"],
+  ["unavailable", "Extraction unavailable: captured words retained, no new facts extracted", "alert"],
 ] as const)("keeps %s state outside collapsed processing details", (status, message, role) => {
   entry.trace.model.status = status;
   render(<TraceEntry t={entry} concise />);

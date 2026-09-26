@@ -58,7 +58,7 @@ def test_shipped_config_lists_the_sources_and_the_wording():
     assert c["unconfirmed_sources"] == ["camera", "device"]
     for source in c["unconfirmed_sources"]:
         assert source in {m.value for m in CapturedBy}
-        assert "confirm" in c["unconfirmed_text"][source]
+        assert "Confirm" in c["unconfirmed_text"][source]
     rules = TrendRules.from_config()
     assert rules.counts_unconfirmed("camera") and not rules.counts_unconfirmed("medic")
     assert not rules.counts_unconfirmed("other")
@@ -67,10 +67,10 @@ def test_shipped_config_lists_the_sources_and_the_wording():
 def test_sentence_comes_from_config_and_never_recommends():
     rules = TrendRules.from_config()
     sentence = rules.sentence("camera", label="SBP", value=168, previous=140, direction="up", delta=28, unit=None)
-    assert sentence == "Camera read SBP 168, up 28 from 140 — confirm the reading"
+    assert sentence == "Camera read SBP 168, up 28 from 140. Confirm the reading"
     with_unit = rules.sentence("camera", label="Systolic BP", value=168, previous=140, direction="up", delta=28,
                                unit="mmHg")
-    assert with_unit == "Camera read Systolic BP 168 mmHg, up 28 from 140 — confirm the reading"
+    assert with_unit == "Camera read Systolic BP 168 mmHg, up 28 from 140. Confirm the reading"
     assert not any(word in sentence.lower() for word in (" give ", "should", "recommend", "treat"))
     assert rules.sentence("medic", label="SBP", value=168, previous=140, direction="up", delta=28) is None
 
@@ -134,7 +134,7 @@ def test_a_single_camera_read_produces_a_trend_point_and_an_alert_before_any_tap
     trend = trend_for(snapshot, "vitals.sbp")
     assert trend["series"] == [140, 168] and trend["significant"]
     assert trend["unconfirmed"] is True and trend["unconfirmed_fact_ids"] == [reading.id]
-    assert trend["message"] == "Camera read Systolic BP 168 mmHg, up 28 from 140 — confirm the reading"
+    assert trend["message"] == "Camera read Systolic BP 168 mmHg, up 28 from 140. Confirm the reading"
     alert = alert_for(snapshot, "vitals.sbp")
     assert alert is not None and alert["unconfirmed"] is True
     assert alert["unconfirmed_fact_ids"] == [reading.id]

@@ -40,7 +40,7 @@ it("Herald suggests one hospital from the county rule with a single Accept; the 
   const set = vi.spyOn(api, "setDestination").mockResolvedValue(true);
   show(transport({ suggestion: suggestion() }));
   render(<SituationBar />);
-  expect(screen.getByText(/— Comprehensive Stroke Center, 9 min by road/).textContent).toBe(`Herald suggests ${RSJ} — Comprehensive Stroke Center, 9 min by road`);
+  expect(screen.getByText(/, Comprehensive Stroke Center, 9 min by road/).textContent).toBe(`Herald suggests ${RSJ}, Comprehensive Stroke Center, 9 min by road`);
   expect(screen.getByText(/Stroke Alert, G\.F\.A\.S\.T\. 4 of 4 · 602 §VI\.E\.1\.a/)).toBeTruthy();
   expect(screen.getByText("Accept, or say the hospital")).toBeTruthy();
   expect(document.querySelector(".destination-row")).toBeNull();
@@ -51,13 +51,13 @@ it("Herald suggests one hospital from the county rule with a single Accept; the 
 it("without a vehicle position the suggestion says the nearest is not known", () => {
   show(transport({ position: null, suggestion: suggestion({ id: "ECH", name: "El Camino Hospital of Mountain View", minutes: null, km: null, nearest_known: false }) }));
   render(<SituationBar />);
-  expect(screen.getByText(/Comprehensive Stroke Center · no location — nearest not known/)).toBeTruthy();
+  expect(screen.getByText(/Comprehensive Stroke Center · no location, nearest not known/)).toBeTruthy();
 });
 
 it("words that name no single county hospital are shown as heard, never as the destination", () => {
   show(transport({ heard: { fact_id: "h", value: "Kaiser", role: "medic", state: "unmatched", id: null }, suggestion: suggestion() }));
   render(<SituationBar />);
-  expect(screen.getByRole("status").textContent).toBe("Heard“Kaiser” — not matched to a county hospital");
+  expect(screen.getByRole("status").textContent).toBe("Heard“Kaiser”, not matched to a county hospital");
   expect(screen.queryByText(/^To$/)).toBeNull();
   expect(screen.getByRole("button", { name: "Accept" })).toBeTruthy();                    // the one suggestion, below
 });

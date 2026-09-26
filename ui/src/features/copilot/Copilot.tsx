@@ -62,7 +62,7 @@ export function MovementStrip({ onTrends }: { onTrends: () => void }) {
           <Sparkline values={c.series} width={96} height={28} label={`${c.label} trend`} />
           {c.unconfirmed && c.unconfirmed_fact_ids?.length ? <ActionButton pendingKey={`confirm-many:${c.unconfirmed_fact_ids.slice().sort().join(",")}`}
             onClick={() => api.confirmMany(c.unconfirmed_fact_ids!)} busyText="Saving…">Confirm latest reading</ActionButton> : null}
-          {c.unconfirmed && <small>Unconfirmed reading — not sent to the ED</small>}
+          {c.unconfirmed && <small>Unconfirmed reading, not sent to the ED</small>}
         </li>;
       }),
       ...abnormalStill.map((f) => (
@@ -94,11 +94,11 @@ export function EdCard({ onHandoff }: { onHandoff: () => void }) {
   const dest = ed.destination ?? (destFact?.status === "confirmed" ? String(destFact.value) : null);
   return <section className="copilot-ed" aria-labelledby="ed-h">
     <h2 id="ed-h">{ed.destination ? `${ed.destination} has` : "The ED has"}</h2>
-    {!ed.configured ? <p>No receiving ED set for this vehicle.</p> : !ed.authorized ? <p>Nothing yet — sharing not authorized. Confirmed facts stay on this vehicle.</p>
+    {!ed.configured ? <p>No receiving ED set for this vehicle.</p> : !ed.authorized ? <p>Nothing yet. Sharing is not authorized. Confirmed facts stay on this vehicle.</p>
       : ed.sent.length ? <p className="ed-sent">{ed.sent.slice(0, 8).join(" · ")}{ed.sent.length > 8 ? ` · +${ed.sent.length - 8} more` : ""}</p>
       : <p>Nothing sent yet.</p>}
     {ed.lastAck && <p className="ed-meta">Last delivered {hhmm(ed.lastAck)} (system acknowledgement)</p>}
-    {ed.authorized && s.relay.link === "down" && <p className="ed-link-down" role="status">Link to the ED is down — updates are held on this vehicle</p>}
+    {ed.authorized && s.relay.link === "down" && <p className="ed-link-down" role="status">Link to the ED is down. Updates are held on this vehicle</p>}
     {ed.waiting > 0 && <p className="ed-meta">{ed.waiting} captured {ed.waiting === 1 ? "fact waits" : "facts wait"} for your confirmation before sending</p>}
     {/* The pre-alert is authorized here, where the medic sees what the ED has; with no confirmed destination the
         form asks for one rather than sending to an unnamed ED. */}

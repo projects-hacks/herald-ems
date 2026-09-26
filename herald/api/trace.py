@@ -32,6 +32,7 @@ class TraceRecorder:
             "readiness": {a["id"]: {"label": a["label"], "done": a["done"], "total": a["total"], "ready": a["ready"]}
                           for a in snap["readiness"]},
             "alerts": {(a["type"], a.get("key") or a.get("label")) for a in snap["alerts"]},
+            "alert_labels": {(a["type"], a.get("key") or a.get("label")): a.get("label") for a in snap["alerts"]},
             "scores": scores,
             "missing": {x["key"] for x in snap["needs_attention"]["missing"] + snap["needs_attention"]["unknown"]},
         }
@@ -44,7 +45,10 @@ class TraceRecorder:
             if b is None or b["done"] != a["done"]:
                 out["readiness"].append({"label": a["label"], "from": b["done"] if b else 0, "to": a["done"],
                                          "total": a["total"], "ready": a["ready"]})
-        out["alerts_new"] = [{"type": t, "label": k} for t, k in sorted(after["alerts"] - before["alerts"], key=str)]
+        # the alert's own words ("Patient name (reported)"), never its key
+        labels = after.get("alert_labels", {})
+        out["alerts_new"] = [{"type": t, "label": labels.get((t, k)) or k}
+                             for t, k in sorted(after["alerts"] - before["alerts"], key=str)]
         for name, now in after["scores"].items():
             was = before["scores"].get(name)
             if was != now and now is not None:

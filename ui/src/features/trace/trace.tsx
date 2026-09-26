@@ -19,8 +19,8 @@ export function summarize(t: TranscriptEntry, live?: Map<string, FactStatus>): s
   if (t.trace.effects.alerts_new.some((a) => a.type === "contradiction")) bits.push("sources disagree · held");
   for (const r of t.trace.effects.readiness) bits.push(`${r.label} ${r.from} → ${r.to} of ${r.total}`);
   if (t.trace.model.status === "running") bits.push("Processing captured information…");
-  if (t.trace.model.status === "unavailable") bits.push("Extraction unavailable — captured words retained, no new facts extracted");
-  if (t.trace.model.status === "error") bits.push("Could not extract facts — review this capture");
+  if (t.trace.model.status === "unavailable") bits.push("Extraction unavailable: captured words retained, no new facts extracted");
+  if (t.trace.model.status === "error") bits.push("Could not extract facts; review this capture");
   if (t.stt?.error) bits.push("speech-to-text failed; recording retained for review");
   return bits.join(" · ");
 }

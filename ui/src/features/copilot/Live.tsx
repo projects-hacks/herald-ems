@@ -66,7 +66,7 @@ function LiveEye({ monitor, paused }: { monitor: MonitorStatus; paused: boolean 
     </span>
     <span className="eye-text">
       <b>{on ? <><Eye size={14} aria-hidden /> Watching the monitor</> : failed && monitor.retry && !paused ? "Camera reconnecting…" : failed ? "Camera stopped" : paused ? "Camera paused" : monitor.starting ? "Starting the camera…" : "Camera off"}</b>
-      <span>{failed ? (monitor.retry && !paused ? "Comes back on its own" : monitor.message) : read ? read.text.replace(/^Read the monitor — /, "") : on ? "Waiting for a clear frame" : paused ? "Resumes when you listen again" : "Starts with the call"}</span>
+      <span>{failed ? (monitor.retry && !paused ? "Comes back on its own" : monitor.message) : read ? read.text.replace(/^Read the monitor: /, "") : on ? "Waiting for a clear frame" : paused ? "Resumes when you listen again" : "Starts with the call"}</span>
     </span>
   </div>;
 }

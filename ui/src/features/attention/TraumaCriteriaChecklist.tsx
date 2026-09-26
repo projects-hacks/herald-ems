@@ -66,7 +66,7 @@ export function TraumaCriteriaChecklist({ a, s }: { a: TraumaAlert; s: Snapshot 
   return <div className="mt-2">
     <p className="flex flex-wrap items-center gap-2 text-body font-semibold">
       <ShieldAlert size={16} className="shrink-0 text-medium-fg" aria-hidden />
-      Based on {met.length} confirmed criteri{met.length === 1 ? "on" : "a"} — not a complete screen
+      Based on {met.length} confirmed criteri{met.length === 1 ? "on" : "a"}, not a complete screen
       <Badge tone="medium">speech misses most criteria</Badge>
     </p>
     {met.length > 0 && <ul className="mt-2" aria-label="Criteria met">{met.map((row) => <Row key={row.code ?? row.label} row={row} />)}</ul>}

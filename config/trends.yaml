@@ -31,8 +31,8 @@ unconfirmed_sources: [camera, device]     # values of core/schema.py CapturedBy
 # read and what it moved from, plus the tap that is needed; never a recommendation about the patient.
 # Fields: {label} {value} {unit} {direction} {delta} {previous}. {unit} is empty when the key has none.
 unconfirmed_text:
-  camera: "Camera read {label} {value}{unit}, {direction} {delta} from {previous} — confirm the reading"
-  device: "Monitor reported {label} {value}{unit}, {direction} {delta} from {previous} — confirm the reading"
+  camera: "Camera read {label} {value}{unit}, {direction} {delta} from {previous}. Confirm the reading"
+  device: "Monitor reported {label} {value}{unit}, {direction} {delta} from {previous}. Confirm the reading"
 directions:                               # how a direction is worded in the sentence above
   up: up
   down: down

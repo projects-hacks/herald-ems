@@ -63,7 +63,7 @@ export function activity(s: Snapshot, limit = 6, label: (key: string) => string 
     if (f.verify) {
       const ok = f.verify.status === "match";
       lines.push({ id: `c:${f.id}`, ts: f.ts, kind: "checked",
-        text: ok ? `Checked the label — ${f.verify.label_drug} matches what was said` : `Checked the label — reads ${f.verify.label_drug}, not what was said` });
+        text: ok ? `Checked the label: ${f.verify.label_drug} matches what was said` : `Checked the label: reads ${f.verify.label_drug}, not what was said` });
       continue;
     }
     const k = readKey(f);
@@ -72,7 +72,7 @@ export function activity(s: Snapshot, limit = 6, label: (key: string) => string 
   for (const [k, facts] of reads) {
     const vitals = facts.filter((f) => f.key.startsWith("vitals."));
     const ts = facts.map((f) => f.provenance?.observed_at ?? f.ts).sort().at(-1)!;
-    const what = vitals.length ? `Read the monitor — ${readingText(vitals)}` : `Read a photo — ${facts.map((f) => `${f.label} ${factValue(f)}`).join(", ")}`;
+    const what = vitals.length ? `Read the monitor: ${readingText(vitals)}` : `Read a photo: ${facts.map((f) => `${f.label} ${factValue(f)}`).join(", ")}`;
     lines.push({ id: `r:${k}`, ts, kind: "read", text: clip(what, 110) });
   }
   for (const c of s.protocol_cues ?? []) {
@@ -90,7 +90,7 @@ export function activity(s: Snapshot, limit = 6, label: (key: string) => string 
     fresh.forEach((k) => delivered.add(k));
     if (!fresh.length) continue;
     const names = fresh.slice(0, 3).map(label).join(", ") + (fresh.length > 3 ? ` +${fresh.length - 3} more` : "");
-    lines.push({ id: `s:${p.seq}:${p.ts}`, ts: p.ts, kind: "sent", text: `Sent ${names} to ${dest} — delivered` });
+    lines.push({ id: `s:${p.seq}:${p.ts}`, ts: p.ts, kind: "sent", text: `Sent ${names} to ${dest}, delivered` });
   }
   return lines.sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, limit);
 }
@@ -159,13 +159,13 @@ export function presence(o: {
   listening: boolean; micError: string | null; monitorWatching: boolean; cameraError: string | null;
 }): Presence {
   if (o.replay) return { tone: "replay", text: "Demo replay · recorded scenario" };
-  if (o.elsewhere) return { tone: "replay", text: "Listening and watching in another Herald tab — this one shows the call" };
+  if (o.elsewhere) return { tone: "replay", text: "Listening and watching in another Herald tab. This one shows the call" };
   if (o.offline) return { tone: "down", text: !o.hasSnapshot ? "Connecting to the vehicle…"
-    : o.listening ? "Vehicle server not answering — still listening; speech is held and sent when it returns"
-    : "Offline — vehicle server disconnected, showing last state" };
-  if (o.health?.llm_available === false) return { tone: "down", text: "Speech is not becoming facts right now — words are kept; enter key facts by hand" };
-  if (o.micError) return { tone: "down", text: /https|localhost|secure/i.test(o.micError) ? "Microphone blocked by the browser — open Herald via localhost" : `Microphone stopped — ${o.micError}` };
-  if (o.cameraError) return { tone: "down", text: `Camera stopped — ${o.cameraError}` };
+    : o.listening ? "Vehicle server not answering. Still listening; speech is held and sent when it returns"
+    : "Offline: vehicle server disconnected, showing last state" };
+  if (o.health?.llm_available === false) return { tone: "down", text: "Speech is not becoming facts right now. Words are kept; enter key facts by hand" };
+  if (o.micError) return { tone: "down", text: /https|localhost|secure/i.test(o.micError) ? "Microphone blocked by the browser. Open Herald via localhost" : `Microphone stopped: ${o.micError}` };
+  if (o.cameraError) return { tone: "down", text: `Camera stopped: ${o.cameraError}` };
   const doing = [o.listening && "Listening", o.monitorWatching && "watching the monitor"].filter(Boolean) as string[];
   if (!doing.length) return { tone: "idle", text: "Not listening" };
   const text = doing.join(" · ");

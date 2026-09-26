@@ -92,7 +92,7 @@ export class AmbientCapture {
     if (this.reopening || this.disposed || !this.state.listening) return;
     this.reopening = true;
     this.pause(true);
-    this.update({ warning: "Microphone changed — reconnecting" });
+    this.update({ warning: "Microphone changed, reconnecting" });
     await new Promise((done) => window.setTimeout(done, 800));
     this.reopening = false;
     if (this.disposed) return;
@@ -123,7 +123,7 @@ export class AmbientCapture {
 
   private lose(why: string) {
     const lost = (this.state.lost ?? 0) + 1;
-    this.update({ lost, warning: `${why} — ${lost} ${lost === 1 ? "clip" : "clips"} not processed; repeat key facts or type them` });
+    this.update({ lost, warning: `${why}: ${lost} ${lost === 1 ? "clip" : "clips"} not processed; repeat key facts or type them` });
   }
 
   /** One utterance to the vehicle server. "retry": the server or the link failed; "drop": this clip can never land. */
@@ -150,7 +150,7 @@ export class AmbientCapture {
       const blob = this.queue[0];
       let outcome = await this.upload(blob);
       for (let i = 0; outcome === "retry" && i < RETRY_MS.length && !this.disposed; i++) {
-        this.update({ warning: `Can't reach the vehicle server — holding ${this.queue.length} ${this.queue.length === 1 ? "clip" : "clips"}, retrying` });
+        this.update({ warning: `Can't reach the vehicle server, holding ${this.queue.length} ${this.queue.length === 1 ? "clip" : "clips"}, retrying` });
         await new Promise((done) => window.setTimeout(done, RETRY_MS[i]));
         outcome = await this.upload(blob);
       }

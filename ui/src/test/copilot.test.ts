@@ -35,7 +35,7 @@ describe("copilot screen selectors", () => {
   });
   it("reports what Herald did as clinical outcomes, newest first, and never telemetry", () => {
     const lines = activity(withReading(), 20);
-    expect(lines.some((l) => l.kind === "read" && l.text.startsWith("Read the monitor — HR 112"))).toBe(true);
+    expect(lines.some((l) => l.kind === "read" && l.text.startsWith("Read the monitor: HR 112"))).toBe(true);
     expect(lines.some((l) => l.kind === "heard")).toBe(true);
     const sent = lines.filter((l) => l.kind === "sent").map((l) => l.text);
     expect(new Set(sent).size).toBe(sent.length);   // a re-sent picture is not news
@@ -53,7 +53,7 @@ describe("copilot screen selectors", () => {
     const ok = { replay: false, offline: false, hasSnapshot: true, health: { llm_available: true } as Health, listening: true, micError: null, monitorWatching: true, cameraError: null };
     expect(presence(ok)).toEqual({ tone: "ok", text: "Listening · watching the monitor" });
     expect(presence({ ...ok, listening: false, monitorWatching: false }).tone).toBe("idle");
-    expect(presence({ ...ok, micError: "Microphone needs HTTPS or localhost." })).toEqual({ tone: "down", text: "Microphone blocked by the browser — open Herald via localhost" });
+    expect(presence({ ...ok, micError: "Microphone needs HTTPS or localhost." })).toEqual({ tone: "down", text: "Microphone blocked by the browser. Open Herald via localhost" });
     expect(presence({ ...ok, health: { llm_available: false } as Health }).text).toMatch(/not becoming facts/);
     expect(presence({ ...ok, offline: true }).tone).toBe("down");
     expect(presence({ ...ok, replay: true }).tone).toBe("replay");
