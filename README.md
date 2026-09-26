@@ -10,6 +10,8 @@ vehicle. Zero cloud AI calls.**
 Team LastMinute · HP Edge AI SJSU Hackathon, September 2026 · Jenil Savalia · Tushar Singh · Vineet Malewar ·
 Shivani Jariwala · Rajeev Ranjan Chaurasia
 
+**[Demo video](https://youtu.be/3mkeTmvGR2M) · [Pitch deck](https://bundled-page-roan-one.vercel.app/#1) · [Landing page](https://herald-ems-one.vercel.app/)**
+
 ![Herald system architecture: ambulance inputs feed local AI on the HP ZGX Nano; a deterministic engine keeps the patient record and decides what is sent; a weak-link relay updates the emergency department board, which acknowledges back](docs/architecture.png)
 
 ## The problem
@@ -105,6 +107,14 @@ The results table is measured on held-out text; the live runs above measure the 
 The full method and every run are in [`docs/MODEL_PLAN.md`](docs/MODEL_PLAN.md).
 
 ## Demo and links
+
+| Public | Address |
+|---|---|
+| Demo video | https://youtu.be/3mkeTmvGR2M |
+| Pitch deck | https://bundled-page-roan-one.vercel.app/#1 |
+| Landing page and the recorded stroke call | https://herald-ems-one.vercel.app/ |
+
+The live product runs on the HP ZGX Nano with local AI. Start it with `scripts/herald.sh` (see [Run it](#run-it)), then:
 
 | Page | Address |
 |---|---|
