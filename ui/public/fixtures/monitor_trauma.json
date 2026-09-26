@@ -19,6 +19,11 @@
       "unit": "mmHg"
     },
     {
+      "key": "vitals.dbp",
+      "label": "Diastolic BP",
+      "unit": "mmHg"
+    },
+    {
       "key": "vitals.spo2",
       "label": "SpO2",
       "unit": "%"
@@ -32,6 +37,12 @@
       "key": "vitals.etco2",
       "label": "End-tidal CO2",
       "unit": "mmHg"
+    },
+    {
+      "key": "vitals.temp",
+      "label": "Temperature",
+      "unit": "°C",
+      "decimals": 1
     }
   ],
   "description": "Synthetic trauma transport display for camera-to-state integration checks. These values are visual test data, not a physiological model, treatment guide, or patient record.",
@@ -43,7 +54,9 @@
       "vitals.sbp": 118,
       "vitals.spo2": 96,
       "vitals.rr": 20,
-      "vitals.etco2": 34
+      "vitals.etco2": 34,
+      "vitals.dbp": 72,
+      "vitals.temp": 36.4
     },
     {
       "minute": 14,
@@ -51,7 +64,9 @@
       "vitals.sbp": 96,
       "vitals.spo2": 94,
       "vitals.rr": 24,
-      "vitals.etco2": 29
+      "vitals.etco2": 29,
+      "vitals.dbp": 60,
+      "vitals.temp": 36.3
     },
     {
       "minute": 18,
@@ -59,7 +74,9 @@
       "vitals.sbp": 78,
       "vitals.spo2": 92,
       "vitals.rr": 27,
-      "vitals.etco2": 24
+      "vitals.etco2": 24,
+      "vitals.dbp": 48,
+      "vitals.temp": 36.2
     },
     {
       "minute": 22,
@@ -67,7 +84,9 @@
       "vitals.sbp": 84,
       "vitals.spo2": 93,
       "vitals.rr": 26,
-      "vitals.etco2": 25
+      "vitals.etco2": 25,
+      "vitals.dbp": 52,
+      "vitals.temp": 36.2
     },
     {
       "minute": 26,
@@ -75,7 +94,9 @@
       "vitals.sbp": 94,
       "vitals.spo2": 94,
       "vitals.rr": 23,
-      "vitals.etco2": 28
+      "vitals.etco2": 28,
+      "vitals.dbp": 58,
+      "vitals.temp": 36.1
     },
     {
       "minute": 30,
@@ -83,7 +104,13 @@
       "vitals.sbp": 102,
       "vitals.spo2": 95,
       "vitals.rr": 21,
-      "vitals.etco2": 31
+      "vitals.etco2": 31,
+      "vitals.dbp": 64,
+      "vitals.temp": 36.1
     }
-  ]
+  ],
+  "rhythm": {
+    "type": "sinus",
+    "label": "Sinus tachycardia"
+  }
 }

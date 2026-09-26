@@ -1,34 +1,52 @@
-:root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #e8eef0; color: #13272d; }
+/* A bedside-monitor look for the synthetic journeys: dark screen, colour per channel (ECG green, SpO2 cyan, CO2
+   yellow, NIBP red, RR and temperature white), large labelled numbers the camera reads, live waveforms beside them. */
+:root { color-scheme: dark; --bg: #04070a; --panel: #0b1117; --line: #1c2733; --text: #d7e2ea; --muted: #7d8c99;
+  --ecg: #3ee07a; --spo2: #3fd0f0; --co2: #f2c94c; --nibp: #ff6b6b; --rr: #e8eef3; --temp: #e8eef3;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--text); }
 * { box-sizing: border-box; }
-body { min-height: 100vh; margin: 0; background: radial-gradient(circle at top right, #f7fffe 0, transparent 36rem), #e8eef0; }
-header { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 18px 30px; color: #244148; background: #fbfdfd; border-bottom: 4px solid #16798a; box-shadow: 0 2px 12px #20475124; font-size: 16px; }
-header strong { color: #056b7d; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; }
-#scenario { display: block; margin-top: 6px; color: #49636a; font-size: 14px; letter-spacing: normal; }
-main { max-width: 1540px; margin: 0 auto; padding: 26px; }
-#readings { display: grid; grid-template-columns: repeat(3, minmax(240px, 1fr)); gap: 16px; }
-article { --signal: #007a8c; padding: 22px; min-height: 290px; background: #fbfdfd; border: 1px solid #c9d8da; border-top: 6px solid var(--signal); border-radius: 12px; box-shadow: 0 5px 16px #1b40401c; }
-article[data-key="vitals.hr"] { --signal: #058156; }
-article[data-key="vitals.sbp"] { --signal: #cf583c; }
-article[data-key="vitals.spo2"] { --signal: #176fa7; }
-article[data-key="vitals.rr"] { --signal: #7558b5; }
-article[data-key="vitals.etco2"] { --signal: #a46c00; }
-h1 { margin: 0; color: #27444b; font-size: clamp(18px, 1.9vw, 27px); font-weight: 700; letter-spacing: .01em; }
-article strong { display: block; margin-top: 12px; color: var(--signal); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: clamp(56px, 6.5vw, 112px); font-variant-numeric: tabular-nums; font-weight: 800; letter-spacing: -.07em; line-height: .96; }
-article small { display: block; margin-top: 7px; color: #5d747a; font-size: 17px; font-weight: 650; }
-.trend-chart { display: block; width: 100%; height: 82px; margin-top: 18px; overflow: visible; }
-.trend-grid { fill: none; stroke: #d7e4e5; stroke-width: 1; }
-.trend-line { fill: none; stroke: var(--signal); stroke-width: 3.25; stroke-linejoin: round; stroke-linecap: round; }
-.trend-dot { fill: var(--signal); stroke: #fff; stroke-width: 2.5; }
-.trend-chart text { fill: #64797e; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
-footer { padding: 18px 28px 24px; color: #355158; border-top: 1px solid #c9d8da; background: #f7faf9; }
-footer > div { display: flex; gap: 12px; flex-wrap: wrap; }
-button { min-height: 48px; padding: 10px 20px; color: #12414b; background: #fff; border: 1px solid #a9c4c8; border-radius: 7px; box-shadow: 0 1px 2px #1b404018; font: 700 16px Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; }
-button:hover { background: #edf8f8; border-color: #16798a; }
-button:focus-visible { outline: 3px solid #e6a625; outline-offset: 3px; }
-footer p { max-width: 940px; margin-bottom: 0; color: #577078; font-size: 15px; line-height: 1.55; }
-@media (max-width: 980px) { #readings { grid-template-columns: repeat(2, minmax(220px, 1fr)); } }
-@media (max-width: 600px) { header { padding: 16px 18px; } main { padding: 14px; } #readings { grid-template-columns: 1fr; gap: 12px; } article { min-height: 250px; padding: 18px; } article strong { font-size: 72px; } footer { padding: 16px 18px 22px; } }
-.picks { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.picks button { min-height: 44px; padding: 8px 16px; font-size: 15px; }
-.picks button[aria-pressed="true"] { color: #fff; background: #16798a; border-color: #16798a; }
-.picks button[aria-pressed="true"]:hover { background: #12687a; }
+body { min-height: 100vh; margin: 0; background: var(--bg); }
+header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; padding: 12px 22px;
+  background: var(--panel); border-bottom: 2px solid var(--line); }
+header strong { color: var(--ecg); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; font-size: 15px; }
+#scenario { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; }
+.status { display: flex; align-items: center; gap: 16px; }
+.rhythm { color: var(--ecg); font-weight: 800; font-size: 16px; letter-spacing: .02em; }
+#clock { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 18px; color: var(--text); font-variant-numeric: tabular-nums; }
+.picks { display: flex; flex-wrap: wrap; gap: 8px; }
+.picks button { min-height: 40px; padding: 6px 14px; font-size: 14px; }
+.picks button[aria-pressed="true"] { color: #04070a; background: var(--ecg); border-color: var(--ecg); }
+main { max-width: 1600px; margin: 0 auto; padding: 16px 20px; }
+.screen { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(220px, 1fr); gap: 10px 14px; background: #000;
+  border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+.strip { position: relative; height: clamp(84px, 14vh, 150px); border-bottom: 1px solid #0f1a22; }
+.strip canvas { display: block; width: 100%; height: 100%; }
+.lead { position: absolute; top: 4px; left: 6px; font: 700 13px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }
+.ecg .lead { color: var(--ecg); } .pleth .lead { color: var(--spo2); } .co2 .lead { color: var(--co2); }
+.num { display: flex; flex-direction: column; justify-content: center; padding: 6px 12px; border-left: 1px solid #0f1a22; }
+.num h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: .06em; }
+.num strong { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 800; font-size: clamp(44px, min(6.2vw, 9.5vh), 104px);
+  line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.num small { font-size: 16px; font-weight: 700; color: var(--muted); }
+.hr { color: var(--ecg); } .spo2 { color: var(--spo2); } .etco2 { color: var(--co2); }
+.row { grid-column: 1 / -1; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 14px; border-top: 1px solid var(--line); padding-top: 8px; }
+.row .num { border-left: 0; }
+.nibp { color: var(--nibp); } .rr { color: var(--rr); } .temp { color: var(--temp); }
+.nibp strong { font-size: clamp(42px, min(5.6vw, 9vh), 96px); }
+.trends { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.trend { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.trend h2 { margin: 0; font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+.trend svg { display: block; width: 100%; height: 46px; margin-top: 4px; overflow: visible; }
+.trend polyline { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.trend circle { stroke: #000; stroke-width: 1.5; }
+#phase { margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+footer { padding: 14px 22px 20px; color: var(--muted); border-top: 1px solid var(--line); background: var(--panel); }
+footer > div { display: flex; gap: 10px; flex-wrap: wrap; }
+button { min-height: 46px; padding: 9px 18px; color: var(--text); background: #111a22; border: 1px solid #2a3a48; border-radius: 7px;
+  font: 700 15px Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; }
+button:hover { border-color: var(--ecg); }
+button:focus-visible { outline: 3px solid var(--co2); outline-offset: 3px; }
+footer p { max-width: 960px; margin-bottom: 0; font-size: 14px; line-height: 1.5; }
+@media (max-width: 1000px) { .trends { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .screen { grid-template-columns: 1fr; } .num { border-left: 0; } .row { grid-template-columns: 1fr; }
+  .trends { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .strip canvas { opacity: .9; } }

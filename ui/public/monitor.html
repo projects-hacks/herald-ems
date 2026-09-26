@@ -1,8 +1,28 @@
 <!doctype html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Herald · synthetic monitor</title><link rel="stylesheet" href="/monitor.css"></head>
-<body><header><div><strong>SYNTHETIC MONITOR</strong><span id="scenario">Loading training scenario…</span></div>
-<nav class="picks" id="picks" aria-label="Scenario"></nav><span>Training display · no patient connected</span></header>
-<main aria-label="Synthetic monitor readings"><div id="readings"></div><p id="phase" role="status">Loading synthetic scenario…</p></main>
+<body>
+<header>
+  <div class="id"><strong>SYNTHETIC MONITOR</strong><span id="scenario">Loading training scenario…</span></div>
+  <nav class="picks" id="picks" aria-label="Scenario"></nav>
+  <div class="status"><span id="rhythm" class="rhythm"></span><time id="clock"></time></div>
+</header>
+<main aria-label="Synthetic monitor">
+  <section class="screen">
+    <div class="strip ecg"><span class="lead">ECG II</span><canvas id="wave-ecg" aria-hidden="true"></canvas></div>
+    <div class="num hr"><h1>HR</h1><strong data-key="vitals.hr">--</strong><small>bpm</small></div>
+    <div class="strip pleth"><span class="lead">Pleth</span><canvas id="wave-pleth" aria-hidden="true"></canvas></div>
+    <div class="num spo2"><h1>SpO2</h1><strong data-key="vitals.spo2">--</strong><small>%</small></div>
+    <div class="strip co2"><span class="lead">CO2</span><canvas id="wave-co2" aria-hidden="true"></canvas></div>
+    <div class="num etco2"><h1>EtCO2</h1><strong data-key="vitals.etco2">--</strong><small>mmHg</small></div>
+    <div class="row">
+      <div class="num nibp"><h1>NIBP</h1><strong><span data-key="vitals.sbp">--</span>/<span data-key="vitals.dbp">--</span></strong><small>mmHg</small></div>
+      <div class="num rr"><h1>RR</h1><strong data-key="vitals.rr">--</strong><small>breaths/min</small></div>
+      <div class="num temp"><h1>Temp</h1><strong data-key="vitals.temp">--</strong><small>°C</small></div>
+    </div>
+  </section>
+  <section class="trends" id="trends" aria-label="Trends"></section>
+  <p id="phase" role="status">Loading synthetic scenario…</p>
+</main>
 <footer><div><button id="play">Start changes</button><button id="next">Next readings</button><button id="reset">Reset</button><button id="fullscreen">Full screen</button></div>
-<p>Aim Herald’s monitor camera at the readings above. This page only displays synthetic values and trends; it sends no observations to Herald and is not a clinical monitor or treatment guide.</p></footer>
+<p>Aim Herald’s monitor camera at the readings above. This page only displays synthetic values, waveforms and trends; it sends no observations to Herald and is not a clinical monitor or treatment guide.</p></footer>
 <script type="module" src="/monitor.js"></script></body></html>

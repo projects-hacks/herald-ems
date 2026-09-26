@@ -21,7 +21,7 @@ def test_monitor_fixture_is_a_complete_synthetic_transport_journey():
     assert expected_samples == 121
 
     keys = [reading["key"] for reading in fixture["readings"]]
-    assert keys == ["vitals.hr", "vitals.sbp", "vitals.spo2", "vitals.rr", "vitals.etco2"]
+    assert keys == ["vitals.hr", "vitals.sbp", "vitals.dbp", "vitals.spo2", "vitals.rr", "vitals.etco2", "vitals.temp"]
     assert all(set(keys).issubset(step) for step in fixture["steps"])
 
 
@@ -40,7 +40,8 @@ def test_every_listed_scenario_is_a_complete_journey_the_jump_check_accepts():
         assert fixture["display"] == {"tick_ms": 1000, "simulated_minutes_per_tick": 0.1666666667}
         assert [step["minute"] for step in fixture["steps"]] == [10, 14, 18, 22, 26, 30]
         keys = [reading["key"] for reading in fixture["readings"]]
-        assert keys == ["vitals.hr", "vitals.sbp", "vitals.spo2", "vitals.rr", "vitals.etco2"]
+        assert keys == ["vitals.hr", "vitals.sbp", "vitals.dbp", "vitals.spo2", "vitals.rr", "vitals.etco2", "vitals.temp"]
+        assert fixture["rhythm"]["type"] in {"sinus", "stemi", "af"} and fixture["rhythm"]["label"]
         per_minute = {k: max(abs(b[k] - a[k]) / (b["minute"] - a["minute"]) for a, b in zip(fixture["steps"], fixture["steps"][1:]))
                       for k in keys}
         # 30 s of real time is 5 simulated minutes at one tick (1/6 minute) per second

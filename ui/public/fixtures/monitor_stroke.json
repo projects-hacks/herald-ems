@@ -19,6 +19,11 @@
       "unit": "mmHg"
     },
     {
+      "key": "vitals.dbp",
+      "label": "Diastolic BP",
+      "unit": "mmHg"
+    },
+    {
       "key": "vitals.spo2",
       "label": "SpO2",
       "unit": "%"
@@ -32,6 +37,12 @@
       "key": "vitals.etco2",
       "label": "End-tidal CO2",
       "unit": "mmHg"
+    },
+    {
+      "key": "vitals.temp",
+      "label": "Temperature",
+      "unit": "°C",
+      "decimals": 1
     }
   ],
   "description": "Synthetic stroke transport display for camera-to-state integration checks. These values are visual test data, not a physiological model, treatment guide, or patient record.",
@@ -43,7 +54,9 @@
       "vitals.sbp": 184,
       "vitals.spo2": 95,
       "vitals.rr": 18,
-      "vitals.etco2": 37
+      "vitals.etco2": 37,
+      "vitals.dbp": 102,
+      "vitals.temp": 37.0
     },
     {
       "minute": 14,
@@ -51,7 +64,9 @@
       "vitals.sbp": 188,
       "vitals.spo2": 95,
       "vitals.rr": 18,
-      "vitals.etco2": 37
+      "vitals.etco2": 37,
+      "vitals.dbp": 104,
+      "vitals.temp": 37.0
     },
     {
       "minute": 18,
@@ -59,7 +74,9 @@
       "vitals.sbp": 182,
       "vitals.spo2": 94,
       "vitals.rr": 17,
-      "vitals.etco2": 36
+      "vitals.etco2": 36,
+      "vitals.dbp": 100,
+      "vitals.temp": 37.1
     },
     {
       "minute": 22,
@@ -67,7 +84,9 @@
       "vitals.sbp": 176,
       "vitals.spo2": 95,
       "vitals.rr": 18,
-      "vitals.etco2": 36
+      "vitals.etco2": 36,
+      "vitals.dbp": 98,
+      "vitals.temp": 37.1
     },
     {
       "minute": 26,
@@ -75,7 +94,9 @@
       "vitals.sbp": 172,
       "vitals.spo2": 95,
       "vitals.rr": 18,
-      "vitals.etco2": 37
+      "vitals.etco2": 37,
+      "vitals.dbp": 96,
+      "vitals.temp": 37.0
     },
     {
       "minute": 30,
@@ -83,7 +104,13 @@
       "vitals.sbp": 170,
       "vitals.spo2": 96,
       "vitals.rr": 17,
-      "vitals.etco2": 37
+      "vitals.etco2": 37,
+      "vitals.dbp": 94,
+      "vitals.temp": 37.0
     }
-  ]
+  ],
+  "rhythm": {
+    "type": "af",
+    "label": "Atrial fibrillation"
+  }
 }
