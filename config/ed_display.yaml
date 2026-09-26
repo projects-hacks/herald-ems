@@ -1,8 +1,38 @@
-# Display order and type scale for the ED wall (read from 3 m); no clinical decision rules.
-critical_keys: [stroke.lkw, transport.eta_min, score.gfast, meds.anticoagulant, allergies, code_status, score.news2]
-critical_px: 48
-body_px: 32
+# Display order and type scale for the ED wall (read from 2-3 m); no clinical decision rules.
+# The board shows only what the ambulance sent: every slot below that has no received value reads "not received".
 highlight_ms: 2000
+# Header badges. A badge shows when the vehicle's open pre-alert checklist names it (the relayed `alert.readiness`
+# line; `checklist` is the id in config/checklists.yaml, whose label the server looks up) or when its published
+# criteria score arrived met (anything but that score's `relay_text_not_met`). tone: critical (red) | warning (amber).
+alerts:
+  - {checklist: stemi, text: STEMI ALERT, tone: critical, score: score.stemi_700a08}
+  - {checklist: stroke, text: STROKE ALERT, tone: critical}
+  - {checklist: trauma, text: TRAUMA ALERT, tone: critical, score: score.trauma_605}
+  - {checklist: sepsis, text: SEPSIS ALERT, tone: warning, score: score.sepsis_700a04}
+# Header line: "<patient> · <age sex> · <destination>".
+header: {age: patient.age, sex: patient.sex, destination: transport.destination, triage: triage.category}
+# Safety strip: what the receiving team must not miss before the first drug in the resus bay.
+safety: [allergies, meds.anticoagulant, code_status, meds.list]
+# Vital tiles, in order. `keys` joined by `join` into one value (BP = systolic/diastolic); the first received key
+# carries the unit and the trend. `short` is the tile's name on the wall.
+vitals:
+  - {short: HR, keys: [vitals.hr]}
+  - {short: BP, keys: [vitals.sbp, vitals.dbp], join: /}
+  - {short: SpO2, keys: [vitals.spo2]}
+  - {short: RR, keys: [vitals.rr]}
+  - {short: EtCO2, keys: [vitals.etco2]}
+  - {short: Temp, keys: [vitals.temp]}
+  - {short: Glucose, keys: [vitals.glucose]}
+  - {short: GCS · ACVPU, keys: [vitals.gcs_total, vitals.consciousness], join: " · "}
+# Findings, in order; received ones are listed, the rest are named once as not received.
+findings: [complaint.chief, impression.primary, symptom.onset, stroke.lkw, stroke.onset_witnessed, stroke.deficits,
+           ecg.stemi_reading, ecg.territory, ecg.twelve_lead_time, ecg.transmitted, airway.status, vitals.pain,
+           vitals.on_oxygen, trauma.mechanism, trauma.injury_time, trauma.injuries, infection.suspected,
+           patient.pregnancy_weeks]
+# Published scores and criteria, as the vehicle sent their lines.
+scores: [score.stemi_700a08, score.trauma_605, score.sepsis_700a04, score.news2, score.gfast, score.race]
+# Care given (structured events), merged into one timeline.
+care: [meds.given, procedures.done]
 # The relay does not transmit vehicle county/timezone. Do not apply a guessed county's local rules.
 report_county: generic
 report_timezone: UTC

@@ -49,7 +49,7 @@ def test_ed_report_uses_received_facts_and_preserves_event_history():
         assert client.get("/api/handoff/missing").status_code == 404
         assert "procedures.done" in client.get("/api/meta").json()["keys"]
         display = client.get("/api/meta").json()["display"]
-        assert display["critical_px"] == 48 and display["body_px"] == 32 and display["highlight_ms"] == 2000
+        assert display["highlight_ms"] == 2000 and display["vitals"] and display["safety"]
         packet = {"i": "test-patient", "q": 1, "tier": "full", "f": {"patient.age": 68, "new.unknown": "keep visible"},
                   "tl": [{"k": "meds.given", "v": {"drug": "naloxone", "dose": .4, "unit": "mg"}, "t": "2026-09-25T01:00:00+00:00"},
                          {"k": "meds.given", "v": {"drug": "aspirin", "dose": 324, "unit": "mg"}, "t": "2026-09-25T01:01:00+00:00"}]}
