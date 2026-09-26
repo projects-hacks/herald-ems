@@ -74,6 +74,23 @@ repeated 3 times unless stated. The scripts are in `eval/` and write their resul
 | **Protocol retrieval** | Whether the right passage comes first for a question | 52 questions; keyword and embedding search, then the local model reranks | Right passage first **41 of 52**, top 3 **43 of 52**; 4 of 7 out-of-scope questions refused | The medic asks by voice and reads one answer |
 | **Cloud calls** | Whether anything calls a cloud AI service | Every outbound request passes one egress policy that logs and counts it (`GET /api/egress`) | **0** | Privacy, and working with no signal |
 
+### Live runs: real voices, real camera
+
+The table above uses held-out text. We also measured Herald end to end on our own demo runs (September 26, 2026):
+team members speaking the demo call aloud in a room, one laptop microphone, the camera pointed at the monitor
+simulator, everything running on the ZGX Nano. We labeled each clip by hand against what was actually said.
+
+| Metric | How we measured it | Result |
+|---|---|---|
+| **Facts from real speech** | 36 scripted clips through microphone, Whisper, the extractor and the check step; each fact labeled correct, wrong or missed | **93 correct, 5 wrong, 13 missed**: precision **0.95**, recall **0.88**, F1 **0.91** |
+| **Speech to text time** | Whisper time per clip (median clip 7.5 s) | **0.53 s** median, 1.25 s p95 |
+| **Speech to facts time** | Whisper plus extraction plus the check step, per clip | **3.0 s** median, 8.8 s p95 |
+| **Talk that was not part of the call** | 7 clips of people talking nearby | 9 facts proposed; **8 of 9 held for the medic's tap** |
+| **Monitor reading by camera** | 191 camera reads of the simulator; each value compared with the frames the simulator displayed | **934 of 935 values correct (99.9%)**; 190 of 191 reads exactly right; EtCO2 read in 180 |
+
+About half of the missed facts came from fast, run-together speech that the speech-to-text step misheard (for
+example "one oh four over sixty" heard as "10460"). Speaking one sentence at a time avoids most of them.
+
 ### How to reproduce
 
 ```bash
@@ -84,8 +101,8 @@ python -m pytest -q tests/test_relay.py                                         
 python eval/bench_relay.py --runs 3                                                          # weak-link relay (see docs/RELAY_BENCHMARK.md)
 ```
 
-The fact numbers are measured from transcripts (gold text through the extractor); speech to text is measured
-separately. The full method and every run are in [`docs/MODEL_PLAN.md`](docs/MODEL_PLAN.md).
+The results table is measured on held-out text; the live runs above measure the whole path from the microphone.
+The full method and every run are in [`docs/MODEL_PLAN.md`](docs/MODEL_PLAN.md).
 
 ## Demo and links
 
