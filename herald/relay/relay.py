@@ -23,6 +23,7 @@ from ..core.ports import Transport
 from ..core.schema import utcnow
 from ..egress import EgressPolicy
 from ..scoring import ScaleRegistry, default_scales
+from .handover import final_report_body, handover_status, is_handed_over
 from .tiers import RelayScopes, RelayTiers, default_scopes, default_tiers
 
 
@@ -74,6 +75,7 @@ class Relay:
         self.full_synced_facts: dict[str, int] = {}
         self.last_ack_at: Optional[str] = None
         self.clinician_acknowledgements: dict[str, list[dict]] = {}
+        self.handovers: dict[str, dict] = {}    # patient id -> {"q", "delivered_at"}: the acked final packet
 
     # ---------- configuration ----------
     @property
@@ -102,6 +104,7 @@ class Relay:
         self.inflight = None
         self.last_ack_at = None
         self.clinician_acknowledgements.clear()
+        self.handovers.clear()
 
     # ---------- what the ED should know ----------
     def _incidents(self) -> list:
@@ -235,6 +238,20 @@ class Relay:
                 "_why": ["full record on a good link"],
                 "_n": len(confirmed)}
 
+    def _build_handover(self) -> Optional[dict]:
+        """The final "handed over" packet for the first handed-over patient the ED has not acknowledged it for.
+        It carries no fields, so a failed send keeps it in flight and retries it with the same sequence number."""
+        inc = next((inc for inc in self._incidents() if is_handed_over(inc) and inc.id not in self.handovers), None)
+        if inc is None:
+            return None
+        self.seq += 1
+        return {"i": inc.id, "q": self.seq, "tier": "handover", "f": {}, "ho": final_report_body(inc),
+                "patient": inc.patient_label, "dest": (self.authorized or {}).get("destination"), "x": 0,
+                "_why": ["final handoff report at hand over"]}
+
+    def handover_status(self, inc) -> Optional[dict]:
+        return handover_status(inc, self.handovers.get(inc.id), self.clinician_acknowledgements.get(inc.id, []))
+
     async def _maybe_probe(self) -> None:
         """Tiny reachability ping when idle, so the link state stays current and recovery is noticed."""
         if time.monotonic() - self.last_probe < 2.0:
@@ -289,6 +306,8 @@ class Relay:
             # Until the link has been measured, assume it is weak: critical facts first, small packets.
             budget = self.tiers.budget["good"] if state == "good" else self.tiers.budget["weak"]
             pkt = self._build(budget)
+            if pkt is None:
+                pkt = self._build_handover()   # after the latest critical values, before the full record
             if pkt is None and state == "good":
                 pkt = self._build_full()
             if pkt is None:
@@ -321,6 +340,8 @@ class Relay:
                 patient_acked.pop(k, None)
             if pkt["tier"] == "full":
                 self.full_synced_facts[pkt["i"]] = pkt["_n"]
+            if pkt["tier"] == "handover":
+                self.handovers[pkt["i"]] = {"q": pkt["q"], "delivered_at": utcnow().isoformat()}
             self.bytes_sent += wire_len
             self.packets_acked += 1
             self.last_ack_at = utcnow().isoformat()
@@ -368,6 +389,7 @@ class Relay:
                 "sync": {key: "sent" if acked.get(key) == value else "queued"
                          for key, value in critical.items()},
                 "local_bytes": local_bytes_by_patient[inc.id],
+                "handover": self.handover_status(inc),
             }
         sync = patients[incidents[0].id]["sync"] if len(incidents) == 1 else {}
         return {
