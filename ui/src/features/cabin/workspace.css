@@ -44,9 +44,14 @@
 .cabin-vital-meta { color:var(--text-secondary); font-size:.9rem; display:flex; align-items:center; gap:5px; }
 .cabin-vital.unknown .cabin-vital-value { color:var(--text-muted); }
 .cabin-settings { max-width:860px; display:grid; gap:20px; line-height:1.6; }
-.cabin-settings details { padding:18px; border:1px solid var(--border-subtle); border-radius:16px; }
-.cabin-settings summary { cursor:pointer; min-height:48px; display:flex; align-items:center; gap:10px; }
-.cabin-settings details p { margin-top:14px; color:var(--text-secondary); }
+.cabin-settings section { display:grid; gap:10px; }
+.cabin-settings-heading { font-size:.8125rem; font-weight:650; letter-spacing:.06em; text-transform:uppercase; color:var(--text-muted); }
+.cabin-settings-note { font-size:.875rem; color:var(--text-muted); }
+.cabin-settings-list { display:grid; gap:8px; padding-left:1.1rem; list-style:disc; color:var(--text-secondary); }
+.cabin-settings-facts { display:grid; gap:6px; }
+.cabin-settings-facts div { display:flex; flex-wrap:wrap; gap:4px 12px; }
+.cabin-settings-facts dt { color:var(--text-muted); min-width:10rem; }
+.cabin-settings-facts dd { color:var(--text-primary); font-weight:600; }
 .cabin-dock { border-top:1px solid var(--border-subtle); display:flex; align-items:center; flex-wrap:wrap; background:var(--surface-1); position:sticky; bottom:0; padding:15px 24px 9px; gap:7px 18px; box-shadow:var(--shadow-2); z-index:25; }
 .cabin-listening-status { display:flex; align-items:center; flex:1; min-width:190px; gap:10px; }
 .cabin-listening-status strong { font-weight:600; font-size:.875rem; }
