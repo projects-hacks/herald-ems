@@ -27,6 +27,9 @@ export interface UiState {
   autoCapture: boolean;
   /** The medic paused listening and watching from the status pill. Starts paused only when autoCapture is off. */
   capturePaused: boolean;
+  /** This tablet shares its location with the vehicle server for road drive times (features/transport). */
+  shareLocation: boolean;
+  destinationOpen: boolean;
 }
 
 export interface FixtureState { name: string; index: number; total: number; playing: boolean; speed: number }
@@ -61,8 +64,8 @@ export interface HeraldState {
 
 // ---------- per-device preferences (localStorage can throw or be empty: never rely on it) ----------
 const PREFS = "herald.ui.v1";
-type Prefs = Pick<UiState, "theme" | "typeScale" | "reducedMotion" | "keyboardPtt" | "sidebarCollapsed" | "autoCapture">;
-const PREF_KEYS: (keyof Prefs)[] = ["theme", "typeScale", "reducedMotion", "keyboardPtt", "sidebarCollapsed", "autoCapture"];
+type Prefs = Pick<UiState, "theme" | "typeScale" | "reducedMotion" | "keyboardPtt" | "sidebarCollapsed" | "autoCapture" | "shareLocation">;
+const PREF_KEYS: (keyof Prefs)[] = ["theme", "typeScale", "reducedMotion", "keyboardPtt", "sidebarCollapsed", "autoCapture", "shareLocation"];
 
 function readPrefs(): Partial<Prefs> {
   try {
@@ -106,6 +109,8 @@ export function initialUi(search = typeof location === "undefined" ? "" : locati
     confirmEndIncident: false,
     autoCapture: q.get("capture") === "off" ? false : (p.autoCapture ?? true),
     capturePaused: q.get("capture") === "off" || p.autoCapture === false,
+    shareLocation: p.shareLocation ?? true,
+    destinationOpen: false,
   };
 }
 
@@ -148,7 +153,7 @@ export const useHerald = create<HeraldState>()((set, get) => ({
     const ui = { ...get().ui, ...patch };
     set({ ui });
     if (PREF_KEYS.some((k) => k in patch)) {
-      writePrefs({ theme: ui.theme, typeScale: ui.typeScale, reducedMotion: ui.reducedMotion, keyboardPtt: ui.keyboardPtt, sidebarCollapsed: ui.sidebarCollapsed, autoCapture: ui.autoCapture });
+      writePrefs({ theme: ui.theme, typeScale: ui.typeScale, reducedMotion: ui.reducedMotion, keyboardPtt: ui.keyboardPtt, sidebarCollapsed: ui.sidebarCollapsed, autoCapture: ui.autoCapture, shareLocation: ui.shareLocation });
     }
   },
   toggleExpanded: (id) => {

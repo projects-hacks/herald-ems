@@ -20,8 +20,9 @@ def test_every_trend_rule_has_text_and_every_tier_key_exists():
     assert all(r.get("text") for r in rules.values()) and all(k in vocab for k in rules)
     tier_keys = [k for t in load_yaml("relay.yaml")["tiers"] for k in t["keys"]]
     assert len(tier_keys) == len(set(tier_keys)), "a key is in two relay tiers"
+    derived = load_yaml("relay.yaml")["derived_labels"]
     for k in tier_keys:
-        assert k in vocab or k.startswith(("score.", "alert.")), k
+        assert k in vocab or k.startswith("score.") or k in derived, k
     for a in load_yaml("checklists.yaml")["alerts"].values():
         for row in a["items"]:
             _assert_valid_item(ChecklistItem.parse(row), vocab)

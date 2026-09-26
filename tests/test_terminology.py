@@ -230,7 +230,7 @@ def _wait_model(c, timeout=5):
 def test_codes_reach_the_snapshot_trace_and_health():
     c, _ = make_client(FakeModel(rows=[["meds.list", ["Eliquis"], "m"]], conf=0.99), normalizer=tiny_normalizer())
     with c:
-        c.post("/api/incident", json={"dispatch": "possible stroke"})
+        c.post("/api/incident", json={"dispatch": "possible stroke", "disposition": "transported"})
         c.post("/api/transcript", json={"text": "She takes Eliquis."})
         facts = {f["key"]: f for f in _wait_model(c)["model"]["facts"]}
         assert facts["meds.list"]["value"] == ["apixaban"] and facts["meds.list"]["code"] == [rx("1364430")]

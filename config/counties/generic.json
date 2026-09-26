@@ -17,7 +17,7 @@
     "routing": {},
     "protocol_notes": []
   },
-  "destinations": {"source": null, "comprehensive_stroke": [], "primary_stroke": []},
+  "destinations": {"source": null, "comprehensive_stroke": [], "primary_stroke": [], "facilities": {}, "locations": {}},
   "pre_alert": {"source": null, "fields": []},
   "reassess_min": 10,
   "documents": []

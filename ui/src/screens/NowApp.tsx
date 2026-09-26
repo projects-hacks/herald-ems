@@ -3,6 +3,7 @@
 // above it and the floating last-capture bar below it. The summary is the at-a-glance page; the others hold detail.
 import { useEffect } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { DestinationDialog } from "@/features/transport/DestinationDialog";
 import { ConnectBand, EndIncidentDialog, NewIncidentDialog, PresenterBar, RestoredCallBanner, StaleOverlay, Toast } from "@/components/GlobalStates";
 import { useHotkeys } from "@/hooks/useHotkeys";
 import { useWakeLock } from "@/hooks/useWakeLock";
@@ -66,6 +67,7 @@ export function NowApp({ player }: { player: FixturePlayer | null }) {
       </div>}
       <PresenterBar />
       <EndIncidentDialog />
+      <DestinationDialog />
       <NewIncidentDialog />
       <Toast />
     </TooltipProvider>

@@ -12,6 +12,13 @@ if TYPE_CHECKING:
     from ..capture.types import Frame, IncidentEvent
 
 
+class Router(Protocol):
+    """Road drive times on the vehicle (herald/transport/routing.py): (seconds, metres) from origin to each
+    destination, (lat, lon) pairs; None where no road route exists."""
+    async def table(self, origin: tuple[float, float],
+                    destinations: list[tuple[float, float]]) -> list[Optional[tuple[float, float]]]: ...
+
+
 class FrameSource(Protocol):
     def frames(self) -> Iterator[Frame]: ...
     def close(self) -> None: ...

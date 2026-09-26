@@ -52,7 +52,7 @@ def wait_model(entry_id: str, timeout: float = 30.0) -> dict:
 for step in sc["steps"]:
     frames.check()
     if "incident" in step:
-        c.post("/api/incident", json={"dispatch": step["incident"]}).raise_for_status()
+        c.post("/api/incident", json={"dispatch": step["incident"], "disposition": "cancelled"}).raise_for_status()
         print(f"[incident] {step['incident']}")
     elif "patient" in step:
         roster = c.get("/api/patients").raise_for_status().json()["patients"]

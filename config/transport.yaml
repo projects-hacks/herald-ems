@@ -1,0 +1,7 @@
+# Destination and ETA on the vehicle (herald/transport). Location comes from the medic tablet's browser (or a
+# vehicle GPS posting to the same endpoint); drive times come from the local OSRM road router
+# (scripts/routing_setup.sh, HERALD_ROUTING_URL). Nothing here leaves the vehicle.
+position_stale_s: 120      # a position older than this is not used: the ETA falls back to the crew's estimate
+recompute_moved_m: 75      # re-route when the vehicle has moved this far since the last route...
+recompute_every_s: 30      # ...or this long has passed (traffic is not modelled; this keeps the countdown honest)
+max_accuracy_m: 500        # a fix less precise than this (e.g. Wi-Fi only, indoors) is kept but not routed from

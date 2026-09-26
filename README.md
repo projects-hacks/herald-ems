@@ -127,6 +127,15 @@ For continuous observation, choose **Start listening** and **Camera → Start mo
   `HERALD_BIND_HOST=0.0.0.0` and `HERALD_DEVICE_TOKEN=<a shared secret>` (every mutating `/api/*` request must
   send it back as `X-Herald-Token`; open the tablet's page once as `.../?token=<the same secret>` and the UI
   remembers it). Skip the token and any other device on that Wi-Fi can read and write patient state.
+- **Destination and road ETA:** `scripts/herald.sh up` starts a local OSRM road router on :5100 (one-time map
+  data: `scripts/routing_setup.sh`, the Santa Clara County OpenStreetMap extract, ~75 MB, prepared in seconds;
+  map data (c) OpenStreetMap contributors, ODbL). The medic tablet shares its location with the vehicle server
+  (Settings; the browser asks once, over the same localhost/HTTPS rule as the microphone); the destination list then
+  shows every county hospital nearest by road with its stroke designations, and the ETA follows the road route to the
+  confirmed destination. Without the router or a fresh location the ETA is the crew's spoken estimate. Drive times
+  are normal driving without traffic or lights and siren. Live diversion status is not available on the vehicle.
+  Finishing an encounter asks how it ended (NEMSIS dispositions); a refusal or non-transport tells an already-alerted
+  ED the patient is not coming.
 - **Relay demo:** `scripts/link.sh start 127.0.0.1:8200`, then run `ed_receiver` on port 8200 and set `HERALD_ED_URL=http://127.0.0.1:9000`. Shift+G/W/D switch the emulated link.
 - **Protocol-update demo** (two real versions of 700-S04): `scripts/demo_protocol_update.sh setup` and `HERALD_PROTOCOL_MIRROR=http://127.0.0.1:8300`.
 - **Tests:** `python -m pytest -q`.

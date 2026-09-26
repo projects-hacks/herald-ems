@@ -8,8 +8,10 @@ from ..config import load_yaml
 
 
 class RelayTiers:
-    def __init__(self, tiers: list[dict], budget: dict[str, int], triage_rank: dict[str, int] | None = None):
+    def __init__(self, tiers: list[dict], budget: dict[str, int], triage_rank: dict[str, int] | None = None,
+                 derived_labels: dict[str, str] | None = None):
         self.tiers = tiers
+        self.derived_labels = derived_labels or {}
         self.budget = budget
         self.triage_rank = triage_rank or {"unknown": 1}
         self.priority = {k: (t["tier"], t["why"]) for t in tiers for k in t["keys"]}
@@ -17,7 +19,7 @@ class RelayTiers:
     @classmethod
     def from_config(cls, rel: str = "relay.yaml") -> "RelayTiers":
         d = load_yaml(rel)
-        return cls(d["tiers"], d["budget_bytes"], d["triage_rank"])
+        return cls(d["tiers"], d["budget_bytes"], d["triage_rank"], d.get("derived_labels"))
 
     def __contains__(self, key: str) -> bool:
         return key in self.priority

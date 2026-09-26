@@ -23,7 +23,7 @@ def test_confident_medic_facts_confirm_and_the_trace_records_effects():
     model = FakeModel(rows=[["meds.anticoagulant", "warfarin", "m"], ["vitals.glucose", 142, "m"]], conf=0.99)
     c, _ = make_client(model)
     with c:
-        c.post("/api/incident", json={"dispatch": "possible stroke"})
+        c.post("/api/incident", json={"dispatch": "possible stroke", "disposition": "transported"})
         r = c.post("/api/transcript", json={"text": "She takes warfarin. Glucose 142."}).json()
         assert r["transcript"]["trace"]["model"]["status"] == "running" and r["facts"] == []   # words first
         tr = _wait_model(c)

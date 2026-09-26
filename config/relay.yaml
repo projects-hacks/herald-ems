@@ -1,11 +1,13 @@
 # What reaches the emergency department first over a weak link. Lower tier = sent first.
 # Derived keys: score.<id> (published scores and the active county's criteria; the line each score sends is its
-# definition's relay_text), alert.readiness (checklist progress).
+# definition's relay_text), alert.readiness (checklist progress), transport.eta_at (arrival time by road route to
+# the confirmed destination, herald/transport), encounter.disposition (how the encounter ended when it was not a
+# transport by this unit: the pre-alerted patient is not coming).
 # score.trauma_605 is tier 1: Policy 501 §IV.E.2 requires a Trauma Alert report to state the Policy 605 criteria.
 # score.sepsis_700a04 is tier 1: it is the reason for the 700-A04 §1.4 advance notification.
 tiers:
   - {tier: 1, why: the receiving team needs this before arrival,
-     keys: [alert.readiness, triage.category, code_status, meds.anticoagulant, allergies, stroke.lkw, complaint.chief, meds.given,
+     keys: [encounter.disposition, alert.readiness, triage.category, code_status, meds.anticoagulant, allergies, stroke.lkw, complaint.chief, meds.given,
             impression.primary, trauma.mechanism, trauma.injury_time, trauma.injuries, infection.suspected, patient.pregnancy_weeks,
             score.trauma_605, score.sepsis_700a04, score.stemi_700a08,
             ecg.stemi_reading, ecg.transmitted, ecg.twelve_lead_time, symptom.onset]}
@@ -13,9 +15,14 @@ tiers:
   - {tier: 3, why: latest vitals and exam,
      keys: [vitals.sbp, vitals.dbp, vitals.hr, vitals.spo2, vitals.rr, vitals.glucose, vitals.consciousness, stroke.deficits,
             vitals.gcs_total, vitals.gcs_eye, vitals.gcs_verbal, vitals.gcs_motor, vitals.etco2, vitals.pain, airway.status, ecg.territory, procedures.done]}
-  - {tier: 4, why: arrival logistics, keys: [transport.eta_min, transport.destination]}
+  - {tier: 4, why: arrival logistics, keys: [transport.eta_at, transport.eta_min, transport.destination]}
   - {tier: 5, why: demographics and context,
      keys: [patient.age, patient.sex, stroke.onset_witnessed, vitals.temp, vitals.on_oxygen, meds.list, scene.notes]}
+# Labels for the derived keys that are not vocabulary facts (the ED screen and the medic's delivery table).
+derived_labels:
+  alert.readiness: Pre-alert readiness
+  transport.eta_at: ETA (road route)
+  encounter.disposition: Not transported
 # Bytes per packet by measured link state (an unmeasured link is treated as weak).
 budget_bytes: {good: 64000, weak: 420, down: 0}
 triage_rank: {immediate: 0, delayed: 1, minimal: 2, expectant: 3, dead: 4, unknown: 1}

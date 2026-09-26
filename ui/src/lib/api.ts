@@ -38,7 +38,11 @@ export async function act(key: string, url: string, body?: unknown, failCopy = "
 
 export const api = {
   resumeEncounter: () => act("encounter:resume", "/api/encounters/resume"),
-  encounterAction: (action: "arrive" | "transfer" | "finish") => act(`encounter:${action}`, `/api/encounters/current/${action}`),
+  encounterAction: (action: "arrive" | "transfer") => act(`encounter:${action}`, `/api/encounters/current/${action}`),
+  finishEncounter: (disposition: string) => act("encounter:finish", "/api/encounters/current/finish", { disposition }),
+  // the medic's tap on a county hospital: written confirmed, replacing a heard value
+  setDestination: (facility: string) => act(`destination:${facility}`, "/api/transport/destination", { facility },
+    "Couldn't set the destination. The Herald server didn't answer. Try again."),
   activatePatient: (id: string) => act(`patient:${id}`, `/api/patients/${encodeURIComponent(id)}/activate`),
   addPatient: (label: string) => act("patient:add", "/api/patients", { label }),
   confirm: (factId: string) => act(`confirm:${factId}`, `/api/facts/${factId}/confirm`, undefined, "Couldn't confirm. The Herald server didn't answer. Try again."),
@@ -63,5 +67,5 @@ export const api = {
   netem: (mode: "good" | "weak" | "down") => act(`netem:${mode}`, `/api/netem/${mode}`),
   endIncident: () => act("end-incident", "/api/incident/end", undefined,
     "Couldn't end the call. Media has not been confirmed deleted; try again."),
-  newIncident: (dispatch: string | null) => act("incident", "/api/incident", { dispatch }),
+  newIncident: (dispatch: string | null, disposition: string | null) => act("incident", "/api/incident", { dispatch, disposition }),
 };

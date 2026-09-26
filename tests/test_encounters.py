@@ -28,9 +28,9 @@ def test_unknown_patient_can_arrive_transfer_and_finish_independently():
     transfer = client.post("/api/encounters/current/transfer", headers=patient).json()["incident"]
     assert transfer["transferred_at"] and not transfer["ended_at"]
     assert not ctx.incident.values()  # no name, DOB, destination or invented identity required
-    finish = client.post("/api/encounters/current/finish", headers=patient)
+    finish = client.post("/api/encounters/current/finish", json={"disposition": "transported"}, headers=patient)
     assert finish.status_code == 200 and finish.json()["incident"]["ended_at"]
-    assert client.post("/api/encounters/current/finish", headers=patient).json()["incident"] == finish.json()["incident"]
+    assert client.post("/api/encounters/current/finish", json={"disposition": "transported"}, headers=patient).json()["incident"] == finish.json()["incident"]
     assert client.post("/api/encounters/current/transfer", headers=patient).status_code == 409
     assert client.get("/api/handoff").json()["incident"]["transferred_at"] == transfer["transferred_at"]
 
@@ -39,8 +39,8 @@ def test_finish_does_not_claim_transfer_or_finish_the_other_patient():
     client, ctx = make_client()
     first = ctx.incident
     second = client.post("/api/patients", json={"label": "Patient 2"}, headers=headers(ctx)).json()["incident"]["id"]
-    assert client.post("/api/incident", json={}, headers=headers(ctx)).status_code == 409
-    done = client.post("/api/encounters/current/finish", headers=headers(ctx)).json()
+    assert client.post("/api/incident", json={"disposition": "transported"}, headers=headers(ctx)).status_code == 409
+    done = client.post("/api/encounters/current/finish", json={"disposition": "transported"}, headers=headers(ctx)).json()
     assert done["incident"]["id"] == second and done["incident"]["ended_at"]
     assert not done["incident"]["transferred_at"] and first.ended_at is None
     assert client.post(f"/api/patients/{first.id}/activate", headers=headers(ctx)).status_code == 200
@@ -50,10 +50,10 @@ def test_finish_does_not_claim_transfer_or_finish_the_other_patient():
 def test_stale_patient_requests_cannot_finish_or_switch_the_new_patient():
     client, ctx = make_client()
     old = headers(ctx)
-    client.post("/api/incident", json={}, headers=old)
+    client.post("/api/incident", json={"disposition": "transported"}, headers=old)
     current = ctx.incident
-    for url, body in [("/api/incident", {}), ("/api/incident/end", None),
-                      ("/api/encounters/current/finish", None), ("/api/patients", {"label": "Wrong"})]:
+    for url, body in [("/api/incident", {"disposition": "transported"}), ("/api/incident/end", None),
+                      ("/api/encounters/current/finish", {"disposition": "transported"}), ("/api/patients", {"label": "Wrong"})]:
         assert client.post(url, json=body, headers=old).status_code == 409
         assert ctx.incident is current and current.ended_at is None
     assert client.post("/api/encounters/current/finish").status_code == 409
@@ -69,7 +69,7 @@ def test_next_encounter_keeps_old_outbox_and_restores_it_after_restart(tmp_path)
     ctx.relay.seq = 19
     ctx.relay.inflight = ctx.relay._build(2000)
     packet = dict(ctx.relay.inflight)
-    next_call = client.post("/api/incident", json={"dispatch": "fall"}, headers=headers(ctx)).json()
+    next_call = client.post("/api/incident", json={"dispatch": "fall", "disposition": "transported"}, headers=headers(ctx)).json()
     assert next_call["incident"]["id"] != old.id
     assert not next_call["facts"] and not next_call["relay"]["authorized"]
     assert next_call["encounter_history"][0]["delivery_pending"]
@@ -97,7 +97,7 @@ def test_finish_survives_restart_and_capture_cannot_reopen_it(tmp_path):
     options = dict(data_dir=tmp_path / "data", state_key_file=tmp_path / "private" / "key", persistence=True)
     client, ctx = make_client(**options)
     patient = ctx.incident.id
-    client.post("/api/encounters/current/finish", headers=headers(ctx))
+    client.post("/api/encounters/current/finish", json={"disposition": "transported"}, headers=headers(ctx))
     again, restored = make_client(**options)
     assert restored.incident.id == patient and restored.incident.ended_at is not None
     assert again.post("/api/encounters/resume", headers=headers(restored)).status_code == 409
@@ -108,7 +108,7 @@ def test_finish_survives_restart_and_capture_cannot_reopen_it(tmp_path):
 def test_late_verification_does_not_mutate_a_finished_record():
     client, ctx = make_client()
     fact = confirmed(ctx)
-    client.post("/api/encounters/current/finish", headers=headers(ctx))
+    client.post("/api/encounters/current/finish", json={"disposition": "transported"}, headers=headers(ctx))
     with pytest.raises(IncidentEnded):
         ctx.incident.hold_verification(fact.id, "late result")
     assert fact.status == Status.confirmed
@@ -140,7 +140,7 @@ def test_standalone_protocol_request_does_not_extract_patient_facts():
 def test_restored_same_scene_new_patient_keeps_the_original_dispatch(tmp_path):
     options = dict(data_dir=tmp_path / "data", state_key_file=tmp_path / "private" / "key", persistence=True)
     client, ctx = make_client(**options)
-    client.post("/api/incident", json={"dispatch": "fall"}, headers=headers(ctx))
+    client.post("/api/incident", json={"dispatch": "fall", "disposition": "transported"}, headers=headers(ctx))
     again, restored = make_client(**options)
     again.post("/api/patients", json={"label": "Patient 2"}, headers=headers(restored))
     assert restored.incident.dispatch == "fall"

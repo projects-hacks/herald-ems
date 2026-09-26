@@ -98,6 +98,7 @@ class Projector:
                              "ended_at": inc.ended_at.isoformat() if inc.ended_at else None,
                              "arrived_at": inc.arrived_at.isoformat() if inc.arrived_at else None,
                              "transferred_at": inc.transferred_at.isoformat() if inc.transferred_at else None,
+                             "disposition": inc.disposition,
                              "media_disposal": inc.media_disposal},
                 "summary": summary + (f" · {complaint}" if complaint else ""),
                 "readiness": readiness,

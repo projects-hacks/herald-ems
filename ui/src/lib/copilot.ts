@@ -180,7 +180,9 @@ export function patientLine(s: Snapshot): string {
   const summary = s.summary || "";
   const parts = [summary && summary.includes(" · ") ? summary
     : [summary, s.incident.dispatch].filter(Boolean).join(" · ") || "New patient"];
-  const dest = f("transport.destination");   // the ETA counts down in the situation bar; one ETA on screen, not two
+  // the ETA counts down in the situation bar; on a vehicle with the destination control (s.transport) the destination
+  // is there too, so it is named once on screen
+  const dest = s.transport ? undefined : f("transport.destination");
   if (dest) parts[parts.length - 1] += ` → ${factValue(dest)}`;
   return parts.join(" · ");
 }

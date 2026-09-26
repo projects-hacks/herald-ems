@@ -1,5 +1,8 @@
 """Medic-controlled milestones and read-only retained encounters."""
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from ...core.incident import IncidentEnded
 from ...core.schema import utcnow
@@ -20,13 +23,30 @@ async def resume(c=Depends(get_ctx), h=Depends(get_hub)):
     return c.full_state()
 
 
+class Milestone(BaseModel):
+    disposition: Optional[str] = None      # required to finish: config/dispositions.yaml id
+
+
+def record_disposition(c, inc, disposition: Optional[str]) -> None:
+    """The medic's choice of how the encounter ended; finishing without one is refused."""
+    outcome = c.dispositions.get(disposition)
+    if outcome is None:
+        raise HTTPException(422, "Choose how this encounter ended before finishing it")
+    if not outcome["transport"] and (inc.arrived_at or inc.transferred_at):
+        raise HTTPException(409, "Arrival or transfer of care is recorded; this patient was transported by this unit")
+    inc.disposition = outcome["id"]
+    inc.audit_log.append({"at": utcnow().isoformat(), "action": "disposition", "value": outcome["id"], "actor": "medic"})
+
+
 @router.post("/current/{action}", dependencies=[Depends(require_current_patient)])
-async def milestone(action: str, c=Depends(get_ctx), h=Depends(get_hub)):
+async def milestone(action: str, body: Optional[Milestone] = None, c=Depends(get_ctx), h=Depends(get_hub)):
     if action not in ("arrive", "transfer", "finish"):
         raise HTTPException(404, "Unknown encounter action")
     inc = c.incident
     with inc.lock:
         if action == "finish":
+            if inc.ended_at is None:
+                record_disposition(c, inc, body.disposition if body else None)
             dispose_incident_media(inc, audio_dir=c.settings.audio_dir,
                                    photo_dir=c.settings.photo_dir, evidence_dir=c.evidence_dir)
         else:
@@ -34,6 +54,8 @@ async def milestone(action: str, c=Depends(get_ctx), h=Depends(get_hub)):
                 inc.ensure_open()
             except IncidentEnded as exc:
                 raise HTTPException(409, str(exc)) from None
+            if inc.disposition and not c.dispositions.transports(inc.disposition):
+                raise HTTPException(409, "This encounter ended without transport")
             if action == "arrive" and inc.transferred_at:
                 raise HTTPException(409, "Transfer of care is already recorded")
             field = "arrived_at" if action == "arrive" else "transferred_at"

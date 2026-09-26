@@ -32,6 +32,7 @@ class Incident:
         self.ended_at = None
         self.arrived_at = None
         self.transferred_at = None
+        self.disposition: Optional[str] = None   # config/dispositions.yaml id, chosen when finishing
         self.media_ids: dict[str, set[str]] = {"audio": set(), "photo": set(), "evidence": set()}
         self.media_disposal: Optional[dict] = None
         self.news2_history: list[dict] = []   # score history, recorded once per utterance by the projector

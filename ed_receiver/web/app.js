@@ -89,12 +89,20 @@ function incoming(incident) {
   const el = $('incoming'), f = incident.fields;
   const what = f['impression.primary']?.v ?? f['complaint.chief']?.v;
   const dest = incident.dest || f['transport.destination']?.v;
-  const eta = f['transport.eta_min'];
-  const arrival = eta && typeof eta.v === 'number' ? new Date(eta.t).getTime() + eta.v * 60000 : null;
+  // The road-route arrival time when the vehicle sends one; otherwise the crew's spoken estimate from when it arrived.
+  const eta = f['transport.eta_min'], routed = f['transport.eta_at'];
+  const arrival = routed ? new Date(routed.v).getTime()
+    : eta && typeof eta.v === 'number' ? new Date(eta.t).getTime() + eta.v * 60000 : null;
+  const outcome = f['encounter.disposition'];
   el.hidden = false;
+  if (outcome) {   // the pre-alerted patient is not coming: say so first, in words, not only by a missing ETA
+    el.innerHTML = `<div class="what"><div class="kicker">NOT COMING</div><div class="who">${esc(incident.label || selected)}</div>
+      <div class="dest">${esc(formatValue(outcome.v))}</div></div><div class="eta"><b>—</b><span>no transport to this hospital</span></div>`;
+    return;
+  }
   el.innerHTML = `<div class="what"><div class="kicker">INCOMING${what ? ` · ${esc(String(what).toUpperCase())}` : ''}</div>
     <div class="who">${esc(incident.label || selected)}</div><div class="dest">${dest ? `to ${esc(formatValue(dest))}` : 'destination not received'}</div></div>
-    <div class="eta"><b ${arrival ? `data-arrival="${arrival}"` : ''}>${arrival ? countdown(arrival) : '—'}</b><span>${arrival ? 'ETA' : 'ETA not received'}</span></div>`;
+    <div class="eta"><b ${arrival ? `data-arrival="${arrival}"` : ''}>${arrival ? countdown(arrival) : '—'}</b><span>${arrival ? (routed ? 'ETA · road route' : 'ETA · crew estimate') : 'ETA not received'}</span></div>`;
 }
 const countdown = (arrival) => {
   const s = Math.round((arrival - Date.now()) / 1000);

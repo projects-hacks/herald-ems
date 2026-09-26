@@ -17,7 +17,7 @@ def test_stale_patient_capture_rejected_and_late_work_never_reaches_the_new_pati
     client, ctx = make_client()
     original = ctx.incident
     scoped = client.app.state.capture.for_incident()
-    client.post("/api/incident", json={"dispatch": "fall"})
+    client.post("/api/incident", json={"dispatch": "fall", "disposition": "transported"})
     headers = {"X-Herald-Patient": original.id}
     assert client.post("/api/facts", headers=headers, json=[]).status_code == 409
     assert client.post("/api/transcript", headers=headers, json={"text": "test", "use_llm": False}).status_code == 409
@@ -33,7 +33,7 @@ def test_scoped_text_capture_cannot_append_after_call_end():
     client, ctx = make_client()
     original = ctx.incident
     scoped = client.app.state.capture.for_incident()
-    client.post("/api/incident", json={"dispatch": "fall"})
+    client.post("/api/incident", json={"dispatch": "fall", "disposition": "transported"})
 
     with pytest.raises(IncidentEnded):
         asyncio.run(scoped.text("late words", CapturedBy.medic, Role.medic, "medic", None, use_model=False))

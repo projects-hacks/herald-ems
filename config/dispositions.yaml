@@ -1,0 +1,34 @@
+# How an encounter ended. The medic picks one when finishing an encounter (a tap, never inferred from speech).
+# Only an outcome with `transport: true` has a destination, an ETA and ED delivery; every other outcome keeps the
+# record on the vehicle as the patient care record, and an ED that was already sent updates is told the patient is
+# not coming.
+#
+# Codes are NEMSIS v3.5.1 eDisposition values, copied from the national data dictionary on 2026-09-26:
+#   eDisposition.27 Unit Disposition, .28 Patient Evaluation/Care Disposition, .30 Transport Disposition
+#   https://nemsis.org/media/nemsis_v3/release-3.5.1/DataDictionary/PDFHTML/EMSDEMSTATE/sections/elements/eDisposition.30.xml
+# NEMSIS states arrival and transfer-of-care times are recorded when Transport Disposition is "Transport by This
+# EMS Unit", and transport method/mode are not recorded for "Patient Refused Transport" or "No Transport".
+outcomes:
+  - id: transported
+    label: Transported by this unit
+    transport: true
+    nemsis: {unit: "4227001", care: "4228001", transport: "4230001"}
+  - id: other_unit
+    label: Handed to another unit
+    detail: Another ambulance or air unit transports; they notify the receiving hospital.
+    transport: false
+    nemsis: {unit: "4227001", care: "4228001", transport: "4230005"}
+  - id: refused
+    label: Patient refused transport
+    detail: Record what the patient was told in a note before finishing.
+    transport: false
+    nemsis: {unit: "4227001", care: "4228003", transport: "4230009"}
+  - id: not_transported
+    label: Evaluated, not transported
+    detail: Treated or assessed on scene; no transport needed.
+    transport: false
+    nemsis: {unit: "4227001", care: "4228005", transport: "4230013"}
+  - id: cancelled
+    label: Cancelled or no patient found
+    transport: false
+    nemsis: {unit: "4227003", transport: "7701001"}

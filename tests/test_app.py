@@ -120,7 +120,7 @@ def test_stale_or_repeated_correction_is_not_applied_twice():
 def test_correction_cannot_cross_incidents():
     c, _ = make_client()
     original = c.post("/api/facts", json=[{"key": "vitals.sbp", "value": 150, **MONITOR}]).json()[0]
-    c.post("/api/incident", json={"dispatch": "next patient"})
+    c.post("/api/incident", json={"dispatch": "next patient", "disposition": "transported"})
     assert c.post(f"/api/facts/{original['id']}/correct", json={"value": 138}).status_code == 404
     assert not c.get("/api/state").json()["facts"]
 
@@ -258,7 +258,7 @@ def test_relay_scope_is_derived_from_the_active_checklist_not_the_client_label()
     assert response.status_code == 200
     assert response.json()["authorized"]["scope"] == "Trauma Alert pre-alert set"
 
-    c.post("/api/incident", json={"dispatch": "unknown"})
+    c.post("/api/incident", json={"dispatch": "unknown", "disposition": "transported"})
     response = c.post("/api/relay/authorize", json={"destination": "Valley Medical"})
     assert response.json()["authorized"]["scope"] == "patient update set"
 
@@ -348,7 +348,7 @@ def test_starting_a_new_incident_disposes_the_previous_calls_media(tmp_path):
     old_id = context.incident.id
     audio = next(iter(context.incident.media_ids["audio"]))
 
-    response = client.post("/api/incident", json={"dispatch": "fall"})
+    response = client.post("/api/incident", json={"dispatch": "fall", "disposition": "transported"})
     assert response.status_code == 200
     body = response.json()
     assert body["incident"]["id"] != old_id and body["incident"]["ended_at"] is None

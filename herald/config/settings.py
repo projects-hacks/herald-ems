@@ -47,6 +47,10 @@ class Settings(BaseModel):
     unit_id: Optional[str] = None                 # this vehicle's unit ID, e.g. "Medic 25" (Policy 501 §III.A.1.a)
     # relay and demo link emulation
     ed_url: Optional[str] = None
+    ed_receivers: dict[str, str] = {}             # facility id -> that hospital's receiving URL (HERALD_ED_RECEIVERS
+                                                  # "GSH=http://...,RSJ=http://..."); a hospital not listed uses ed_url
+    routing_url: Optional[str] = None             # local OSRM road router (scripts/routing_setup.sh); None = the ETA is
+                                                  # the crew's estimate only. Must be on this box, like llm_url.
     ed_token: Optional[str] = None                # B7: sent as X-Herald-Token on every /ingest, /ping and /state
                                                   # call to ed_receiver; must match its own ED_RECEIVER_TOKEN
     toxiproxy_url: str = "http://127.0.0.1:8474"
@@ -87,6 +91,13 @@ class Settings(BaseModel):
     def _guard(cls, v: str) -> str:
         if v not in ("skip_model", "unconfirm"):
             raise ValueError("HERALD_GUARD_POLICY must be skip_model or unconfirm")
+        return v
+
+    @field_validator("routing_url")
+    @classmethod
+    def _local_router(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not _LOCAL.match(v):
+            raise ValueError(f"HERALD_ROUTING_URL must point at this box, got {v}")
         return v
 
     @field_validator("llm_url")
@@ -150,6 +161,8 @@ class Settings(BaseModel):
             dispatch=e.get("HERALD_DISPATCH", "possible stroke"),
             unit_id=opt("HERALD_UNIT_ID"),
             ed_url=opt("HERALD_ED_URL"),
+            ed_receivers=dict(pair.split("=", 1) for pair in e.get("HERALD_ED_RECEIVERS", "").split(",") if "=" in pair),
+            routing_url=opt("HERALD_ROUTING_URL"),
             ed_token=opt("HERALD_ED_TOKEN"),
             toxiproxy_url=e.get("TOXIPROXY_URL", cls.model_fields["toxiproxy_url"].default),
             device_token=opt("HERALD_DEVICE_TOKEN"),

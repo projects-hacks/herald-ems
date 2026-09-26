@@ -107,6 +107,7 @@ def default_policy(settings=None) -> EgressPolicy:
     if settings is not None:
         if getattr(settings, "ed_url", None):
             allow.append(settings.ed_url)
+        allow.extend((getattr(settings, "ed_receivers", None) or {}).values())   # each hospital's own receiver
         if getattr(settings, "protocol_mirror", None):
             allow.append(settings.protocol_mirror)
     return EgressPolicy(allow, decision_log_size=int(cfg.get("decision_log_size", 200)))

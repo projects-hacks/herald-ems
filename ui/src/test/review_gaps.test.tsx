@@ -16,7 +16,8 @@ import { useHotkeys } from "@/hooks/useHotkeys";
 
 const base: Snapshot = JSON.parse(readFileSync("src/test/fixtures/live_every_call.json", "utf8"));
 const keys = JSON.parse(readFileSync("public/contract/keys.json", "utf8"));
-const contract = { keys, relayTiers: JSON.parse(readFileSync("public/contract/relay_tiers.json", "utf8")), changeRules: {}, checklists: { trauma: { label: "Trauma" } } };
+const contract = { keys, relayTiers: JSON.parse(readFileSync("public/contract/relay_tiers.json", "utf8")), changeRules: {}, checklists: { trauma: { label: "Trauma" } },
+  dispositions: JSON.parse(readFileSync("public/contract/dispositions.json", "utf8")) };
 vi.mock("@/lib/contract", () => ({ useContract: () => contract, label: (_c: unknown, key: string) => keys[key]?.label ?? key }));
 let snapshot: Snapshot;
 beforeEach(() => {
@@ -94,11 +95,14 @@ it("mounts the roster and sends an explicit patient activation", async () => {
   render(<PatientRoster />); fireEvent.click(screen.getByRole("button", { name: /Passenger/ }));
   await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/patients/two/activate", expect.anything()));
 });
-it("new incident submits selected dispatch, not the previous call", async () => {
+it("new incident submits selected dispatch and how the open encounter ended, never finishing it without one", async () => {
   useHerald.getState().setUi({ confirmNewIncident: true }); render(<NewIncidentDialog />);
   fireEvent.change(screen.getByLabelText("Dispatch / call type"), { target: { value: "fall" } });
-  fireEvent.click(screen.getByRole("button", { name: "Finish and start next" }));
-  await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/incident", expect.objectContaining({ body: JSON.stringify({ dispatch: "fall" }) })));
+  const go = screen.getByRole("button", { name: "Finish and start next" });
+  expect((go as HTMLButtonElement).disabled).toBe(true);                        // no outcome chosen yet
+  fireEvent.click(screen.getByLabelText(/Patient refused transport/));
+  fireEvent.click(go);
+  await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/incident", expect.objectContaining({ body: JSON.stringify({ dispatch: "fall", disposition: "refused" }) })));
 });
 it("exposes compact model-down and ED offline status", () => {
   snapshot.relay.configured = true; snapshot.relay.authorized = { destination: "ED", scope: "test", at: "now" }; snapshot.relay.link = "down";

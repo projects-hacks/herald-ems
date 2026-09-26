@@ -27,3 +27,8 @@ it('shows only received journey points with units, times, and escaped care event
   expect(html).toContain('132 mmHg'); expect(html).toContain(hhmm('2026-09-25T17:00:00Z'));   // the observed time, local 24-hour
   expect(html).not.toContain('<script>'); expect(html).toContain('Time unavailable');
 });
+it('shows the route arrival time as clock time and leaves other text alone', () => {
+  expect(formatValue('2026-09-26T01:40:00Z')).toBe(hhmm('2026-09-26T01:40:00Z'));
+  expect(formatValue('13:15')).toBe('13:15');
+  expect(formatValue('Patient refused transport')).toBe('Patient refused transport');
+});

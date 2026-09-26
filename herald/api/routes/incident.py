@@ -10,6 +10,7 @@ from ...core.incident import IncidentEnded
 from ...core.schema import Status
 from . import get_capture
 from . import get_ctx, get_hub, check_current_patient
+from .encounters import record_disposition
 
 router = APIRouter(prefix="/api")
 ACTIONS = {"confirm": Status.confirmed, "reject": Status.rejected}
@@ -17,6 +18,7 @@ ACTIONS = {"confirm": Status.confirmed, "reject": Status.rejected}
 
 class NewIncident(BaseModel):
     dispatch: Optional[str] = None
+    disposition: Optional[str] = None      # how the current encounter ended, if it is still open
 
 
 class Correction(BaseModel):
@@ -31,6 +33,9 @@ class BulkConfirm(BaseModel):
 async def new_incident(body: NewIncident, c=Depends(get_ctx), h=Depends(get_hub)):
     if any(inc.id != c.incident.id and inc.ended_at is None for inc in c.roster.incidents()):
         raise HTTPException(409, "Finish the other patients at this scene before starting a new scene")
+    if c.incident.ended_at is None:
+        with c.incident.lock:
+            record_disposition(c, c.incident, body.disposition)
     previous_cleanup = c.advance_incident(body.dispatch)
     await h.broadcast()
     return {**c.full_state(), "previous_call_cleanup": previous_cleanup}

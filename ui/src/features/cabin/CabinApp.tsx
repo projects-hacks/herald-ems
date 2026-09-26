@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Activity, Camera, ChevronLeft, FileText, Info, Keyboard, Moon, Settings2, Sun, Users, WifiOff } from "lucide-react";
 import { ManualEntry } from "@/components/ManualEntry";
 import { EncounterHistory } from "./EncounterControls";
+import { useVehicleLocation } from "@/features/transport/useVehicleLocation";
 import { PatientRoster } from "@/components/PatientRoster";
 import { CaptureBar } from "@/features/capture/CaptureBar";
 import { CaptureControl } from "@/features/capture/CaptureControl";
@@ -47,6 +48,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
   useCaptureOwner();                        // one tab listens and watches; others only show the call
   const elsewhere = useHerald((st) => st.captureElsewhere);
   const ambient = useAmbient();
+  const location = useVehicleLocation();
   const [panel, setPanel] = useState<Panel>(null);
   const [recordView, setRecordView] = useState<RecordView>("facts");
   const [, setPhoto] = useState<CameraStatus>({ active: false, busy: false, message: "", failed: false });
@@ -151,6 +153,12 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
             <button className="cabin-button" onClick={() => setUi({ theme: ui.theme === "dark" ? "light" : "dark" })}>{ui.theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}{ui.theme === "dark" ? "Daylight theme" : "Night theme"}</button></div>
           <label className="copilot-switch"><input type="checkbox" checked={ui.autoCapture} onChange={(e) => setUi({ autoCapture: e.target.checked, capturePaused: !e.target.checked })} />
             Listen and watch automatically when a call starts</label>
+          <label className="copilot-switch"><input type="checkbox" checked={ui.shareLocation} onChange={(e) => setUi({ shareLocation: e.target.checked })} />
+            Share this tablet’s location with the vehicle for drive times</label>
+          <p className="cabin-muted" role="status">{{ off: "Location is not shared.", waiting: "Waiting for this tablet’s location…",
+            sharing: "Location shared with the vehicle server only; it is not stored with the record or sent to the ED.",
+            denied: "Location permission was refused in this browser. Drive times need it; the ETA stays the crew’s estimate.",
+            unavailable: "This tablet cannot provide a location. The ETA stays the crew’s estimate." }[location]}</p>
           <div className="cabin-actions"><button className="cabin-button" onClick={() => open("patients")}>Patients and encounters</button>
             <button className="cabin-button" onClick={() => setUi({ presentationMode: true })}>Guided demo</button><button className="cabin-button" onClick={() => setUi({ mode: "explain" })}>Detailed application view</button></div>
           <details><summary><Info size={18} />Recording, privacy and what runs in the background</summary><p>Record only when authorized. After you start listening, Herald listens continuously and sends only speech, cut at natural pauses, to this vehicle’s server; everything is processed on the vehicle. Speaker identity is not detected. Every captured fact needs your confirmation before it counts toward scores or is shared.</p><p>Monitor watch keeps the camera on the equipment while you use other pages; the vehicle keeps useful stills and holds readings for your confirmation. Capture continues while this tab is in the background. If the vehicle server is unreachable, speech waits in this page and is retried; after about a minute of waiting, or if a clip keeps failing, the oldest words are skipped and Herald says so. Pausing, changing patient or leaving the page stops capture; waiting audio is not a durable backup. Handoff delivery status is a system acknowledgment, not proof a clinician has read it.</p></details>

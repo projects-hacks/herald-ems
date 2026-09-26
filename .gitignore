@@ -32,3 +32,6 @@ data/field_audio/
 
 # vision training photos (scripts/vision_train/make.py rebuilds them byte for byte from --seed 7; MODEL_PLAN §2a)
 data/vision_train/
+
+# Offline road routing (scripts/routing_setup.sh): map extract and prepared OSRM files
+data/routing/

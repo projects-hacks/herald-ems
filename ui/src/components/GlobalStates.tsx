@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } f
 import { api } from "@/lib/api";
 import { clockTime, hhmmss } from "@/lib/format";
 import { useHerald } from "@/lib/store";
+import { OutcomeChoice } from "@/features/cabin/EncounterControls";
 import { CANT_CONNECT_MS } from "@/lib/ws";
 import { useNow } from "@/hooks/useNow";
 
@@ -75,7 +76,9 @@ export function NewIncidentDialog() {
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const contract = useContract();
   const persisted = useHerald((s) => s.snapshot?.history_persisted);
-  useEffect(() => { if (open) { setDispatch(""); setError(""); } }, [open]);
+  const stillOpen = useHerald((s) => !!s.snapshot && !s.snapshot.incident.ended_at);   // this encounter needs its outcome
+  const [outcome, setOutcome] = useState<string | null>(null);
+  useEffect(() => { if (open) { setDispatch(""); setError(""); setOutcome(null); } }, [open]);
   const capturing = useHerald((s) => s.ui.heldAlerts);
   const blocked = useHerald((s) => s.stale || s.conn !== "open" || s.source === "fixture");
   return (
@@ -84,13 +87,14 @@ export function NewIncidentDialog() {
         <DialogTitle>Finish this encounter and start the next?</DialogTitle>
         <DialogDescription>This stops capture and removes this scene’s audio and photos. Unprocessed capture will not be added. Structured patient records and existing authorized ED delivery stay available in Previous encounters. The next patient starts with a fresh record and needs a new ED authorization. This does not record transfer of care. To include another patient at this scene, use Add patient at this scene.</DialogDescription>
         {!persisted && <p role="alert">Local recovery is off. Download the handoff before restarting the server.</p>}
+        {stillOpen && <OutcomeChoice value={outcome} onChange={setOutcome} />}
         <button type="button" className="min-h-12 text-left text-body text-herald-accent" onClick={() => setUi({ confirmNewIncident: false, page: "handoff" })}>Review or download the handoff first</button>
         <label className="text-body">Dispatch / call type<input list="dispatch-types" value={dispatch} onChange={(e) => setDispatch(e.target.value)} placeholder="Unspecified — or type dispatch" className="mt-2 block min-h-12 w-full rounded-lg border border-border-control bg-surface-2 px-3" /></label>
         <datalist id="dispatch-types">{Object.entries(contract?.checklists ?? {}).filter(([, c]) => c.label).map(([id, c]) => <option key={id} value={id}>{c.label}</option>)}</datalist>
         {error && <p role="alert">{error}</p>}
         <DialogFooter>
           <button type="button" onClick={() => setUi({ confirmNewIncident: false })} className="min-h-12 rounded-[var(--radius-control)] border border-border-subtle bg-surface-2 px-4 text-button font-semibold">Cancel</button>
-          <button type="button" disabled={busy || capturing || blocked} onClick={async () => { setBusy(true); if (await api.newIncident(dispatch.trim() || null)) setUi({ confirmNewIncident: false, incidentPhase: "scene", page: "overview" }); else setError("Could not start a new incident. Check the current patient before retrying."); setBusy(false); }}
+          <button type="button" disabled={busy || capturing || blocked || (stillOpen && !outcome)} onClick={async () => { setBusy(true); if (await api.newIncident(dispatch.trim() || null, stillOpen ? outcome : null)) setUi({ confirmNewIncident: false, incidentPhase: "scene", page: "overview" }); else setError("Could not start a new incident. Check the current patient before retrying."); setBusy(false); }}
             className="min-h-16 rounded-[var(--radius-control)] bg-accent-fill px-4 text-button font-semibold text-on-accent-fill">Finish and start next</button>
         </DialogFooter>
       </DialogContent>
@@ -104,16 +108,19 @@ export function EndIncidentDialog() {
   const disabled = useHerald((s) => s.stale || s.conn !== "open" || s.source !== "live");
   const persisted = useHerald((s) => s.snapshot?.history_persisted);
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
-  useEffect(() => { if (open) setError(""); }, [open]);
+  const [outcome, setOutcome] = useState<string | null>(null);
+  useEffect(() => { if (open) { setError(""); setOutcome(null); } }, [open]);
   return <Dialog open={open} onOpenChange={(o) => setUi({ confirmEndIncident: o })}><DialogContent>
     <DialogTitle>Finish this encounter?</DialogTitle>
     <DialogDescription>Capture stops and this patient’s audio and photos are deleted. Unprocessed capture will not be added. The structured record and authorized ED delivery remain available. Other patients at this scene stay open. Finishing does not record transfer of care.</DialogDescription>
     {!persisted && <p role="alert">Local recovery is off. Download the handoff before restarting the server.</p>}
+    <OutcomeChoice value={outcome} onChange={setOutcome} />
     {error && <p role="alert">{error}</p>}
     <DialogFooter>
       <button className="cabin-button" disabled={busy} onClick={() => setUi({ confirmEndIncident: false })}>Cancel</button>
-      <button className="cabin-button primary" disabled={disabled || busy} onClick={async () => {
-        setBusy(true); if (await api.encounterAction("finish")) setUi({ confirmEndIncident: false });
+      <button className="cabin-button primary" disabled={disabled || busy || !outcome} onClick={async () => {
+        if (!outcome) return;
+        setBusy(true); if (await api.finishEncounter(outcome)) setUi({ confirmEndIncident: false });
         else setError("Could not finish the encounter. Check its status before retrying."); setBusy(false);
       }}>Finish encounter</button>
     </DialogFooter>

@@ -9,9 +9,12 @@ from ..core.schema import CapturedBy, Role, Status
 
 
 class UIContract:
-    def __init__(self, vocabulary, tiers, trends, checklists, counties, scales):
+    def __init__(self, vocabulary, tiers, trends, checklists, counties, scales, dispositions=None):
+        from ..config import load_yaml
+        from ..core.disposition import Dispositions
         self.vocab, self.tiers, self.trends, self.checklists = vocabulary, tiers, trends, checklists
         self.counties, self.scales = counties, scales
+        self.dispositions = dispositions or Dispositions(load_yaml("dispositions.yaml"))
 
     def keys(self) -> dict:
         return {k: {**v, **({"range": list(v["range"])} if "range" in v else {})} for k, v in self.vocab.keys.items()}
@@ -59,6 +62,7 @@ class UIContract:
     def all(self) -> dict:
         return {
             "keys": self.keys(), "relay_tiers": self.relay_tiers(), "relay_budget_bytes": dict(self.tiers.budget),
+            "derived_labels": dict(self.tiers.derived_labels), "dispositions": self.dispositions.outcomes,
             "change_rules": self.change_rules(), "checklists": self.checklist_defs(), "scores": self.score_defs(),
             "contradiction_keys": sorted(self.vocab.contradiction_keys),
             "county": self.counties.summary(), "counties": self.counties.available(),
@@ -70,7 +74,8 @@ class UIContract:
         """File name under ui/public/contract/ -> content."""
         return {"keys.json": self.keys(), "relay_tiers.json": self.relay_tiers(),
                 "change_rules.json": self.change_rules(), "checklists.json": self.checklist_defs(),
-                "scores.json": self.score_defs()}
+                "scores.json": self.score_defs(), "dispositions.json": self.dispositions.outcomes,
+                "derived_labels.json": dict(self.tiers.derived_labels)}
 
 
 def _tap(c: dict, vocab) -> dict | None:

@@ -337,7 +337,70 @@
       "STH",
       "SUH",
       "VMC"
-    ]
+    ],
+    "locations_source": "OpenStreetMap Santa Clara County extract (openstreetmap.fr, 2026-09-25): the tagged emergency entrance where one exists, otherwise the centre of the hospital's mapped campus. Road routing only; spot-check before field use.",
+    "locations": {
+      "ECH": {
+        "lat": 37.3685789,
+        "lon": -122.0793256,
+        "point": "emergency entrance",
+        "osm": "node/13097879443"
+      },
+      "GSH": {
+        "lat": 37.251957,
+        "lon": -121.94519,
+        "point": "campus",
+        "osm": "way/38061549"
+      },
+      "KSC": {
+        "lat": 37.3353095,
+        "lon": -121.99845,
+        "point": "emergency entrance",
+        "osm": "node/5057406932"
+      },
+      "LGH": {
+        "lat": 37.2638442,
+        "lon": -121.9693525,
+        "point": "emergency entrance",
+        "osm": "node/11002229108"
+      },
+      "OCH": {
+        "lat": 37.328314,
+        "lon": -121.938773,
+        "point": "campus",
+        "osm": "way/38899283"
+      },
+      "RSJ": {
+        "lat": 37.362792,
+        "lon": -121.850028,
+        "point": "campus",
+        "osm": "way/403207487"
+      },
+      "SLH": {
+        "lat": 37.036,
+        "lon": -121.571504,
+        "point": "campus",
+        "osm": "way/27294884"
+      },
+      "STH": {
+        "lat": 37.240015,
+        "lon": -121.801213,
+        "point": "campus",
+        "osm": "way/38060492"
+      },
+      "SUH": {
+        "lat": 37.4343004,
+        "lon": -122.177932,
+        "point": "emergency entrance",
+        "osm": "node/7078764373"
+      },
+      "VMC": {
+        "lat": 37.313696,
+        "lon": -121.935175,
+        "point": "campus",
+        "osm": "way/609630707"
+      }
+    }
   },
   "pre_alert": {
     "source": "Policy 501 §III.A, §IV.C-D; 700-A13 §2.7, §5.2-5.3",

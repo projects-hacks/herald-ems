@@ -25,6 +25,9 @@ class RelayConfig(BaseModel):
 async def relay_authorize(body: Authorize, c=Depends(get_ctx), h=Depends(get_hub)):
     """The medic authorizes destination + scope once; in-scope updates then flow on their own."""
     label, alert_ids = c.pre_alert_scope()
+    receiver = c.receiver_for(body.destination)
+    if receiver != c.relay.ed_url and receiver:
+        c.relay.set_ed_url(receiver)             # this hospital's own receiving system (HERALD_ED_RECEIVERS)
     c.relay.authorize(body.destination, label, alert_ids)
     c.persist()
     await h.broadcast()

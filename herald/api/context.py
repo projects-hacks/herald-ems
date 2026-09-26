@@ -5,6 +5,7 @@ Tests and tools pass their own Settings and fakes (e.g. a stub TextModel) to `bu
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -14,8 +15,10 @@ from ..config import Settings, get_settings
 from ..config.county import CountyRegistry
 from ..core.confirmation import ConfirmationPolicy
 from ..core.corroboration import BatchConfirmation, CorroborationRules
+from ..core.disposition import Dispositions
 from ..core.incident import Incident
-from ..core.ports import Normalizer, PhotoReader, SpeechToText, TextModel
+from ..core.ports import Normalizer, PhotoReader, Router, SpeechToText, TextModel
+from ..core.schema import utcnow
 from ..core.roster import PatientRoster
 from ..core.snapshot import Projector
 from ..core.trends import TrendRules
@@ -34,6 +37,7 @@ from ..reporting import LINE_KINDS, FhirDocument, FhirExport, HandoffBuilder, Ha
 from ..scoring import ScaleRegistry, default_scales
 from ..telemetry import Telemetry
 from ..terminology import MedicationCoder, build_coder
+from ..transport import DestinationResolver, OsrmRouter, TransportService
 from .contract import UIContract
 from .media import dispose_incident_media
 from .persistence import IncidentStore
@@ -82,6 +86,8 @@ class AppContext:
     frame_reader: object = None
     speech_in_flight: int = 0
     previous_calls: list[SavedCall] = field(default_factory=list)
+    transport: Optional[TransportService] = None   # destination list, vehicle position, road ETA
+    dispositions: Optional[Dispositions] = None     # how an encounter can end (config/dispositions.yaml)
 
     @property
     def incident(self) -> Incident:
@@ -158,8 +164,25 @@ class AppContext:
                 rows.append({**row, "started": inc.started.isoformat(),
                              "destination": (call.relay.authorized or {}).get("destination"),
                              "delivery_pending": inc.id in pending_ids or full_pending,
-                             "authorized": bool(call.relay.authorized)})
+                             "authorized": bool(call.relay.authorized), "disposition": inc.disposition})
         return rows
+
+    def derived_for_ed(self, inc) -> dict:
+        """Values the ED gets that are not captured facts: the road-route arrival time while this unit transports,
+        and, when the encounter ended without transport by this unit, that the patient is not coming."""
+        out = {}
+        if self.dispositions is not None and inc.disposition and not self.dispositions.transports(inc.disposition):
+            out["encounter.disposition"] = self.dispositions.get(inc.disposition)["label"]
+        elif self.transport is not None and inc.ended_at is None and not (inc.arrived_at or inc.transferred_at):
+            arrive = self.transport.arrival(inc)
+            if arrive is not None:
+                out["transport.eta_at"] = arrive.replace(second=0, microsecond=0).isoformat()
+        return out
+
+    def receiver_for(self, destination: str) -> Optional[str]:
+        """The receiving URL for a confirmed destination: that hospital's own, else the vehicle's default ED."""
+        facility = self.transport.by_name(destination) if self.transport is not None else None
+        return self.settings.ed_receivers.get(facility.id, self.settings.ed_url) if facility else self.settings.ed_url
 
     def pre_alert_scope(self) -> tuple[str, list[str]]:
         """The medic-facing label and the checklist alert ids actually open right now (`config/relay.yaml`
@@ -177,6 +200,15 @@ class AppContext:
         snap["active_patient"] = self.incident.id
         snap["encounter_history"] = self.encounter_history()
         snap["history_persisted"] = self.persistence is not None
+        if self.transport is not None:
+            crew = next((clock for clock in snap["clocks"] if clock["id"] == "eta"), None)
+            snap["transport"] = self.transport.view(self.incident, crew)
+            snap["clocks"] = [clock for clock in snap["clocks"] if clock["id"] != "eta"]
+            eta = snap["transport"]["eta"]
+            if eta and not (self.incident.arrived_at or self.incident.transferred_at):
+                seconds = int((datetime.fromisoformat(eta["until"]) - utcnow()).total_seconds())
+                snap["clocks"].append({"id": "eta", "label": "ETA", "until": eta["until"], "seconds": seconds,
+                                       "source": eta["source"]})
         snap["handoff"] = self.handoff.summary(self.handoff.build(self.incident, snapshot=snap))
         rs = self.relay.status()
         active_relay = rs["patients"].get(self.incident.id, {})
@@ -209,7 +241,8 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
                   vision_model: Optional[TextModel] = None, knowledge_model: Optional[TextModel] = None,
                   stt: Optional[SpeechToText] = None,
                   vision: Optional[PhotoReader] = None, telemetry: Optional[Telemetry] = None,
-                  embedder=None, protocol_fetch=None, normalizer: Optional[Normalizer] = None) -> AppContext:
+                  embedder=None, protocol_fetch=None, normalizer: Optional[Normalizer] = None,
+                  router: Optional[Router] = None) -> AppContext:
     s = settings or get_settings()
     vocab, scales, tiers, guard = default_vocabulary(), default_scales(), default_tiers(), default_guard()
     counties = CountyRegistry(s.county)
@@ -257,8 +290,11 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
         handoff=handoff, fhir=fhir, fhir_document=fhir_document,
         persistence=IncidentStore(s.state_dir, s.state_key_path) if s.persistence else None)
     ctx.new_incident(s.dispatch)
+    ctx.dispositions = Dispositions(_load_yaml("dispositions.yaml"))
+    ctx.transport = TransportService(lambda: counties.active, router or (OsrmRouter(s.routing_url) if s.routing_url else None),
+                                     DestinationResolver(knowing))
     ctx.relay = Relay(lambda: ctx.roster.incidents(), s.ed_url, tiers=tiers, scales=scales, audio_dir=s.audio_dir,
-                      egress=egress, ed_token=s.ed_token)
+                      egress=egress, ed_token=s.ed_token, derived=ctx.derived_for_ed)
     ctx.restored = ctx.restore()
     if text_model is None:                                  # real deployment: the local model checks overheard facts
         ctx.fact_verifier = FactVerifier(knowing)

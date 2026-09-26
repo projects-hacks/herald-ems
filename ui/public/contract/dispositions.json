@@ -1,0 +1,54 @@
+[
+  {
+    "id": "transported",
+    "label": "Transported by this unit",
+    "transport": true,
+    "nemsis": {
+      "unit": "4227001",
+      "care": "4228001",
+      "transport": "4230001"
+    }
+  },
+  {
+    "id": "other_unit",
+    "label": "Handed to another unit",
+    "detail": "Another ambulance or air unit transports; they notify the receiving hospital.",
+    "transport": false,
+    "nemsis": {
+      "unit": "4227001",
+      "care": "4228001",
+      "transport": "4230005"
+    }
+  },
+  {
+    "id": "refused",
+    "label": "Patient refused transport",
+    "detail": "Record what the patient was told in a note before finishing.",
+    "transport": false,
+    "nemsis": {
+      "unit": "4227001",
+      "care": "4228003",
+      "transport": "4230009"
+    }
+  },
+  {
+    "id": "not_transported",
+    "label": "Evaluated, not transported",
+    "detail": "Treated or assessed on scene; no transport needed.",
+    "transport": false,
+    "nemsis": {
+      "unit": "4227001",
+      "care": "4228005",
+      "transport": "4230013"
+    }
+  },
+  {
+    "id": "cancelled",
+    "label": "Cancelled or no patient found",
+    "transport": false,
+    "nemsis": {
+      "unit": "4227003",
+      "transport": "7701001"
+    }
+  }
+]

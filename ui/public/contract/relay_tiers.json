@@ -1,4 +1,8 @@
 {
+  "encounter.disposition": {
+    "tier": 1,
+    "why": "the receiving team needs this before arrival"
+  },
   "alert.readiness": {
     "tier": 1,
     "why": "the receiving team needs this before arrival"
@@ -162,6 +166,10 @@
   "procedures.done": {
     "tier": 3,
     "why": "latest vitals and exam"
+  },
+  "transport.eta_at": {
+    "tier": 4,
+    "why": "arrival logistics"
   },
   "transport.eta_min": {
     "tier": 4,

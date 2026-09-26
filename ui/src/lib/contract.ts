@@ -17,7 +17,10 @@ export interface Contract {
   changeRules: Record<string, string>;
   checklists?: Record<string, { label?: string }>;
   scores?: Record<string, ContractScore>;
+  dispositions?: Disposition[];                 // how an encounter can end (config/dispositions.yaml)
+  derivedLabels?: Record<string, string>;       // relay keys that are not captured facts (route ETA, outcome)
 }
+export interface Disposition { id: string; label: string; detail?: string; transport: boolean }
 let cache: Contract | null = null;
 let loading: Promise<Contract> | null = null;
 
@@ -29,14 +32,16 @@ export function loadContract(): Promise<Contract> {
         const response = await fetch("/api/meta", { signal: AbortSignal.timeout(3000) });
         if (response.ok) {
           const meta = await response.json();
-          if (meta.keys && meta.relay_tiers) return (cache = { keys: meta.keys, relayTiers: meta.relay_tiers, changeRules: meta.change_rules ?? {}, checklists: meta.checklists, scores: meta.scores });
+          if (meta.keys && meta.relay_tiers) return (cache = { keys: meta.keys, relayTiers: meta.relay_tiers, changeRules: meta.change_rules ?? {}, checklists: meta.checklists, scores: meta.scores,
+            dispositions: meta.dispositions, derivedLabels: meta.derived_labels });
         }
       } catch { /* Offline fixture labels remain available. */ }
     }
-    return Promise.all(["keys", "relay_tiers", "change_rules", "checklists", "scores"].map((f) =>
+    return Promise.all(["keys", "relay_tiers", "change_rules", "checklists", "scores", "dispositions", "derived_labels"].map((f) =>
     fetch(`/contract/${f}.json`).then((r) => (r.ok ? r.json() : {})).catch(() => ({}))))
-    .then(([keys, relayTiers, changeRules, checklists, scores]): Contract => {
-      const result: Contract = { keys, relayTiers, changeRules, checklists, scores }; cache = result; return result;
+    .then(([keys, relayTiers, changeRules, checklists, scores, dispositions, derivedLabels]): Contract => {
+      const result: Contract = { keys, relayTiers, changeRules, checklists, scores,
+        dispositions: Array.isArray(dispositions) ? dispositions : undefined, derivedLabels }; cache = result; return result;
     });
   })();
   return loading;
@@ -48,6 +53,7 @@ export function useContract(): Contract | null {
 }
 export function label(c: Contract | null, key: string): string {
   if (key === "alert.readiness") return "Pre-alert";
+  if (c?.derivedLabels?.[key]) return c.derivedLabels[key];
   if (key.startsWith("score.")) return { news2: "NEWS2", race: "RACE", gfast: "G.F.A.S.T." }[key.slice(6)] ?? key;
   return c?.keys[key]?.label ?? key;
 }

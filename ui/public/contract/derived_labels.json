@@ -1,0 +1,5 @@
+{
+  "alert.readiness": "Pre-alert readiness",
+  "transport.eta_at": "ETA (road route)",
+  "encounter.disposition": "Not transported"
+}

@@ -13,7 +13,8 @@
 #      figures and protocol reranking) -- served one at a time, each only if missing and only if memory allows.
 #      The untuned qwen3vl-fp8 is the baseline and the rollback: HERALD_VISION_MODEL=qwen3vl-fp8 switches back.
 #   4. the React UI build (npm ci / npm run build only when sources changed)
-#   5. the ED link emulator (Toxiproxy :9000 -> ED screen) and the ED screen (:8200)
+#   5. the ED link emulator (Toxiproxy :9000 -> ED screen) and the ED screen (:8200), and the local road router
+#      (OSRM :5100, Docker; one-time map data via scripts/routing_setup.sh) for drive times and the road ETA
 #   6. the Herald app (:8100) with Whisper preloaded, then waits until speech, extraction and vision all report ready
 #
 # Overrides: HERALD_PORT (8100) ED_PORT (8200) HERALD_LLM_MODEL (ems-e-v2-fp8) HERALD_VISION_MODEL (herald-f)
@@ -27,6 +28,9 @@ TOXI="$HOME/.local/bin"
 PORT="${HERALD_PORT:-8100}"
 ED_PORT="${ED_PORT:-8200}"
 LINK_PORT=9000
+ROUTER_PORT="${HERALD_ROUTER_PORT:-5100}"
+ROUTING_COUNTY="${HERALD_ROUTING_COUNTY:-santa_clara}"
+ROUTER_URL=""
 LLM="${HERALD_LLM_MODEL:-ems-e-v2-fp8}"
 VISION="${HERALD_VISION_MODEL:-herald-f}"          # run F: photos, the monitor, figures, protocol reranking
 ZRT_URL="http://127.0.0.1:8080/v1"
@@ -188,12 +192,34 @@ ensure_link_and_ed() {
   ok "ED link emulator :$LINK_PORT -> :$ED_PORT (good / weak / down from the app)"
 }
 
+ensure_router() {   # optional: without it the ETA is the crew's estimate and the destination list has no drive times
+  say "Road router"
+  if curl -sf --max-time 3 "http://127.0.0.1:$ROUTER_PORT/nearest/v1/driving/-121.8863,37.3382" >/dev/null 2>&1; then
+    ROUTER_URL="http://127.0.0.1:$ROUTER_PORT"; ok "OSRM already on :$ROUTER_PORT"; return
+  fi
+  command -v docker >/dev/null || { warn "Docker not available; ETA stays the crew's estimate"; return; }
+  if [ ! -f "data/routing/$ROUTING_COUNTY.osrm.mldgr" ]; then
+    scripts/routing_setup.sh || { warn "road map not prepared (network?); ETA stays the crew's estimate"; return; }
+  fi
+  docker rm -f herald-osrm >/dev/null 2>&1 || true
+  docker run -d --name herald-osrm --restart unless-stopped -m 2g -p "127.0.0.1:$ROUTER_PORT:5000" \
+    -v "$ROOT/data/routing:/data" ghcr.io/project-osrm/osrm-backend:v6.0.0 \
+    osrm-routed --algorithm mld "/data/$ROUTING_COUNTY.osrm" >/dev/null
+  for _ in $(seq 20); do
+    curl -sf --max-time 3 "http://127.0.0.1:$ROUTER_PORT/nearest/v1/driving/-121.8863,37.3382" >/dev/null 2>&1 && break; sleep 0.5
+  done
+  if curl -sf --max-time 3 "http://127.0.0.1:$ROUTER_PORT/nearest/v1/driving/-121.8863,37.3382" >/dev/null 2>&1; then
+    ROUTER_URL="http://127.0.0.1:$ROUTER_PORT"; ok "OSRM on :$ROUTER_PORT ($ROUTING_COUNTY)"
+  else warn "OSRM did not start (docker logs herald-osrm); ETA stays the crew's estimate"; fi
+}
+
 start_app() {
   say "Herald app"
   if pid_alive app; then stop_pid app; fi                       # always restart ours so it runs this checkout's code
   if taken_v4 "${HERALD_BIND_HOST:-127.0.0.1}" "$PORT"; then die "port $PORT is used by a process this script did not start: HERALD_PORT=<free port> scripts/herald.sh up"; fi
   systemctl --user is-active --quiet herald-memguard.service 2>/dev/null && ok "memory guard active" || warn "memory guard not running (scripts/memguard.sh install)"
   HERALD_STT_PRELOAD=1 HERALD_LLM_MODEL="$LLM" HERALD_VISION_MODEL="$VISION" HERALD_ED_URL="http://127.0.0.1:$LINK_PORT" \
+    HERALD_ROUTING_URL="${HERALD_ROUTING_URL:-$ROUTER_URL}" \
     start_bg app "$PY" -m uvicorn herald.app:app --host "${HERALD_BIND_HOST:-127.0.0.1}" --port "$PORT"
   local health=""
   for _ in $(seq 120); do
@@ -242,7 +268,7 @@ status() {
   say "Checkout"; echo "    $(git rev-parse --short HEAD) $(git log -1 --format=%s | cut -c1-80)"
   say "Models"; sg zrt -c "zrt status" 2>/dev/null | grep -E "│ [0-9]" | awk -F'│' '{printf "    %-14s %-7s %s\n", $4, $6, $7}' || warn "ZRT not reachable"
   say "Services"
-  for p in "$ED_PORT:ED screen" "8474:link emulator" "$PORT:Herald app"; do
+  for p in "$ED_PORT:ED screen" "8474:link emulator" "$ROUTER_PORT:road router" "$PORT:Herald app"; do
     listening "${p%%:*}" && ok "${p#*:} on :${p%%:*}" || warn "${p#*:} not running on :${p%%:*}"
   done
   curl -sf --max-time 5 "http://127.0.0.1:$PORT/api/health" | "$PY" -c "import json,sys; h=json.load(sys.stdin); print(f\"    speech={h['stt_loaded']} extraction={h['llm_available']} ({h['llm_model']}) vision={h['vision_available']} ({h['vision_model']})\")" 2>/dev/null || true
@@ -251,9 +277,9 @@ status() {
 case "${1:-}" in
   up)
     [ "${2:-}" = "--pull" ] && PULL=1
-    check_checkout; prepare_data; ensure_models; build_ui; ensure_link_and_ed; start_app; print_urls ;;
+    check_checkout; prepare_data; ensure_models; build_ui; ensure_link_and_ed; ensure_router; start_app; print_urls ;;
   down)
-    say "Stopping (models keep serving; stop them with: sg zrt -c 'zrt stop <pid>')"
+    say "Stopping (models and the road router keep serving; other app ports share them)"
     stop_pid app; stop_pid ed; stop_pid toxiproxy ;;
   status) status ;;
   logs) touch "$RUN/app.log" "$RUN/ed.log"; tail -n 40 -F "$RUN"/app.log "$RUN"/ed.log ;;

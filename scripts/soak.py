@@ -246,7 +246,7 @@ def run_scenario(client: httpx.Client, scenario: dict[str, Any], recorder: Recor
                  model_timeout_s: float, sample_due: Callable[[], None], lkw_minutes_ago: int,
                  timezone_name: str) -> dict[str, Any]:
     dispatch = next((s["incident"] for s in scenario["steps"] if "incident" in s), "possible stroke")
-    client.post("/api/incident", json={"dispatch": dispatch}).raise_for_status()
+    client.post("/api/incident", json={"dispatch": dispatch, "disposition": "cancelled"}).raise_for_status()
     client.post("/api/relay/authorize", json={"destination": "Regional",
                                                "scope": "stroke pre-alert set"}).raise_for_status()
     lkw = lkw_time(lkw_minutes_ago, timezone_name)

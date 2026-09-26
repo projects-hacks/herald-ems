@@ -18,7 +18,7 @@ from .auth import DeviceTokenMiddleware
 from .context import AppContext, build_context, wire_capture
 from .hub import Hub
 from .routes import capture as capture_routes
-from .routes import agentic_capture, egress, handoff, incident, patients, protocols, relay, system, encounters
+from .routes import agentic_capture, egress, handoff, incident, patients, protocols, relay, system, encounters, transport
 
 
 log = logging.getLogger("herald")
@@ -85,7 +85,20 @@ def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
                         await loop.run_in_executor(None, ctx.cues.resolve, cue)
                         await hub.broadcast()
             cue_task = asyncio.create_task(cue_loop())
+        match_task = None
+        if ctx.transport is not None and ctx.transport.resolver is not None:
+            async def match_loop():
+                # a spoken destination is matched to the county list off the request path, then offered to the medic
+                loop = asyncio.get_running_loop()
+                while True:
+                    await asyncio.sleep(2)
+                    for heard in ctx.transport.pending_matches(ctx.incident):
+                        await loop.run_in_executor(None, ctx.transport.match, heard)
+                        await hub.broadcast()
+            match_task = asyncio.create_task(match_loop())
         yield
+        if match_task:
+            match_task.cancel()
         await ctx.capture_agent.stop()
         task.cancel()
         if sync_task:
@@ -97,7 +110,7 @@ def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
     app.add_middleware(DeviceTokenMiddleware, token=ctx.settings.device_token)
     app.state.ctx, app.state.hub = ctx, hub
     app.state.capture = capture_service
-    for module in (incident, encounters, patients, capture_routes, relay, system, protocols, handoff, agentic_capture, egress):
+    for module in (incident, encounters, patients, transport, capture_routes, relay, system, protocols, handoff, agentic_capture, egress):
         app.include_router(module.router)
 
     @app.websocket("/ws")

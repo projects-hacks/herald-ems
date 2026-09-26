@@ -97,7 +97,7 @@ def test_bad_roi_and_frames_and_patient_change(tmp_path):
         assert ws.receive_json()["accepted"] is False
     assert not ctx.capture_agent.auto
     client.post("/api/capture/roi", json={"x0": 0, "y0": 0, "x1": 1, "y1": 1})
-    client.post("/api/incident", json={"dispatch": "new patient"})
+    client.post("/api/incident", json={"dispatch": "new patient", "disposition": "transported"})
     status = client.get("/api/capture/status").json()
     assert status["roi"] is None and status["auto"] is False
 
@@ -105,7 +105,7 @@ def test_bad_roi_and_frames_and_patient_change(tmp_path):
 def test_stale_controls_cannot_change_new_patient(tmp_path):
     client, ctx = setup(tmp_path, [])
     old = ctx.incident.id
-    client.post("/api/incident", json={"dispatch": "new patient"})
+    client.post("/api/incident", json={"dispatch": "new patient", "disposition": "transported"})
     for path, body in [("auto", {"on": True}), ("now", {}), ("roi", {"x0": 0, "y0": 0, "x1": 1, "y1": 1})]:
         assert client.post(f"/api/capture/{path}", json={**body, "incident_id": old}).status_code == 409
     assert client.delete("/api/capture/roi", params={"incident_id": old}).status_code == 409

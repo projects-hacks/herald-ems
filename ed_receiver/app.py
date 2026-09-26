@@ -55,6 +55,8 @@ async def metadata():
     keys = {key: _key_meta(meta) for key, meta in default_vocabulary().keys.items()}
     keys.update({f"score.{sid}": {"label": default_scales()[sid].name, "unit": None, "type": None}
                  for sid in default_scales().ids()})
+    keys.update({key: {"label": text, "unit": None, "type": None}      # route ETA, "not transported", readiness
+                 for key, text in load_yaml("relay.yaml").get("derived_labels", {}).items()})
     return {"keys": keys, "display": load_yaml("ed_display.yaml")}
 
 

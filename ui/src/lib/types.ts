@@ -119,6 +119,17 @@ export type AlertType = Alert["type"];
 export interface Clock {
   id: "scene" | "lkw" | "eta" | "reassess"; label: string; seconds: number;
   since?: string; until?: string; confirmed?: boolean;
+  source?: "route" | "crew";            // eta only: road route from the vehicle's position, or the crew's estimate
+}
+
+// ---------- destination and ETA (herald/transport/service.py `view`) ----------
+export interface TransportOption { id: string; name: string; designations: string[]; point: string | null; minutes: number | null; km: number | null }
+export interface TransportView {
+  routing: boolean; router_error: string | null;
+  position: { at: string; accuracy_m: number | null; fresh: boolean } | null;
+  options: TransportOption[];            // the county's receiving hospitals, nearest first when the position is fresh
+  destination: { fact_id: string; value: string; status: FactStatus; id: string | null; suggested: string | null; matching: boolean } | null;
+  eta: { source: "route" | "crew"; until: string } | null;
 }
 
 // ---------- trace (api/trace.py, api/capture.py) ----------
@@ -215,10 +226,11 @@ export interface Snapshot {
   incident: {
     id: string; dispatch: string | null; started: string; ended_at: string | null;
     arrived_at?: string | null; transferred_at?: string | null;
+    disposition?: string | null;         // config/dispositions.yaml id, set when the encounter is finished
     media_disposal: MediaDisposal | null;
   };
   patients: PatientSummary[];
-  encounter_history?: (PatientSummary & { started: string; destination: string | null; authorized: boolean; delivery_pending: boolean })[];
+  encounter_history?: (PatientSummary & { started: string; destination: string | null; authorized: boolean; delivery_pending: boolean; disposition?: string | null })[];
   history_persisted?: boolean;
   active_patient: string;
   restored: boolean;                     // unfinished call recovered after a server restart
@@ -241,6 +253,7 @@ export interface Snapshot {
   relay: RelayStatus;
   netem: "good" | "weak" | "down" | null;
   protocols?: ProtocolStatus;            // absent when protocol lookup is off
+  transport?: TransportView;             // absent on older vehicles and recorded fixtures
   protocol_cues?: ProtocolCue[];         // the county passage for each situation Herald recognises (config/protocol_cues.yaml)
 }
 

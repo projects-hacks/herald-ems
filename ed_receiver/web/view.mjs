@@ -4,7 +4,9 @@ export const hhmm = (dateLike) => {
   const d = dateLike instanceof Date ? dateLike : new Date(dateLike);
   return Number.isNaN(d.getTime()) ? "—" : `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
-export const formatValue = (value) => value === true ? "yes" : value === false ? "no" : value === null ? "unknown" : Array.isArray(value) ? value.map(formatValue).join(" · ") || "none reported" : typeof value === "object" ? Object.entries(value).map(([key, v]) => `${key}: ${formatValue(v)}`).join(" · ") : String(value);
+// A zone-qualified timestamp (the route ETA's arrival time) reads as this screen's clock time.
+const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
+export const formatValue = (value) => value === true ? "yes" : value === false ? "no" : value === null ? "unknown" : Array.isArray(value) ? value.map(formatValue).join(" · ") || "none reported" : typeof value === "object" ? Object.entries(value).map(([key, v]) => `${key}: ${formatValue(v)}`).join(" · ") : typeof value === "string" && ISO_INSTANT.test(value) ? hhmm(value) : String(value);
 export const newestPatient = (incidents) => Object.keys(incidents).sort((a, b) => incidents[b].first_at.localeCompare(incidents[a].first_at))[0];
 export const isNewField = (field, previousSequence) => field.seq > previousSequence;
 export const fieldKeys = (incident) => Object.keys(incident.fields);

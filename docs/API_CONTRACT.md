@@ -22,6 +22,60 @@ The authoritative snapshot types are in `ui/src/lib/types.ts`; HTTP and WebSocke
 - Encrypted recovery format v2 retains the current roster and prior calls, each with its own authorization, ED URL, sequence, in-flight packet, acknowledged fields, full-sync progress and clinician receipts. v1 is still readable. Sequence allocation and retry packets are saved before network delivery. Pending authorized updates continue to their original receiver after a new call; the fresh relay has no authorization. Unconfirmed facts and raw media do not leave the vehicle. With persistence off, history is memory-only.
 - Contextual protocol results are scoped to county, patient and situation. A standalone spoken protocol request is recorded as a request, not extracted as a clinical observation. Mixed utterances containing clinical clauses still go through extraction. Retrieved passages are labeled as excerpts rather than full protocols.
 
+### Destination, road ETA and how an encounter ended (2026-09-26)
+
+Herald runs on the vehicle, so it cannot see hospital diversion status or a dispatch system. Destination is the
+medic's choice from the county's own list, drive times come from a road router on the box, and every non-transport
+outcome is an explicit medic choice.
+
+- **County hospitals.** `config/counties/<id>.json` `destinations.facilities` (Santa Clara: Policy 602 Table B) now
+  carries `destinations.locations`: `{lat, lon, point, osm}` per facility, where `point` is `"emergency entrance"`
+  (a tagged OSM ED entrance) or `"campus"` (the mapped hospital area's centre), with the OSM element for spot checks.
+  Designations (Comprehensive / Primary Stroke Center) come from the same config's lists, not from code.
+- **`Snapshot.transport`** (absent on older vehicles and recorded fixtures): `{routing, router_error, position,
+  options, destination, eta}`. `options` is every county hospital `{id, name, designations, point, minutes, km}`,
+  nearest by road first while the vehicle's position is fresh (`minutes`/`km` are null otherwise). `destination` is
+  the latest non-rejected `transport.destination` fact `{fact_id, value, status, id, suggested, matching}`: `id` is
+  the facility when the value is a listed name; for a heard value that is not, `suggested` is the facility the local
+  model matched it to (or null) and `matching` says a match is still running. `eta` is `{source: "route"|"crew",
+  until}`.
+- **ETA clock.** With `Snapshot.transport` present, the `eta` clock in `Snapshot.clocks` gains `source`. It is the
+  road-route arrival at the confirmed destination while the position is fresh (`config/transport.yaml`
+  `position_stale_s`, 120 s), otherwise the crew's `transport.eta_min` as before. No clock after arrival or transfer.
+- **`POST /api/transport/position`** `{lat, lon, accuracy_m?, at?}` from the tablet (or a vehicle GPS). Kept in
+  memory for routing only: never persisted, never sent to the ED. A fix less precise than `max_accuracy_m` is kept
+  but not routed; the router is re-asked after moving `recompute_moved_m` or every `recompute_every_s`. 422 out of
+  range; broadcasts only when a drive time changes.
+- **`POST /api/transport/destination`** `{facility}` (requires `X-Herald-Patient`): the medic's tap. Writes
+  `transport.destination` = the facility's official name, confirmed; an existing value (heard or earlier) is replaced
+  through the normal correction path, so it stays in the audit trail as rejected. 404 unknown facility, 409 stale
+  patient or closed encounter.
+- **Spoken destinations** are matched off the request path (a 2 s background loop): an exact official name or id
+  matches directly; anything else goes to the knowledge model with the listed ids plus `"none"` as a JSON-schema
+  enum (`config/prompts/destination_match.md`). The result is only `destination.suggested`; nothing is confirmed
+  without the tap.
+- **Receivers per hospital.** `HERALD_ED_RECEIVERS="GSH=http://...,RSJ=http://..."` maps facility ids to receiving
+  URLs (allow-listed by the egress policy like `HERALD_ED_URL`). `POST /api/relay/authorize` points the relay at the
+  destination's receiver when one is set, else keeps `HERALD_ED_URL`.
+- **Router.** `HERALD_ROUTING_URL` (must be on this box, like `HERALD_LLM_URL`) is a local OSRM server
+  (`scripts/routing_setup.sh`, started by `scripts/herald.sh up` on :5100). Unset or failing, `routing` is false or
+  `router_error` names the failure, and the ETA is the crew's estimate.
+- **Outcome at finish.** `config/dispositions.yaml` lists outcomes with NEMSIS v3.5.1 eDisposition codes
+  (`transported`, `other_unit`, `refused`, `not_transported`, `cancelled`); only `transported` is a transport by this
+  unit. `POST /api/encounters/current/finish` now takes `{disposition}` and returns 422 without a listed one; 409 for
+  a non-transport outcome after arrival or transfer was recorded. `POST /api/incident` takes `disposition` for the
+  still-open current encounter (same rules). `Snapshot.incident.disposition` and `encounter_history[].disposition`
+  carry it; it is audited and persisted. Arrive/transfer are refused after a non-transport outcome. The legacy
+  `/api/incident/end` leaves it unrecorded.
+- **What the ED gets.** Two derived relay keys (`config/relay.yaml`, labels in `derived_labels`):
+  `transport.eta_at` (tier 4, arrival logistics: the route arrival time, whole minutes, while this unit transports)
+  and `encounter.disposition` (tier 1: the outcome's label when the encounter ended without transport by this unit,
+  so an alerted ED knows the patient is not coming). They ride the normal ack/retry/withdraw machinery. The stroke,
+  trauma, sepsis and STEMI scopes still cap at tiers 1-3, so `transport.eta_at` (like `transport.eta_min`) flows
+  only under `patient_update`. The ED screen prefers `transport.eta_at` for its countdown, labels the source, and
+  shows NOT COMING with the outcome.
+- **Contract.** `GET /api/meta` and `ui/public/contract/` add `dispositions` and `derived_labels`.
+
 ### Continuous workspace and journey contract (2026-09-25)
 
 The medic workspace's **Camera → Monitor watch** uses the existing S9 endpoints below, always with the active `incident_id`. It remains mounted across internal care-page navigation. It requests camera access only on Start, allows at most one unacknowledged JPEG, and stops on tab hide, patient change, disconnect or explicit Stop. `/capture.html` remains the standalone option.

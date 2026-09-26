@@ -42,8 +42,10 @@ class Relay:
                  transport: Optional[Transport] = None, probe: Optional[Callable[[], Awaitable[None]]] = None,
                  tiers: Optional[RelayTiers] = None, scales: Optional[ScaleRegistry] = None,
                  audio_dir: Optional[Path] = None, egress: Optional[EgressPolicy] = None,
-                 ed_token: Optional[str] = None, scopes: Optional[RelayScopes] = None):
+                 ed_token: Optional[str] = None, scopes: Optional[RelayScopes] = None,
+                 derived: Optional[Callable[[Any], dict[str, Any]]] = None):
         self.get_incident = incident_getter
+        self.derived = derived    # values computed outside the record (route ETA, how the encounter ended)
         self.ed_url = ed_url
         self.tiers = tiers or default_tiers()
         self.scopes = scopes or default_scopes()
@@ -137,6 +139,9 @@ class Relay:
             if (sid in self.scales and key in self.tiers and (allowed is None or key in allowed)
                     and (text := self.scales[sid].relay_text(r))):
                 out[key] = text
+        for key, value in (self.derived(inc) if self.derived else {}).items():
+            if value is not None and key in self.tiers and (allowed is None or key in allowed):
+                out[key] = value
         if snap["readiness"] and (allowed is None or "alert.readiness" in allowed):
             out["alert.readiness"] = "; ".join(
                 f'{a["label"]} {a["done"]}/{a["total"]}{" ready" if a["ready"] else ""}'
