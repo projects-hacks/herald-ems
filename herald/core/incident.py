@@ -32,6 +32,8 @@ class Incident:
         self.ended_at = None
         self.arrived_at = None
         self.transferred_at = None
+        self.handed_over_at = None                 # the one-tap hand over at the hospital (arrive + transfer + end)
+        self.handoff_final: Optional[dict] = None  # the handoff report frozen at that moment, with its "at"
         self.media_ids: dict[str, set[str]] = {"audio": set(), "photo": set(), "evidence": set()}
         self.media_disposal: Optional[dict] = None
         self.news2_history: list[dict] = []   # score history, recorded once per utterance by the projector

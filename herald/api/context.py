@@ -156,6 +156,8 @@ class AppContext:
             for inc, row in zip(call.roster.incidents(), call.roster.summaries()):
                 full_pending = sum(f.status.value == "confirmed" for f in inc.facts) != call.relay.full_synced_facts.get(inc.id, 0)
                 rows.append({**row, "started": inc.started.isoformat(),
+                             "handed_over_at": inc.handed_over_at.isoformat() if inc.handed_over_at else None,
+                             "handover": call.relay.handover_status(inc),
                              "destination": (call.relay.authorized or {}).get("destination"),
                              "delivery_pending": inc.id in pending_ids or full_pending,
                              "authorized": bool(call.relay.authorized)})
@@ -180,6 +182,7 @@ class AppContext:
         snap["handoff"] = self.handoff.summary(self.handoff.build(self.incident, snapshot=snap))
         rs = self.relay.status()
         active_relay = rs["patients"].get(self.incident.id, {})
+        rs["handover"] = self.relay.handover_status(self.incident)
         snap["relay"], snap["ed_sync"], snap["netem"] = rs, active_relay.get("sync", {}), self.netem_mode
         if self.capture_agent is not None:
             self.capture_agent.patient_changed()

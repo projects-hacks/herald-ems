@@ -1,8 +1,12 @@
 """Medic-controlled milestones and read-only retained encounters."""
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from ...core.incident import IncidentEnded
 from ...core.schema import utcnow
+from ..encounters import hand_over
 from ..media import dispose_incident_media
 from . import get_ctx, get_hub, require_current_patient
 
@@ -16,6 +20,22 @@ async def resume(c=Depends(get_ctx), h=Depends(get_hub)):
     except IncidentEnded as exc:
         raise HTTPException(409, str(exc)) from None
     c.restored = False
+    await h.broadcast()
+    return c.full_state()
+
+
+class Handover(BaseModel):
+    destination: Optional[str] = None
+
+
+@router.post("/current/handover", dependencies=[Depends(require_current_patient)])
+async def handover(body: Optional[Handover] = None, c=Depends(get_ctx), h=Depends(get_hub)):
+    """One tap at the hospital: arrive + transfer + freeze the report + end the call, and relay the frozen report."""
+    try:
+        hand_over(c, body.destination if body else None)
+    except IncidentEnded as exc:
+        raise HTTPException(409, str(exc)) from None
+    c.persist()
     await h.broadcast()
     return c.full_state()
 
@@ -55,9 +75,10 @@ async def history(c=Depends(get_ctx)):
 
 @router.get("/{patient_id}")
 async def retained(patient_id: str, c=Depends(get_ctx)):
-    for call in c.previous_calls:
-        for inc in call.roster.incidents():
+    for roster, relay in [(c.roster, c.relay), *((call.roster, call.relay) for call in c.previous_calls)]:
+        for inc in roster.incidents():
             if inc.id == patient_id:
                 return {"incident": inc.snapshot()["incident"], "label": inc.patient_label,
-                        "handoff": c.handoff.build(inc), "relay": call.relay.status()}
+                        "handoff": inc.handoff_final or c.handoff.build(inc), "frozen": inc.handoff_final is not None,
+                        "handover": relay.handover_status(inc), "relay": relay.status()}
     raise HTTPException(404, "Retained encounter not found")

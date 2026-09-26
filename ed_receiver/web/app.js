@@ -1,5 +1,6 @@
 import { esc, formatValue, newestPatient, isNewField, fieldKeys, observedElapsed, hhmm } from './view.mjs';
 import { renderJourney } from './journey.mjs';
+import { renderHandover } from './handover.mjs';
 const $ = (id) => document.getElementById(id);
 let selected = null, manualSelection = false, lastView = null, labels = {}, display = null, reportVersion = '', reportAbort = null;
 const seen = {}, highlights = {}, triageRank = { immediate: 0, delayed: 1, minimal: 2, expectant: 3, dead: 4 };
@@ -21,8 +22,8 @@ async function loadReport(id, version, format = '') {
   } catch { if (selected === id && token === reportAbort) { container.textContent = 'Received-data report unavailable. '; const retry = document.createElement('button'); retry.textContent = 'Retry'; retry.onclick = () => loadReport(id, version, format); container.append(retry); } }
   finally { clearTimeout(timer); }
 }
-async function acknowledge(id, status) {
-  const note = window.prompt(status === 'cath_lab_activated' ? 'Optional cath-lab note' : 'Optional receipt note');
+async function acknowledge(id, status, askNote = true) {
+  const note = askNote ? window.prompt(status === 'cath_lab_activated' ? 'Optional cath-lab note' : 'Optional receipt note') : '';
   if (note === null) return;
   try {
     const r = await fetch(`/incidents/${encodeURIComponent(id)}/acknowledgements`, {
@@ -57,8 +58,10 @@ function render(view) {
     return `<div class="row ${recent.has(key) ? 'new' : ''}"><span>${esc(label(key))}</span><b${elapsed !== null ? ` data-clock="${esc(String(field.v))}" data-since="${esc(incident.lkw_at)}"` : ''}>${value}</b></div>`;
   };
   const acknowledgements = incident.acknowledgements || [];
-  $('root').innerHTML = `<div class="grid"><section class="card"><h2>${esc(incident.label || selected)} · received facts</h2>${fieldKeys(incident).map(row).join('') || '<p>No fields received yet</p>'}</section><section class="card"><h2>Receiving team</h2><p><button id="ack-received">Mark received</button> <button id="ack-cath">Cath lab activated</button></p>${acknowledgements.length ? `<p>Clinician acknowledgement: ${esc(acknowledgements.at(-1).status.replaceAll('_', ' '))}</p>` : '<p>No clinician acknowledgement recorded.</p>'}<details><summary>Link and packets</summary><p>${incident.applied.length} packets · ${incident.duplicates} duplicates ignored · ${incident.queued_on_rig} queued on the vehicle · ${incident.bytes} bytes</p>${[...incident.packets].reverse().map((p) => `<p class="packet">${esc(incident.label || selected)} · #${p.seq} · ${esc(p.tier)} · ${p.bytes} B<br>${esc(p.keys.map(label).join(' · '))}</p>`).join('')}</details></section></div>${incident.timeline.length ? `<details class="card"><summary>Received event history</summary>${incident.timeline.map((t) => `<p>${esc(hhmm(t.t))} · ${esc(label(t.k))}: ${esc(formatValue(t.v))}</p>`).join('')}</details>` : ''}`;
+  $('root').innerHTML = `${renderHandover(incident)}<div class="grid"><section class="card"><h2>${esc(incident.label || selected)} · received facts</h2>${fieldKeys(incident).map(row).join('') || '<p>No fields received yet</p>'}</section><section class="card"><h2>Receiving team</h2><p><button id="ack-received">Mark received</button> <button id="ack-cath">Cath lab activated</button></p>${acknowledgements.length ? `<p>Clinician acknowledgement: ${esc(acknowledgements.at(-1).status.replaceAll('_', ' '))}</p>` : '<p>No clinician acknowledgement recorded.</p>'}<details><summary>Link and packets</summary><p>${incident.applied.length} packets · ${incident.duplicates} duplicates ignored · ${incident.queued_on_rig} queued on the vehicle · ${incident.bytes} bytes</p>${[...incident.packets].reverse().map((p) => `<p class="packet">${esc(incident.label || selected)} · #${p.seq} · ${esc(p.tier)} · ${p.bytes} B<br>${esc(p.keys.map(label).join(' · '))}</p>`).join('')}</details></section></div>${incident.timeline.length ? `<details class="card"><summary>Received event history</summary>${incident.timeline.map((t) => `<p>${esc(hhmm(t.t))} · ${esc(label(t.k))}: ${esc(formatValue(t.v))}</p>`).join('')}</details>` : ''}`;
   $('ack-received').onclick = () => acknowledge(selected, 'received');
+  const handoverAck = $('ack-handover');
+  if (handoverAck) handoverAck.onclick = () => { handoverAck.disabled = true; void acknowledge(selected, 'received', false).finally(() => { handoverAck.disabled = false; }); };
   $('root').insertAdjacentHTML('beforeend', renderJourney(incident, labels));
   $('ack-cath').onclick = () => acknowledge(selected, 'cath_lab_activated');
   seen[selected] = max;
@@ -92,6 +95,14 @@ function incoming(incident) {
   const eta = f['transport.eta_min'];
   const arrival = eta && typeof eta.v === 'number' ? new Date(eta.t).getTime() + eta.v * 60000 : null;
   el.hidden = false;
+  const handedOver = incident.handover;
+  el.classList.toggle('handed-over', Boolean(handedOver));
+  if (handedOver) {
+    el.innerHTML = `<div class="what"><div class="kicker">HANDED OVER${what ? ` · ${esc(String(what).toUpperCase())}` : ''}</div>
+      <div class="who">${esc(incident.label || selected)}</div><div class="dest">${dest ? `at ${esc(formatValue(dest))}` : 'destination not received'}</div></div>
+      <div class="eta"><b>${esc(hhmm(handedOver.at))}</b><span>HANDED OVER</span></div>`;
+    return;
+  }
   el.innerHTML = `<div class="what"><div class="kicker">INCOMING${what ? ` · ${esc(String(what).toUpperCase())}` : ''}</div>
     <div class="who">${esc(incident.label || selected)}</div><div class="dest">${dest ? `to ${esc(formatValue(dest))}` : 'destination not received'}</div></div>
     <div class="eta"><b ${arrival ? `data-arrival="${arrival}"` : ''}>${arrival ? countdown(arrival) : '—'}</b><span>${arrival ? 'ETA' : 'ETA not received'}</span></div>`;
