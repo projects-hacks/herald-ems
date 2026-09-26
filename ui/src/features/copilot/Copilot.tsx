@@ -155,6 +155,7 @@ export function ProtocolCues() {
         if (!points.length && c.asked) { points = keyPoints(c.passages, 1); closest = points.length > 0; }   // asked: the nearest county words
         return points.length ? <>{closest && <p className="protocol-status">No rule names this exactly. The closest county text:</p>}<ul className="protocol-points">{points.map((k, i) => <li key={i}>
         <span>{k.segments.map((s, j) => s.hl ? <mark key={j}>{s.t}</mark> : <span key={j}>{s.t}</span>)}</span>
+        {k.items.length > 0 && <ol className="protocol-items">{k.items.map((item, n) => <li key={n}>{item.map((s, j) => s.hl ? <mark key={j}>{s.t}</mark> : <span key={j}>{s.t}</span>)}</li>)}</ol>}
         <cite>{k.cite}</cite>
       </li>)}</ul></> : <p className="protocol-status">Closest county sections: {[...new Set(c.passages.slice(0, 3).map((p) => `${p.doc} §${p.section}`))].join(" · ")}</p>; })()}
       {c.state === "found" && <details className="protocol-more"><summary>Retrieved county passages{c.passages[0]?.effective ? ` · effective ${c.passages[0].effective}` : ""}</summary>

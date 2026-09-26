@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from typing import Callable, Optional
 
 from ..config import load_yaml
+from .keypoints import flow
 
 
 def _cut(text: str, limit: int) -> tuple[str, bool]:
@@ -120,9 +121,11 @@ class ProtocolCues:
             kb = self._kb()
             answer = kb.answer(cue["query"], self.passages) if kb is not None else None
             result = self._result(answer) if answer is not None else None
+            full = result.pop("_whole", []) if result is not None else []
             if result is not None and result["state"] == "found" and self._picker is not None:
+                whole = [{**p, "text": t} for p, t in zip(result["passages"], full)]   # the picker never sees a shortened list
                 try:                                              # key points are optional: without them the screen
-                    points = self._picker.pick(cue.get("situation", cue["title"]), result["passages"])   # uses lead sentences
+                    points = self._picker.pick(cue.get("situation", cue["title"]), whole)   # uses lead sentences
                     if points is not None:
                         result["points"] = points
                 except Exception:
@@ -140,13 +143,15 @@ class ProtocolCues:
         if answer.get("answerable") is False:
             return {"state": "not_covered", "passages": []}
         chosen = answer.get("chosen") or (1 if answer.get("results") else 0)
-        passages = []
+        passages, whole = [], []
         for r in answer.get("results", [])[: min(self.passages, max(chosen, 1))]:
-            text, shortened = _cut(re.sub(r"\s+", " ", r["text"]).strip(), self.max_chars)   # PDF line breaks are layout, not meaning
+            whole.append(flow(r["text"]))                        # PDF line breaks are layout; list items stay on their own lines
+            text, shortened = _cut(whole[-1], self.max_chars)
             passages.append({"doc": r["doc"], "title": r.get("title"), "section": r["section"], "heading": r.get("heading"),
                              "page": r.get("page"), "effective": r.get("effective"), "text": text, "shortened": shortened,
                              "text_layer_uncertain": r.get("text_layer_uncertain", False)})
-        return {"state": "found" if passages else "not_covered", "passages": passages, "reranked": answer.get("reranked", False)}
+        return {"state": "found" if passages else "not_covered", "passages": passages, "reranked": answer.get("reranked", False),
+                "_whole": whole}
 
     # ---------- what the screen shows ----------
     def view(self, snap: dict) -> list[dict]:

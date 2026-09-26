@@ -285,6 +285,9 @@
   font-size: 1.0625rem; line-height: 1.45; color: var(--text-primary); }
 .protocol-points mark { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--text-primary); font-weight: 700;
   padding: 0 3px; border-radius: 4px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.protocol-items { list-style: none; margin: 2px 0 0; padding: 0 0 0 10px; display: flex; flex-direction: column; gap: 4px; }
+.protocol-points .protocol-items li { border-left: 0; padding-left: 0; flex-direction: row; display: block; }
+.protocol-more blockquote { white-space: pre-line; }
 .protocol-points cite { font-style: normal; font-family: var(--font-mono); font-size: .8125rem; font-weight: 700; color: var(--low-fg); }
 
 /* ---------- every page wears the same glass: record, trends, handoff, camera, settings ---------- */

@@ -1,12 +1,21 @@
 """Protocol key points: the model chooses among the county's sentences; nothing it writes reaches the screen."""
 from herald.knowledge.cues import ProtocolCues
-from herald.knowledge.keypoints import KeyPointPicker, sentences
+from herald.knowledge.keypoints import KeyPointPicker, flow, rules, sentences
 
 P32 = {"doc": "700-A13", "section": "3.2", "text": "3.2. If patient has four (4) points on the G.F.A.S.T stroke screening "
        "transport the patient to a Comprehensive Stroke Center (Policy 602)."}
 P321 = {"doc": "700-A13", "section": "3.2.1", "text": "3.2.1. If transport time to closest Comprehensive Stroke Center is "
         "greater than forty-five (45) minutes, transport the patient to the closest Primary Stroke Center."}
 LIST = {"doc": "602", "section": "VI.E.1", "text": "1. Patients meeting Comprehensive Stroke Alert Criteria shall be transported to:"}
+# 602 §VI.E.1 as the PDF's text layer prints it: wrapped lines, then the lettered list (search appends the items)
+DEST = {"doc": "602", "section": "VI.E.1", "text": (
+    "1.     Patients that are identified as meeting Comprehensive Stroke Alert\nCriteria according to Santa Clara County "
+    "Prehospital Care Policy #700-\nA13: Stroke shall be transported to:\n"
+    "a.     The closest Comprehensive Stroke Center identified in Table B:\nApproved In-County Services to the incident "
+    "location as\ndetermined by total emergency ambulance transport time; and\n"
+    "b.     That is accepting emergency ambulance patients that meet stroke\nalert criteria.\n"
+    "c.     If the transport time to the closest Comprehensive Stroke Center\nis greater than forty-five (45) minutes, "
+    "transport to the closest\nPrimary Stroke Center in accordance with Section (F)(2) of this\npolicy.")}
 
 
 class FakeModel:
@@ -21,6 +30,24 @@ class FakeModel:
 def test_sentences_drop_numbering_and_bare_lead_ins():
     assert sentences(P32)[0].startswith("If patient has four (4) points")
     assert sentences(LIST) == []
+
+
+def test_a_lead_in_keeps_its_list_as_one_rule():
+    assert flow(DEST["text"]).count("\n") == 3                                   # wrapped lines rejoined, items kept
+    [rule] = rules(DEST)
+    assert rule["text"].endswith("shall be transported to:")
+    assert [i[:2] for i in rule["items"]] == ["a.", "b.", "c."]
+    assert rule["items"][2].endswith("in accordance with Section (F)(2) of this policy.")
+    # a number in parentheses at a wrapped line's start is not a list item
+    assert rules({"text": "3.2.1. greater than forty-five\n(45) minutes, transport."})[0]["items"] == []
+
+
+def test_the_model_picks_a_whole_rule_never_a_dangling_item():
+    model = FakeModel({"points": [{"n": 1, "mark": ["greater than forty-five (45) minutes", "made up"]}]})
+    [point] = KeyPointPicker(model).pick("68 F stroke alert", [DEST])
+    assert "[2]" not in model.calls[0]                                            # one numbered rule, not four fragments
+    assert point["text"].endswith("transported to:") and len(point["items"]) == 3
+    assert point["marks"] == ["greater than forty-five (45) minutes"]             # verbatim in an item: kept
 
 
 def test_only_the_countys_sentences_and_verbatim_phrases_survive():
