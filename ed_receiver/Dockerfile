@@ -5,6 +5,11 @@ FROM python:3.12-slim
 WORKDIR /app
 RUN pip install --no-cache-dir "fastapi>=0.115" "uvicorn[standard]>=0.30"
 
+# The receiver labels keys, lays out the board and colours vitals from the reviewed config, and builds the
+# received-data report with herald's pure-Python vocabulary/scoring/reporting modules (no model, no GPU, no extra
+# pip dependency): /api/meta, /api/handoff and /ingest need both directories.
+COPY config/ config/
+COPY herald/ herald/
 COPY ed_receiver/ ed_receiver/
 
 ENV PORT=8200

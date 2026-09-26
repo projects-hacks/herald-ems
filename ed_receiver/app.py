@@ -14,6 +14,7 @@ trust. /ping, /state and /ws stay open: they carry nothing back to the ambulance
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from datetime import datetime, timezone
@@ -53,11 +54,20 @@ async def metadata():
     from herald.core.vocabulary import default_vocabulary
     from herald.scoring import default_scales
     keys = {key: _key_meta(meta) for key, meta in default_vocabulary().keys.items()}
-    keys.update({f"score.{sid}": {"label": default_scales()[sid].name, "unit": None, "type": None}
-                 for sid in default_scales().ids()})
+    scales = default_scales()
+    # `not_met`: the line a criteria score sends when it is complete and not met, so a header alert badge shows only
+    # for a met result (config/ed_display.yaml `alerts`).
+    keys.update({f"score.{sid}": {"label": scales[sid].name, "unit": None, "type": None,
+                                  "not_met": scales[sid].d.get("relay_text_not_met")}
+                 for sid in scales.ids()})
     keys.update({key: {"label": text, "unit": None, "type": None}      # route ETA, "not transported", readiness
                  for key, text in load_yaml("relay.yaml").get("derived_labels", {}).items()})
-    return {"keys": keys, "display": load_yaml("ed_display.yaml")}
+    display = load_yaml("ed_display.yaml")
+    checklists = load_yaml("checklists.yaml").get("alerts", {})
+    # The relayed `alert.readiness` line names each open checklist by its label; the badge matches on that label.
+    display["alerts"] = [{**alert, "readiness_label": checklists.get(alert.get("checklist"), {}).get("label")}
+                         for alert in display.get("alerts", [])]
+    return {"keys": keys, "display": display}
 
 
 @app.get("/api/handoff/{patient_id}")
@@ -78,6 +88,31 @@ class Acknowledgement(BaseModel):
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+_RANGES = None
+
+
+def _severity(fields: dict) -> dict[str, str]:
+    """Where each received vital sits on the adult NEWS2-derived bands (config/vital_ranges.yaml): "abnormal" or
+    "critical", absent when normal. The same colouring the medic's screen uses, computed from received values only.
+    It withdraws for the patients NEWS2 excludes (a received paediatric age or pregnancy), exactly as on the vehicle
+    (herald/core/snapshot.py `_vitals_applicable`). A display aid, never a decision."""
+    global _RANGES
+    from herald.config import load_yaml
+    from herald.core.vital_severity import VitalRanges
+    from herald.scoring import default_scales
+    if _RANGES is None:
+        _RANGES = VitalRanges.from_config(load_yaml)
+    values = {key: field["v"] for key, field in fields.items()}
+    applicable = default_scales()["news2"].evaluate(values).get("applicability") != "excluded"
+    spo2_scale = 2 if values.get("patient.spo2_scale") == 2 else 1
+    out = {}
+    for key in _RANGES.keys():
+        level = _RANGES.severity(key, values[key], applicable=applicable, spo2_scale=spo2_scale) if key in values else None
+        if level:
+            out[key] = level
+    return out
 
 
 def view() -> dict:
@@ -128,6 +163,11 @@ async def ingest(req: Request):
         # The vehicle's final packet: the handoff report frozen when the medic handed the patient over. `arrived_at`
         # is this screen's own clock, so a "received" acknowledgement is compared on one clock.
         inc["handover"] = {**p["ho"], "seq": p["q"], "arrived_at": now()}
+    try:
+        inc["severity"] = _severity(inc["fields"])
+    except Exception:   # a display aid never costs a packet: an uncolourable value leaves the tiles neutral
+        logging.getLogger(__name__).exception("vital severity unavailable for %s", p["i"])
+        inc["severity"] = {}
     inc["applied"].append(p["q"])
     inc["bytes"] += len(raw)
     inc["queued_on_rig"] = p.get("x", 0)
