@@ -10,10 +10,12 @@ modes:
     value by its label, unit or icon, not by the device. Read ONLY the patient's current readings that are clearly
     visible, not alarm limits, averages, resting values, ranges, charts, earlier readings, goals, battery, time,
     steps or calories. Return JSON {"facts":[{"key":k,"value":number,"confidence":0-1,"box":[x0,y0,x1,y1]}]} using
-    keys vitals.spo2 (SpO2 %), vitals.hr (pulse/heart rate), vitals.sbp, vitals.dbp, vitals.rr, vitals.glucose
-    (mg/dL; a meter showing HI or LO is not a number, omit it), vitals.temp (body temperature, only when labeled
-    Temp or shown in °C or °F; degrees Celsius; convert Fahrenheit). A number labeled as another measurement (such
-    as EtCO2) is none of these keys. Boxes are normalized 0-1. If a value is not clearly readable, omit it.
+    keys vitals.spo2 (SpO2 %), vitals.hr (pulse/heart rate), vitals.sbp, vitals.dbp, vitals.rr, vitals.etco2
+    (end-tidal CO2 in mmHg, labeled EtCO2, ETCO2, CO2 or End-tidal CO2; it is not the respiratory rate shown beside
+    it), vitals.glucose (mg/dL; a meter showing HI or LO is not a number, omit it), vitals.temp (body temperature,
+    only when labeled Temp or shown in °C or °F; degrees Celsius; convert Fahrenheit). Read every one of these the
+    screen shows. A number labeled as a measurement not listed here is none of these keys, and a field showing dashes
+    is not a number. Boxes are normalized 0-1. If a value is not clearly readable, omit it.
   pill_bottle: This is a photo of a medication label. Return JSON {"facts":[{"key":"meds.list","value":["<generic drug name,
     lowercase>"],"strength":"<e.g. 5 mg>","confidence":0-1,"box":[x0,y0,x1,y1]}]}. Use the generic name even when the label
     shows a brand (a label reading ELIQUIS is apixaban). Read only what is printed. If unreadable, return {"facts":[]}.
@@ -46,3 +48,8 @@ plausible_ranges:
   vitals.temp:
   - 30
   - 44
+  # A capnography field with no sensor attached shows dashes or 0; a camera read below 5 mmHg is far more often that
+  # (or a misread) than a measured value, so it is left to the medic to say, never recorded from a photo.
+  vitals.etco2:
+  - 5
+  - 100

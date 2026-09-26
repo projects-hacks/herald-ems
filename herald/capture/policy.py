@@ -38,6 +38,12 @@ class CapturePolicy:
                     self.once.add(index)
         return out
 
+    def interval(self, speech_recent: bool) -> float:
+        """Seconds between monitor reads: `min_interval_s` in a quiet cabin, `speech_interval_s` while speech is being
+        processed, so a read competes with the extraction model only when nobody is talking (config/capture.yaml)."""
+        m = self.config["monitor"]
+        return m["speech_interval_s"] if speech_recent else m["min_interval_s"]
+
     def on_tick(self, now: float, gate_state: dict) -> list[CaptureIntent]:
         m = self.config["monitor"]
         if not gate_state.get("roi") or not gate_state.get("usable"):
@@ -45,9 +51,11 @@ class CapturePolicy:
             return []
         self.stable = self.stable + 1 if gate_state.get("stable", True) else 1
         elapsed = now - self.last_monitor
-        if self.stable < m["stable_frames"] or elapsed < m["min_interval_s"]:
+        interval = self.interval(bool(gate_state.get("speech_recent")))
+        if self.stable < m["stable_frames"] or elapsed < interval:
             return []
-        if not gate_state.get("changed") and elapsed < m["max_interval_s"]:
+        # An unchanged picture still gets a periodic point, so the trend stays current.
+        if not gate_state.get("changed") and elapsed < max(m["max_interval_s"], interval):
             return []
         trigger = "monitor_changed" if gate_state.get("changed") else "monitor_refresh"
         return [CaptureIntent(trigger, "monitor", self.config["buffer_s"], "monitor", reason=self.config["reasons"][trigger])]

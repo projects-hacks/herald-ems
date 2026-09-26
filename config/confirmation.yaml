@@ -2,6 +2,17 @@
 # Regardless of confidence, these always wait for a tap: other speakers and photos, code status (require_tap),
 # contradictions, and anything said together with a command to the system (the guard).
 auto_confirm_threshold: 0.8        # team lead's decision, 2026-09-24
+# Readings the camera takes from the PATIENT MONITOR are device readings, not something a person said: they go into the
+# record confirmed and flow into the trends and the ED update like any confirmed vital (owner's product decision,
+# 2026-09-26). "From the patient monitor" means a monitor-mode read of the region the crew framed on the monitor
+# (herald/capture/reading.py marks those facts role=device, captured_by=camera; herald/core/confirmation.py
+# `monitor_reading`). The rails stay: the photo plausibility ranges (config/prompts/vision.yaml) and the vocabulary
+# ranges drop a value outright, and the capture agent's jump check (config/capture.yaml `monitor.jump`) holds a reading
+# that moved implausibly far from the previous monitor reading, with its reason, for the medic. The medic can still
+# correct any value. A one-shot photo (a phone photo of a watch or a monitor), structured facts posted over HTTP
+# (POST /api/facts, a device feed), and anything spoken are unaffected: they still start unconfirmed as below.
+monitor_readings:
+  auto_confirm: true
 confidence:
   measure: joint                   # joint | value | order_free (herald/extraction/confidence.py); a threshold only
                                    # means something for the measure it was calibrated with

@@ -60,6 +60,9 @@ export interface Changed {
   floor?: number;
   // Per point in `series`: was that reading confirmed? A waiting camera/monitor point is drawn hollow, never as a value.
   confirmed?: boolean[];
+  // Per point in `series` (2026-09-26): was it read off the patient monitor (the camera watching it, or a monitor
+  // feed)? Monitor readings are recorded confirmed now, so this is how a screen says where the trend came from.
+  from_monitor?: boolean[];
 }
 
 // ---------- scores (herald/scoring, config/scores/*.yaml) ----------

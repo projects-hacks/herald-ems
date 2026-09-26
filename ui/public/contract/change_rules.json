@@ -3,5 +3,6 @@
   "vitals.hr": "HR changed by 20/min or more",
   "vitals.spo2": "SpO2 fell by 3 points or more, or dropped below 92%",
   "vitals.rr": "RR changed by 6/min or more",
-  "vitals.glucose": "Glucose changed by 50 mg/dL or more"
+  "vitals.glucose": "Glucose changed by 50 mg/dL or more",
+  "vitals.etco2": "EtCO2 trend (display only: no change rule reviewed)"
 }

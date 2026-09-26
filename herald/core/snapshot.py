@@ -17,8 +17,9 @@ from ..config.county import SCALE_IDS, CountyRegistry
 from ..scoring import ScaleRegistry, default_scales
 from . import not_obtained as unobtainable
 from .clock import parse_clock
+from .confirmation import monitor_reading
 from .corroboration import BatchConfirmation, CorroborationRules
-from .schema import Fact, Status, utcnow
+from .schema import CapturedBy, Fact, Status, utcnow
 from .trends import TrendRules
 from .vital_severity import VitalRanges
 from .vocabulary import Vocabulary, default_vocabulary, norm_value
@@ -209,7 +210,10 @@ class Projector:
                        # Labelled for the screen: which of these readings still need the medic's tap, per point too,
                        # so a screen can draw the confirmed trend and hold a waiting camera reading apart from it.
                        "unconfirmed": bool(waiting), "unconfirmed_fact_ids": [f.id for f in waiting],
-                       "confirmed": [f.status == Status.confirmed for f in h]}
+                       "confirmed": [f.status == Status.confirmed for f in h],
+                       # Per point: read off the patient monitor (the camera watching it, or a monitor feed), so a
+                       # screen can say where the trend came from.
+                       "from_monitor": [monitor_reading(f) or f.captured_by == CapturedBy.device for f in h]}
                 if waiting:
                     newest = waiting[-1]
                     message = self.trends.sentence(

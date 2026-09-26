@@ -105,6 +105,50 @@ Integration with ambient capture and patient roster: both `X-Herald-Patient` and
 - `Snapshot.changed[]` gains optional `confirmed: boolean[]`, one per point in `series`: whether that reading is confirmed. The Trends & scores tab draws a waiting point hollow and labels it "to confirm", and never shows it as the vital's value. Additive; older snapshots omit it and every point is drawn as before.
 - `severity` (config/vital_ranges.yaml) now also covers `vitals.gcs_total`, `vitals.gcs_motor` and the level-valued `vitals.consciousness` (ACVPU). A band may match levels with `{in: [...], severity}` instead of numeric bounds. The shape is unchanged: `severity` is still `"abnormal" | "critical"` or absent.
 
+### Monitor readings are device readings (2026-09-26; owner's product decision)
+
+Readings the camera takes from the patient monitor no longer ask the medic for a tap. They are the monitor's own
+measurements: they go into the record confirmed and flow into the trends, the scores and the ED update like any
+confirmed vital. Only spoken facts (and the other sources listed under Held facts) may still need a tap.
+
+- **Which readings.** A monitor-mode read of the region the crew framed on the monitor (monitor watch, or Show Herald
+  with a region set): `herald/capture/reading.py`. Its facts are `captured_by: "camera"`, `role: "device"`,
+  `speaker: "monitor"` (was `role: "photo"`), with the evidence kept as before: `provenance.photo_id` (the stored,
+  redacted still), `frame_id`, `crop` (the region), `trigger`, `observed_at`, `auto`. A one-shot photo
+  (`POST /api/photo`, a phone photo of a watch or a monitor) stays `role: "photo"` and unconfirmed; structured facts
+  (`POST /api/facts`, a device feed) stay held as before.
+- **The switch is config**: `config/confirmation.yaml` `monitor_readings.auto_confirm: true`
+  (`herald/core/confirmation.py` `ConfirmationPolicy`, `monitor_reading`). With it `false`, monitor readings wait for a
+  tap again and the batch-confirm path below serves them unchanged.
+- **Rails that stay.** A value outside the photo plausibility range (`config/prompts/vision.yaml`) or the vocabulary
+  range is not recorded. The capture agent's jump check (`config/capture.yaml` `monitor.jump`,
+  `herald/capture/sanity.py`) records a reading that moved further than `max_step` from the previous monitor reading of
+  the same vital within `window_s` as **unconfirmed with `provenance.hold_reason`** (e.g. "Monitor read SpO2 49, 45 from
+  94 15 s earlier: check the monitor, then confirm or correct"). It shows in Needs you and in `capture_groups[].individual`
+  like any held fact. The next reading that agrees with the held one (within `max_step` of it) is recorded confirmed; a
+  reading that agrees with the last trusted one is too, so one misread never holds the readings after it. The medic can
+  still correct any value (`POST /api/facts/{id}/correct`).
+- **Needs you.** An auto-confirmed monitor reading is never in `capture_groups` and never in the UI's tap list;
+  `POST /api/readings/{frame_id}/confirm` answers 404 for a frame whose readings all confirmed themselves. The endpoint
+  is unchanged and still serves held readings' frames and the `auto_confirm: false` configuration.
+- **ED relay.** Unchanged rule: confirmed facts are relayed. Monitor vitals are relay tier 3 (`config/relay.yaml`), so
+  they now reach the ED without a tap.
+- **Every monitor vital the vocabulary knows is read**, EtCO2 included: the monitor prompt (`config/prompts/vision.yaml`)
+  now asks for `vitals.etco2` (it used to tell the model EtCO2 was none of its keys), with a photo range of 5-100 mmHg
+  (a dashed or 0 capnography field is not recorded from a photo).
+- `Snapshot.changed[]` gains optional `from_monitor: boolean[]`, one per point in `series`: was that reading read off
+  the patient monitor (the camera watching it, or a monitor feed). The Trends & scores tab says "All from the monitor"
+  (or "n of m from the monitor") under a card's readings and shows the monitor icon for the latest value; the movement
+  strip adds "· from the monitor" to a row whose newest point came from it, and names only the first and the latest
+  three readings of a long series. Additive; older snapshots omit it and nothing is labelled.
+- `vitals.etco2` has a display-only trend row (`config/trends.yaml`, no threshold): it gets a series, `significant` is
+  always `false`, it raises no `significant_change` alert and adds no handoff trend line.
+- **Read cadence** (`config/capture.yaml` `monitor`, `herald/capture/policy.py`): one read every `min_interval_s` (15 s)
+  while no speech has been processed for `speech_quiet_s` (16 s); `speech_interval_s` (30 s) while speech is being
+  processed; a `monitor_refresh` point at least every `max_interval_s` (30 s) even when the picture looks unchanged,
+  and a refresh is never dropped as a duplicate. A read still never starts while speech is in flight
+  (`rate.skip_while_speech`). The measurements behind the numbers are in that file. No endpoint or status field changed.
+
 ### Speech clips the speech model says are not speech (backend, 2026-09-25)
 
 `POST /api/audio` passes every clip through three gates read from Whisper's own signals before any words reach the record (`herald/models/stt_gates.py`; thresholds and the allowed languages are content in `config/stt.yaml`, citing openai-whisper's `transcribe()` defaults and the measurements in `docs/MODEL_PLAN.md` §0k "Speech gates"): the probability of `<|nospeech|>` at the first decoder step, the language that step hears (English and Spanish are read; the clip is also dropped when the probability mass on those two languages is below the configured minimum, which is how large-v3-turbo tells noise from speech since it never predicts `<|nospeech|>`), and the zlib compression ratio of the decoded text (a repetition loop). Live on 2026-09-25 a silent ambient clip came back as an echo of the priming prompt's example values and a blood pressure nobody said was extracted; the prompt is now vocabulary only.
@@ -160,7 +204,7 @@ The standalone camera accessory uses `/capture.html`. Continuous camera requires
 
 ### Batch confirm: capture groups, one tap per reading (2026-09-25)
 
-Cuts the tap burden without auto-confirming anything. One monitor frame yields HR/BP/SpO2/RR at once; the medic now confirms the *reading*, not each value. Engine: `herald/core/corroboration.py` (`CorroborationRules`, `BatchConfirmation`); content: `config/corroboration.yaml` (risk tiers, plausible-step deltas, medic-facing wording). No confidence gate and no auto-confirm anywhere in this path — a reading is only ever flagged for individual review or left for a one-tap batch; only the medic's tap moves a fact to `confirmed`.
+Since 2026-09-26 monitor readings confirm themselves (see "Monitor readings are device readings" above); this path now serves the readings the jump check held and the `monitor_readings.auto_confirm: false` configuration. Cuts the tap burden without auto-confirming anything. One monitor frame yields HR/BP/SpO2/RR at once; the medic now confirms the *reading*, not each value. Engine: `herald/core/corroboration.py` (`CorroborationRules`, `BatchConfirmation`); content: `config/corroboration.yaml` (risk tiers, plausible-step deltas, medic-facing wording). No confidence gate and no auto-confirm anywhere in this path — a reading is only ever flagged for individual review or left for a one-tap batch; only the medic's tap moves a fact to `confirmed`.
 
 - Snapshot gains `capture_groups: CaptureGroup[]`, one entry per frame that still has an unconfirmed reading, oldest first.
 - `POST /api/readings/{frame_id}/confirm` — confirms every batchable reading of that frame in one call. 404 if the frame has no unconfirmed reading left (unknown id, or already fully confirmed). 409 if the incident has ended. Readings the rules flag (a jump past the configured plausible step, the first reading of a key when `first_reading: individual`, a held fact, an unresolved label mismatch, a contradiction, or any non-batchable key/source) are left `unconfirmed` and reported back in `individual` with why; they still need `/api/facts/{id}/confirm` or `/api/facts/confirm`.

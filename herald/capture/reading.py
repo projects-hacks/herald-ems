@@ -6,17 +6,26 @@ from datetime import datetime, timezone
 
 from fastapi.concurrency import run_in_threadpool
 
-from ..core.schema import CapturedBy, Role, Status, Verification, new_id, utcnow
+from ..core.schema import CapturedBy, Role, Status, Verification, join_reasons, new_id, utcnow
 from ..core.vocabulary import norm_value
 from .frames import cropped
+from .sanity import MonitorJumpCheck
 from .types import CaptureResult
+
+# The speaker label of a reading taken off the patient monitor (the trace, the record and the screens show it).
+MONITOR = "monitor"
 
 
 class FrameReader:
+    """A monitor-mode read of the framed monitor region (an ROI is set) is the monitor's own measurement: its facts
+    are role=device, captured_by=camera, so config/confirmation.yaml decides whether they enter the record confirmed,
+    and the jump check (herald/capture/sanity.py) holds one that moved implausibly fast. Every other read is a photo."""
+
     def __init__(self, config, incident, vision, store, drug_check, tracer, model_name, broadcast):
         self.config, self.incident, self.vision = config, incident, vision
         self.store, self.drug_check, self.tracer = store, drug_check, tracer
         self.model_name, self.broadcast = model_name, broadcast
+        self.jump = MonitorJumpCheck(config["monitor"]["jump"], lambda key: self.incident().vocab.label(key))
 
     def _keep(self, inc, frame):
         """Store a used still and attach it to the call, so ending the call deletes it (herald/api/media.py)."""
@@ -28,6 +37,20 @@ class FrameReader:
                 (self.store.directory / f"{photo_id}.jpg").unlink(missing_ok=True)   # call ended: keep nothing
                 raise
         return photo_id
+
+    def _unchanged(self, inc, proposed) -> bool:
+        """Every value repeats the latest recorded one of its key, recorded within `monitor.max_interval_s`: nothing new
+        to write. A periodic refresh is never a duplicate (it keeps the trend current), and a repeat of a HELD reading
+        is not either: it is the second look that corroborates a real change."""
+        if not proposed:
+            return False
+        for f in proposed:
+            old = inc.latest(f.key)
+            if (old is None or norm_value(old.value) != norm_value(f.value)
+                    or (old.status == Status.unconfirmed and old.provenance.hold_reason)
+                    or time.time() - old.ts.timestamp() >= self.config["monitor"]["max_interval_s"]):
+                return False
+        return True
 
     async def read(self, frame, intent, roi, valid):
         inc = self.incident()
@@ -53,27 +76,29 @@ class FrameReader:
                 reason = "Label unreadable or ambiguous; spoken dose unchanged"
         else:
             allowed = self.config["record_keys"][intent.mode]
+            device = intent.mode == "monitor" and roi is not None      # the monitor's own reading, not a photo
+            seen = datetime.fromtimestamp(frame.ts, timezone.utc)
             proposed = []
             for source in facts:
                 if not any(source.key.startswith(k) if k.endswith(".") else source.key == k for k in allowed):
                     continue
                 f = source.model_copy(deep=True)
-                f.captured_by, f.role = CapturedBy.camera, Role.photo
+                f.captured_by, f.role = CapturedBy.camera, Role.device if device else Role.photo
+                if device:
+                    f.speaker = MONITOR
                 f.provenance.photo_id = None
                 f.provenance.trigger, f.provenance.frame_id, f.provenance.auto = intent.trigger, frame.id, intent.trigger != "manual"
-                f.provenance.observed_at = datetime.fromtimestamp(frame.ts, timezone.utc)
+                f.provenance.observed_at = seen
                 f.provenance.crop = list(roi.__dict__.values()) if roi and intent.mode == "monitor" else None
                 f.provenance.text = f"{intent.reason}; frame {frame.id} at {frame.ts}"
                 try:
                     inc.validate(f)
                 except ValueError:
                     continue
+                if device and (held := self.jump.reason(f, inc.history(f.key), seen)):
+                    f.provenance.hold_reason = join_reasons(f.provenance.hold_reason, held)
                 proposed.append(f)
-            latest = [inc.latest(f.key) for f in proposed]
-            unchanged = bool(proposed) and all(old is not None and norm_value(old.value) == norm_value(f.value)
-                         and time.time() - old.ts.timestamp() < self.config["monitor"]["max_interval_s"]
-                         for f, old in zip(proposed, latest))
-            if intent.mode == "monitor" and unchanged:
+            if intent.mode == "monitor" and intent.trigger != "monitor_refresh" and self._unchanged(inc, proposed):
                 proposed = []; reason = "unchanged"
             if proposed:
                 photo_id = self._keep(inc, frame)

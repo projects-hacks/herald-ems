@@ -1,7 +1,8 @@
 """Which readings may be confirmed as a set, and which need the medic's eye one at a time.
 
-One camera read of the patient monitor produces HR, BP, SpO2 and RR at once, and every one of them is born
-unconfirmed. Confirming a whole frame's readings in one action is what makes monitor-watch usable; confirming a
+One camera read of the patient monitor produces HR, BP, SpO2 and RR at once. Since 2026-09-26 those readings are
+recorded confirmed (config/confirmation.yaml `monitor_readings`), so this module now groups the ones still waiting: a
+reading the capture agent's jump check held, and every monitor reading when that switch is off. Confirming a whole frame's readings in one action is what makes monitor-watch usable; confirming a
 reading that JUMPED in the same sweep is what would make it dangerous. This module decides between the two.
 
 It decides taps, never meaning. The rules and the wording are content (config/corroboration.yaml); this module is the

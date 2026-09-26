@@ -16,6 +16,11 @@
 # file), and our own test set holds confident vision misreads - a glucometer showing "HI" read as 88, and a POLST
 # with only Section B checked read as DNR. A vision threshold has to be calibrated from measured accuracy on the
 # vision eval (real photos, POLST forms) first; there is no such seam yet, so there is no auto-confirm path here.
+#
+# 2026-09-26 (owner's decision): readings the camera takes from the PATIENT MONITOR are device readings and are recorded
+# confirmed by config/confirmation.yaml `monitor_readings`, with no confidence gate (the rails are the plausibility
+# ranges and the capture agent's jump check, config/capture.yaml `monitor.jump`). This file then decides the taps for
+# the monitor readings still waiting (a held jump; every one when that switch is off) and for photos.
 
 # ---------- risk tiers ----------
 tiers:

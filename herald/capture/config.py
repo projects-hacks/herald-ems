@@ -22,6 +22,10 @@ def monitor_gate_config(c: dict) -> dict:
     return {**c["gate"], **(c["monitor"].get("gate") or {})}
 
 
+def _positive(n) -> bool:
+    return isinstance(n, (int, float)) and not isinstance(n, bool) and math.isfinite(n) and n > 0
+
+
 def _check_gate(g: dict, what: str) -> None:
     if not (0 <= g["bright_min"] < g["bright_max"] <= 255 and 0 <= g["change_min"] <= 1 and g["sharp_min"] >= 0
             and 0 <= g.get("stable_max", 0) <= 1 and g["width"] > 0):
@@ -44,6 +48,17 @@ def validate_config(c: dict) -> dict:
     _check_gate(monitor_gate_config(c), "monitor-watch")
     if not (0 <= m["roi_margin"] <= 1 and m["max_interval_s"] >= m["min_interval_s"]):
         raise ValueError("invalid monitor policy")
+    if not (_positive(m["speech_interval_s"]) and _positive(m["speech_quiet_s"])
+            and m["speech_interval_s"] >= m["min_interval_s"]):
+        raise ValueError("monitor.speech_interval_s and speech_quiet_s must be positive, and a back-off never reads "
+                         "more often than min_interval_s")
+    jump = m["jump"]
+    if not _positive(jump["window_s"]) or not jump["max_step"] or not all(_positive(v) for v in jump["max_step"].values()):
+        raise ValueError("monitor.jump needs a positive window_s and a positive max_step per key")
+    try:
+        jump["reason"].format(label="", value=0, previous=0, delta=0, seconds=0, limit=0)
+    except (KeyError, IndexError, AttributeError) as e:
+        raise ValueError(f"monitor.jump.reason has an unknown field: {e}") from None
     if c["privacy"]["store"] not in ("none", "used_only") or c["privacy"]["dir"] != "auto":
         raise ValueError("capture storage must be none or used_only in auto/")
     for rule in c["triggers"]:

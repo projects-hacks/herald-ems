@@ -26,6 +26,8 @@ export function PresencePill({ p, paused, disabled, onToggle }: { p: Presence; p
   </button>;
 }
 
+const MOVEMENT_POINTS = 4;   // readings named in a movement row: the first, then the latest three
+
 export function MovementStrip({ onTrends }: { onTrends: () => void }) {
   const s = useHerald((st) => st.snapshot);
   const contract = useContract();
@@ -47,11 +49,15 @@ export function MovementStrip({ onTrends }: { onTrends: () => void }) {
       ...moved.map((c) => {
         const minutes = c.times.length > 1 ? Math.round((Date.parse(c.times.at(-1)!) - Date.parse(c.times[0])) / 60000) : 0;
         const unit = contract?.keys[c.key]?.unit ? ` ${contract.keys[c.key].unit}` : "";
-        return <li key={c.key} data-severity={c.severity} aria-label={c.severity ? `${c.label}, ${c.severity}` : undefined}>
+        // The monitor is read every 15-30 s now, so a long call has many points: say the first and the last few.
+        const said = c.series.length > MOVEMENT_POINTS ? [c.series[0], "…", ...c.series.slice(-(MOVEMENT_POINTS - 1))] : c.series;
+        const monitor = !!c.from_monitor?.at(-1);
+        return <li key={c.key} data-severity={c.severity} data-source={monitor ? "monitor" : undefined}
+          aria-label={c.severity ? `${c.label}, ${c.severity}` : undefined}>
           {c.direction === "down" ? <ArrowDownRight size={20} aria-hidden /> : <ArrowUpRight size={20} aria-hidden />}
-          <strong>{c.label} {c.series.join(" → ")}{unit}</strong>
+          <strong>{c.label} {said.join(" → ")}{unit}</strong>
           {c.severity && <SeverityTag severity={c.severity} />}
-          <span>{minutes ? `over ${minutes} min` : hhmm(c.times.at(-1))}</span>
+          <span>{minutes ? `over ${minutes} min` : hhmm(c.times.at(-1))}{monitor ? " · from the monitor" : ""}</span>
           <Sparkline values={c.series} width={96} height={28} label={`${c.label} trend`} />
           {c.unconfirmed && c.unconfirmed_fact_ids?.length ? <ActionButton pendingKey={`confirm-many:${c.unconfirmed_fact_ids.slice().sort().join(",")}`}
             onClick={() => api.confirmMany(c.unconfirmed_fact_ids!)} busyText="Saving…">Confirm latest reading</ActionButton> : null}

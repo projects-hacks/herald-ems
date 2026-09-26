@@ -22,15 +22,50 @@ rate:
 monitor:
   roi_margin: 0.10          # Ten percent of ROI width/height on each side, clipped to image.
   stable_frames: 2          # Two successive usable ROI frames before automatic monitor reading.
-  min_interval_s: 30        # Minimum interval between monitor-watch reads. Raised 15 -> 30 (owner, 2026-09-25)
-                            # from MEASURED CONTENTION, not from a clinical rule: on one served 30B a monitor read
-                            # takes 5.4 s alone and 7.2 s while speech is being processed, and the speech leg goes
-                            # 3.3 s -> 6.6 s against an ~8 s ambient clip cadence (scripts/measure_capture_overlap.py).
-                            # At 15 s the camera was busy ~40% of the time, so most clips paid the contended cost and
-                            # sat at an 83% duty cycle; at 30 s it is ~18%. Vitals do not change meaningfully in
-                            # fifteen seconds, so the clinical cost is nil -- but if the contention changes (a second
-                            # served model, a faster read), this number is the one to revisit, not a safety limit.
-  max_interval_s: 60        # Permit a repeat point after a minute, even if values are unchanged.
+  # Cadence of monitor-watch reads (herald/capture/policy.py `on_tick`). Engineering values from MEASURED CONTENTION on
+  # one served model, not clinical rules. Revisit them when the contention changes (a second served model, a faster
+  # read), not as a safety limit.
+  #   2026-09-25 (scripts/measure_capture_overlap.py, one served 30B): a monitor read took 5.4 s alone and 7.2 s while
+  #     speech was processed, and the speech leg went 3.3 s -> 6.6 s against an ~8 s ambient clip cadence. At a fixed
+  #     15 s the camera was busy ~40% of the time, so most clips paid the contended cost; at 30 s ~18%. The interval was
+  #     raised 15 -> 30 (owner), which left the trend with a point every 30-60 s.
+  #   2026-09-26 (herald-f on :8080, the monitor simulator at 1280x800, 5 readings; a live test was running on the same
+  #     server): one read took 3.7-5.6 s with the old four-vital prompt and 4.6-7.2 s reading all five (EtCO2 added).
+  # The contention only costs anything while somebody is talking: the cabin microphone uploads speech only (the
+  # client's endpointer), so a quiet cabin has nothing for a read to slow down. So the cadence follows the speech:
+  min_interval_s: 15          # Speech idle: one read every 15 s, twice the old trend density. A <=7 s read keeps the
+                              # camera busy <=47% of a quiet spell; the only cost is to the first utterance after the
+                              # quiet, which may land on a read already in flight (+3.3 s measured, once).
+  speech_interval_s: 30       # Speech processed within the last speech_quiet_s: back off to the measured-safe 30 s
+                              # (~18-23% busy). The scheduler still never STARTS a read while speech is in flight
+                              # (rate.skip_while_speech).
+  speech_quiet_s: 16          # Two ambient clip gaps (~8 s each) with no speech processed = the talking has paused.
+  max_interval_s: 30          # A trend point at least this often even when the picture looks unchanged
+                              # (`monitor_refresh`). Never dropped as a duplicate: a repeat value is still a current
+                              # reading. Must be >= min_interval_s.
+  # The agent's sanity check on a monitor reading before it enters the record as a confirmed device reading
+  # (config/confirmation.yaml `monitor_readings`; herald/capture/sanity.py). A reading that moved further than
+  # `max_step` from the previous monitor reading of the same vital taken within `window_s` is recorded but HELD
+  # (unconfirmed, with `reason`) for the medic, so a misread digit (116 -> 16, 94 -> 49) never silently enters the
+  # record. A later reading that agrees with the held one (within max_step of it) is recorded confirmed: a real change
+  # repeats, a transient misread does not. The limits are deliberately far wider than config/corroboration.yaml
+  # `plausible_step` and config/trends.yaml: those mark a change worth a look; these mark a move too fast to trust from
+  # one camera read. Engineering defaults for misread detection, pending review on real monitor footage; not
+  # clinical thresholds, and never a statement about the patient. The simulator journey
+  # (ui/public/fixtures/monitor_journey.json) moves at most HR 14, SBP 14, SpO2 3, RR 4, EtCO2 5 between its steps.
+  jump:
+    window_s: 120             # Only a previous reading this recent (frame time) is a reference; older ones are not.
+    max_step:
+      vitals.hr: 40           # /min
+      vitals.sbp: 40          # mmHg
+      vitals.dbp: 30          # mmHg
+      vitals.spo2: 10         # percentage points
+      vitals.rr: 12           # /min
+      vitals.etco2: 15        # mmHg
+      vitals.temp: 1.5        # degrees C
+      vitals.glucose: 100     # mg/dL
+    # Shown on the held reading. Fields: {label} {value} {previous} {delta} {seconds} {limit}.
+    reason: "Monitor read {label} {value}, {delta} from {previous} {seconds} s earlier: check the monitor, then confirm or correct"
   # gate: the monitor-watch gate profile. These values REPLACE the matching keys of the global `gate:` block when the
   # agent assesses the camera ROI for monitor-watch. The global values stay as they are: they protect the one-shot
   # photo path, where a whole new scene is expected to differ from the last one. Engineering defaults pending

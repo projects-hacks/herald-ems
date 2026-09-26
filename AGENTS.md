@@ -30,7 +30,8 @@ length, gloved, in a moving vehicle. Judge every UI change against that, and aga
   `npm run contrast`.
 - No model internals on the clinical screen (no confidence, model names, frame counts). System status is silent while
   working and one unmistakable line when something stopped.
-- Every captured fact starts unconfirmed; only confirmed facts reach the ED. Herald never recommends treatment: it
+- Every captured fact starts unconfirmed, except a reading the camera takes from the patient monitor (a device reading,
+  recorded confirmed unless the jump check holds it); only confirmed facts reach the ED. Herald never recommends treatment: it
   states what it heard, read and computed, and quotes the county's documents with their citation.
 - Offline: fonts and assets are bundled, never fetched.
 
@@ -69,7 +70,7 @@ An offline AI copilot for the back of the ambulance, running entirely on an HP Z
 1. **No cloud AI.** All inference runs locally. The LLM/VLM is reached only at `http://127.0.0.1:8080/v1` (ZRT/vLLM on this box).
 2. **The model never decides.** Scores (NEWS2, RACE, field triage), checklists, contradictions, clocks, and what the relay sends are plain, deterministic code. The LLM/VLM only turns speech and photos into `FactIn` objects.
 3. **Never recommend treatment**, drug doses, or eligibility (e.g., thrombolysis). Show published scores with their source; the medic decides. Say "the receiving team needs to know", never "give" or "do".
-4. **Only confirmed facts leave the vehicle.** Photo readings, other speakers, low-confidence extractions, contradictions, and code status start `unconfirmed`.
+4. **Only confirmed facts leave the vehicle.** Photo readings, other speakers, low-confidence extractions, contradictions, and code status start `unconfirmed`. The one exception is a reading the camera takes from the patient monitor: it is a device reading and is recorded confirmed (owner's decision 2026-09-26, `config/confirmation.yaml` `monitor_readings`), unless the capture agent's jump check holds it (`config/capture.yaml` `monitor.jump`).
 5. **Every fact has provenance**: the audio clip or photo it came from, who said it (`role`, `speaker`), and the extractor tag.
 6. **Missing inputs are shown as missing, never guessed.** A score with a missing input is "incomplete".
 7. **Canonical keys only.** Add new keys to `config/vocabulary.yaml` first (with a plausibility range for numbers). Extractors must never invent keys.

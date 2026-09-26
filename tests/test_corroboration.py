@@ -53,10 +53,18 @@ def test_meds_allergies_code_status_never_batch_even_as_a_first_camera_reading()
     assert {row["id"] for row in g["individual"]} == {dose.id, code.id}
 
 
+def monitor_needs_tap(ctx):
+    """The batch-confirm path serves monitor readings that wait for a tap. Since 2026-09-26 monitor readings are
+    recorded confirmed (config/confirmation.yaml `monitor_readings.auto_confirm`); with that switch off, as here, every
+    monitor reading waits again and the endpoint's contract is what these tests hold."""
+    ctx.policy.monitor_confirms = False
+
+
 def test_readings_confirm_endpoint_batches_one_monitor_frame_in_one_tap(tmp_path):
     facts = [FactIn(key="vitals.hr", value=88), FactIn(key="vitals.sbp", value=140),
              FactIn(key="vitals.spo2", value=97), FactIn(key="vitals.rr", value=16)]
     client, ctx = setup(tmp_path, facts)
+    monitor_needs_tap(ctx)
     client.post("/api/capture/auto", json={"on": True})
     client.post("/api/capture/roi", json={"x0": 0, "y0": 0, "x1": 1, "y1": 1})
     run_frame(client, ctx, monitor=True)
@@ -84,6 +92,7 @@ def test_readings_confirm_endpoint_batches_one_monitor_frame_in_one_tap(tmp_path
 def test_readings_confirm_leaves_a_jump_unconfirmed_but_batches_the_rest(tmp_path):
     vision_facts = [FactIn(key="vitals.hr", value=88), FactIn(key="vitals.sbp", value=140)]
     client, ctx = setup(tmp_path, vision_facts)
+    monitor_needs_tap(ctx)
     client.post("/api/capture/auto", json={"on": True})
     client.post("/api/capture/roi", json={"x0": 0, "y0": 0, "x1": 1, "y1": 1})
     run_frame(client, ctx, monitor=True, manual=True)

@@ -41,6 +41,7 @@ class CaptureAgent:
         self.frame_source = None
         self.last_error = None
         self.flight_started = float("-inf")
+        self.speech_seen = float("-inf")     # when speech was last seen in flight: the monitor cadence backs off after it
         self.notify, self.hold = notify, hold
 
     def status(self):
@@ -127,14 +128,23 @@ class CaptureAgent:
             current = self.monitor_gate.current
             stable = previous is not None and previous.shape == current.shape and float(np.abs(previous - current).mean() / 255) < self.monitor_profile["stable_max"]
             self.monitor_buffer.add(frame, monitor)
-            for intent in self.policy.on_tick(now, {"roi": True, "usable": monitor.usable, "stable": stable, "changed": monitor.passed}):
+            state = {"roi": True, "usable": monitor.usable, "stable": stable, "changed": monitor.passed,
+                     "speech_recent": self.speech_recent(now)}
+            for intent in self.policy.on_tick(now, state):
                 self.enqueue(intent)
             result = monitor
         return result
 
+    def speech_recent(self, now: float) -> bool:
+        """Speech was being processed within the last `monitor.speech_quiet_s` (checked on every poll and frame)."""
+        if self.speech_busy():
+            self.speech_seen = now
+        return now - self.speech_seen < self.config["monitor"]["speech_quiet_s"]
+
     async def step(self):
         self.patient_changed()
         now = self.clock()
+        self.speech_recent(now)
         self.buffer.prune(now); self.monitor_buffer.prune(now)
         # A queued intent's window must not run out while it is only waiting behind our own
         # in-flight read (~5-7s): freeze expiry checks during that wait, then _read() restores
