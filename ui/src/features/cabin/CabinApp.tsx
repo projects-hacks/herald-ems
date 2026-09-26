@@ -21,6 +21,7 @@ import { SettingsPage } from "./SettingsPage";
 import { HandedOver } from "@/features/handoff/HandedOver";
 import { HandoverHeaderButton } from "@/features/handoff/HandoverBar";
 import { MonitorWatch } from "@/features/capture/MonitorWatch";
+import { NetworkStatus } from "./NetworkStatus";
 import { useAmbient } from "./useAmbient";
 import { useCaptureOwner } from "./captureOwner";
 import "./workspace.css";
@@ -100,6 +101,7 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
         onToggle={() => setUi({ capturePaused: !ui.capturePaused })} />}   {/* on Now, Herald's orb is the control */}
       {isReplay && player && <ReplayBar player={player} />}
       <div className="copilot-header-actions">
+        <NetworkStatus />
         {s?.capture?.auto && <CaptureControl stopOnly />}   {/* the vehicle's connected camera: a direct stop */}
         <HandoverHeaderButton pressed={panel === "handoff"} onOpen={() => { setHandoffReport(false); open("handoff"); }} />
         <button className="cabin-button" aria-label="Type a note" aria-pressed={panel === "notes"} onClick={() => open("notes")}><Keyboard size={19} /></button>
@@ -129,9 +131,11 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
               waitingTap={!!ambient.status.waitingTap} warning={ambient.status.warning} monitor={monitor}
               onToggle={() => setUi({ capturePaused: !ui.capturePaused })} />}
             <MovementStrip onTrends={() => openRecord("trends")} />
+          </div>
+          <div className="copilot-side copilot-side-protocol">
+            {!panel && <ProtocolCues />}
             <EdCard onHandoff={() => { setHandoffReport(false); open("handoff"); }} />
           </div>
-          <div className="copilot-side copilot-side-protocol">{!panel && <ProtocolCues />}</div>
         </div>
       </div>
       <section hidden={!panel} ref={page} tabIndex={-1} className="workspace-page" aria-label={panel ? TITLES[panel] : undefined}>

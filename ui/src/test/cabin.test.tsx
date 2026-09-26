@@ -31,6 +31,18 @@ describe("ambulance workspace", () => {
     expect(screen.queryByRole("region", { name: "What Herald did" })).toBeNull();      // a system record, not on Now
     expect(screen.queryByText(/Record only when authorized|processed on the vehicle/)).toBeNull();   // no disclaimers on Now
   });
+  it("puts the ED directly below the county protocol and reports internet availability", () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    render(<CabinApp />);
+    const protocol = screen.getByRole("region", { name: "County protocol" });
+    const ed = screen.getByRole("region", { name: /The ED has|has$/ });
+    expect(protocol.parentElement).toBe(ed.parentElement);
+    expect(protocol.compareDocumentPosition(ed) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole("status", { name: "Connected to the internet" })).toBeTruthy();
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    fireEvent(window, new Event("offline"));
+    expect(screen.getByRole("status", { name: "No internet connection" })).toBeTruthy();
+  });
   it("keeps What Herald did one tap away on the Record page", () => {
     render(<CabinApp />);
     fireEvent.click(screen.getByRole("button", { name: "Record" }));
