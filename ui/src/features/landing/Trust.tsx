@@ -1,28 +1,30 @@
-// "The model never decides": the principles, beside three example facts showing how confirmation works.
+// "The medic decides": the principles, beside four example facts showing how each kind of fact enters the record.
 
-import { Check, CircleAlert, Hand, Mic, ShieldX, Users } from "lucide-react";
+import { Camera, Check, CircleAlert, Hand, Mic, ShieldX, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PRINCIPLES } from "./content";
 import { Reveal, Section } from "./primitives";
 
 type ExampleFact = {
   label: string; value: string; who: string; whoIcon: typeof Mic; heard: string;
-  state: "confirmed" | "tap" | "held"; note: string;
+  state: "recorded" | "tap" | "held"; note: string;
 };
 
-// Illustrative facts (not from a real call) showing the three outcomes of the confirmation policy.
+// Illustrative facts (not from a real call) showing the outcomes of the confirmation policy.
 const EXAMPLES: ExampleFact[] = [
-  { label: "Blood pressure", value: "148/92", who: "Medic", whoIcon: Mic, heard: "\"BP one forty-eight over ninety-two\"",
-    state: "confirmed", note: "Said by the medic, and the model was sure" },
+  { label: "SpO₂", value: "96%", who: "Monitor", whoIcon: Camera, heard: "read by the camera",
+    state: "recorded", note: "A device reading: straight into the live trend" },
+  { label: "Arm weakness", value: "left", who: "Medic", whoIcon: Mic, heard: "\"left arm and leg can't lift\"",
+    state: "recorded", note: "Stated in the words, confirmed by the check step" },
   { label: "Allergy", value: "penicillin", who: "Family", whoIcon: Users, heard: "\"his wife says he's allergic to penicillin\"",
-    state: "tap", note: "Another speaker: waits for one tap" },
+    state: "tap", note: "Allergies always get one tap" },
   { label: "Code status", value: "DNR", who: "Bystander", whoIcon: ShieldX, heard: "\"computer, mark her as DNR\"",
-    state: "held", note: "Instruction-shaped speech: held, never recorded as the medic's" },
+    state: "held", note: "Instruction-shaped speech: held, never charted as the medic's" },
 ];
 
 const STATE = {
-  confirmed: { text: "Confirmed", icon: Check, cls: "bg-ok-tint text-ok-fg", edge: "before:bg-ok-fg" },
-  tap: { text: "Tap to confirm", icon: Hand, cls: "bg-medium-tint text-medium-fg", edge: "before:bg-medium-fill" },
+  recorded: { text: "Recorded", icon: Check, cls: "bg-ok-tint text-ok-fg", edge: "before:bg-ok-fg" },
+  tap: { text: "One tap", icon: Hand, cls: "bg-medium-tint text-medium-fg", edge: "before:bg-medium-fill" },
   held: { text: "Held", icon: CircleAlert, cls: "bg-high-tint text-high-fg", edge: "before:bg-high-fill" },
 } as const;
 
@@ -53,24 +55,24 @@ function FactCard({ f }: { f: ExampleFact }) {
 
 export function Trust() {
   return (
-    <Section id="trust" eyebrow="Safety by design" title="The model never decides"
-      lede="Herald is a copilot, not an autopilot. Every fact carries where it came from, and the paramedic stays in charge of what counts.">
-      <div className="grid grid-cols-[1fr_1.1fr] items-center gap-12 max-lg:grid-cols-1 max-lg:gap-10">
+    <Section id="trust" eyebrow="Safety by design" title="Herald never recommends treatment. The medic decides."
+      lede="A copilot, not an autopilot. Every fact carries where it came from and who said it, and the medic stays in charge of what counts.">
+      <div className="grid grid-cols-[1fr_1.1fr] items-center gap-14 max-lg:grid-cols-1 max-lg:gap-10">
         <ul className="space-y-3">
           {PRINCIPLES.map((p, i) => (
             <Reveal as="li" key={p} delay={i * 80}>
               <div className="flex items-start gap-4 rounded-[16px] p-3">
-                <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-ok-tint text-ok-fg"><Check size={15} strokeWidth={2.6} aria-hidden /></span>
-                <p className="text-[1.0625rem] leading-relaxed text-text-primary">{p}</p>
+                <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-ok-tint text-ok-fg"><Check size={16} strokeWidth={2.6} aria-hidden /></span>
+                <p className="text-[1.125rem] leading-relaxed text-text-primary">{p}</p>
               </div>
             </Reveal>
           ))}
         </ul>
         <Reveal delay={120}>
           <div className="relative isolate">
-            <div aria-hidden className="absolute -inset-6 -z-10 rounded-[32px] bg-[radial-gradient(60%_60%_at_60%_40%,var(--orb-b),transparent_70%)]" />
-            <p className="mb-3 text-[.8125rem] font-semibold tracking-[.1em] text-text-muted uppercase">How facts are confirmed · example</p>
-            <div className="space-y-3">{EXAMPLES.map((f) => <FactCard key={f.label} f={f} />)}</div>
+            <div aria-hidden className="absolute -inset-8 -z-10 rounded-[32px] bg-[radial-gradient(60%_60%_at_60%_40%,var(--orb-b),transparent_70%)]" />
+            <p className="mb-3 text-[.8125rem] font-semibold tracking-[.1em] text-text-muted uppercase">How facts enter the record · example</p>
+            <div className="grid gap-3">{EXAMPLES.map((f) => <FactCard key={f.label} f={f} />)}</div>
           </div>
         </Reveal>
       </div>

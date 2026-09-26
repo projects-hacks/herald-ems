@@ -1,23 +1,23 @@
-// The middle of the page: the headline numbers, how a call flows, and what Herald does.
+// The middle of the page: the headline numbers, the problem, the ambulance-to-ED journey (a live packet flow between
+// the medic tablet and the ED board) and the problem it solves.
 
-import { ArrowRight, Signal } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Signal } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { FEATURES, PROBLEM_CLOSER, PROBLEMS, STATS, STEPS, type Feature } from "./content";
-import { Reveal, Section } from "./primitives";
+import { JOURNEY, PROBLEM_CLOSER, PROBLEMS, SHOTS, STATS } from "./content";
+import { Board, Reveal, Section, Tablet, useReducedMotion, useScrollProgress } from "./primitives";
 
 export function Stats() {
   return (
-    <section aria-label="Measured results at a glance" className="relative pb-8">
+    <section aria-label="Measured results at a glance" className="relative z-[1] -mt-6 pb-4">
       <div className="lp-container">
-        <ul className="grid grid-cols-4 overflow-hidden rounded-[20px] border border-border-subtle bg-surface-1 max-lg:grid-cols-2 max-sm:grid-cols-1">
+        <ul className="lp-glass grid grid-cols-4 overflow-hidden rounded-[24px] max-lg:grid-cols-2 max-sm:grid-cols-1">
           {STATS.map((s, i) => (
             <Reveal as="li" key={s.label} delay={i * 70}
-              className={cn("px-6 py-7", i > 0 && "border-border-subtle lg:border-l",
+              className={cn("px-7 py-8 max-sm:px-6 max-sm:py-6", i > 0 && "border-[color:var(--glass-border)] lg:border-l",
                 i % 2 === 1 && "sm:max-lg:border-l", i > 1 && "sm:max-lg:border-t", i > 0 && "max-sm:border-t")}>
-              <p className="num text-[2.25rem] leading-none font-bold tracking-[-0.04em] text-text-primary max-sm:text-[1.875rem]">{s.value}</p>
-              <p className="mt-2 text-[.9375rem] font-medium text-text-secondary">{s.label}</p>
-              <p className="mt-3 text-[.8125rem] leading-snug text-text-muted">{s.source}</p>
+              <p className="lp-stat-value num">{s.value}</p>
+              <p className="mt-2.5 text-[1rem] font-semibold text-text-primary">{s.label}</p>
+              <p className="mt-2 text-[.8125rem] leading-snug text-text-muted">{s.source}</p>
             </Reveal>
           ))}
         </ul>
@@ -29,22 +29,22 @@ export function Stats() {
 export function Problem() {
   return (
     <Section id="why" eyebrow="Why it matters" title="The story gets lost on the way in"
-      lede="The medic treats the patient while tracking what's captured, what's changing, what's due and what still has to be asked. Then the whole story is handed over out loud.">
-      <div className="grid grid-cols-3 gap-4 max-lg:grid-cols-1">
+      lede="The medic treats the patient while tracking what's captured, what's changing, what's due and what still has to be asked. Then the whole story is handed over out loud, at the door.">
+      <div className="grid grid-cols-3 gap-5 max-lg:grid-cols-1">
         {PROBLEMS.map((p, i) => (
           <Reveal key={p.label} delay={i * 80}>
-            <figure className="lp-card h-full p-7">
-              <p className="num text-[2.75rem] leading-none font-bold tracking-[-0.045em] text-text-primary max-sm:text-[2.25rem]">{p.value}</p>
+            <figure className="lp-card h-full p-8">
+              <p className="num text-[3rem] leading-none font-bold tracking-[-0.045em] text-text-primary max-sm:text-[2.5rem]">{p.value}</p>
               <figcaption>
-                <p className="mt-4 text-[1rem] leading-relaxed text-text-secondary">{p.label}</p>
-                <p className="mt-5 border-t border-border-subtle pt-4 text-[.8125rem] text-text-muted">{p.source}</p>
+                <p className="mt-4 text-[1.0625rem] leading-relaxed text-text-secondary">{p.label}</p>
+                <p className="mt-6 border-t border-border-subtle pt-4 text-[.8125rem] text-text-muted">{p.source}</p>
               </figcaption>
             </figure>
           </Reveal>
         ))}
       </div>
       <Reveal delay={120}>
-        <p className="mx-auto mt-14 max-w-[46rem] text-center text-[1.375rem] leading-snug font-semibold tracking-[-0.02em] text-balance text-text-primary max-sm:text-[1.1875rem]">
+        <p className="mx-auto mt-16 max-w-[50rem] text-center text-[1.5rem] leading-snug font-semibold tracking-[-0.02em] text-balance text-text-primary max-sm:text-[1.25rem]">
           {PROBLEM_CLOSER}
         </p>
       </Reveal>
@@ -52,134 +52,105 @@ export function Problem() {
   );
 }
 
-export function HowItWorks() {
+// The arc between the two screens, in the SVG's own units (viewBox 0 0 400 260).
+const ARC = "M8 196 Q200 -36 392 196";
+const ARC_BACK = "M392 196 Q200 -36 8 196";
+/** A point on the quadratic arc at t (0..1), for the still (reduced-motion) packets. */
+function arcAt(t: number): [number, number] {
+  const [x0, y0, cx, cy, x1, y1] = [8, 196, 200, -36, 392, 196];
+  const u = 1 - t;
+  return [u * u * x0 + 2 * u * t * cx + t * t * x1, u * u * y0 + 2 * u * t * cy + t * t * y1];
+}
+
+const PACKETS = [
+  { tier: "critical", r: 7, begin: 0, cls: "lp-pk-critical" },
+  { tier: "important", r: 5.5, begin: 0.55, cls: "lp-pk-important" },
+  { tier: "context", r: 4.5, begin: 1.1, cls: "lp-pk-context" },
+] as const;
+
+/** Packets travelling the arc from the ambulance to the ED, and the ED's answer travelling back. */
+function FlowArc() {
+  const reduced = useReducedMotion();
   return (
-    <Section id="how" eyebrow="How it works" title="From the first words to the ED, in four steps"
-      lede="The medic keeps working. Herald writes the story as it is told, and asks only when it has to.">
-      <ol className="relative grid grid-cols-4 gap-4 max-lg:grid-cols-2 max-sm:grid-cols-1">
-        {STEPS.map((s, i) => {
-          const Icon = s.icon;
-          return (
-            <Reveal as="li" key={s.title} delay={i * 90} className="relative">
-              <div className="lp-card lp-card-hover h-full p-6">
-                <div className="flex items-center justify-between">
-                  <span className="lp-icon"><Icon size={22} aria-hidden /></span>
-                  <span className="num text-[.8125rem] font-semibold text-text-muted">0{i + 1}</span>
-                </div>
-                <h3 className="mt-6 text-[1.1875rem] font-semibold tracking-[-0.02em]">{s.title}</h3>
-                <p className="mt-2 text-[.9375rem] leading-relaxed text-text-secondary">{s.body}</p>
-              </div>
-              {i < STEPS.length - 1 && (
-                <span aria-hidden className="absolute top-1/2 -right-[14px] z-10 hidden size-6 -translate-y-1/2 place-items-center rounded-full border border-border-subtle bg-bg text-herald-accent lg:grid">
-                  <ArrowRight size={13} />
-                </span>
-              )}
-            </Reveal>
-          );
-        })}
-      </ol>
-    </Section>
+    <svg className="lp-arc" viewBox="0 0 400 260" fill="none" aria-hidden>
+      <defs>
+        <linearGradient id="lp-arc-g" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0" style={{ stopColor: "var(--accent)", stopOpacity: 0.15 }} />
+          <stop offset=".5" style={{ stopColor: "var(--accent)", stopOpacity: 0.9 }} />
+          <stop offset="1" style={{ stopColor: "var(--low-fg)", stopOpacity: 0.2 }} />
+        </linearGradient>
+        <filter id="lp-arc-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3.5" />
+        </filter>
+      </defs>
+      <path d={ARC} stroke="url(#lp-arc-g)" strokeWidth="2" strokeDasharray="2 7" strokeLinecap="round" />
+      <path d={ARC} className="lp-arc-halo" strokeWidth="10" filter="url(#lp-arc-glow)" />
+      {PACKETS.map((p, i) => {
+        if (reduced) {
+          const [x, y] = arcAt(0.62 - i * 0.14);
+          return <circle key={p.tier} className={p.cls} cx={x} cy={y} r={p.r} />;
+        }
+        return (
+          <g key={p.tier}>
+            <circle className={p.cls} r={p.r + 6} opacity=".22" filter="url(#lp-arc-glow)">
+              <animateMotion dur="3.2s" begin={`${p.begin}s`} repeatCount="indefinite" path={ARC} keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines=".45 0 .55 1" />
+            </circle>
+            <circle className={p.cls} r={p.r}>
+              <animateMotion dur="3.2s" begin={`${p.begin}s`} repeatCount="indefinite" path={ARC} keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines=".45 0 .55 1" />
+            </circle>
+          </g>
+        );
+      })}
+      {/* the ED's answer, back to the ambulance */}
+      <g className="lp-ack" transform={reduced ? `translate(${arcAt(0.3).join(" ")})` : undefined}>
+        {!reduced && <animateMotion dur="6.4s" begin="1.6s" repeatCount="indefinite" path={ARC_BACK} keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines=".45 0 .55 1" />}
+        <rect x="-66" y="-15" width="132" height="30" rx="15" />
+        <text x="0" y="5" textAnchor="middle">Cath lab activated</text>
+      </g>
+    </svg>
   );
 }
 
-/** Calls `start` once the element is at least 40% on screen, or `immediate` under reduced motion. */
-function useOnScreen<T extends HTMLElement>(start: () => (() => void) | void, immediate: () => void) {
-  const ref = useRef<T>(null);
-  const handlers = useRef({ start, immediate });
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || document.documentElement.dataset.reducedMotion === "true" || typeof IntersectionObserver === "undefined") {
-      handlers.current.immediate();
-      return;
-    }
-    let stop: (() => void) | void;
-    const io = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) { io.disconnect(); stop = handlers.current.start(); }
-    }, { threshold: 0.4 });
-    io.observe(el);
-    return () => { io.disconnect(); stop?.(); };
-  }, []);
-  return ref;
-}
-
-/** The county checklist filling up: six segments close one by one once the card is on screen. */
-function ChecklistVisual() {
-  const [filled, setFilled] = useState(0);
-  const ref = useOnScreen<HTMLDivElement>(() => {
-    const timer = window.setInterval(() => setFilled((n) => Math.min(n + 1, 6)), 420);
-    return () => window.clearInterval(timer);
-  }, () => setFilled(6));
-  const ready = filled === 6;
+function LinkBadge() {
   return (
-    <div ref={ref} className="mt-7 rounded-[14px] border border-border-subtle bg-bg/60 p-4" aria-hidden>
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-[.875rem] font-semibold">Stroke pre-alert</span>
-        <span className="flex gap-[3px]">
-          {Array.from({ length: 6 }, (_, i) => (
-            <span key={i} className={cn("h-2.5 w-6 rounded-[4px] transition-colors duration-300 max-sm:w-4", i < filled ? "bg-herald-accent" : "bg-surface-3")} />
-          ))}
-        </span>
-        <span className="num text-[.875rem] text-text-secondary">{filled} of 6</span>
-        <span className={cn("ml-auto rounded-full px-2.5 py-0.5 text-[.75rem] font-semibold transition-colors",
-          ready ? "bg-ok-tint text-ok-fg" : "bg-medium-tint text-medium-fg")}>{ready ? "ready" : "gaps open"}</span>
-      </div>
+    <div className="lp-linkbadge">
+      <span className="inline-flex items-center gap-2 font-semibold text-text-primary"><Signal size={15} className="text-medium-fg" aria-hidden /> Weak link · 50% loss</span>
+      <span className="text-text-muted">critical first · 420-byte packets · <b className="font-semibold text-ok-fg">0 lost</b></span>
     </div>
   );
 }
 
-/** A relay packet: critical facts first, inside a fixed byte budget. */
-function PacketVisual() {
-  const rows = [
-    { tier: "Critical", fill: "bg-high-fill", w: "w-[46%]" },
-    { tier: "Important", fill: "bg-medium-fill", w: "w-[30%]" },
-    { tier: "Context", fill: "bg-low-fill", w: "w-[14%]" },
-  ];
+export function Journey() {
+  const flow = useScrollProgress<HTMLDivElement>(0.35);
   return (
-    <div className="mt-7 rounded-[14px] border border-border-subtle bg-bg/60 p-4" aria-hidden>
-      <div className="flex items-center justify-between text-[.8125rem] text-text-muted">
-        <span className="inline-flex items-center gap-2"><Signal size={14} className="text-medium-fg" /> Weak link</span>
-        <span className="num">packet budget 420 B</span>
+    <Section id="journey" eyebrow="How it works" title={<>From the back of the ambulance<br className="max-sm:hidden" /> to the ED, before the doors open</>}
+      lede="The medic keeps working. Herald builds the record as the call is told, and the receiving team watches the patient arrive.">
+      <div ref={flow} className="lp-flow">
+        <div className="lp-flow-side lp-flow-left">
+          <p className="lp-flow-cap"><span className="lp-flow-dot" /> In the ambulance · medic tablet</p>
+          <div className="lp-flow-tilt lp-flow-tilt-l"><Tablet shot={SHOTS.medic} /></div>
+        </div>
+        <div className="lp-flow-mid">
+          <FlowArc />
+          <div className="lp-lane" aria-hidden><i /><i /><i /></div>
+          <LinkBadge />
+        </div>
+        <div className="lp-flow-side lp-flow-right">
+          <p className="lp-flow-cap"><span className="lp-flow-dot lp-flow-dot-ed" /> In the ED · incoming board</p>
+          <div className="lp-flow-tilt lp-flow-tilt-r"><Board shot={SHOTS.edIncoming} /></div>
+        </div>
       </div>
-      <div className="mt-3 flex h-3 gap-[2px] overflow-hidden rounded-[4px] bg-surface-3">
-        {rows.map((r) => <span key={r.tier} className={cn("h-full", r.fill, r.w)} />)}
-      </div>
-      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[.8125rem] text-text-secondary">
-        {rows.map((r) => (
-          <span key={r.tier} className="inline-flex items-center gap-2"><span className={cn("size-2 rounded-full", r.fill)} />{r.tier}</span>
+
+      <ol className="lp-steps">
+        {JOURNEY.map((s, i) => (
+          <Reveal as="li" key={s.title} delay={i * 90} className="lp-step">
+            <span className="lp-step-num num">0{i + 1}</span>
+            <p className="lp-step-time">{s.time}</p>
+            <h3 className="mt-2 text-[1.1875rem] font-semibold tracking-[-0.02em]">{s.title}</h3>
+            <p className="mt-2 text-[.9375rem] leading-relaxed text-text-secondary">{s.body}</p>
+          </Reveal>
         ))}
-      </div>
-    </div>
-  );
-}
-
-function FeatureCard({ f, wide, visual, delay }: { f: Feature; wide?: boolean; visual?: ReactNode; delay: number }) {
-  const Icon = f.icon;
-  return (
-    <Reveal delay={delay} className={cn(wide && "lg:col-span-2")}>
-      <article className="lp-card lp-card-hover h-full p-6">
-        <span className="lp-icon"><Icon size={21} aria-hidden /></span>
-        <h3 className="mt-5 text-[1.0625rem] font-semibold tracking-[-0.015em]">{f.title}</h3>
-        <p className="mt-2 max-w-[36rem] text-[.9375rem] leading-relaxed text-text-secondary">{f.body}</p>
-        {visual}
-      </article>
-    </Reveal>
-  );
-}
-
-/** Bento grid: the first and last features run wide with a small live visual; the rest fill the rows between. */
-export function Features() {
-  const first = FEATURES[0];
-  const last = FEATURES[FEATURES.length - 1];
-  const middle = FEATURES.slice(1, -1);
-  return (
-    <Section id="features" eyebrow="What it does" title="Everything the ED needs, nothing it doesn't"
-      lede="A live, evidence-backed picture of the patient: what's known, what changed, what's still missing, and which clock is running.">
-      <div className="grid grid-cols-3 gap-4 max-lg:grid-cols-2 max-sm:grid-cols-1">
-        <FeatureCard f={first} wide visual={<ChecklistVisual />} delay={0} />
-        {middle.map((f, i) => <FeatureCard key={f.title} f={f} delay={(i % 3) * 70} />)}
-        <FeatureCard f={last} wide visual={<PacketVisual />} delay={70} />
-      </div>
+      </ol>
     </Section>
   );
 }
