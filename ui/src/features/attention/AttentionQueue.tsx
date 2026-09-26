@@ -177,7 +177,7 @@ function Choice({ f, a, sentToEd }: { f: FactView; a: Contradiction; sentToEd: b
   const p = usePendingAction(key);
   return (
     <div className="flex min-w-0 flex-col gap-1">
-      <button type="button" disabled={p.disabled} title={p.replay ? "Replay: actions are off" : undefined}
+      <button type="button" data-choice disabled={p.disabled} title={p.replay ? "Replay: actions are off" : undefined}
         onClick={() => (isNewer ? api.confirm(a.confirm_fact_id) : api.reject(a.confirm_fact_id))}
         aria-label={`Use ${factValue(f)}, from ${sourceName(f)}`}
         className="group flex min-h-20 w-full flex-col gap-0.5 rounded-[14px] bg-surface-2 px-3.5 py-2.5 text-left ring-herald-accent transition-shadow duration-[var(--dur-short3)] enabled:hover:ring-2 disabled:cursor-not-allowed">

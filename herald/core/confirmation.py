@@ -12,6 +12,11 @@ def calibrated_threshold() -> float:
     return float(load_yaml("confirmation.yaml")["auto_confirm_threshold"])
 
 
+def room_mic_medic_report_confirms() -> frozenset[str]:
+    """Always-tap keys that may still confirm themselves when the check step read them as the medic's own report."""
+    return frozenset((load_yaml("confirmation.yaml").get("room_mic") or {}).get("medic_report_confirms") or ())
+
+
 def room_mic_rules() -> tuple[bool, frozenset[str]]:
     """(room-mic facts may confirm themselves, keys that always wait for a tap), from config/confirmation.yaml."""
     c = load_yaml("confirmation.yaml").get("room_mic") or {}
@@ -48,17 +53,29 @@ class ConfirmationPolicy:
     jump check). Everything else from the medic's own mic that the model was sure of is confirmed."""
 
     def __init__(self, vocabulary: Vocabulary, auto_confirm: Optional[float] = None,
-                 monitor_confirms: Optional[bool] = None, room_mic: Optional[tuple[bool, frozenset[str]]] = None):
+                 monitor_confirms: Optional[bool] = None, room_mic: Optional[tuple[bool, frozenset[str]]] = None,
+                 medic_report_confirms: Optional[frozenset[str]] = None):
         self.vocab = vocabulary
         self.auto_confirm = auto_confirm if auto_confirm is not None else calibrated_threshold()
         self.monitor_confirms = monitor_confirms if monitor_confirms is not None else monitor_auto_confirm()
         self.room_auto, self.room_always_tap = room_mic if room_mic is not None else room_mic_rules()
+        self.room_medic_report = (medic_report_confirms if medic_report_confirms is not None
+                                  else room_mic_medic_report_confirms())
 
     def room_mic_may_confirm(self, fin: FactIn) -> bool:
-        """A room-mic fact (someone else's words, speaker not identified) the check step kept, for a key that does not
-        always need a tap. Confidence, contradictions and command holds still apply in initial_status."""
-        return (self.room_auto and fin.captured_by == CapturedBy.other and fin.role == Role.unknown
-                and fin.provenance is not None and fin.provenance.checked and fin.key not in self.room_always_tap)
+        """A room-mic fact the check step kept, for a key that does not always need a tap; or an always-tap key in
+        `medic_report_confirms` that the check step read as the medic's own report ("giving aspirin 324"). A room-mic
+        fact is one with no identified speaker, or one whose speaker the check step read from the words
+        (`provenance.heard_as`); a named person's own mic is not the room mic. Confidence, contradictions and command
+        holds still apply in initial_status."""
+        p = fin.provenance
+        if not (self.room_auto and fin.captured_by == CapturedBy.other and p is not None and p.checked):
+            return False
+        if fin.role != Role.unknown and not p.heard_as:
+            return False
+        if fin.key in self.room_always_tap:
+            return fin.role == Role.medic and p.heard_as == Role.medic.value and fin.key in self.room_medic_report
+        return True
 
     def initial_status(self, fin: FactIn, prev: Optional[Fact], value: Any) -> Status:
         if self.vocab.meta(fin.key).get("require_tap"):

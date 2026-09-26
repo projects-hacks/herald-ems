@@ -1,6 +1,8 @@
 // What is left before the hand over: facts nobody confirmed, sources that disagree, and required items not recorded.
-// Every row is one decision with the same controls as Needs you. None of it blocks the hand over.
-import { CircleDashed, ListChecks, Undo2 } from "lucide-react";
+// One line counts them; the rows open under it. Every row is one decision with the same controls as Needs you. None
+// of it blocks the hand over.
+import { useState } from "react";
+import { ChevronDown, CircleDashed, ListChecks, Undo2 } from "lucide-react";
 import { ActionButton } from "@/components/ActionButton";
 import { ManualEntry } from "@/components/ManualEntry";
 import { Badge, Button, Card, CardHeader, Section } from "@/components/kit";
@@ -44,10 +46,21 @@ function NotObtainedRow({ item, onReport }: { item: HandoffItem; onReport: (r: H
   </li>;
 }
 
+/** "3 need a tap, 1 conflict, 2 not recorded": what is left, by kind, in one line. */
+export function leftoverSummary(n: { confirm: number; choose: number; missing: number; notObtained: number }): string {
+  return [n.confirm && `${n.confirm} ${n.confirm === 1 ? "needs" : "need"} a tap`,
+    n.choose && `${n.choose} ${n.choose === 1 ? "conflict" : "conflicts"}`,
+    n.missing && `${n.missing} not recorded`,
+    n.notObtained && `${n.notObtained} unable to obtain`].filter(Boolean).join(", ");
+}
+
+/** A compact card: one line that counts what is left, and the items under it. The items open on their own only when
+ *  sources disagree (a choice the report cannot make), and then only the conflicts, so the report stays above the fold. */
 export function BeforeHandover({ s, report, onReport, onNotes }: {
   s: Snapshot; report: HandoffReportData | null; onReport: (r: HandoffReportData) => void; onNotes: () => void;
 }) {
   const a = useAttention();
+  const [expanded, setExpanded] = useState<boolean | null>(null);   // null: follow whether sources disagree
   if (!a) return null;
   const obtained = new Set(s.incident.not_obtained ?? []);
   const missing = (report?.not_yet_known ?? []).filter((m) => !obtained.has(m.key));
@@ -55,22 +68,34 @@ export function BeforeHandover({ s, report, onReport, onNotes }: {
   const confirmN = readingCards(s).length + a.confirmAlerts.length + a.confirmFacts.length;
   const left = leftoverCount(s, a, missing);
   if (!left && !notObtained.length) return null;
-  return <Card aria-labelledby="before-h" className="before-handover">
-    <CardHeader icon={ListChecks} cat="attention" title="Before you hand over" id="before-h" />
-    <p className="before-handover-count" role="status">{left
-      ? <><strong>{left} {left === 1 ? "item" : "items"} left</strong> — you can hand over anyway</>
-      : "Nothing left to decide"}</p>
-    {a.choose.length > 0 && <Section title="Sources disagree · pick one" count={a.choose.length}>
-      <ul>{a.choose.map((al) => <ContradictionRow key={alertKey(al)} a={al as Contradiction} s={s} />)}</ul>
-    </Section>}
-    {confirmN > 0 && <Section title="Not confirmed · stays out of the report" count={confirmN}>
-      <ul><ConfirmRows s={s} a={a} /></ul>
-    </Section>}
-    {missing.length > 0 && <Section title="Required, not recorded" count={missing.length}>
-      <ul>{missing.map((m) => <MissingRow key={m.key} item={m} onReport={onReport} onNotes={onNotes} />)}</ul>
-    </Section>}
-    {notObtained.length > 0 && <Section title="Unable to obtain" count={notObtained.length}>
-      <ul>{notObtained.map((m) => <NotObtainedRow key={m.key} item={m} onReport={onReport} />)}</ul>
-    </Section>}
+  // Opened because sources disagree: only the conflicts show, the rest are one tap away; opened by the medic: all.
+  const open = expanded ?? a.choose.length > 0;
+  const all = expanded === true || !a.choose.length;
+  const rest = left - a.choose.length + notObtained.length;
+  const summary = leftoverSummary({ confirm: confirmN, choose: a.choose.length, missing: missing.length, notObtained: notObtained.length });
+  return <Card aria-labelledby="before-h" className="before-handover" data-open={open || undefined}>
+    <CardHeader icon={ListChecks} cat="attention" title="Before you hand over" id="before-h" className="before-handover-head"
+      subtitle={<span className="before-handover-count" role="status">{left
+        ? <><strong>{left} {left === 1 ? "item" : "items"} left</strong>: {summary}. You can hand over anyway.</>
+        : <>Nothing left to decide{summary ? ` (${summary})` : ""}.</>}</span>}
+      actions={<Button size="lg" aria-expanded={open} aria-controls="before-items" onClick={() => setExpanded(!open)}>
+        {open ? "Hide" : "Show"}<ChevronDown size={18} aria-hidden className={open ? "rotate-180" : undefined} /></Button>} />
+    <div id="before-items" hidden={!open} className="before-handover-items">
+      {a.choose.length > 0 && <Section title="Sources disagree · pick one" count={a.choose.length}>
+        <ul>{a.choose.map((al) => <ContradictionRow key={alertKey(al)} a={al as Contradiction} s={s} />)}</ul>
+      </Section>}
+      {!all && rest > 0 && <div className="before-handover-more">
+        <Button size="lg" aria-controls="before-items" onClick={() => setExpanded(true)}>Show the other {rest} {rest === 1 ? "item" : "items"}</Button>
+      </div>}
+      {all && confirmN > 0 && <Section title="Not confirmed · stays out of the report" count={confirmN}>
+        <ul><ConfirmRows s={s} a={a} /></ul>
+      </Section>}
+      {all && missing.length > 0 && <Section title="Required, not recorded" count={missing.length}>
+        <ul>{missing.map((m) => <MissingRow key={m.key} item={m} onReport={onReport} onNotes={onNotes} />)}</ul>
+      </Section>}
+      {all && notObtained.length > 0 && <Section title="Unable to obtain" count={notObtained.length}>
+        <ul>{notObtained.map((m) => <NotObtainedRow key={m.key} item={m} onReport={onReport} />)}</ul>
+      </Section>}
+    </div>
   </Card>;
 }

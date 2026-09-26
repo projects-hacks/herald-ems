@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import { newestPatient, fieldKeys, isNewField, formatValue, esc, observedElapsed, hhmm, openChecklists, alertBadges, ageSex,
   vitalTile, sparkline, careText, careEvents } from '../../../ed_receiver/web/view.mjs';
 import { journeyGroups, renderJourney } from '../../../ed_receiver/web/journey.mjs';
+import { informantRows, renderHandover } from '../../../ed_receiver/web/handover.mjs';
 it('opens newest received incident and retains unknown keys', () => {
   const incidents = { old: { first_at: '2026-09-24' }, newest: { first_at: '2026-09-25' } };
   expect(newestPatient(incidents)).toBe('newest');
@@ -80,4 +81,15 @@ it('lists care events with the best time the received data holds, oldest first',
   expect(events.map((e) => [e.text, e.time, e.source])).toEqual([
     ['aspirin 324 mg PO', hhmm('2026-09-25T17:00:00Z'), 'recorded'],
     ['defibrillation 200 J', hhmm('2026-09-25T17:09:00Z'), 'received']]);
+});
+it('lists who told us what on the handover card, escaped, and nothing for an older vehicle', () => {
+  const handover = { at: '2026-09-26T14:10:00Z', arrived_at: '2026-09-26T14:10:05Z', sections: [{ label: 'S: Situation', lines: ['68-year-old female'] }],
+    not_yet_known: [], informants: [{ who: 'husband', items: ['Medications', 'Allergies'] }, { who: 'patient monitor', items: ['Heart rate'] }, { who: '<b>x</b>', items: [] }, { items: ['orphan'] }] };
+  expect(informantRows(handover).map((r) => r.who)).toEqual(['Husband', 'Patient monitor', '<b>x</b>']);
+  const html = renderHandover({ handover, acknowledgements: [] });
+  expect(html).toContain('<h3 id="handover-who-h">Who told us</h3>');
+  expect(html).toContain('<li><b>Husband</b><span>Medications, Allergies</span></li>');
+  expect(html).toContain('<li><b>Patient monitor</b><span>Heart rate</span></li>');
+  expect(html).not.toContain('<b>x</b>'); expect(html).not.toContain('orphan');
+  expect(renderHandover({ handover: { ...handover, informants: undefined }, acknowledgements: [] })).not.toContain('Who told us');
 });

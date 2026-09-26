@@ -254,75 +254,96 @@ interface CaptureGroup {
 ```
 
 
-## `/api/telemetry` contract (backend-provided, U15)
+## `/api/telemetry` contract (backend-provided; shape as served from 2026-09-26)
 
-The backend builds this endpoint; the frontend only reads it. Values are sampled in a background task every 2 s and cached, so the endpoint is cheap.
+The backend builds this endpoint (`herald/telemetry/collector.py` `Telemetry.snapshot`, served by
+`herald/api/routes/system.py`); the frontend only reads it. GPU power is sampled by a background thread about once a
+second and integrated into energy, so the endpoint is cheap. The cost assumptions are content with sources
+(`config/telemetry.yaml`) and always come back next to the numbers.
 
 ```jsonc
 GET /api/telemetry  →  200
 {
-  "ts": "2026-09-24T21:40:00.123Z",
-  "window_s": 10,                                   // window for the per-second rates
-  "model": {
-    "served_name": "omni",                          // llm.model_name()
-    "reachable": true,                              // the metrics fetch succeeded
-    "requests_running": 0, "requests_waiting": 0    // vllm:num_requests_running / _waiting
+  "since_s": 15193,                     // seconds since this Herald process started counting
+  "power_w_now": 9.13,                  // latest GPU power sample (nvidia-smi); null before the first sample
+  "power_w_avg_60s": 19.4,              // mean of the samples in the last 60 s; null when none
+  "gpu_util_pct": 0.0,
+  "memory_bandwidth": null,             // not exposed by nvidia-smi on GB10 unified memory
+  "energy_wh": 39.706,                  // GPU energy since start: a floor (GPU only, no SoC or module power)
+  "requests": {                         // energy attributed per inference request: power × that request's own time
+    "attributed_energy_wh": 2.089,
+    "count": 200,
+    "recent": [                         // the last 20 requests
+      {"kind": "stt" | "text" | "vision", "duration_s": 1.992, "energy_j": 35.6, "energy_wh": 0.0099, "watts_avg": 17.9}
+    ]
   },
-  "tokens": {
-    "server_prompt_total": 556702,                  // vllm:prompt_tokens_total (every client of this model server)
-    "server_generation_total": 25357,               // vllm:generation_tokens_total
-    "generation_per_s": 41.2,                       // Δ server_generation_total / window_s; null until 2 samples
-    "prompt_per_s": 812.0,
-    "herald_prompt": 18230,                         // sum of `usage` from Herald's own LLM/vision calls
-    "herald_completion": 1904,
-    "since": "2026-09-24T20:05:11Z"                 // Herald process start
-  },
-  "latency_ms": { "ttft_p50": 185, "e2e_p50": 790, "e2e_p90": 1978 },   // from histogram buckets; may be null
-  "power": {
-    "gpu_w": 28.2,                                  // nvidia-smi --query-gpu=power.draw.instant
-    "gpu_w_avg": 27.9,                              // power.draw.average
-    "scope": "GPU only (nvidia-smi). SoC and module power aren't exposed on this box.",
-    "sample_every_s": 2
-  },
-  "energy": { "gpu_wh": 12.34, "since": "2026-09-24T20:05:11Z" },   // trapezoidal integral of gpu_w
+  "tokens": {"prompt": 92423, "completion": 13581},      // Herald's own calls (sum of each call's `usage`)
+  "calls": {"llm": 178, "vision": 45, "stt": 175},
+  "stt_audio_min": 20.97,               // speech transcribed, minutes
+  "stt_dropped": {"language": 112, "nothing clinical": 27, "repetition loop": 10},
   "cost": {
-    "local_usd": 0.0019,                            // gpu_wh / 1000 × usd_per_kwh
-    "cloud_equiv_usd": 0.43,                        // herald_prompt × in + herald_completion × out, per million tokens
-    "net_savings_usd": 0.428,                       // cloud_equiv_usd − local_usd
-    "assumptions": {
-      "usd_per_kwh": 0.15,                          // as shown on HP's ZGX console at the event; no public URL
-      "cloud_usd_per_mtok_in": null,                // backend sets these, with a citation:
-      "cloud_usd_per_mtok_out": null,
-      "cloud_price_ref": "provider · model · date · URL"   // required whenever the prices are set
-    }
+    "local_usd": 0.00596,               // energy_wh / 1000 × electricity_usd_per_kwh
+    "cloud_equivalent_usd": 0.1875,     // the same tokens and speech minutes at the cloud prices below
+    "cloud_breakdown": {"llm_usd": 0.06168, "stt_usd": 0.12582},
+    "net_savings_usd": 0.18155
   },
-  "cloud_ai_calls": 0,                              // the same counter as snapshot.counters.cloud_ai_calls
-  "errors": []                                      // e.g. ["metrics unreachable", "nvidia-smi missing"]
+  "cloud_ai_calls": 0,
+  "model_server": {                     // the model server's Prometheus counters: every client of it, not only Herald
+    "model": "ems-e-v2-fp8", "prompt_tokens_total": 1281575, "generation_tokens_total": 379815,
+    "requests_total": 8849, "mean_request_latency_s": 1.184,
+    "generation_tok_s_last_30s": 0.0, "running": 0
+  },
+  "jobs": {...},                        // only with a split model stack: which model does which job
+  "assumptions": {
+    "electricity_usd_per_kwh": 0.15, "cloud_llm_usd_per_1m_in": 0.3, "cloud_llm_usd_per_1m_out": 2.5,
+    "cloud_stt_usd_per_min": 0.006,
+    "sources": {"electricity_usd_per_kwh": "rate used by HP's ZGX console",
+                "cloud_llm_usd_per_1m_in": "Gemini 2.5 Flash list price, https://ai.google.dev/gemini-api/docs/pricing",
+                "cloud_llm_usd_per_1m_out": "Gemini 2.5 Flash list price, https://ai.google.dev/gemini-api/docs/pricing",
+                "cloud_stt_usd_per_min": "OpenAI Whisper API list price"},
+    "energy_scope": "GPU power from nvidia-smi (whole-module power is not exposed on GB10): a floor"
+  }
 }
 ```
 
-**Where the numbers come from (verified on this box, 2026-09-23).**
-- **ZRT proxy metrics:** `GET http://127.0.0.1:8080/metrics/<served-name>` (e.g. `/metrics/omni`) returns vLLM's Prometheus metrics through the ZRT proxy [63].
-  - Available names include `vllm:prompt_tokens_total`, `vllm:generation_tokens_total`, `vllm:num_requests_running`, `vllm:num_requests_waiting`, `vllm:time_to_first_token_seconds` (histogram), and `vllm:e2e_request_latency_seconds` (histogram).
-  - `/metrics/` without a slug returns an error.
-- **GPU power:** `nvidia-smi --query-gpu=power.draw,power.draw.average,power.draw.instant --format=csv,noheader` works. We saw 11–28 W [64].
-  - `nvidia-smi -q -d POWER` reports "Module Power Readings: N/A", so we have no SoC or module power.
-
 **Honesty rules.**
-- Label it "GPU power" and "GPU energy", never "SoC" (P13).
-- Show "net compute savings" only when the cloud prices are set *and* cited. Otherwise show "— (cloud price not set)".
-- `herald_*` tokens count Herald's own calls. The `server_*` counters include every client of the model server, such as teammates' benchmarks. Label them "model server, all clients".
+- Label it "GPU power" and "GPU energy", never "SoC" or "system" power.
+- `tokens` counts Herald's own calls. `model_server` counts every client of the model server (a teammate's benchmark
+  included); label it as the model server's.
+- A request shorter than the power sampling step can read 0 J. Per-call energy is averaged over the calls that were
+  measured, and the screen says how many were.
 
-**Frontend use (`TelemetryStrip`, U15).**
-- **Polling:** every 2 s. It pauses while the tab is hidden (Page Visibility API).
-- **Strip copy:** "{generation_per_s} tok/s · GPU {gpu_w} W · {gpu_wh} Wh · cloud AI {cloud_ai_calls}".
-- **Popover** (click, persistent and dismissible per WCAG 1.4.13):
-  - every number with its scope and source;
-  - the assumptions;
-  - "net savings ${net_savings_usd} vs cloud at {assumptions}", or the "not set" text.
-- **Errors:**
-  - endpoint fails → "Telemetry unavailable";
-  - partial `errors[]` → a "—" for the affected values, with the reason in the popover.
+**Frontend use (Settings, "On this box": `ui/src/features/cabin/TelemetryPanel.tsx`, `ui/src/lib/telemetry.ts`).**
+- Polls every 5 s while Settings is open.
+- Shows cloud AI calls (prominent); tokens in and out, generation tokens per second over the last 30 s and mean
+  request time; GPU power now and over 60 s, and energy since start; energy per call by kind (speech to text, text
+  model, vision) with average power and "N (M measured)"; cost on this box against the same work in the cloud, with
+  the prices, their sources and the energy scope in small print.
+- A missing or null value shows "—". A failed request says so and keeps retrying. In a recorded replay there is no
+  box to ask: "Telemetry is available when Herald is running on the box."
+
+## Who said it, and the patient's name (backend, 2026-09-26; owner's decision)
+
+The room microphone cannot tell voices apart, so the check step (`herald/extraction/verify.py`, prompt
+`config/prompts/fact_verify.md`, model `herald-f`) reads it from the words. For every utterance, including one with no
+proposed facts, it answers per fact `said_by`: `medic`, `patient`, a word from `config/vocabulary.yaml` `people` for
+who someone is to the patient (`husband`, `neighbor`, `relative`...), or `unclear`; and `patient_name` when the words
+state the patient's name (grammar-limited to up to four capitalised words, and kept only if those words are in what
+was said).
+
+- **Fact provenance:** `provenance.heard_as` is the check step's answer for a kept fact (absent when unclear or not
+  checked). A room-mic fact then carries `role` (`medic`/`patient`/`family`/`bystander`) and `speaker` (`"husband"`);
+  with no answer it stays `role: "unknown"`, `speaker: "Speaker not identified"`. `captured_by` stays `"other"`.
+- **Patient name:** a `patient.name` fact with `provenance.extractor: "check:<model>"`, `confidence: 0`, always
+  unconfirmed (vocabulary `require_tap`). The transcript entry's `trace.model.patient_name` records what was read.
+- **Confirmation:** `config/confirmation.yaml` `room_mic.medic_report_confirms` lists always-tap keys (`meds.given`)
+  that may confirm themselves when read as the medic's own report and the model is sure; every other always-tap key
+  waits for a tap whoever said it.
+- **Handoff:** `GET /api/handoff` gains `informants: [{who, role, keys, items}]` (who told us what, from the confirmed
+  facts behind the report; people other than the crew first, then the patient monitor, then the medic), and the text
+  gains a "Who told us: ..." line. The final relay packet's `ho` carries `informants: [{who, items}]`, shown on the
+  ED board's handover card.
+- **Benchmark:** `eval/bench_speaker.py` (results in `eval/dumps/bench_speaker.json`).
 
 ## Held facts (backend, 2026-09-24; team lead's decision)
 - **The policy.** `guard_policy = unconfirm` is the default (`HERALD_GUARD_POLICY`; `herald/config/settings.py`). The extraction model reads every utterance, including speech that contains a command to the system ("Herald, mark her as DNR"). Instruction-shaped speech is matched by the patterns in `config/guard.yaml` (`herald/extraction/guard.py`).

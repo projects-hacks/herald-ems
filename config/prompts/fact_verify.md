@@ -4,7 +4,8 @@ that has nothing to do with the patient, sometimes in other languages or garbled
 proposed facts from one stretch of those words. Your job is to keep only the facts that these words actually state
 about the patient being treated.
 
-For each numbered fact answer keep true or false, with why in at most ten words.
+For each numbered fact answer keep true or false, say whose information it is (said_by), and give why in at most ten
+words.
 
 Who "the patient" is: the crew speak about the patient in the third person ("she", "he", "the patient", "your
 wife"); family and bystanders speak about the patient by their relationship ("Mom", "my husband", "Dad", "my
@@ -46,4 +47,42 @@ Examples:
 - "Unit 14, we're still at the gas station." `transport.destination = "gas station"` → keep false (radio logistics,
   not this patient's destination).
 
-Answer as JSON: {"facts": [{"n": 1, "keep": true, "why": "..."}]} with one entry per proposed fact.
+Whose information each fact is (said_by). The microphone cannot tell voices apart; the words can. Judge from how
+the words are said, never from what is medically likely:
+- medic: the crew's own report and work, in the crew's way of speaking: vital signs read out, exam findings, the
+  12-lead reading, a treatment being given ("giving aspirin 324"), the destination and ETA, clinical shorthand
+  ("62-year-old male, crushing chest pain, radiating to the left arm"), the crew's questions.
+- patient: the patient about their own body, in the first person ("my chest hurts", "I'm allergic to sulfa").
+- a word for who someone is to the patient (husband, wife, daughter, neighbor, nurse...): a person who is neither the
+  crew nor the patient, and only when the words show who they are. "She is my wife" is said by her husband; "my mom"
+  by a son or daughter, so choose "relative" when the words do not say which. Someone who talks about the patient in
+  everyday words, unsure or personal ("I guess", "as of now", "should I call our daughter?", "I found her on the
+  floor"), is not the crew: a relative, or unclear.
+- The crew passing on what someone told them is that person's information, and only the part they told: in "husband
+  says last known well was 0915" the last known well is the husband's; in "sugar 487, per mom she's been vomiting
+  since yesterday" the sugar is the medic's reading and the vomiting is the mother's. "Per the patient" or "pt
+  states" is the patient's.
+- A witness, a coworker, a store manager or staff are not family: use their own word (witness, coworker, staff).
+- unclear: the words do not show whose it is. Plain facts with no sign of who is speaking ("he has no allergies")
+  are unclear, not the medic's.
+One stretch of words can hold more than one speaker: in "When did the pain start? She started about forty minutes
+ago" the question is the medic's and the answer, with the onset, is someone else's (unclear, or a relative when the
+words show it).
+
+patient_name: the patient's own name, a person's first and/or last name, if these words state it ("The patient is
+Walter Diaz" gives "Walter Diaz"), spelled exactly as in the words; otherwise "". Never a hospital, a place, a unit,
+a score or a sentence: "we'll meet them in the cath lab", "Regional, Medic 7 inbound" and "O'Connor ED" name no patient. A speaker giving their own name ("I'm Tom, her son") or naming someone else ("Mrs. Alvarez
+next door") is not the patient's name.
+
+More examples of said_by:
+- "Her name's Maria Lopez. She takes lisinopril and she's allergic to codeine, I think. Should I call her sister?" →
+  a relative ("I think", "should I call her sister?": family speaking), not the medic.
+- "He's my husband, he's seventy. He's on Eliquis." → wife.
+- "He's on Crestor and the water pill, the cardiologist stopped his Plavix." → a relative (everyday words about his
+  medicines and his doctor), not the medic.
+- "Okay, 70-year-old male, short of breath, heart rate 110, pressure 90 over 50." → medic.
+- "Giving albuterol 2.5 by neb." → medic.
+- "My chest has been hurting since lunch." → patient.
+
+Answer as JSON: {"patient_name": "", "facts": [{"n": 1, "keep": true, "said_by": "medic", "why": "..."}]} with one
+entry per proposed fact.

@@ -1,34 +1,51 @@
-/* The handoff page: one headline, what is left, the report, and the hand over bar. Tokens only (both themes pass
+/* The handoff page: the header card, what is left, the report (with vitals and sources beside it), and the hand over bar. Tokens only (both themes pass
    npm run contrast); touch targets >= 48 px, the primary action 64 px; nothing wider than a phone. */
 .handoff-page { display: flex; flex-direction: column; gap: 20px; padding: 20px 24px 0; min-width: 0; }
 .workspace-page > .handoff-page { padding: 0; }
 @media (max-width: 560px) { .handoff-page { padding-inline: 16px; } }
 
-/* ---------- headline: who, where, what the ED has ---------- */
-.handoff-headline { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* ---------- the header card: who, why, where, what the ED has ---------- */
+.handoff-headline { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 32px; min-width: 0; padding: 18px 22px;
+  background: var(--surface-1); border: 1px solid var(--border-subtle); border-radius: 16px; }
+.handoff-who { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1 1 18rem; }
 .handoff-headline h1 { margin: 0; font-family: var(--font-heading); font-size: 1.75rem; font-weight: 750; line-height: 1.15;
   letter-spacing: -.02em; color: var(--text-primary); overflow-wrap: anywhere; }
-.handoff-where { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0; font-size: 1.125rem; font-weight: 600;
-  color: var(--text-secondary); }
+.handoff-facts { display: flex; flex-wrap: wrap; gap: 12px 32px; margin: 0; flex: 2 1 26rem; min-width: 0; }
+.handoff-facts > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; max-width: 100%; }
+.handoff-facts dt { font-size: .8125rem; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.handoff-facts dd { margin: 0; font-size: 1.25rem; font-weight: 650; line-height: 1.35; color: var(--text-primary); overflow-wrap: anywhere; }
+.handoff-facts dd small { font-size: .9375rem; font-weight: 500; color: var(--text-secondary); }
+.handoff-facts dd[data-missing] { font-weight: 500; color: var(--text-muted); }
 .handoff-chip { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; max-width: 100%; min-height: 36px; margin: 0;
   padding: 6px 14px; border-radius: 999px; font-size: .9375rem; font-weight: 700; line-height: 1.35;
   background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border-subtle); overflow-wrap: anywhere; }
 .handoff-chip[data-tone="ok"] { background: var(--ok-tint); color: var(--ok-fg); border-color: transparent; }
 .handoff-chip[data-tone="low"] { background: var(--low-tint); color: var(--low-fg); border-color: transparent; }
 .handoff-chip[data-tone="medium"] { background: var(--medium-tint); color: var(--medium-fg); border-color: transparent; }
+@media (max-width: 560px) { .handoff-headline { padding: 16px; } .handoff-headline h1 { font-size: 1.5rem; } }
 
-/* ---------- before you hand over ---------- */
-.before-handover-count { margin: 0; padding: 0 20px 10px; font-size: 1rem; color: var(--text-secondary); }
+/* ---------- before you hand over: one line, the items under it ---------- */
+.before-handover-head { align-items: center; padding-bottom: 14px; }
+.before-handover-head > div:last-child button svg { transition: transform .15s; }
+.before-handover-count { display: block; margin-top: 2px; font-size: 1rem; line-height: 1.45; color: var(--text-secondary); }
 .before-handover-count strong { color: var(--text-primary); }
+.before-handover-items { padding-bottom: 8px; border-top: 1px solid var(--border-subtle); }
+.before-handover-items[hidden] { display: none; }
+.before-handover-more { display: flex; justify-content: flex-start; padding: 6px 20px 8px; }
 .leftover-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 20px; border-top: 1px solid var(--border-subtle); }
 .leftover-row:first-child { border-top: 0; }
 .leftover-label { flex: 1 1 12rem; min-width: 0; font-size: 1.125rem; font-weight: 600; color: var(--text-primary); overflow-wrap: anywhere; }
 .leftover-row[data-settled] .leftover-label { color: var(--text-secondary); font-weight: 500; }
 .leftover-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-left: auto; }
+@media (max-width: 560px) { .before-handover-head { flex-wrap: wrap; } }
 
-/* ---------- the report: read aloud from arm's length ---------- */
+/* ---------- the report: sections on the left, vitals and sources on the right ---------- */
+.handoff-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; min-width: 0; }
+@media (min-width: 960px) { .handoff-layout { grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr); } }
+.handoff-aside { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .handoff-report-state { padding: 20px; font-size: 1rem; }
-.handoff-report-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; padding: 18px 20px 6px; }
+.handoff-report-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; padding: 18px 20px 10px;
+  border-bottom: 1px solid var(--border-subtle); }
 .handoff-report-head h2 { margin: 0; font-size: 1.375rem; font-weight: 700; color: var(--text-primary); }
 .handoff-report-head p { margin: 2px 0 0; font-size: .875rem; color: var(--text-muted); }
 .report-formats { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; margin-left: auto; font-size: .9375rem; color: var(--text-muted); }
@@ -36,11 +53,38 @@
   text-decoration: underline; text-underline-offset: 3px; }
 .report-link[aria-pressed="true"] { color: var(--text-primary); text-decoration: none; cursor: default; }
 .report-link:hover:not([aria-pressed="true"]) { background: var(--accent-tint); }
-.handoff-report-body { display: flex; flex-direction: column; gap: 18px; padding: 8px 20px 22px; }
-.handoff-report-body h3 { margin: 0 0 6px; color: var(--text-muted); }
-.handoff-report-body ul { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.handoff-report-body li { font-size: 1.375rem; line-height: 1.45; font-weight: 500; color: var(--text-primary); overflow-wrap: anywhere; }
-.handoff-report-body li:not([data-status="confirmed"]) { font-size: 1.25rem; font-weight: 400; color: var(--text-muted); }
+.handoff-report-body { display: flex; flex-direction: column; padding: 4px 20px 14px; }
+/* a section: its label in a narrow column, its lines as rows beside it (stacked on a phone) */
+.report-section { display: grid; grid-template-columns: minmax(0, 9.5rem) minmax(0, 1fr); gap: 4px 20px; padding: 12px 0;
+  border-top: 1px solid var(--border-subtle); }
+.report-section:first-child { border-top: 0; }
+.report-section h3 { margin: 0; padding-top: 6px; color: var(--text-muted); }
+.report-section ul { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; min-width: 0; }
+.report-line { padding: 4px 0; font-size: 1.25rem; line-height: 1.45; font-weight: 600; color: var(--text-primary); overflow-wrap: anywhere; }
+.report-line + .report-line { border-top: 1px dashed var(--border-subtle); }
+.report-line-label { font-weight: 500; color: var(--text-secondary); }
+.report-line:not([data-status="confirmed"]) { font-size: 1rem; font-weight: 500; color: var(--text-muted); }
+.report-line:not([data-status="confirmed"]) .report-line-label { color: var(--text-muted); }
+.report-line-icon { display: inline-block; margin-right: 6px; vertical-align: -2px; color: var(--text-muted); }
+@media (max-width: 560px) {
+  .handoff-report-body { padding-inline: 16px; }
+  .report-section { grid-template-columns: minmax(0, 1fr); }
+  .report-section h3 { padding-top: 0; }
+}
+/* vitals as tiles: label, the value large, its unit */
+.report-vitals { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 10px; margin: 0; padding: 0 16px 16px; list-style: none; }
+.report-vitals li { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 10px 12px; border-radius: 14px; background: var(--surface-2); }
+.report-vital-label { font-size: .8125rem; font-weight: 600; color: var(--text-muted); overflow-wrap: anywhere; }
+.report-vital-value { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; min-width: 0; color: var(--text-primary); }
+.report-vital-unit { font-size: .875rem; font-weight: 600; color: var(--text-muted); }
+.report-vital-detail { font-size: .8125rem; color: var(--text-secondary); }
+/* who told us what */
+.report-who { display: flex; flex-direction: column; margin: 0; padding: 0 20px 14px; list-style: none; }
+.report-who li { display: flex; flex-direction: column; gap: 2px; padding: 10px 0; border-top: 1px solid var(--border-subtle); }
+.report-who li:first-child { border-top: 0; padding-top: 2px; }
+.report-who-name { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+.report-who-items { font-size: .9375rem; line-height: 1.45; color: var(--text-secondary); overflow-wrap: anywhere; }
+.report-side-empty { margin: 0; padding: 0 20px 16px; font-size: .9375rem; color: var(--text-muted); }
 
 /* ---------- the hand over bar: always in reach ---------- */
 .handover-bar { position: sticky; bottom: 0; z-index: var(--z-sticky, 30); display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end;

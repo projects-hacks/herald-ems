@@ -16,6 +16,7 @@ from ..core import not_obtained as unobtainable
 from ..core.trends import TrendRules
 from ..core.vocabulary import Vocabulary
 from .config import HandoffConfig
+from .informants import informants
 from .kinds import LINE_KINDS
 from .lines import BuildContext, Line
 from .text import render_text
@@ -75,7 +76,8 @@ class HandoffBuilder:
                 "not_obtained": self._not_obtained(view, built, gap_labels),
                 "not_yet_confirmed": view.unconfirmed(),
             }
-        report["text"] = render_text(report, self.cfg.words)
+            report["informants"] = informants(sections, self.vocab, self.cfg.informants)
+        report["text"] = render_text(report, self.cfg.words, self.cfg.informants)
         return report
 
     def _section_lines(self, sec: dict, ctx: BuildContext) -> list[Line]:

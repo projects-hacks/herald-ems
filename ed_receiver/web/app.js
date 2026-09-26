@@ -72,7 +72,7 @@ function header(incident, badges) {
   return `<section id="incoming" class="incoming ${state}" aria-live="polite">
     <div class="who-block">
       ${what ? `<div class="kicker">${esc(String(formatValue(what)).toUpperCase())}</div>` : ''}
-      <h1 class="who"><span class="lead">${esc(lead)} —</span> ${who}<span class="demo">${demo ? ` · ${esc(demo)}` : ' · <span class="empty">age/sex not received</span>'}</span></h1>
+      <h1 class="who"><span class="lead">${esc(lead)} ·</span> ${who}<span class="demo">${demo ? ` · ${esc(demo)}` : ' · <span class="empty">age/sex not received</span>'}</span></h1>
       <div class="dest">${state === 'not-coming' ? esc(formatValue(outcome.v)) : dest ? `${state === 'handed-over' ? 'at' : 'to'} <b>${esc(formatValue(dest))}</b>` : '<span class="empty">destination not received</span>'}${tri !== 'unknown' ? ` <span class="triage ${esc(tri)}">${esc(tri)}</span>` : ''}</div>
       ${badgeHtml ? `<div class="badges">${badgeHtml}</div>` : ''}
     </div>

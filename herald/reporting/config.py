@@ -30,6 +30,8 @@ class HandoffConfig:
     time_format: str
     # score id -> criterion id -> spoken templates (the first whose placeholders all have confirmed values)
     criteria_say: dict[str, dict[str, list[str]]] = field(default_factory=dict)
+    # who told us what: {"heading", "rest", "labels": {role: how the report names it}}
+    informants: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, d: dict) -> "HandoffConfig":
@@ -41,7 +43,7 @@ class HandoffConfig:
         say = {sid: {str(cid): [t] if isinstance(t, str) else list(t) for cid, t in (m or {}).items()}
                for sid, m in (d.get("criteria_say") or {}).items()}
         return cls(formats, list(d.get("select", [])), d["default"], dict(d["words"]), value_text,
-                   d["score_text"], d["time_format"], say)
+                   d["score_text"], d["time_format"], say, dict(d.get("informants") or {}))
 
     @classmethod
     def from_config(cls, rel: str = "handoff.yaml") -> "HandoffConfig":
@@ -57,6 +59,7 @@ class HandoffConfig:
         """Everything wrong with the content against the loaded vocabulary, scores, line kinds, checklists and (when
         given) the trend change rules."""
         errs = [f"words: missing {w}" for w in REQUIRED_WORDS if w not in self.words]
+        errs += [f"informants: missing {w}" for w in ("heading", "rest", "labels") if w not in self.informants]
         checklists = set(checklist_ids)
         known_formats = set(self.formats)
         if self.default not in known_formats:

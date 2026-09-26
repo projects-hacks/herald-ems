@@ -302,7 +302,7 @@ def build_context(settings: Optional[Settings] = None, *, text_model: Optional[T
                       egress=egress, ed_token=s.ed_token, derived=ctx.derived_for_ed)
     ctx.restored = ctx.restore()
     if text_model is None:                                  # real deployment: the local model checks spoken facts
-        ctx.fact_verifier = FactVerifier(knowing)
+        ctx.fact_verifier = FactVerifier(knowing, vocab)
     if s.knowledge:
         if embedder is None and text_model is None:        # real deployment; tests pass their own (or none)
             from ..config import load_yaml

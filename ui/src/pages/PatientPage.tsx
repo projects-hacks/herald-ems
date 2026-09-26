@@ -33,7 +33,7 @@ function FactRow({ f }: { f: FactView }) {
           {f.severity && <SeverityBadge severity={f.severity} />}
         </span>
         <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-meta text-text-muted">
-          <SourceIcon capturedBy={f.captured_by} role={f.role} hasAudio={!!f.provenance.audio_id} />{sourceName(f)} · <span className="num">{hhmm(f.ts)}</span>
+          <SourceIcon capturedBy={f.captured_by} role={f.role} hasAudio={!!f.provenance.audio_id} />{sourceName(f)}{f.provenance.heard_as ? " (from the words)" : ""} · <span className="num">{hhmm(f.ts)}</span>
           {f.previous_value !== null && f.previous_value !== undefined && <span>· was {formatValue(f.previous_value)}</span>}
           {f.verify?.status === "match" && <span>· label seen ✓ (ingredient only)</span>}
         </span>

@@ -92,7 +92,7 @@ def test_bad_content_is_refused_at_startup():
                                                  ["trauma", "stroke"])
     joined = " | ".join(errs)
     for needle in ("vitals.nope", "unknown score 'nope'", "unknown checklist 'zzz'", "unknown line kind 'magic'",
-                   "unknown format 'y'", "words: missing missing"):
+                   "unknown format 'y'", "words: missing missing", "informants: missing heading"):
         assert needle in joined, needle
 
 
@@ -269,7 +269,7 @@ def test_text_is_deterministic(santa_clara_county):
     b = builder()
     one, two = b.build(inc), b.build(inc)
     assert one == two
-    lists = bool(one["not_yet_known"]) + bool(one["not_yet_confirmed"])
+    lists = bool(one["not_yet_known"]) + bool(one["not_yet_confirmed"]) + bool(one["informants"])
     assert len(one["text"].splitlines()) == 1 + len([s for s in one["sections"] if s["lines"]]) + lists
 
 

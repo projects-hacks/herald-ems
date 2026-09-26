@@ -6,9 +6,16 @@ auto_confirm_threshold: 0.8        # team lead's decision, 2026-09-24
 # patient and family, and Herald cannot tell voices apart. A fact heard there confirms itself when the check step read
 # the words and kept it AND the model is at least as sure as auto_confirm_threshold -- except the keys below, which
 # always wait for a tap (who the patient is, what they are allergic to or take, what was given, resuscitation wishes).
+# Who said it (owner's decision, 2026-09-26): the check step reads whose information each room-mic fact is from the
+# words (the medic's report, the patient, "husband"...), and that shows on the fact, in the handoff and at the ED. It
+# also lets the medic's own treatment confirm itself: an always-tap key listed in medic_report_confirms confirms when
+# the check step read it as the medic's own report ("giving aspirin 324") and the model is sure. History keys stay
+# always-tap whoever said them: on the benchmark (eval/bench_speaker.py) about 1 in 25 facts from a relative or the
+# patient was read as the medic's, e.g. a parent's "she's allergic to amoxicillin".
 room_mic:
   auto_confirm: true
   always_tap: [patient.name, allergies, meds.list, meds.given, meds.anticoagulant, code_status]
+  medic_report_confirms: [meds.given]
 # Readings the camera takes from the PATIENT MONITOR are device readings, not something a person said: they go into the
 # record confirmed and flow into the trends and the ED update like any confirmed vital (owner's product decision,
 # 2026-09-26). "From the patient monitor" means a monitor-mode read of the region the crew framed on the monitor

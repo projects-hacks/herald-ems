@@ -66,6 +66,13 @@ words:
   unit_no_space: ["%", "/"]
   not_obtained: unable to obtain                 # a required item the medic marked as not obtainable
   not_obtained_heading: Unable to obtain
+# Who told us what (herald/reporting/informants.py): each confirmed fact behind the report, grouped by who gave it.
+# A relative or bystander is named by who they are to the patient, as the check step read it from the words.
+informants:
+  heading: Who told us
+  rest: the rest
+  labels: {medic: medic, patient: patient, device: patient monitor, photo: photo, family: family,
+           bystander: bystander, unknown: speaker not identified}
 # How a value reads in a sentence (lowercase keys; booleans are "true"/"false"). Record fields as "<key>.<field>".
 value_text:
   patient.sex: {f: female, female: female, m: male, male: male}

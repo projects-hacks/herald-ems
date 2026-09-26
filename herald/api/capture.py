@@ -20,8 +20,10 @@ from .context import AppContext
 
 Broadcast = Callable[[], Awaitable[None]]
 
-# The speaker of ambient cabin speech is never inferred. The screen shows this label on the fact as it is and leaves
-# it out of the activity line (ui/src/lib/format.ts UNIDENTIFIED_SPEAKER, the same string).
+# Room-microphone speech carries no voice identity. The check step reads whose information each fact is from the
+# words (provenance.heard_as: "medic", "patient", "husband"...); when the words don't show it, the fact keeps this
+# label, which the screen shows as it is and leaves out of the activity line (ui/src/lib/format.ts
+# UNIDENTIFIED_SPEAKER, the same string).
 AMBIENT_SPEAKER = "Speaker not identified"
 
 
@@ -74,8 +76,7 @@ class CaptureService:
         for f in facts_in:
             if self.ambient:
                 f.captured_by = CapturedBy.other
-                f.role = Role.unknown
-                f.speaker = AMBIENT_SPEAKER
+                f.role, f.speaker = self._heard_as(f)
                 if not self.inc.policy.room_mic_may_confirm(f):   # the check step kept it and it may confirm itself
                     reason = "Ambient speech: verify the words, speaker, and patient before confirming"
                     f.provenance.hold_reason = "; ".join(filter(None, [f.provenance.hold_reason, reason]))
@@ -87,6 +88,15 @@ class CaptureService:
         self.inc.commit()
         self.notify(facts, before)
         return facts
+
+    def _heard_as(self, f: FactIn) -> tuple[Role, str]:
+        """(role, speaker) of a room-microphone fact: whose information the check step read it as, from the words;
+        unknown when it could not tell."""
+        heard = f.provenance.heard_as if f.provenance is not None else None
+        if heard in (Role.medic.value, Role.patient.value):
+            return Role(heard), heard
+        role = self.ctx.vocab.speaker_role(heard) if heard else None
+        return (Role(role), heard) if role else (Role.unknown, AMBIENT_SPEAKER)
 
     # ---------- speech ----------
     async def text(self, text: str, captured_by: CapturedBy, role: Optional[Role], speaker: Optional[str],
@@ -206,16 +216,27 @@ class CaptureService:
         name = ctx.text_model.model_name()
         overheard = captured_by == CapturedBy.other and default_role == Role.unknown   # the room microphone
         try:
+            # overheard words have no speaker: the extractor gets the line it was trained with for that
+            # ("[someone else speaking]"), not the screen's "Speaker not identified" as if it were a name
             facts_in = await run_in_threadpool(partial(ctx.model_extractor.extract, dispatch=self.inc.dispatch),
-                                               text, captured_by, default_role, speaker, audio_id)
+                                               text, captured_by, default_role, None if overheard else speaker, audio_id)
             discarded: list = []
+            patient_name = None
             # Every utterance, the medic's own included: from "history of diabetes, hypertension" the extractor
-            # listed metformin, insulin and lisinopril as the patient's medications (8103 test, 2026-09-26).
-            if facts_in and ctx.fact_verifier is not None:
-                try:                        # a second read: do these words say this about the patient?
-                    facts_in, discarded = await run_in_threadpool(ctx.fact_verifier.check, text, facts_in, self.inc.dispatch)
+            # listed metformin, insulin and lisinopril as the patient's medications (8103 test, 2026-09-26). Also an
+            # utterance with no proposals: "His name is Robert Chen" alone carries the name, which only the check
+            # step reads (the extractor was never trained on names; room-mic runs 2026-09-26).
+            if ctx.fact_verifier is not None:
+                try:                        # a second read: do these words say this, and whose information is it?
+                    check = await run_in_threadpool(ctx.fact_verifier.read, text, facts_in, self.inc.dispatch)
+                    facts_in, discarded, patient_name = check.kept, check.discarded, check.patient_name
                 except Exception as e:      # not checked: every proposal stays, unconfirmed, and the trace says why
                     discarded = [{"error": f"not checked: {str(e)[:120]}"}]
+            if patient_name and all(f.key != "patient.name" for f in facts_in):
+                facts_in.append(FactIn(key="patient.name", value=patient_name, role=default_role, speaker=speaker,
+                                       captured_by=captured_by, confidence=0.0,   # a name always waits for a tap
+                                       provenance=Provenance(audio_id=audio_id, text=text, checked=True,
+                                                             extractor=f"check:{ctx.fact_verifier.model_label()}")))
             if hold:
                 self._hold(facts_in, hold)
             usage = ctx.model_extractor.last_usage or {}
@@ -226,7 +247,7 @@ class CaptureService:
             entry["trace"]["model"] = {"status": "done", "name": name, "ms": round((time.perf_counter() - t0) * 1000),
                                        "tokens": usage.get("completion_tokens"), "proposed": len(facts_in),
                                        "facts": [tracer.fact_view(f) for f in added], "rejected": rejected,
-                                       "discarded": discarded,
+                                       "discarded": discarded, "patient_name": patient_name,
                                        "auto_confirm_threshold": ctx.policy.auto_confirm}
             entry["trace"]["effects"] = tracer.diff(before, self._summary())
             if overheard and not added and not entry.get("asked"):

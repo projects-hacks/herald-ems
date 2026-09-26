@@ -59,19 +59,34 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
+/** The leftovers card opens on its own only when sources disagree; open it the way the medic does. */
+async function openLeftovers() {
+  const left = await screen.findByRole("region", { name: "Before you hand over" });
+  const toggle = within(left).getByRole("button", { name: "Show" });
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  fireEvent.click(toggle);
+  expect(within(left).getByRole("button", { name: "Hide" }).getAttribute("aria-expanded")).toBe("true");
+  return left;
+}
+
 describe("before you hand over", () => {
   it("lists what is left with a count that never blocks the hand over", async () => {
     render(<HandoffPage />);
     const left = await screen.findByRole("region", { name: "Before you hand over" });
-    // 5 unconfirmed facts (grouped into rows by sentence) + 2 required items the report lacks
-    await waitFor(() => expect(within(left).getByRole("status").textContent).toMatch(/\d+ items left — you can hand over anyway/));
+    // unconfirmed facts (grouped into rows by sentence) + 2 required items the report lacks, counted by kind in one line
+    await waitFor(() => expect(within(left).getByRole("status").textContent)
+      .toMatch(/^\d+ items left: \d+ need a tap, 2 not recorded\. You can hand over anyway\.$/));
+    // no conflict: the items stay folded so the report is above the fold
+    expect(within(left).queryByRole("region", { name: "Required, not recorded" })).toBeNull();
+    await openLeftovers();
+    expect(within(left).getByRole("region", { name: "Required, not recorded" })).toBeTruthy();
     expect(within(left).getByText("Symptom onset")).toBeTruthy();
     expect((screen.getByRole("button", { name: "Hand over" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("confirms an unconfirmed fact with the same endpoint as Needs you", async () => {
     render(<HandoffPage />);
-    const left = await screen.findByRole("region", { name: "Before you hand over" });
+    const left = await openLeftovers();
     const complaint = snapshot.facts["complaint.chief"];
     const row = within(left).getAllByText((_, el) => el?.tagName === "LI" && !!el.textContent?.includes(String(complaint.value)))[0];
     fireEvent.click(within(row).getAllByRole("button", { name: "Confirm" })[0]);
@@ -82,6 +97,7 @@ describe("before you hand over", () => {
     render(<HandoffPage />);
     const left = await screen.findByRole("region", { name: "Before you hand over" });
     await within(left).findByText("Allergies");
+    await openLeftovers();
     const row = within(left).getByText("Allergies").closest("li")!;
     expect(within(row).getByRole("button", { name: "Add Allergies" })).toBeTruthy();
     fireEvent.click(within(row).getByRole("button", { name: "Not obtained" }));

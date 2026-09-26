@@ -118,6 +118,7 @@ def test_the_medics_own_words_are_checked_too(tmp_path):
 def test_the_medics_own_words_are_never_forgotten(tmp_path):
     judge = _Judge({1: False})
     ctx = _medic_says("Let me check the other arm.", [], judge)
-    assert len(ctx.incident.transcripts) == 1 and not judge.seen          # nothing proposed: nothing to check
+    assert len(ctx.incident.transcripts) == 1 and not ctx.incident.facts
+    assert "Proposed facts:\n(none)" in judge.seen[0][1]                  # nothing proposed: asked only for a name
     ctx = _medic_says("History of diabetes.", [["meds.list", ["metformin"], "m"]], judge)
     assert not ctx.incident.facts and len(ctx.incident.transcripts) == 1  # all discarded, the words stay

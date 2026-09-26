@@ -70,3 +70,23 @@ def test_received_vitals_carry_the_adult_severity_band_and_it_withdraws_for_a_ch
         assert "vitals.hr" not in client.get("/state").json()["incidents"]["odd"]["severity"]
     finally:
         INCIDENTS.clear(); LINK["last_contact_at"] = None
+
+
+def test_final_packet_keeps_who_told_us_and_the_board_renders_it():
+    """The vehicle's final packet carries `informants` ([{who, items}], herald/relay/handover.py); the receiver keeps
+    it as sent, and the handover card lists it under "Who told us" (ed_receiver/web/handover.mjs)."""
+    client = _client()
+    try:
+        informants = [{"who": "husband", "items": ["Medications", "Allergies"]},
+                      {"who": "patient monitor", "items": ["Heart rate", "SpO2"]}, {"who": "medic", "items": ["Age"]}]
+        packet = {"i": "who", "q": 1, "tier": "handover", "x": 0, "f": {},
+                  "ho": {"at": "2026-09-26T14:10:00+00:00", "title": "Medical handover (SBAR)",
+                         "sections": [{"label": "S: Situation", "lines": ["68-year-old female"]}],
+                         "not_yet_known": [], "informants": informants}}
+        assert client.post("/ingest", json=packet).json()["ack"] == 1
+        assert client.get("/state").json()["incidents"]["who"]["handover"]["informants"] == informants
+        script = client.get("/handover.mjs").text
+        assert "informantRows(handover)" in script and "Who told us" in script
+        assert ".handover-who" in client.get("/screen.css").text
+    finally:
+        INCIDENTS.clear(); LINK["last_contact_at"] = None

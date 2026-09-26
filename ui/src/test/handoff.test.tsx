@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HandoffPage } from "@/pages/HandoffPage";
 import { initialUi, useHerald } from "@/lib/store";
@@ -34,6 +34,10 @@ describe("handoff claims", () => {
     render(<HandoffPage />);
     const report = screen.getByRole("region", { name: "Handoff report" });
     expect(report.textContent).not.toContain("UNVERIFIED-COMPLAINT");
+    // sources disagree in this recording, so the conflict shows at once and the rest is one tap away
+    expect(screen.getByRole("region", { name: "Sources disagree · pick one" })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Not confirmed · stays out of the report" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^Show the other \d+ items$/ }));
     const left = screen.getByRole("region", { name: "Not confirmed · stays out of the report" });
     expect(within(left).getByText("UNVERIFIED-COMPLAINT")).toBeTruthy();
     expect(screen.queryByText("Complete")).toBeNull();

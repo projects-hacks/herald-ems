@@ -27,6 +27,9 @@ export interface Provenance {
   photo_id: string | null; crop: [number, number, number, number] | null; extractor: string | null;
   hold_reason: string | null;       // why this fact waits for the medic's tap
   normalized?: { said: string; coded: string; method: string }[];   // drug names as said → coded (§5.9d)
+  // Room-microphone speech: whose information the check step read this as, from the words alone ("medic", "patient",
+  // "husband"); `role` and `speaker` are set from it. Absent on older snapshots and on every other source.
+  heard_as?: string | null;
 }
 export interface FactView {
   id: string; key: string; value: FactValue; unit: string | null; label: string;
@@ -308,12 +311,49 @@ export type NowMessage = { type: "state"; state: Snapshot } | { type: "pong"; t:
 /** GET /api/handoff (herald/reporting/handoff.py), also the reply to POST /api/handoff/not-obtained. */
 export type HandoffLineStatus = "confirmed" | "missing" | "not_obtained" | "empty";
 export interface HandoffItem { key: string; label: string }
+/** One confirmed fact behind a report line: who gave it and when (herald/reporting/view.py). */
+export interface HandoffSource {
+  fact_id: string; key: string; role: Role | string; speaker: string | null;
+  captured_by?: CapturedBy | string; time?: string | null; ts?: string | null;
+  audio_id?: string | null; photo_id?: string | null; extractor?: string | null;
+  observed_at?: string | null; frame_id?: string | null;
+}
+export interface HandoffLine {
+  text: string; status: HandoffLineStatus | string;
+  // optional: a recorded fixture's summary and older servers send the text and status only
+  kind?: string; keys?: string[]; fact_ids?: string[]; sources?: HandoffSource[];
+}
+export interface HandoffSection { id: string; label: string; say_label?: boolean; source?: string; lines: HandoffLine[] }
+/** Who told us what (herald/reporting/informants.py): `items` are the labels of what they told, in reading order. */
+export interface HandoffInformant { who: string; role: Role | string; keys: string[]; items: string[] }
 export interface HandoffReportData {
   incident: { id: string }; as_of: string; text: string;
   format: { id: string; label: string; title: string }; formats: { id: string; label: string }[];
-  sections: { id: string; label: string; say_label?: boolean; lines: { text: string; status: HandoffLineStatus | string }[] }[];
+  sections: HandoffSection[];
   not_yet_known: HandoffItem[]; not_yet_confirmed: HandoffItem[];
   not_obtained?: HandoffItem[];          // optional: a server from before 2026-09-26 does not send it
+  informants?: HandoffInformant[];       // optional: a server (or recording) from before 2026-09-26 does not send it
+}
+
+/** GET /api/telemetry (herald/telemetry/collector.py): every field may be missing or null (no GPU reading yet, the
+ *  model server's metrics unreachable, an older server). */
+export type TelemetryKind = "stt" | "text" | "vision";
+export interface TelemetryRequest { kind: TelemetryKind | string; duration_s: number | null; energy_j: number | null; energy_wh?: number | null; watts_avg?: number | null }
+export interface Telemetry {
+  since_s?: number | null; power_w_now?: number | null; power_w_avg_60s?: number | null; gpu_util_pct?: number | null;
+  energy_wh?: number | null;
+  requests?: { attributed_energy_wh?: number | null; count?: number | null; recent?: TelemetryRequest[] | null } | null;
+  tokens?: { prompt?: number | null; completion?: number | null } | null;
+  calls?: { llm?: number | null; vision?: number | null; stt?: number | null } | null;
+  stt_audio_min?: number | null;
+  cost?: { local_usd?: number | null; cloud_equivalent_usd?: number | null; net_savings_usd?: number | null;
+    cloud_breakdown?: { llm_usd?: number | null; stt_usd?: number | null } | null } | null;
+  cloud_ai_calls?: number | null;
+  model_server?: { mean_request_latency_s?: number | null; generation_tok_s_last_30s?: number | null; running?: number | null } | null;
+  assumptions?: {
+    electricity_usd_per_kwh?: number | null; cloud_llm_usd_per_1m_in?: number | null; cloud_llm_usd_per_1m_out?: number | null;
+    cloud_stt_usd_per_min?: number | null; sources?: Record<string, string> | null; energy_scope?: string | null;
+  } | null;
 }
 
 export interface Health {

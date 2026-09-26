@@ -42,6 +42,17 @@ class Vocabulary:
                     return role
         return None
 
+    def speaker_words(self) -> list[str]:
+        """Every word that names someone other than the crew or the patient by who they are to the patient
+        ("husband", "neighbor", "nurse"), in config order, without repeats: the people groups `speaker_roles` maps."""
+        out: list[str] = []
+        for groups in self.speaker_roles.values():
+            for g in groups:
+                for word in self.people.get(g) or []:
+                    if word not in out:
+                        out.append(word)
+        return out
+
     def coerce(self, key: str, value: Any) -> Any:
         """Convert an extracted value to the key's declared type; ValueError if it can't be."""
         meta = self.keys[key]

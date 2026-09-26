@@ -117,12 +117,13 @@ export function EmptyState({ icon: Icon, cat = "check", title, children, classNa
 
 // ---------- small pieces ----------
 
-/** A rounded-square tile in the category color with a white glyph (the iPad sidebar and Settings look). */
+/** A rounded-square tile in the category's tint with the glyph in the category's foreground: the pair is defined for
+ *  both themes (styles/tokens.css), where a white glyph vanished on the light theme's pale tints. */
 export function IconTile({ icon: Icon, cat, size = 32, className, iconClassName }: {
   icon: LucideIcon; cat: Cat; size?: number; className?: string; iconClassName?: string;
 }) {
   return (
-    <span className={cn("grid shrink-0 place-items-center rounded-[var(--radius-tile)] text-white", CAT_BG[cat], className)}
+    <span className={cn("grid shrink-0 place-items-center rounded-[var(--radius-tile)]", CAT_BG[cat], CAT_FG[cat], className)}
       style={{ width: size, height: size, borderRadius: Math.round(size * 0.26) }} aria-hidden>
       <Icon size={Math.round(size * 0.56)} strokeWidth={2.4} className={iconClassName} />
     </span>

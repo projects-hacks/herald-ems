@@ -4,6 +4,12 @@
 .cabin select { touch-action:manipulation; }
 .cabin summary { touch-action:manipulation; }
 .cabin button:disabled { opacity:.5; cursor:not-allowed; }
+/* a disagreement's choice holds the values themselves: they stay readable when the choice is off (a replay, offline);
+   its "Use this" line goes muted instead (AttentionQueue Choice) */
+.cabin button[data-choice]:disabled { opacity:1; }
+/* the one line that says something stopped stays at full strength even while its tap is unavailable (red fill, white
+   text passes contrast only undimmed) */
+.cabin .presence-pill[data-tone="down"]:disabled { opacity:1; }
 .cabin button:focus-visible { outline:3px solid var(--accent); outline-offset:4px; }
 .cabin summary:focus-visible { outline:3px solid var(--accent); outline-offset:4px; }
 .cabin label:focus-within { outline:3px solid var(--accent); outline-offset:4px; }
@@ -52,6 +58,27 @@
 .cabin-settings-facts div { display:flex; flex-wrap:wrap; gap:4px 12px; }
 .cabin-settings-facts dt { color:var(--text-muted); min-width:10rem; }
 .cabin-settings-facts dd { color:var(--text-primary); font-weight:600; }
+/* On this box (TelemetryPanel): the cloud count first, then small stat tiles; numbers in tabular figures */
+.telemetry { display:grid; gap:12px; min-width:0; }
+.telemetry-cloud { display:flex; align-items:center; gap:16px; padding:14px 18px; border-radius:14px; background:var(--surface-2); color:var(--text-secondary); font-size:.9375rem; line-height:1.4; }
+.telemetry-cloud strong { color:var(--text-primary); }
+.telemetry-cloud-n { font-size:2.5rem; font-weight:750; line-height:1; color:var(--text-primary); }
+.telemetry-cloud[data-zero] { background:var(--ok-tint); }
+.telemetry-cloud[data-zero] .telemetry-cloud-n, .telemetry-cloud[data-zero] strong { color:var(--ok-fg); }
+.telemetry-heading { margin:6px 0 0; font-size:.9375rem; font-weight:650; color:var(--text-primary); }
+.telemetry-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(10.5rem, 1fr)); gap:10px; margin:0; }
+.telemetry-stat { display:flex; flex-direction:column; gap:2px; min-width:0; padding:10px 14px; border-radius:12px; background:var(--surface-2); }
+.telemetry-stat dt { font-size:.8125rem; font-weight:600; color:var(--text-muted); }
+.telemetry-stat dd { margin:0; font-size:1.25rem; font-weight:650; line-height:1.3; color:var(--text-primary); overflow-wrap:anywhere; }
+.telemetry-stat dd.telemetry-note { font-size:.8125rem; font-weight:400; line-height:1.35; }
+.telemetry-note { font-size:.8125rem; color:var(--text-muted); }
+.telemetry-table { width:100%; border-collapse:collapse; font-size:.9375rem; }
+.telemetry-table th, .telemetry-table td { padding:8px 10px; border-bottom:1px solid var(--border-subtle); text-align:right; }
+.telemetry-table th:first-child { text-align:left; }
+.telemetry-table thead th { font-size:.8125rem; font-weight:600; color:var(--text-muted); }
+.telemetry-table tbody th { font-weight:600; color:var(--text-primary); }
+.telemetry-table td { color:var(--text-primary); }
+.telemetry-assumptions { display:grid; gap:4px; margin:0; padding-left:1.1rem; list-style:disc; font-size:.8125rem; line-height:1.45; color:var(--text-muted); overflow-wrap:anywhere; }
 .cabin-dock { border-top:1px solid var(--border-subtle); display:flex; align-items:center; flex-wrap:wrap; background:var(--surface-1); position:sticky; bottom:0; padding:15px 24px 9px; gap:7px 18px; box-shadow:var(--shadow-2); z-index:25; }
 .cabin-listening-status { display:flex; align-items:center; flex:1; min-width:190px; gap:10px; }
 .cabin-listening-status strong { font-weight:600; font-size:.875rem; }

@@ -41,6 +41,7 @@ def final_report_body(inc) -> dict:
         "sections": [{"label": section.get("label"), "lines": [line.get("text") for line in section.get("lines", [])]}
                      for section in report.get("sections", [])],
         "not_yet_known": [gap.get("text") or gap.get("label") for gap in report.get("not_yet_known", [])],
+        "informants": [{"who": row.get("who"), "items": row.get("items", [])} for row in report.get("informants", [])],
     }
 
 

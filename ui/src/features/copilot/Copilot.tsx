@@ -23,7 +23,7 @@ export function PresencePill({ p, paused, disabled, onToggle }: { p: Presence; p
   return <button type="button" className="presence-pill" data-tone={p.tone} disabled={disabled} onClick={onToggle}
     aria-label={live && !paused ? "Pause listening" : "Start listening"}>
     {p.tone === "down" ? <TriangleAlert size={16} aria-hidden /> : <span className="presence-dot" aria-hidden />}
-    <span role={p.tone === "down" ? "alert" : "status"}>{paused ? "Paused — tap to listen and watch" : p.text}</span>
+    <span role={p.tone === "down" ? "alert" : "status"}>{paused ? "Paused. Tap to listen and watch" : p.text}</span>
   </button>;
 }
 

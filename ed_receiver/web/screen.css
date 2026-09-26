@@ -142,6 +142,11 @@ button:focus-visible,select:focus-visible,summary:focus-visible{outline:3px soli
 .handover-received{font-size:1.2rem;font-weight:800;color:var(--ok)}
 .handover section h3{margin-top:.7rem}.handover ul{margin:.2rem 0;padding-left:1.2rem}.handover li{margin:.2rem 0;font-size:1rem}
 .handover>p.muted{margin-top:.4rem}
+/* who told us what: one row per source, the source bold, what they told beside it */
+.handover>.handover-who{grid-column:1/-1;border-top:1px solid var(--line);margin-top:.8rem}
+.handover-who ul{list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(18rem,1fr));gap:.3rem 1.6rem}
+.handover-who li{display:grid;grid-template-columns:auto 1fr;gap:.8rem;align-items:baseline;margin:.15rem 0;font-size:1rem}
+.handover-who li b{font-weight:800;color:var(--fg)}.handover-who li span{color:var(--fg);overflow-wrap:anywhere}
 
 /* secondary: history, report, link */
 details>summary{cursor:pointer;font-weight:700;font-size:.9rem;color:var(--muted);padding:.2rem 0}

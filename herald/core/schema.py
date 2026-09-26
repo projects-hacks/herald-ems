@@ -93,6 +93,8 @@ class Provenance(BaseModel):
     observed_at: Optional[datetime] = None  # server receipt time of a selected camera frame; distinct from fact ingestion
     auto: bool = False
     checked: bool = False               # the check step read the words and answered "keep" for this fact
+    heard_as: Optional[str] = None      # whose information the check step read this as, from the words alone:
+                                        # "medic", "patient", or who they are to the patient ("husband")
 
 
 class FactIn(BaseModel):

@@ -250,6 +250,8 @@ def test_ed_receiver_stores_the_final_packet_and_the_received_tap():
         handover = received["handover"]
         assert handover["at"] == ctx.incident.handed_over_at.isoformat() and handover["arrived_at"]
         assert handover["sections"] and any("116" in line for s in handover["sections"] for line in s["lines"])
+        # who told us what travels with the final report ([{who, items}]) for the board's handover card
+        assert handover["informants"] and all(set(row) == {"who", "items"} and row["items"] for row in handover["informants"])
         assert [p["tier"] for p in received["packets"]].count("handover") == 1
         # A retried final packet is acknowledged again but never applied twice.
         again = {"i": ctx.incident.id, "q": handover["seq"], "tier": "handover", "f": {}, "ho": {"at": "changed"}}

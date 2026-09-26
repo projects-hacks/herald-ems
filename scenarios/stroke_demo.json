@@ -7,8 +7,25 @@
    "pause": 3
   },
   {
+   "authorize": "Regional",
+   "pause": 1,
+   "note": "the medic authorizes the stroke pre-alert to Regional; confirmed facts then go to the ED as they arrive",
+   "scope": "stroke pre-alert set"
+  },
+  {
    "say": "68-year-old female, sudden left-sided weakness, husband says she was fine at LKW_TIME.",
    "pause": 4
+  },
+  {
+   "say": "Her name is Margaret Wilson. She's my wife.",
+   "by": "other",
+   "speaker": "husband",
+   "pause": 3
+  },
+  {
+   "confirm": "patient.name",
+   "pause": 2,
+   "note": "the check step read her name from the husband's words; a name always waits for the medic's tap"
   },
   {
    "say": "Mild left facial droop, left arm and leg can't lift, eyes deviated to the right, speech is slurred, no agnosia.",

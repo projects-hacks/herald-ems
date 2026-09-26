@@ -44,7 +44,7 @@ function TrendChart({ values, cat, label, floor = 0, confirmed }: { values: numb
 
 /** A vital as it appears on this page. `key` is the vital that carries the trend and the severity; `extra` holds the
  *  facts shown with it (diastolic BP with systolic, the GCS components with the total, air/oxygen with SpO2). */
-interface VitalCard { key: string; label: string; latest: FactView | null; waiting: FactView | null; extra: FactView[]; trend?: Changed }
+export interface VitalCard { key: string; label: string; latest: FactView | null; waiting: FactView | null; extra: FactView[]; trend?: Changed }
 
 // The reading order of a set of observations. A key not listed still appears, after these.
 const ORDER = ["vitals.sbp", "vitals.hr", "vitals.spo2", "vitals.rr", "vitals.temp", "vitals.glucose", "vitals.gcs_total",
@@ -88,7 +88,7 @@ export function monitorShare(trend?: Changed): string | null {
 }
 
 /** The value as a clinician writes it: 162/96 for blood pressure, "9 (E2 V2 M5)" for GCS, the plain value otherwise. */
-function shownValue(card: VitalCard): { value: string; unit?: string; detail?: string } {
+export function shownValue(card: VitalCard): { value: string; unit?: string; detail?: string } {
   const f = card.latest;
   if (!f) return { value: "—" };
   const by = (k: string) => card.extra.find((e) => e.key === k);

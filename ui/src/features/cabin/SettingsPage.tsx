@@ -1,10 +1,12 @@
 // Settings: only what a medic sets for themselves, plus what this vehicle is running. Theme and Patients are not here:
 // both are one tap in the header. The guided demo and the detailed (explain) view are presenter tools; they stay on
 // the presenter bar (` key), Shift+P / Shift+E and ?present=1 / ?mode=explain, so a tap here cannot take a medic off
-// the cabin screen mid-call (owner, 2026-09-26).
+// the cabin screen mid-call (owner, 2026-09-26). "On this box" is the telemetry the landing page promises: tokens,
+// GPU power and energy, and the cloud cost of the same work.
 import { useHerald } from "@/lib/store";
 import type { TypeScale } from "@/lib/store";
 import type { LocationState } from "@/features/transport/useVehicleLocation";
+import { TelemetryPanel } from "./TelemetryPanel";
 
 const LOCATION: Record<LocationState, string> = {
   off: "Location is not shared. The ETA is the crew’s estimate.",
@@ -73,6 +75,11 @@ export function SettingsPage({ location = "off" }: { location?: LocationState } 
           <div><dt>Cloud AI calls</dt><dd className="num">{s.counters.cloud_ai_calls}</dd></div>
         </dl>
       </section>}
+
+      <section aria-labelledby="settings-box">
+        <h2 id="settings-box" className="cabin-settings-heading">On this box</h2>
+        <TelemetryPanel />
+      </section>
 
       <p className="cabin-muted">Prototype. Not validated for use during patient care.</p>
     </div>

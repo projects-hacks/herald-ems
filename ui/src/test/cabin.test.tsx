@@ -25,7 +25,7 @@ describe("ambulance workspace", () => {
     render(<CabinApp />);
     expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Listen and watch" })).toBeTruthy();
-    expect(screen.getByText(/Paused — tap to listen and watch/)).toBeTruthy();
+    expect(screen.getByText(/Paused. Tap to listen and watch/)).toBeTruthy();
     expect(screen.getByRole("region", { name: "How the patient is moving" })).toBeTruthy();
     expect(screen.getByRole("group", { name: "Patient" })).toBeTruthy();                // the patient bar, not a card
     expect(screen.queryByRole("region", { name: "What Herald did" })).toBeNull();      // a system record, not on Now

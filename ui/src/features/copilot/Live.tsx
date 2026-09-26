@@ -19,7 +19,7 @@ export function HeraldLive({ p, paused, disabled, onToggle, level, waitingTap, w
   const heard = s ? liveHeard(s) : null;
   const state: OrbState = p.tone === "replay" ? "replay" : p.tone === "down" ? "down" : paused ? "paused"
     : waitingTap ? "waiting" : heard?.working ? "thinking" : p.tone === "ok" ? "listening" : "paused";
-  const status = state === "down" ? p.text : state === "paused" ? "Paused — tap to listen and watch"
+  const status = state === "down" ? p.text : state === "paused" ? "Paused. Tap to listen and watch"
     : state === "waiting" ? "Tap anywhere to start listening" : state === "thinking" ? "Understanding what was just said…"
     : state === "replay" ? p.text : p.text;
   const warn = !!warning && state !== "down" && state !== "paused" && state !== "replay";   // still listening, but the medic should know
