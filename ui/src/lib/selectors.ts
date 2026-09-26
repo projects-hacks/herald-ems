@@ -159,12 +159,19 @@ export function reconciledDuplicates(s: Snapshot): number | null {
 }
 
 // ---------- patient picture groups (§3.1.9) ----------
+// The patient record, in the order a receiving clinician reads it. Safety facts lead (an allergy or an anticoagulant
+// must never be at the bottom of a column); then who the patient is, what happened, the vitals and exam, injuries,
+// the working assessment, the care already given, the medication history, transport and scene. First match wins.
 export const GROUPS: [string, (key: string) => boolean][] = [
+  ["Safety", (k) => k === "allergies" || k === "meds.anticoagulant" || k === "code_status"],
   ["Patient", (k) => k.startsWith("patient.") || k === "complaint.chief"],
-  ["History", (k) => k.startsWith("stroke.") || k.startsWith("symptom.") || k === "code_status"],
+  ["Presentation", (k) => k.startsWith("stroke.") || k.startsWith("symptom.")],
   ["Vitals", (k) => k.startsWith("vitals.")],
-  ["Exam", (k) => k.startsWith("exam.") || k.startsWith("ecg.")],
-  ["Meds & allergies", (k) => k.startsWith("meds.") || k === "allergies"],
+  ["Exam", (k) => k.startsWith("exam.") || k.startsWith("ecg.") || k === "airway.status"],
+  ["Injuries", (k) => k.startsWith("trauma.")],
+  ["Assessment", (k) => k === "impression.primary" || k === "infection.suspected" || k === "triage.category"],
+  ["Care given", (k) => k === "meds.given" || k === "procedures.done"],
+  ["Medications", (k) => k.startsWith("meds.")],
   ["Transport", (k) => k.startsWith("transport.")],
   ["Scene", (k) => k.startsWith("scene.")],
 ];

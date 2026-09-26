@@ -58,6 +58,8 @@ export interface Changed {
   // The smallest change worth noticing for this vital (config/trends.yaml abs_change / falls_by): a display hint the
   // sparkline uses as a minimum visible span, so a sub-threshold wobble does not render as dramatically as a cliff.
   floor?: number;
+  // Per point in `series`: was that reading confirmed? A waiting camera/monitor point is drawn hollow, never as a value.
+  confirmed?: boolean[];
 }
 
 // ---------- scores (herald/scoring, config/scores/*.yaml) ----------

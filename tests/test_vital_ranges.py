@@ -39,6 +39,11 @@ BOUNDARIES = [
     ("vitals.glucose", 53, "critical"), ("vitals.glucose", 54, "abnormal"), ("vitals.glucose", 69, "abnormal"),
     ("vitals.glucose", 70, None), ("vitals.glucose", 142, None), ("vitals.glucose", 249, None),
     ("vitals.glucose", 250, "abnormal"),
+    # GCS total: 3-8 severe (critical), 9-14 reduced (abnormal), 15 normal
+    ("vitals.gcs_total", 3, "critical"), ("vitals.gcs_total", 8, "critical"), ("vitals.gcs_total", 9, "abnormal"),
+    ("vitals.gcs_total", 14, "abnormal"), ("vitals.gcs_total", 15, None),
+    # motor GCS: < 6 is the 2021 field-triage red criterion
+    ("vitals.gcs_motor", 5, "critical"), ("vitals.gcs_motor", 6, None),
 ]
 
 
@@ -77,8 +82,8 @@ def test_every_boundary_lands_in_exactly_one_band(ranges):
     cfg = load_yaml("vital_ranges.yaml")["vitals"]
     for key, spec in cfg.items():
         for band in spec.get("bands", []):
-            forms = [k for k in ("below", "at_or_below", "at_or_above", "from") if k in band]
-            assert len(forms) == 1, f"{key} band {band} must use exactly one of below/at_or_below/at_or_above/from"
+            forms = [k for k in ("below", "at_or_below", "at_or_above", "from", "in") if k in band]
+            assert len(forms) == 1, f"{key} band {band} must use exactly one of below/at_or_below/at_or_above/from/in"
             if "from" in band:
                 assert "to" in band and band["to"] > band["from"], f"{key} band {band} needs to > from"
 
@@ -123,3 +128,10 @@ def test_same_saturation_reads_differently_on_the_two_scales(ranges):
 
 def test_scale_2_still_withdraws_when_not_applicable(ranges):
     assert ranges.severity("vitals.spo2", 80, spo2_scale=2, applicable=False) is None
+
+
+@pytest.mark.parametrize("level, expected", [("A", None), ("C", "critical"), ("V", "critical"), ("P", "critical"),
+                                             ("U", "critical"), ("u", "critical")])
+def test_acvpu_consciousness(ranges, level, expected):
+    """NEWS2 scores any of C/V/P/U 3 points, the parameter maximum, so each is critical; Alert is not coloured."""
+    assert ranges.severity("vitals.consciousness", level) == expected

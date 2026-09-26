@@ -36,7 +36,8 @@ describe("ambulance workspace", () => {
     render(<CabinApp />);
     fireEvent.click(screen.getByRole("button", { name: "Record" }));
     fireEvent.click(screen.getByRole("tab", { name: "What Herald did" }));
-    expect(screen.getByRole("region", { name: "What Herald did" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "What Herald did", level: 1 })).toBeTruthy();
+    expect(screen.getByRole("group", { name: "Show" })).toBeTruthy();                 // the timeline filters
   });
   it("shows safety facts first in the patient bar, marked as safety", () => {
     const f = (key: string, label: string, value: unknown, ts: string) => ({ id: key, key, label, value, unit: null,

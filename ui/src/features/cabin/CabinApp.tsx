@@ -9,7 +9,6 @@ import { alertKey, alertTitle } from "@/lib/selectors";
 import { monitorIdle } from "@/features/capture/monitor";
 import { ConnectBand, RestoredCallBanner, StaleOverlay } from "@/components/GlobalStates";
 import { AttentionQueue } from "@/features/attention/AttentionQueue";
-import { StatTiles } from "@/features/overview/StatTiles";
 import { useAttention } from "@/hooks/useAttention";
 import { patientLabel } from "@/lib/format";
 import { patientLine, presence } from "@/lib/copilot";
@@ -26,7 +25,7 @@ import "./workspace.css";
 import "./capture-workspace.css";
 import "../copilot/copilot.css";
 import type { WorkspacePanel } from "./WorkspaceNav";
-import { EdCard, HeraldActivity, MovementStrip, PatientBar, PresencePill, ProtocolCues, ReplayBar, SituationBar } from "@/features/copilot/Copilot";
+import { EdCard, MovementStrip, PatientBar, PresencePill, ProtocolCues, ReplayBar, SituationBar } from "@/features/copilot/Copilot";
 import { HeraldLive } from "@/features/copilot/Live";
 import "../copilot/live.css";
 import type { FixturePlayer } from "@/lib/ws";
@@ -139,8 +138,8 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
                 <button key={v} role="tab" aria-selected={recordView === v} onClick={() => setRecordView(v)}>{label}</button>)}
             </div>
             {(recordView === "facts" || panel === "patient") && <PatientPage />}
-            {recordView === "trends" && panel === "record" && <><StatTiles clocks={false} /><TrendsPage /></>}
-            {recordView === "transcript" && panel === "record" && <><HeraldActivity limit={40} /><TranscriptPage onReview={() => open(null)} /></>}
+            {recordView === "trends" && panel === "record" && <TrendsPage />}
+            {recordView === "transcript" && panel === "record" && <TranscriptPage onReview={() => open(null)} />}
           </div>}
           {panel === "patients" && <div className="workspace-page-surface"><h1 className="workspace-page-heading">Patients</h1><PatientRoster expanded /><EncounterHistory /></div>}
           {panel === "handoff" && <HandoffPage />}
