@@ -81,11 +81,15 @@ export function CabinApp({ player }: { player?: FixturePlayer | null } = {}) {
     monitorWatching: !!(monitor.active || (s?.capture?.auto && s.capture.sees !== "off")),
     cameraError: s?.capture?.error ?? (monitor.error ? monitor.message : null) });
   const multi = (s?.patients?.length ?? 0) > 1;
+  // The slot name only tells patients apart at a multi-patient scene, and the record id means nothing to a medic;
+  // the stage shows once it moves past "in the ambulance".
+  const stage = s?.incident.ended_at ? "Finished" : s?.incident.transferred_at ? "Care transferred" : s?.incident.arrived_at ? "At destination" : null;
+  const reference = [multi ? s?.patients?.find((p) => p.id === s.incident.id)?.label : null, stage].filter(Boolean).join(" · ");
   return <div className={`cabin workspace-shell copilot ${panel ? "workspace-task" : ""} ${ui.typeScale > 1 ? "cabin-large-text" : ""}`}><div className="workspace-body">
     <header className="copilot-header">
       {panel ? <button className="copilot-back" onClick={close} aria-label="Back to now"><ChevronLeft size={18} />Now</button>
         : <span className="copilot-mark" aria-label="Herald"><Activity size={22} strokeWidth={2.6} aria-hidden /></span>}
-      <div className="copilot-patient"><h1>{s ? patientLine(s) : "Waiting for the vehicle"}</h1>{s && <span className="encounter-reference">{s.patients?.find((p) => p.id === s.incident.id)?.label || "Patient"} · {s.incident.id.slice(-6)} · {s.incident.ended_at ? "Finished" : s.incident.transferred_at ? "Care transferred" : s.incident.arrived_at ? "At destination" : "In ambulance"}</span>}</div>
+      <div className="copilot-patient"><h1>{s ? patientLine(s) : "Waiting for the vehicle"}</h1>{s && reference && <span className="encounter-reference">{reference}</span>}</div>
       {panel && <PresencePill p={pill} paused={ui.capturePaused} disabled={isReplay || ambient.blocked}
         onToggle={() => setUi({ capturePaused: !ui.capturePaused })} />}   {/* on Now, Herald's orb is the control */}
       {isReplay && player && <ReplayBar player={player} />}
