@@ -103,3 +103,22 @@ def test_any_presentation_brings_its_own_county_passage():
     for cue in c.pending(snap):
         c.resolve(cue)
     assert [q.lower() for q in kb.queries] == ["seizure prehospital treatment"]
+
+
+def test_contextual_key_points_are_not_reused_for_another_patient_or_changed_situation():
+    c = cues(FakeKB({"answerable": True, "chosen": 1, "results": [PASSAGE]}))
+    first = {**STROKE, "incident": {"id": "patient-one"}, "summary": "First patient"}
+    work = c.pending(first)
+    second = {**STROKE, "incident": {"id": "patient-two"}, "summary": "Second patient"}
+    for item in work:
+        c.resolve(item)  # old lookup completes after switching patients
+    assert c.view(first)[0]["state"] == "found"
+    assert c.view(second)[0]["state"] == "searching"
+    changed = {**first, "summary": "Changed clinical picture"}
+    assert c.view(changed)[0]["state"] == "searching"
+
+
+def test_a_protocol_request_with_a_later_observation_is_not_command_only():
+    c = cues(FakeKB(None))
+    assert c.ask("p", "Show me the protocol for stroke.")["command_only"]
+    assert not c.ask("p", "Show me the protocol for stroke. Blood pressure is 150 over 90.")["command_only"]

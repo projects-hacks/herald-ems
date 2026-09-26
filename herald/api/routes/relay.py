@@ -8,7 +8,7 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
 from ...relay.netem import MODES
-from . import get_ctx, get_hub
+from . import get_ctx, get_hub, check_current_patient
 
 router = APIRouter(prefix="/api")
 
@@ -21,7 +21,7 @@ class RelayConfig(BaseModel):
     ed_url: Optional[str] = None
 
 
-@router.post("/relay/authorize")
+@router.post("/relay/authorize", dependencies=[Depends(check_current_patient)])
 async def relay_authorize(body: Authorize, c=Depends(get_ctx), h=Depends(get_hub)):
     """The medic authorizes destination + scope once; in-scope updates then flow on their own."""
     label, alert_ids = c.pre_alert_scope()

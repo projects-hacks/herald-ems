@@ -203,7 +203,9 @@ def test_unfinished_call_is_restored_from_an_encrypted_local_file(tmp_path):
     restored = build_context(settings, text_model=FakeModel(name=None), stt=FakeSTT(), vision=FakeVision())
     assert restored.restored is True and restored.incident.values()["vitals.hr"] == 116
     restored.end_incident()
-    assert not stored.exists()
+    assert stored.exists()
+    closed = build_context(settings, text_model=FakeModel(name=None), stt=FakeSTT(), vision=FakeVision())
+    assert closed.incident.ended_at and closed.incident.values()["vitals.hr"] == 116
     assert key_path.exists()                         # retained separately for the next unfinished call
 
 
@@ -367,7 +369,8 @@ def test_ending_a_multi_patient_call_disposes_every_patients_media(tmp_path):
     assert cleanup["deleted"]["audio"] == sorted([driver_audio, passenger_audio])
     assert set(cleanup["patients"]) == {inc.id for inc in context.roster.incidents()}
     assert all(inc.ended_at is not None for inc in context.roster.incidents())
-    assert client.post("/api/patients", json={"label": "Late patient"}).status_code == 409
+    assert client.post("/api/patients", json={"label": "Late patient"}).status_code == 200
+    assert context.incident.ended_at is None
 
 
 def test_ed_receiver_keeps_the_patient_label_from_relay_packets():

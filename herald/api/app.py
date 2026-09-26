@@ -18,7 +18,7 @@ from .auth import DeviceTokenMiddleware
 from .context import AppContext, build_context, wire_capture
 from .hub import Hub
 from .routes import capture as capture_routes
-from .routes import agentic_capture, egress, handoff, incident, patients, protocols, relay, system
+from .routes import agentic_capture, egress, handoff, incident, patients, protocols, relay, system, encounters
 
 
 log = logging.getLogger("herald")
@@ -52,7 +52,8 @@ def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
         async def relay_changed():
             ctx.persist()
             await hub.broadcast()
-        task = asyncio.create_task(ctx.relay.run_forever(relay_changed))
+        from .encounters import relay_loop
+        task = asyncio.create_task(relay_loop(ctx, relay_changed))
         ctx.telemetry.start()
         sync_task = None
         if ctx.knowledge is not None:
@@ -73,6 +74,8 @@ def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
                 loop = asyncio.get_running_loop()
                 while True:
                     await asyncio.sleep(2)
+                    if ctx.restored or ctx.incident.ended_at:
+                        continue
                     try:
                         todo = ctx.cues.pending(ctx.incident.snapshot())
                     except Exception:
@@ -94,7 +97,7 @@ def create_app(ctx: Optional[AppContext] = None) -> FastAPI:
     app.add_middleware(DeviceTokenMiddleware, token=ctx.settings.device_token)
     app.state.ctx, app.state.hub = ctx, hub
     app.state.capture = capture_service
-    for module in (incident, patients, capture_routes, relay, system, protocols, handoff, agentic_capture, egress):
+    for module in (incident, encounters, patients, capture_routes, relay, system, protocols, handoff, agentic_capture, egress):
         app.include_router(module.router)
 
     @app.websocket("/ws")
