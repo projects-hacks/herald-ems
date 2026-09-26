@@ -30,6 +30,8 @@ class Incident:
         self.transcripts: list[dict] = []
         self.audit_log: list[dict] = []
         self.ended_at = None
+        self.arrived_at = None
+        self.transferred_at = None
         self.media_ids: dict[str, set[str]] = {"audio": set(), "photo": set(), "evidence": set()}
         self.media_disposal: Optional[dict] = None
         self.news2_history: list[dict] = []   # score history, recorded once per utterance by the projector
@@ -90,6 +92,7 @@ class Incident:
 
     def hold_verification(self, fact_id: str, reason: str) -> None:
         with self.lock:
+            self.ensure_open()
             fact = next((f for f in self.facts if f.id == fact_id and f.status != Status.rejected), None)
             if fact:
                 fact.provenance.hold_reason = join_reasons(fact.provenance.hold_reason, reason)
@@ -98,6 +101,7 @@ class Incident:
 
     def apply_verification(self, fact_id: str, result: Verification, *, pending_reason: str, reason=None) -> Fact:
         with self.lock:
+            self.ensure_open()
             fact = next(f for f in self.facts if f.id == fact_id and f.status != Status.rejected)
             fact.verify = result
             remaining = [r for r in (fact.provenance.hold_reason or "").split("; ") if r != pending_reason]
@@ -111,6 +115,7 @@ class Incident:
     def resolve_verification(self, fact_id: str, value=None) -> Fact:
         """An explicit medic decision; editing appends a replacement event and retains the original."""
         with self.lock:
+            self.ensure_open()
             fact = next((f for f in self.facts if f.id == fact_id), None)
             if fact is None:
                 raise KeyError(fact_id)

@@ -22,6 +22,8 @@ class PatientIn(BaseModel):
 
 
 def check_patient(c, expected):
+    if c.incident.ended_at or c.restored:
+        raise HTTPException(409, "Review or resume the active encounter before capturing")
     if expected is not None and expected != c.incident.id:
         raise HTTPException(409, "patient changed; review before retrying")
 

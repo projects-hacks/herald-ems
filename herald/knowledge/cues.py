@@ -43,8 +43,8 @@ class ProtocolCues:
         self.asked: dict[str, list[dict]] = {}              # incident id -> the medic's own requests, newest first
         self.max_chars: int = cfg.get("max_chars", 700)
         self._kb, self._county, self._picker = kb, county, picker      # picker: KeyPointPicker, or None to skip
-        self._results: dict[tuple[str, str], dict] = {}
-        self._inflight: set[tuple[str, str]] = set()
+        self._results: dict[tuple, dict] = {}
+        self._inflight: set[tuple] = set()
         self._lock = threading.Lock()
 
     # ---------- the medic asking ----------
@@ -56,11 +56,13 @@ class ProtocolCues:
             i = low.find(phrase)
             if i < 0:
                 continue
-            topic = re.split(r"[.,;!?]", said[i + len(phrase):], maxsplit=1)[0].strip(" :\"'“”")   # the topic ends with the clause
+            clauses = re.split(r"[.,;!?]", said[i + len(phrase):], maxsplit=1)
+            topic = clauses[0].strip(" :\"'“”")   # the topic ends with the clause
             topic = re.sub(r"^(a|an|the)\s+", "", topic, flags=re.I)
             if len(topic) < 3:
                 return None
-            cue = {"id": f"asked:{topic.lower()}", "title": f"You asked: {topic}", "query": self._q(topic), "topic": topic, "asked": True,
+            cue = {"id": f"asked:{topic.lower()}", "title": f"You asked: {topic}", "query": self._q(topic), "topic": topic, "asked": True, "command_only": i == 0 and
+                       (len(clauses) == 1 or clauses[1].strip(" .,!?:;").lower() in ("", "please")),
                    "at": datetime.now(timezone.utc).isoformat()}
             with self._lock:
                 mine = [c for c in self.asked.get(incident_id, []) if c["id"] != cue["id"]]
@@ -86,10 +88,12 @@ class ProtocolCues:
                                         "topic": v.strip()})
             elif alerts & set(c["when"].get("alerts", [])) or checklists & set(c["when"].get("checklists", [])):
                 out.append(c)
-        return out
+        context = self.situation(snap)
+        patient = (snap.get("incident") or {}).get("id", "")
+        return [{**c, "cache_key": (self._county(), patient, context, c["id"])} for c in out]
 
-    def _key(self, cue: dict) -> tuple[str, str]:
-        return (self._county(), cue["id"])
+    def _key(self, cue: dict) -> tuple:
+        return tuple(cue.get("cache_key", (self._county(), "", "", cue["id"])))
 
     @staticmethod
     def situation(snap: dict) -> str:

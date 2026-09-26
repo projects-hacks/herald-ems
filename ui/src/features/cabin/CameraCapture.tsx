@@ -6,7 +6,7 @@ import { useHerald } from "@/lib/store";
 export interface CameraStatus { active: boolean; busy: boolean; message: string; failed: boolean }
 export function CameraCapture({ visible = true, onStatus, onReview }: { visible?: boolean; onStatus?: (status: CameraStatus) => void; onReview?: () => void }) {
   const incident = useHerald((s) => s.snapshot?.incident.id);
-  const blocked = useHerald((s) => s.source !== "live" || s.stale || s.conn !== "open" || !s.snapshot);
+  const blocked = useHerald((s) => s.source !== "live" || s.stale || s.conn !== "open" || !s.snapshot || !!s.snapshot?.incident.ended_at || !!s.snapshot?.restored);
   const replay = useHerald((s) => s.source === "fixture");
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);

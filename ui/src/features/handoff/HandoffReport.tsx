@@ -14,7 +14,7 @@ export function HandoffReport() {
   const stale = useHerald((state) => state.stale || state.conn !== "open");
   const [report, setReport] = useState<Report | null>(null), [error, setError] = useState("");
   const [format, setFormat] = useState(""), [retry, setRetry] = useState(0);
-  const patient = s?.incident.id, revision = JSON.stringify([s?.facts, s?.events, s?.county.id]);
+  const patient = s?.incident.id, revision = JSON.stringify([s?.facts, s?.events, s?.county.id, s?.incident]);
   useEffect(() => { setFormat(""); }, [patient]);
   useEffect(() => {
     setReport(null); setError("");

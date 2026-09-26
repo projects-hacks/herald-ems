@@ -9,7 +9,7 @@ import { useHerald } from "@/lib/store";
 
 export function ManualEntry() {
   const contract = useContract();
-  const disabled = useHerald((s) => s.source === "fixture" || s.stale || s.conn !== "open" || s.ui.heldAlerts);
+  const disabled = useHerald((s) => s.source === "fixture" || s.stale || s.conn !== "open" || s.ui.heldAlerts || !!s.snapshot?.incident.ended_at || !!s.snapshot?.restored);
   const [open, setOpen] = useState(false);
   const [key, setKey] = useState("");
   const [raw, setRaw] = useState("");

@@ -1,4 +1,5 @@
 // Clinician-first handoff: the report and unresolved patient information lead; transport plumbing is secondary.
+import { EncounterControls } from "@/features/cabin/EncounterControls";
 import { AlertCircle, CheckCircle2, ChevronDown, ClipboardList, Download, ListOrdered, Radio, Send, UserCheck } from "lucide-react";
 import { factValue, patientLabel, hhmm } from "@/lib/format";
 import { HandoffReport as StructuredHandoffReport } from "@/features/handoff/HandoffReport";
@@ -97,8 +98,9 @@ export function HandoffPage() {
   const header = <PageHeader title="Handoff" description={r.authorized ? `Preparing handoff to ${r.authorized.destination}` : "Review the patient story, resolve missing information, then authorize the pre-alert."} />;
   const wrap = (body: React.ReactNode) => <div className="flex flex-col gap-5 px-6 pt-5 pb-6">{header}{body}</div>;
   // A replay has no /api/handoff to fetch: lead with the snapshot summary, expanded, instead of the empty fetched card.
-  const report = isReplay ? <HandoffReport s={s} />
-    : <><StructuredHandoffReport /><details><summary className="min-h-12 p-3">Snapshot summary and text export</summary><HandoffReport s={s} /></details></>;
+  const report = <>{isReplay ? <HandoffReport s={s} />
+    : <><StructuredHandoffReport /><details><summary className="min-h-12 p-3">Snapshot summary and text export</summary><HandoffReport s={s} /></details></>}
+    <EncounterControls key={s.incident.id} /></>;
   if (!r.configured) return wrap(<>{report}<Card><EmptyState icon={Send} cat="ed" title="The receiving link is not set up">The read-aloud report remains available. Ask your system administrator to connect the receiving department.</EmptyState></Card></>);
   if (!r.authorized) return wrap(<>{report}<Card className="max-w-lg p-5"><AuthorizeForm s={s} /></Card></>);
   return wrap(<>

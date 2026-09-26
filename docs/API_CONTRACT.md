@@ -12,6 +12,16 @@ The authoritative snapshot types are in `ui/src/lib/types.ts`; HTTP and WebSocke
 - Clinical change precedes positive stroke screens, contradictions and routine confirmation in the review queue. Source disagreements require an explicit choice, with nothing preselected. Model availability failure is a prominent urgent state.
 - Transcript rows update in place; new entries wait behind an explicit jump while older entries are being read. Provenance describes recorded evidence, not model reasoning.
 
+### Encounter lifecycle (2026-09-26)
+
+- `Snapshot.incident` adds nullable `arrived_at` and `transferred_at` ISO timestamps. These are explicit medic tap times, distinct from `started` and `ended_at`; finishing never implies transfer. Patient roster rows add `ended_at`.
+- `POST /api/encounters/current/arrive|transfer|finish` requires `X-Herald-Patient` matching the active patient, otherwise 409. Milestone taps are idempotent; arrival cannot follow recorded transfer. Finish closes only this patient, disposes registered media and stops capture; no name/DOB is required. Closed records reject clinical writes.
+- `POST /api/encounters/resume` requires the same patient header and an open encounter. It clears `restored`; recovered browser and vehicle capture stay off until this review action. Capture continues through feed blips during an open, reviewed encounter.
+- `POST /api/patients` adds a separate patient at the current scene; no other patient is ended. The UI supplies a temporary label when none is entered. `POST /api/incident` finishes the current scene and starts a fresh roster; 409 if another patient at the scene is still open. Existing incident/patient/relay authorization endpoints reject a supplied stale patient header. The legacy `/api/incident/end` closes every patient in the current roster.
+- Finishing or replacing an encounter retains its structured record. `Snapshot.encounter_history` lists prior-scene patients with `started`, `ended_at`, label, summary, destination, authorization and `delivery_pending`. `history_persisted` states whether recovery is enabled. `GET /api/encounters` returns this list and `persisted`; `GET /api/encounters/{id}` returns the retained incident, label, confirmed handoff and relay status, without activating it. Current-scene completed patients remain in the roster for review.
+- Encrypted recovery format v2 retains the current roster and prior calls, each with its own authorization, ED URL, sequence, in-flight packet, acknowledged fields, full-sync progress and clinician receipts. v1 is still readable. Sequence allocation and retry packets are saved before network delivery. Pending authorized updates continue to their original receiver after a new call; the fresh relay has no authorization. Unconfirmed facts and raw media do not leave the vehicle. With persistence off, history is memory-only.
+- Contextual protocol results are scoped to county, patient and situation. A standalone spoken protocol request is recorded as a request, not extracted as a clinical observation. Mixed utterances containing clinical clauses still go through extraction. Retrieved passages are labeled as excerpts rather than full protocols.
+
 ### Continuous workspace and journey contract (2026-09-25)
 
 The medic workspace's **Camera → Monitor watch** uses the existing S9 endpoints below, always with the active `incident_id`. It remains mounted across internal care-page navigation. It requests camera access only on Start, allows at most one unacknowledged JPEG, and stops on tab hide, patient change, disconnect or explicit Stop. `/capture.html` remains the standalone option.
@@ -443,7 +453,7 @@ export interface HandoffReport {
   formats: { id: string; label: string }[];
   selected_by: string;                           // "checklist:trauma" | "default" | "request"
   incident: { id: string; dispatch: string | null; started: string; ended_at: string | null;
-              media_disposal: MediaDisposal | null };
+              arrived_at: string | null; transferred_at: string | null; media_disposal: MediaDisposal | null };
   county: { id: string; name: string };
   as_of: string;                                 // time of the last fact (ISO)
   open_checklists: ChecklistId[];

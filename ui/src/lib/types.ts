@@ -156,6 +156,7 @@ export interface TranscriptEntry {
 // ---------- mass-casualty patient roster (TASK_SPECS S5) ----------
 export type TriageCategory = "immediate" | "delayed" | "minimal" | "expectant" | "dead";
 export interface PatientSummary {
+  ended_at?: string | null;
   id: string; label: string; triage: TriageCategory | null; summary: string;
   readiness_done: number; readiness_total: number;
 }
@@ -211,9 +212,12 @@ export interface Snapshot {
   capture_groups?: CaptureGroup[];      // absent on older vehicles and recorded fixtures
   incident: {
     id: string; dispatch: string | null; started: string; ended_at: string | null;
+    arrived_at?: string | null; transferred_at?: string | null;
     media_disposal: MediaDisposal | null;
   };
   patients: PatientSummary[];
+  encounter_history?: (PatientSummary & { started: string; destination: string | null; authorized: boolean; delivery_pending: boolean })[];
+  history_persisted?: boolean;
   active_patient: string;
   restored: boolean;                     // unfinished call recovered after a server restart
   summary: string;

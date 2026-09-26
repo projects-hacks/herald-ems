@@ -45,7 +45,7 @@ describe("medic workspace navigation", () => {
   it("warns the medic when an unfinished call was restored", () => {
     useHerald.setState({ snapshot: { ...snapshot, restored: true } });
     render(<CabinApp />);
-    expect(screen.getByText(/Unfinished call restored/)).toBeTruthy();
+    expect(screen.getByText(/Saved encounter restored/)).toBeTruthy();
   });
 });
 
