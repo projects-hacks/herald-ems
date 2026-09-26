@@ -193,6 +193,9 @@ start_app() {
   if pid_alive app; then stop_pid app; fi                       # always restart ours so it runs this checkout's code
   if taken_v4 "${HERALD_BIND_HOST:-127.0.0.1}" "$PORT"; then die "port $PORT is used by a process this script did not start: HERALD_PORT=<free port> scripts/herald.sh up"; fi
   systemctl --user is-active --quiet herald-memguard.service 2>/dev/null && ok "memory guard active" || warn "memory guard not running (scripts/memguard.sh install)"
+  # The demo app (8100) keeps its call in data/; any other port gets its own call folder, so a teammate's app on the
+  # same checkout never overwrites the demo's saved call (both wrote data/state before).
+  [ "$PORT" = 8100 ] || export HERALD_RUN_DIR="${HERALD_RUN_DIR:-$ROOT/data/instances/$PORT}"
   HERALD_STT_PRELOAD=1 HERALD_LLM_MODEL="$LLM" HERALD_VISION_MODEL="$VISION" HERALD_ED_URL="http://127.0.0.1:$LINK_PORT" \
     start_bg app "$PY" -m uvicorn herald.app:app --host "${HERALD_BIND_HOST:-127.0.0.1}" --port "$PORT"
   local health=""

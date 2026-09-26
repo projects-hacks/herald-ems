@@ -62,6 +62,9 @@ class Settings(BaseModel):
     capture_config: str = "capture.yaml"
     root: Path = ROOT                             # the repo: web/, ui/dist/
     data_dir: Optional[Path] = None               # captured audio and photos (default: <root>/data)
+    # One app instance's own call: saved state, audio and photos. Reference data (protocols, the drug index) stays in
+    # data_dir and is shared. Two apps on one checkout with the same call folder overwrote each other's saved call.
+    run_dir: Optional[Path] = None
     persistence: bool = True                       # encrypted recovery for unfinished calls only
     state_key_file: Optional[Path] = None          # separate from patient data; default ~/.config/herald/
     # protocol lookup (P9): build the county knowledge base (embeddings on CPU, cached per document version)
@@ -98,7 +101,7 @@ class Settings(BaseModel):
 
     @property
     def audio_dir(self) -> Path:
-        return (self.data_dir or self.root / "data") / "audio"
+        return (self.run_dir or self.data_dir or self.root / "data") / "audio"
 
     @property
     def protocols_dir(self) -> Path:
@@ -106,11 +109,11 @@ class Settings(BaseModel):
 
     @property
     def photo_dir(self) -> Path:
-        return (self.data_dir or self.root / "data") / "photos"
+        return (self.run_dir or self.data_dir or self.root / "data") / "photos"
 
     @property
     def state_dir(self) -> Path:
-        return (self.data_dir or self.root / "data") / "state"
+        return (self.run_dir or self.data_dir or self.root / "data") / "state"
 
     @property
     def state_key_path(self) -> Path:
@@ -158,6 +161,7 @@ class Settings(BaseModel):
             capture_auto=e.get("HERALD_CAPTURE_AUTO", "0") == "1",
             capture_config=e.get("HERALD_CAPTURE_CONFIG", "capture.yaml"),
             data_dir=Path(e["HERALD_DATA_DIR"]) if e.get("HERALD_DATA_DIR") else None,
+            run_dir=Path(e["HERALD_RUN_DIR"]) if e.get("HERALD_RUN_DIR") else None,
             persistence=e.get("HERALD_PERSISTENCE", "1") == "1",
             state_key_file=Path(e["HERALD_STATE_KEY_FILE"]) if e.get("HERALD_STATE_KEY_FILE") else None,
             knowledge=e.get("HERALD_KNOWLEDGE", "1") == "1",
