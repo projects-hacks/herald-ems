@@ -2,7 +2,17 @@ const readings = document.getElementById("readings"), phase = document.getElemen
 const play = document.getElementById("play");
 let index = 0, timer = null;
 try {
-  const response = await fetch("/fixtures/monitor_journey.json");
+  // Which journey to play: fixtures/monitor_scenarios.json lists them; ?scenario=<id> picks one (the default otherwise),
+  // so the page can be bookmarked per demo. Changing the picker reloads the page on the new journey.
+  const listing = await fetch("/fixtures/monitor_scenarios.json");
+  if (!listing.ok) throw new Error("Synthetic scenario list unavailable");
+  const { default: fallback, scenarios } = await listing.json();
+  const wanted = new URLSearchParams(location.search).get("scenario");
+  const chosen = scenarios.find((s) => s.id === wanted) ?? scenarios.find((s) => s.id === fallback) ?? scenarios[0];
+  const pick = document.getElementById("pick");
+  for (const s of scenarios) pick.append(new Option(s.label, s.id, false, s.id === chosen.id));
+  pick.onchange = () => { const url = new URL(location.href); url.searchParams.set("scenario", pick.value); location.assign(url); };
+  const response = await fetch(chosen.file);
   if (!response.ok) throw new Error("Synthetic scenario unavailable");
   const scenario = await response.json();
   const { tick_ms: tickMs, simulated_minutes_per_tick: minutesPerTick } = scenario.display;

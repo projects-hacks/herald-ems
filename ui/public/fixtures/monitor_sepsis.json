@@ -1,0 +1,89 @@
+{
+  "display": {
+    "tick_ms": 1000,
+    "simulated_minutes_per_tick": 0.1666666667
+  },
+  "simulated_minutes": {
+    "start": 10,
+    "end": 30
+  },
+  "readings": [
+    {
+      "key": "vitals.hr",
+      "label": "Heart rate",
+      "unit": "bpm"
+    },
+    {
+      "key": "vitals.sbp",
+      "label": "Systolic BP",
+      "unit": "mmHg"
+    },
+    {
+      "key": "vitals.spo2",
+      "label": "SpO2",
+      "unit": "%"
+    },
+    {
+      "key": "vitals.rr",
+      "label": "Respiratory rate",
+      "unit": "breaths/min"
+    },
+    {
+      "key": "vitals.etco2",
+      "label": "End-tidal CO2",
+      "unit": "mmHg"
+    }
+  ],
+  "description": "Synthetic sepsis transport display for camera-to-state integration checks. These values are visual test data, not a physiological model, treatment guide, or patient record.",
+  "scenario_label": "Synthetic transport of suspected sepsis with falling blood pressure",
+  "steps": [
+    {
+      "minute": 10,
+      "vitals.hr": 118,
+      "vitals.sbp": 98,
+      "vitals.spo2": 93,
+      "vitals.rr": 24,
+      "vitals.etco2": 26
+    },
+    {
+      "minute": 14,
+      "vitals.hr": 124,
+      "vitals.sbp": 90,
+      "vitals.spo2": 92,
+      "vitals.rr": 26,
+      "vitals.etco2": 24
+    },
+    {
+      "minute": 18,
+      "vitals.hr": 130,
+      "vitals.sbp": 82,
+      "vitals.spo2": 90,
+      "vitals.rr": 28,
+      "vitals.etco2": 21
+    },
+    {
+      "minute": 22,
+      "vitals.hr": 126,
+      "vitals.sbp": 86,
+      "vitals.spo2": 91,
+      "vitals.rr": 27,
+      "vitals.etco2": 22
+    },
+    {
+      "minute": 26,
+      "vitals.hr": 118,
+      "vitals.sbp": 94,
+      "vitals.spo2": 93,
+      "vitals.rr": 24,
+      "vitals.etco2": 25
+    },
+    {
+      "minute": 30,
+      "vitals.hr": 110,
+      "vitals.sbp": 102,
+      "vitals.spo2": 94,
+      "vitals.rr": 22,
+      "vitals.etco2": 28
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "display": {
+    "tick_ms": 1000,
+    "simulated_minutes_per_tick": 0.1666666667
+  },
+  "simulated_minutes": {
+    "start": 10,
+    "end": 30
+  },
+  "readings": [
+    {
+      "key": "vitals.hr",
+      "label": "Heart rate",
+      "unit": "bpm"
+    },
+    {
+      "key": "vitals.sbp",
+      "label": "Systolic BP",
+      "unit": "mmHg"
+    },
+    {
+      "key": "vitals.spo2",
+      "label": "SpO2",
+      "unit": "%"
+    },
+    {
+      "key": "vitals.rr",
+      "label": "Respiratory rate",
+      "unit": "breaths/min"
+    },
+    {
+      "key": "vitals.etco2",
+      "label": "End-tidal CO2",
+      "unit": "mmHg"
+    }
+  ],
+  "description": "Synthetic trauma transport display for camera-to-state integration checks. These values are visual test data, not a physiological model, treatment guide, or patient record.",
+  "scenario_label": "Synthetic transport after a fall on a blood thinner, with bleeding",
+  "steps": [
+    {
+      "minute": 10,
+      "vitals.hr": 104,
+      "vitals.sbp": 118,
+      "vitals.spo2": 96,
+      "vitals.rr": 20,
+      "vitals.etco2": 34
+    },
+    {
+      "minute": 14,
+      "vitals.hr": 120,
+      "vitals.sbp": 96,
+      "vitals.spo2": 94,
+      "vitals.rr": 24,
+      "vitals.etco2": 29
+    },
+    {
+      "minute": 18,
+      "vitals.hr": 134,
+      "vitals.sbp": 78,
+      "vitals.spo2": 92,
+      "vitals.rr": 27,
+      "vitals.etco2": 24
+    },
+    {
+      "minute": 22,
+      "vitals.hr": 130,
+      "vitals.sbp": 84,
+      "vitals.spo2": 93,
+      "vitals.rr": 26,
+      "vitals.etco2": 25
+    },
+    {
+      "minute": 26,
+      "vitals.hr": 120,
+      "vitals.sbp": 94,
+      "vitals.spo2": 94,
+      "vitals.rr": 23,
+      "vitals.etco2": 28
+    },
+    {
+      "minute": 30,
+      "vitals.hr": 112,
+      "vitals.sbp": 102,
+      "vitals.spo2": 95,
+      "vitals.rr": 21,
+      "vitals.etco2": 31
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "default": "cardiac",
+  "scenarios": [
+    {
+      "id": "cardiac",
+      "label": "Cardiac arrest, after return of pulse",
+      "file": "/fixtures/monitor_journey.json"
+    },
+    {
+      "id": "trauma",
+      "label": "Fall on a blood thinner, bleeding",
+      "file": "/fixtures/monitor_trauma.json"
+    },
+    {
+      "id": "stroke",
+      "label": "Stroke, high blood pressure",
+      "file": "/fixtures/monitor_stroke.json"
+    },
+    {
+      "id": "sepsis",
+      "label": "Sepsis, falling pressure",
+      "file": "/fixtures/monitor_sepsis.json"
+    }
+  ]
+}

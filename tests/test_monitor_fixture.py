@@ -23,3 +23,25 @@ def test_monitor_fixture_is_a_complete_synthetic_transport_journey():
     keys = [reading["key"] for reading in fixture["readings"]]
     assert keys == ["vitals.hr", "vitals.sbp", "vitals.spo2", "vitals.rr", "vitals.etco2"]
     assert all(set(keys).issubset(step) for step in fixture["steps"])
+
+
+def test_every_listed_scenario_is_a_complete_journey_the_jump_check_accepts():
+    # The simulator's picker (ui/public/monitor.js) lists these; each plays at the same pace, over the same keys, and a
+    # change between two camera reads 30 s apart stays inside the capture agent's jump limits (config/capture.yaml), so
+    # the demo's own values are never held as misreads.
+    import yaml
+    listing = json.loads((ROOT / "ui/public/fixtures/monitor_scenarios.json").read_text())
+    ids = [s["id"] for s in listing["scenarios"]]
+    assert listing["default"] in ids and len(ids) == len(set(ids)) >= 4
+    limits = yaml.safe_load((ROOT / "config/capture.yaml").read_text())["monitor"]["jump"]["max_step"]
+    for s in listing["scenarios"]:
+        fixture = json.loads((ROOT / "ui/public" / s["file"].lstrip("/")).read_text())
+        assert "not a physiological model" in fixture["description"] and fixture["scenario_label"]
+        assert fixture["display"] == {"tick_ms": 1000, "simulated_minutes_per_tick": 0.1666666667}
+        assert [step["minute"] for step in fixture["steps"]] == [10, 14, 18, 22, 26, 30]
+        keys = [reading["key"] for reading in fixture["readings"]]
+        assert keys == ["vitals.hr", "vitals.sbp", "vitals.spo2", "vitals.rr", "vitals.etco2"]
+        per_minute = {k: max(abs(b[k] - a[k]) / (b["minute"] - a["minute"]) for a, b in zip(fixture["steps"], fixture["steps"][1:]))
+                      for k in keys}
+        # 30 s of real time is 5 simulated minutes at one tick (1/6 minute) per second
+        assert all(per_minute[k] * 5 < limits[k] for k in keys), (s["id"], per_minute)
