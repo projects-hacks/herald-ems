@@ -18,6 +18,9 @@ function fact(over: Partial<Snapshot["facts"][string]>): Snapshot["facts"][strin
     confidence: 1, previous_value: null, previous_ts: null, ...over } as Snapshot["facts"][string];
 }
 
+/** A vital's card on the Trends & scores tab: one card per vital now, not a separate latest-readings strip. */
+const vital = (key: string) => document.querySelector(`[data-vital="${key}"]`) as HTMLElement;
+
 function openTrends(snapshot: Snapshot) {
   useHerald.setState({ snapshot, source: "live", stale: false, conn: "open", ui: initialUi("") });
   render(<CabinApp />);
@@ -31,19 +34,19 @@ describe("vital severity on the medic screen", () => {
 
   it("shows a word beside a critical value, so it is never colour alone", () => {
     openTrends({ ...base, facts: { "vitals.spo2": fact({ severity: "critical" }) }, changed: [] });
-    const panel = screen.getByText("Latest confirmed readings").closest("section")!;
+    const panel = vital("vitals.spo2");
     expect(panel.textContent).toContain("critical");     // the WORD, not just a colour
     expect(panel.textContent).toContain("84");
   });
 
   it("shows 'out of range' for an abnormal value", () => {
     openTrends({ ...base, facts: { "vitals.hr": fact({ key: "vitals.hr", label: "Heart rate", value: 104, unit: "/min", severity: "abnormal" }) }, changed: [] });
-    expect(screen.getByText("Latest confirmed readings").closest("section")!.textContent).toContain("out of range");
+    expect(vital("vitals.hr").textContent).toContain("out of range");
   });
 
   it("gives a normal value no severity word at all", () => {
     openTrends({ ...base, facts: { "vitals.sbp": fact({ key: "vitals.sbp", label: "Systolic BP", value: 118, unit: "mmHg" }) }, changed: [] });
-    const panel = screen.getByText("Latest confirmed readings").closest("section")!;
+    const panel = vital("vitals.sbp");
     expect(panel.textContent).toContain("118");
     expect(panel.textContent).not.toContain("critical");
     expect(panel.textContent).not.toContain("out of range");
@@ -71,7 +74,7 @@ describe("vital severity on the medic screen", () => {
 
   it("marks a monitor-read value with its source, not only in the Facts tab", () => {
     openTrends({ ...base, facts: { "vitals.spo2": fact({ captured_by: "device", severity: "critical" }) }, changed: [] });
-    expect(screen.getByText("Latest confirmed readings").closest("section")!.querySelector('[aria-label="monitor"]')).toBeTruthy();
+    expect(vital("vitals.spo2").querySelector('[aria-label="monitor"]')).toBeTruthy();
   });
 
   it("colours an out-of-range value on the live 'How the patient is moving' panel, even when it did not move", () => {

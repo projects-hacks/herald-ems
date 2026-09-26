@@ -195,8 +195,10 @@ class Projector:
                        # The smallest change worth noticing (config/trends.yaml), so a sparkline can keep a minimum
                        # visible span and a sub-threshold wobble does not look like a cliff. Display hint only.
                        **({"floor": self.trends.floor(key)} if self.trends.floor(key) is not None else {}),
-                       # Labelled for the screen: which of these readings still need the medic's tap.
-                       "unconfirmed": bool(waiting), "unconfirmed_fact_ids": [f.id for f in waiting]}
+                       # Labelled for the screen: which of these readings still need the medic's tap, per point too,
+                       # so a screen can draw the confirmed trend and hold a waiting camera reading apart from it.
+                       "unconfirmed": bool(waiting), "unconfirmed_fact_ids": [f.id for f in waiting],
+                       "confirmed": [f.status == Status.confirmed for f in h]}
                 if waiting:
                     newest = waiting[-1]
                     message = self.trends.sentence(

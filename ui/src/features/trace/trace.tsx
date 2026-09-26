@@ -2,7 +2,7 @@
 // trace entries used by the explain-mode panel and the Transcript page, until the Herald-thinking panel (U6).
 import { Camera, Cpu, Keyboard, ListChecks, Mic, Monitor } from "lucide-react";
 import { formatValue, hhmm } from "@/lib/format";
-import type { TranscriptEntry } from "@/lib/types";
+import type { FactStatus, TranscriptEntry } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Badge, IconTile } from "@/components/kit";
 import { AudioEvidence } from "@/components/AudioEvidence";
@@ -10,9 +10,10 @@ import { useHerald } from "@/lib/store";
 import { ActionButton } from "@/components/ActionButton";
 import { api } from "@/lib/api";
 
-export function summarize(t: TranscriptEntry): string {
+/** `live` is each fact's current status (the trace keeps the status at capture time); without it the trace's is used. */
+export function summarize(t: TranscriptEntry, live?: Map<string, FactStatus>): string {
   const facts = [...t.trace.rules.facts, ...(t.trace.model.facts ?? [])];
-  const tap = facts.filter((f) => f.status === "unconfirmed").length;
+  const tap = facts.filter((f) => (live?.get(f.id) ?? f.status) === "unconfirmed").length;
   const bits = [`${facts.length} fact${facts.length === 1 ? "" : "s"}`];
   if (tap) bits.push(`${tap} need${tap === 1 ? "s" : ""} your tap`);
   if (t.trace.effects.alerts_new.some((a) => a.type === "contradiction")) bits.push("sources disagree · held");
@@ -28,14 +29,20 @@ export const sourceIcon = (t?: TranscriptEntry) =>
   !t ? Mic : t.captured_by === "camera" ? Camera : t.captured_by === "device" ? Monitor : t.audio_id ? Mic : Keyboard;
 
 /** One captured utterance or photo, with the model step (or the monitor readings) and what changed on the screen. */
-export function TraceEntry({ t, wide = false, concise = false, onReview }: {
-  t: TranscriptEntry; wide?: boolean; concise?: boolean; onReview?: () => void;
+/** `ruled` draws the rule above the entry explicitly, for a list whose rows are wrapped (every entry is then the first
+ *  child of its own row, so the default first-child rule would never draw); left unset, the first entry has none. */
+export function TraceEntry({ t, wide = false, concise = false, onReview, ruled }: {
+  t: TranscriptEntry; wide?: boolean; concise?: boolean; onReview?: () => void; ruled?: boolean;
 }) {
   const snapshot = useHerald((s) => s.snapshot);
   const blocked = useHerald((s) => s.source === "fixture" || s.stale || s.conn !== "open");
   const Icon = sourceIcon(t);
   const m = t.trace.model;
-  const facts = [...t.trace.rules.facts, ...(m.facts ?? [])];
+  // A trace records each fact's status as it was when captured; the medic may have confirmed or rejected it since.
+  // Read the live status from the snapshot, so a confirmed fact no longer says "needs tap" or offers a Confirm.
+  const live = new Map<string, FactStatus>();
+  if (snapshot) for (const f of [...snapshot.timeline, ...Object.values(snapshot.facts), ...Object.values(snapshot.events ?? {}).flat()]) live.set(f.id, f.status);
+  const facts = [...t.trace.rules.facts, ...(m.facts ?? [])].map((f) => ({ ...f, status: live.get(f.id) ?? f.status }));
   const eligible = facts.filter((f) => f.status === "unconfirmed" && !f.hold_reason).map((f) => f.id);
   const failed = m.status === "error" || m.status === "unavailable";
   const processing = <div className="mt-2 flex flex-wrap gap-1.5">
@@ -50,7 +57,7 @@ export function TraceEntry({ t, wide = false, concise = false, onReview }: {
   return (
     <article className={cn("group/entry flex gap-3", wide ? "pl-5" : "pl-4")}>
       <IconTile icon={Icon} cat="speech" size={30} className="mt-3.5" />
-      <div className={cn("min-w-0 flex-1 border-t border-border-subtle py-3.5 group-first/entry:border-t-0", wide ? "pr-5" : "pr-4")}>
+      <div className={cn("min-w-0 flex-1 border-border-subtle py-3.5", ruled === undefined ? "border-t group-first/entry:border-t-0" : ruled && "border-t", wide ? "pr-5" : "pr-4")}>
         <p className="flex items-center gap-2 text-meta text-text-muted">
           <span className="font-semibold text-cat-speech-fg">{t.speaker ?? t.captured_by}</span><span className="num">{hhmm(t.ts)}</span>
         </p>
@@ -86,13 +93,13 @@ export function TraceEntry({ t, wide = false, concise = false, onReview }: {
         {wide && facts.length > 0 && (
           <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-meta text-text-secondary">
             {facts.map((f) => (
-              <li key={f.id}><span className="text-text-muted">{f.label}</span> {formatValue(f.value)}{f.status === "unconfirmed" && <span className="text-medium-fg"> · needs tap</span>}</li>
+              <li key={f.id}><span className="text-text-muted">{f.label}</span> {formatValue(f.value)}{f.status === "unconfirmed" && <span className="text-medium-fg"> · needs tap</span>}{f.status === "rejected" && <span className="text-text-muted"> · rejected</span>}</li>
             ))}
           </ul>
         )}
         <AudioEvidence id={t.audio_id} />
         <p role={failed ? "alert" : m.status === "running" ? "status" : undefined}
-          className={cn("mt-1.5 text-meta", failed ? "text-medium-fg" : "text-text-muted")}>{summarize(t)}</p>
+          className={cn("mt-1.5 text-meta", failed ? "text-medium-fg" : "text-text-muted")}>{summarize(t, live)}</p>
         {concise && <details className="mt-2"><summary className="min-h-12 cursor-pointer py-3 text-meta text-text-secondary">Processing details</summary>{processing}</details>}
       </div>
     </article>

@@ -1,11 +1,11 @@
 // The copilot screen's own regions: the presence pill, what Herald did, how the
 // patient moved, and what the ED has. Everything here is a clinical outcome or an action; system status appears
 // only when something has stopped working.
-import { ArrowDownRight, ArrowUpRight, BookOpenCheck, Download, Ear, FileText, Share2, Monitor, Pause, Play, RotateCcw, Send, ShieldCheck, SkipForward, TriangleAlert } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BookOpenCheck, Download, FileText, Share2, Pause, Play, RotateCcw, SkipForward, TriangleAlert } from "lucide-react";
 import type { FixturePlayer } from "@/lib/ws";
 import type { ProtocolCue } from "@/lib/types";
 import { api } from "@/lib/api";
-import { activity, cuePoints, edHas, keyPoints, setAside, patientKnown, SAFETY_KEYS, type ActivityKind, type Presence } from "@/lib/copilot";
+import { cuePoints, edHas, keyPoints, patientKnown, SAFETY_KEYS, type Presence } from "@/lib/copilot";
 import { GROUPS } from "@/lib/selectors";
 import { clockSeconds, factValue, hhmmss } from "@/lib/format";
 import { useNow } from "@/hooks/useNow";
@@ -23,28 +23,6 @@ export function PresencePill({ p, paused, disabled, onToggle }: { p: Presence; p
     {p.tone === "down" ? <TriangleAlert size={16} aria-hidden /> : <span className="presence-dot" aria-hidden />}
     <span role={p.tone === "down" ? "alert" : "status"}>{paused ? "Paused — tap to listen and watch" : p.text}</span>
   </button>;
-}
-
-const KIND_ICON: Record<ActivityKind, typeof Ear> = { heard: Ear, read: Monitor, checked: ShieldCheck, found: BookOpenCheck, sent: Send };
-
-/** What Herald heard, read, checked, found and sent, newest first. Not a clinical view, so it lives on the Record
- *  page (the What Herald did tab) rather than on Now; `onAll` adds a link when it is shown as a summary. */
-export function HeraldActivity({ onAll, limit = 6 }: { onAll?: () => void; limit?: number }) {
-  const s = useHerald((st) => st.snapshot);
-  const contract = useContract();
-  const name = (k: string) => contract?.keys[k]?.label ?? (k.startsWith("score.") ? (s?.scores as unknown as Record<string, { name?: string } | undefined> | undefined)?.[k.slice(6)]?.name : undefined)
-    ?? (k.startsWith("alert.") ? "pre-alert status" : k.split(".").at(-1)!.replace(/_/g, " "));
-  const lines = s ? activity(s, limit, name) : [];
-  return <section className="copilot-activity" aria-labelledby="activity-h">
-    <h2 id="activity-h">What Herald did</h2>
-    {lines.length ? <ol className="herald-timeline">{lines.map((l) => { const Icon = KIND_ICON[l.kind]; return <li key={l.id} data-kind={l.kind}>
-      <span className="tl-node" aria-hidden><Icon size={14} /></span>
-      <span className="tl-body"><span className="tl-text">{l.text}</span>{l.detail && <span className="tl-detail">{l.detail}</span>}</span>
-      <time>{hhmm(l.ts)}</time>
-    </li>; })}</ol> : <p className="activity-empty">Nothing yet. Herald records what it hears, reads and sends here.</p>}
-    {s && setAside(s) > 0 && <p className="activity-aside">Set aside {setAside(s)} {setAside(s) === 1 ? "remark" : "remarks"} with nothing clinical in {setAside(s) === 1 ? "it" : "them"}</p>}
-    {lines.length > 0 && onAll && <button className="activity-all" onClick={onAll}>Full record</button>}
-  </section>;
 }
 
 export function MovementStrip({ onTrends }: { onTrends: () => void }) {

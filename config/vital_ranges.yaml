@@ -116,6 +116,35 @@ vitals:
       - {from: 70, to: 250, severity: normal}
       - {at_or_above: 250, severity: abnormal}
 
+  vitals.gcs_total:
+    unit: null
+    # No NEWS2 parameter (NEWS2 uses ACVPU). The standard severity classification of the Glasgow Coma Scale: 3-8
+    # severe, 9-12 moderate, 13-15 mild; a normal score is 15. So <=8 is critical and 9-14 abnormal: anything below
+    # 15 is reduced consciousness worth the medic's eye, and 15 is uncoloured.
+    source: >-
+      Teasdale G, Jennett B. Assessment of coma and impaired consciousness. Lancet 1974;2:81-84; and the conventional
+      TBI severity bands (GCS 13-15 mild, 9-12 moderate, 3-8 severe) as used in ATLS and the Brain Trauma Foundation.
+    bands:
+      - {at_or_below: 8, severity: critical}
+      - {from: 9, to: 15, severity: abnormal}
+
+  vitals.gcs_motor:
+    unit: null
+    # 2021 National Guideline for the Field Triage of Injured Patients, red criterion: "Unable to follow commands
+    # (motor GCS < 6)". A motor score of 6 (obeys commands) is normal.
+    source: >-
+      Newgard CD et al. National Guideline for the Field Triage of Injured Patients: Recommendations of the National
+      Expert Panel on Field Triage, 2021. J Trauma Acute Care Surg 2022;93(2):e49-e60. Red criterion: motor GCS < 6.
+    bands:
+      - {at_or_below: 5, severity: critical}
+
+  vitals.consciousness:
+    unit: null
+    # NEWS2 consciousness (ACVPU): Alert scores 0; new Confusion, Voice, Pain or Unresponsive each score 3 -- the
+    # parameter's maximum -- so any of them is critical, the same rule as every other vital here.
+    bands:
+      - {in: [C, V, P, U], severity: critical}
+
   vitals.dbp:
     unit: mmHg
     # No NEWS2 parameter for diastolic BP (NEWS2 uses systolic only). Diastolic is shown but not coloured, because

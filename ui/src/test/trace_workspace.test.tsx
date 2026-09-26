@@ -93,3 +93,20 @@ it("holds new captures behind an explicit jump while updating the evidence being
   act(() => useHerald.setState({ snapshot: { ...snapshot, incident: { ...snapshot.incident, id: "another-patient" }, transcripts: [] } }));
   expect(screen.queryByText("“A new observation”")).toBeNull();
 });
+
+it("shows a capture's facts with their current status, not the status they had when captured", () => {
+  // The trace records "unconfirmed" at capture time; after the medic confirms, the entry must stop asking for a tap.
+  const traced = [...entry.trace.rules.facts, ...(entry.trace.model.facts ?? [])];
+  expect(traced.length).toBeGreaterThan(1);
+  for (const f of traced) f.status = "unconfirmed";
+  const ids = new Set(traced.map((f) => f.id));
+  const stored = [...snapshot.timeline, ...Object.values(snapshot.facts), ...Object.values(snapshot.events ?? {}).flat()];
+  expect(stored.filter((f) => ids.has(f.id)).length).toBeGreaterThan(0);
+  for (const f of stored) if (ids.has(f.id)) f.status = "confirmed";
+  const missing = traced.filter((f) => !stored.some((x) => x.id === f.id));
+  snapshot.timeline.push(...missing.map((f) => ({ ...f, ts: entry.ts, status: "confirmed" })) as unknown as Snapshot["timeline"]);
+  render(<TraceEntry t={entry} wide />);
+  expect(screen.queryByText(/needs tap/)).toBeNull();
+  expect(screen.queryByText(/need(s)? your tap/)).toBeNull();
+  expect(screen.queryByRole("button", { name: /Confirm eligible/ })).toBeNull();
+});

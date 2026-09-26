@@ -62,6 +62,13 @@ class VitalRanges:
             bands = self._alt.get(key, {}).get("scale_2_bands") or bands
         if not bands:
             return None
+        # A level-valued vital (ACVPU consciousness: "A", "C", "V", "P", "U") is matched by its level, not a number.
+        text = str(value).strip().upper() if isinstance(value, str) else None
+        if text is not None:
+            for band in bands:
+                if "in" in band and text in {str(x).upper() for x in band["in"]}:
+                    sev = band.get("severity", "normal")
+                    return sev if sev in ("abnormal", "critical") else None
         try:
             v = float(value)
         except (TypeError, ValueError):
