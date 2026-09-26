@@ -55,5 +55,7 @@ class FactVerifier:
             if a is not None and a.get("keep") is False:
                 discarded.append({"key": f.key, "value": f.value, "why": str(a.get("why", ""))[:80]})
             else:
+                if a is not None and a.get("keep") is True and f.provenance is not None:
+                    f.provenance.checked = True     # an explicit keep; an unanswered fact is kept but not checked
                 kept.append(f)
         return kept, discarded

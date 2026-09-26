@@ -76,8 +76,9 @@ class CaptureService:
                 f.captured_by = CapturedBy.other
                 f.role = Role.unknown
                 f.speaker = AMBIENT_SPEAKER
-                reason = "Ambient speech: verify the words, speaker, and patient before confirming"
-                f.provenance.hold_reason = "; ".join(filter(None, [f.provenance.hold_reason, reason]))
+                if not self.inc.policy.room_mic_may_confirm(f):   # the check step kept it and it may confirm itself
+                    reason = "Ambient speech: verify the words, speaker, and patient before confirming"
+                    f.provenance.hold_reason = "; ".join(filter(None, [f.provenance.hold_reason, reason]))
             try:
                 facts.append(self.inc.ingest(f, record=False))
             except ValueError as e:

@@ -2,6 +2,13 @@
 # Regardless of confidence, these always wait for a tap: other speakers and photos, code status (require_tap),
 # contradictions, and anything said together with a command to the system (the guard).
 auto_confirm_threshold: 0.8        # team lead's decision, 2026-09-24
+# The room microphone (owner's decision, 2026-09-26): the crew works hands-free on one microphone that also hears the
+# patient and family, and Herald cannot tell voices apart. A fact heard there confirms itself when the check step read
+# the words and kept it AND the model is at least as sure as auto_confirm_threshold -- except the keys below, which
+# always wait for a tap (who the patient is, what they are allergic to or take, what was given, resuscitation wishes).
+room_mic:
+  auto_confirm: true
+  always_tap: [patient.name, allergies, meds.list, meds.given, meds.anticoagulant, code_status]
 confidence:
   measure: joint                   # joint | value | order_free (herald/extraction/confidence.py); a threshold only
                                    # means something for the measure it was calibrated with

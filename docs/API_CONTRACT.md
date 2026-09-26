@@ -405,6 +405,8 @@ Like every relayed key, a line the ED already acknowledged stays on the ED scree
 
 A held fact has `provenance.hold_reason`, e.g. *drug name matched by sound: 'zarelto' → rivaroxaban: check before confirming* (§5.9a). It stays unconfirmed whatever its confidence.
 
+**Room-mic facts** (2026-09-26): speech from the room microphone (`captured_by: other`, `role: unknown`, speaker "Speaker not identified") starts **confirmed** when the check step answered keep for it (`provenance.checked: true`) and its confidence is at or above `auto_confirm_threshold`, unless its key is in `config/confirmation.yaml` `room_mic.always_tap` (patient.name, allergies, meds.list, meds.given, meds.anticoagulant, code_status). Every other room-mic fact starts unconfirmed with the ambient hold reason, as before. `room_mic.auto_confirm: false` restores the old behaviour.
+
 **UI**
 - Fact details show, e.g., "Eliquis → apixaban · RxNorm 1364430", or "sulfa · ICD-10-CM Z88.2 (sulfonamides)".
 - A name that isn't coded shows as said, with "not found in RxNorm".

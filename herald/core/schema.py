@@ -92,6 +92,7 @@ class Provenance(BaseModel):
     frame_id: Optional[str] = None
     observed_at: Optional[datetime] = None  # server receipt time of a selected camera frame; distinct from fact ingestion
     auto: bool = False
+    checked: bool = False               # the check step read the words and answered "keep" for this fact
 
 
 class FactIn(BaseModel):
